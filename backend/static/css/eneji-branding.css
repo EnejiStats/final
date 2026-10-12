@@ -1,1 +1,173 @@
 
+/* ═══════════════════════════════════════════════════════════════════
+   EnejiStats Branding — Central logo size control
+   ─────────────────────────────────────────────────────────────────
+   THIS IS THE ONLY FILE YOU NEED TO EDIT to resize the branding
+   image across every page. Changes here apply site-wide instantly.
+   ═══════════════════════════════════════════════════════════════════
+
+   HOW TO USE:
+   ─────────────────────────────────────────────────────────────────
+   • All logo <img> tags carry the class  "eneji-logo-img"
+   • Context-aware rules target specific placements (header / footer
+     / auth pages). Adjust the values in the relevant section below.
+   • The three key levers are:
+       1.  Site header logo          → .site-header .eneji-logo-img
+       2.  Footer logo               → .site-footer .eneji-logo-img
+       3.  Auth / standalone pages   → .eneji-logo-standalone
+   ═══════════════════════════════════════════════════════════════ */
+
+
+/* ──────────────────────────────────────────────────────────────────
+   1. BASE FALLBACK
+────────────────────────────────────────────────────────────────── */
+.eneji-logo-img {
+  width: clamp(150px, 20vw, 280px);
+  height: auto;
+  max-width: 100%;
+  object-fit: contain;
+  display: block;
+  vertical-align: middle;
+  flex-shrink: 1;
+}
+
+
+/* ──────────────────────────────────────────────────────────────────
+   2. SITE HEADER
+────────────────────────────────────────────────────────────────── */
+.site-header .eneji-logo-img {
+  width: clamp(150px, 18vw, 260px);
+  height: auto;
+  max-width: 100%;
+  object-fit: contain;
+  display: block;
+  flex-shrink: 1;
+}
+
+
+/* ──────────────────────────────────────────────────────────────────
+   3. SITE FOOTER
+────────────────────────────────────────────────────────────────── */
+.site-footer .eneji-logo-img,
+.footer-col .eneji-logo-img {
+  width: clamp(170px, 22vw, 280px);
+  height: auto;
+  max-width: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+
+/* ──────────────────────────────────────────────────────────────────
+   4. AUTH & STANDALONE PAGES
+────────────────────────────────────────────────────────────────── */
+.eneji-logo-standalone {
+  height: auto;
+  width: clamp(180px, 28vw, 320px);
+  max-width: 100%;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto;
+}
+
+
+/* left-panel brand area on login / register split-screen */
+.lp-brand .eneji-logo-img,
+.mobile-logo .eneji-logo-img {
+  height: auto;
+  width: clamp(180px, 28vw, 320px);
+  max-width: 100%;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto;
+}
+
+
+/* ──────────────────────────────────────────────────────────────────
+   5. RESPONSIVE SCALING
+────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 1024px) {
+
+  .site-header .eneji-logo-img {
+    width: clamp(140px, 22vw, 240px);
+  }
+
+}
+
+
+@media (max-width: 768px) {
+
+  .eneji-logo-img {
+    width: clamp(130px, 32vw, 220px);
+  }
+
+
+  .site-header .eneji-logo-img {
+    width: clamp(130px, 32vw, 220px);
+  }
+
+
+  .site-footer .eneji-logo-img,
+  .footer-col .eneji-logo-img {
+    width: clamp(150px, 35vw, 240px);
+  }
+
+
+  .lp-brand .eneji-logo-img,
+  .mobile-logo .eneji-logo-img {
+    width: clamp(150px, 40vw, 260px);
+  }
+
+
+  .eneji-logo-standalone {
+    width: clamp(150px, 40vw, 260px);
+  }
+
+}
+
+
+@media (max-width: 480px) {
+
+  .eneji-logo-img {
+    width: clamp(120px, 42vw, 190px);
+  }
+
+
+  .site-header .eneji-logo-img {
+    width: clamp(120px, 42vw, 190px);
+  }
+
+
+  .site-footer .eneji-logo-img,
+  .footer-col .eneji-logo-img {
+    width: clamp(130px, 45vw, 210px);
+  }
+
+
+  .lp-brand .eneji-logo-img,
+  .mobile-logo .eneji-logo-img {
+    width: clamp(130px, 50vw, 220px);
+  }
+
+
+  .eneji-logo-standalone {
+    width: clamp(130px, 50vw, 220px);
+  }
+
+}
+
+
+@media (max-width: 360px) {
+
+  .site-header .eneji-logo-img {
+    width: clamp(110px, 45vw, 170px);
+  }
+
+
+  .site-footer .eneji-logo-img,
+  .footer-col .eneji-logo-img {
+    width: clamp(120px, 48vw, 180px);
+  }
+
+}
