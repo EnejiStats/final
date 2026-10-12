@@ -1073,7 +1073,7 @@ def _auth_merge_registered_venue(club, venue, secondary=False):
     }
 
 
-@router.get("/api/public/clubs")
+@router.get("/api/auth/public/clubs")
 async def public_clubs(
     search: str = "", q: str = "", level: str = "", category: str = "",
     country: str = "", country_code: str = "", state: str = "", region: str = "",

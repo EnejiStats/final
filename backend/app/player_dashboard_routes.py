@@ -22,8 +22,9 @@ Design rules
 from __future__ import annotations
 
 import re
+import secrets
 import string
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from bson import ObjectId
@@ -32,7 +33,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 # ============================================================
-# START: MODULE CONFIGURATION / DEPENDENCY CONTRACT
+# MODULE-LEVEL PLACEHOLDERS — all None until _setup_dependencies()
 # ============================================================
 
 database = None
@@ -59,19 +60,11 @@ clubs_collection              = None
 agents_collection             = None
 subscriptions_collection      = None
 
-# Canonical auth / identity / permission services
+# Auth / security helpers
 get_current_user = None
-get_player_user = None
-verify_password = None
-hash_password = None
-normalize_email = None
 normalize_role = None
-role_has_permission = None
-ROLE_COLLECTION_MAP = None
-CANONICAL_ROLES = None
-TOKEN_ELIGIBLE_ROLES = None
-SUBSCRIPTION_ELIGIBLE_ROLES = None
-build_user_access_token = None
+verify_password  = None
+hash_password    = None
 
 # Business-logic helpers
 MongoSerializer             = None
@@ -96,19 +89,13 @@ get_token_cost         = None
 _DEPS_READY = False
 
 # ============================================================
-# END: MODULE CONFIGURATION / DEPENDENCY CONTRACT
-
-# ============================================================
-# START: ROUTER
+# ROUTER
 # ============================================================
 
 router = APIRouter(prefix="/api", tags=["player-dashboard"])
 
 # ============================================================
-# END: ROUTER
-
-# ============================================================
-# START: CANONICAL DEPENDENCY INJECTION
+# DEPENDENCY INJECTION
 # ============================================================
 
 def _setup_dependencies(main_globals: dict) -> None:
@@ -128,11 +115,7 @@ def _setup_dependencies(main_globals: dict) -> None:
     global payment_intents_collection, transactions_collection, clubs_collection
     global agents_collection, subscriptions_collection
 
-    global get_current_user, get_player_user, verify_password, hash_password
-    global normalize_email, normalize_role, role_has_permission
-    global ROLE_COLLECTION_MAP, CANONICAL_ROLES
-    global TOKEN_ELIGIBLE_ROLES, SUBSCRIPTION_ELIGIBLE_ROLES
-    global build_user_access_token
+    global get_current_user, verify_password, hash_password, normalize_role
 
     global MongoSerializer, logger, upload_to_cloudinary, send_email
     global _make_tx_ref, _make_stats_request_ref, normalize_level
@@ -204,19 +187,11 @@ def _setup_dependencies(main_globals: dict) -> None:
     if transactions_collection is None:
         transactions_collection = database["transactions"]
 
-    # ── Canonical authentication / identity / permissions ────
+    # ── Authentication helpers ───────────────────────────────
     get_current_user = g.get("get_current_user")
-    get_player_user = g.get("get_player_user")
+    normalize_role = g.get("normalize_role")
     verify_password = g.get("verify_password")
     hash_password = g.get("hash_password")
-    normalize_email = g.get("normalize_email")
-    normalize_role = g.get("normalize_role")
-    role_has_permission = g.get("role_has_permission")
-    ROLE_COLLECTION_MAP = g.get("ROLE_COLLECTION_MAP")
-    CANONICAL_ROLES = g.get("CANONICAL_ROLES")
-    TOKEN_ELIGIBLE_ROLES = g.get("TOKEN_ELIGIBLE_ROLES")
-    SUBSCRIPTION_ELIGIBLE_ROLES = g.get("SUBSCRIPTION_ELIGIBLE_ROLES")
-    build_user_access_token = g.get("build_user_access_token")
 
     # ── Shared business helpers ──────────────────────────────
     MongoSerializer = g.get("MongoSerializer")
@@ -242,22 +217,6 @@ def _setup_dependencies(main_globals: dict) -> None:
     pricing_service = g.get("pricing_service")
     get_token_cost = g.get("get_token_cost")
 
-    required_canonical = {
-        "get_current_user": get_current_user,
-        "verify_password": verify_password,
-        "hash_password": hash_password,
-        "MongoSerializer": MongoSerializer,
-        "normalize_role": normalize_role,
-        "ROLE_COLLECTION_MAP": ROLE_COLLECTION_MAP,
-        "CANONICAL_ROLES": CANONICAL_ROLES,
-    }
-    missing = [name for name, value in required_canonical.items() if value is None]
-    if missing:
-        raise RuntimeError(
-            "Canonical main.py dependencies missing from player_dashboard_routes: "
-            + ", ".join(missing)
-        )
-
     _DEPS_READY = True
 
     if logger is not None:
@@ -269,10 +228,7 @@ def _setup_dependencies(main_globals: dict) -> None:
         )
 
 # ============================================================
-# END: CANONICAL DEPENDENCY INJECTION
-
-# ============================================================
-# START: PYDANTIC MODELS
+# PYDANTIC REQUEST MODELS
 # ============================================================
 
 class ChangePasswordBody(BaseModel):
@@ -382,10 +338,7 @@ class PlayerSettingsBody(BaseModel):
 
 
 # ============================================================
-# END: PYDANTIC MODELS
-
-# ============================================================
-# START: MODULE-SPECIFIC HELPERS
+# INTERNAL HELPERS (module-private)
 # ============================================================
 
 def _pf(uid: str) -> dict:
@@ -488,50 +441,57 @@ def _normalize_achievement_list(raw: Any) -> list:
 
 async def _require_player_auth(request: Request, uid: str) -> dict:
     """
-    Resolve the authenticated identity through main.py and enforce ownership.
-
-    Player-dashboard resources are player-scoped. Canonical Admin and
-    Supervisor identities retain the module's established privileged read/write
-    access; all other identities must match the player's canonical public ID.
+    Authenticate request and enforce player-owns-resource rule.
+    Admins and supervisors bypass the ownership check.
     """
     user = await get_current_user(request)
-    role = normalize_role(user.get("role", ""))
-
+    try:
+        role = normalize_role(user.get("role") or user.get("user_type") or "")
+    except (ValueError, TypeError):
+        role = ""
     if role in {"admin", "supervisor"}:
         return user
-
-    canonical_player_id = str(user.get("player_id") or "")
-    canonical_user_id = str(user.get("user_id") or user.get("unique_id") or "")
-    requested_id = str(uid or "")
-
-    if requested_id not in {canonical_player_id, canonical_user_id}:
+    if role != "player":
+        raise HTTPException(status_code=403, detail="Player access required")
+    u_ids: set = {
+        user.get("player_id"),
+        user.get("user_id"),
+        user.get("id"),
+        str(user.get("_id", "")),
+    }
+    if uid not in u_ids:
         raise HTTPException(status_code=403, detail="Access denied")
-
     return user
 
 
 def _make_ref(prefix: str) -> str:
-    """Generate domain references through main.py's canonical helpers."""
-    if prefix.startswith("SR"):
-        return _make_stats_request_ref()
-    if prefix.startswith("TX"):
-        return _make_tx_ref()
-    raise ValueError(f"Unsupported canonical reference prefix: {prefix}")
+    """Generate a unique reference code, delegating to main helpers when available."""
+    if prefix.startswith("SR") and _make_stats_request_ref:
+        try:
+            return _make_stats_request_ref()
+        except Exception:
+            pass
+    if prefix.startswith("TX") and _make_tx_ref:
+        try:
+            return _make_tx_ref()
+        except Exception:
+            pass
+    now = MongoSerializer.now_utc()
+    suffix = secrets.token_hex(4).upper()
+    return f"{prefix}-{now.strftime('%Y%m%d')}-{suffix}"
 
 
 def _ser(doc: Optional[dict]) -> Optional[dict]:
-    """Serialize through main.py's canonical MongoSerializer."""
-    if not doc:
-        return None
-    return MongoSerializer.serialize_document(doc)
-
+    """Serialize through the canonical platform Mongo serializer."""
+    return MongoSerializer.serialize_document(doc) if doc else None
 
 def _ser_list(docs: list) -> list:
     return [_ser(d) for d in docs if d]
 
 
 def _now() -> datetime:
-    """Return main.py's canonical UTC-aware timestamp."""
+    if MongoSerializer:
+        return MongoSerializer.now_utc()
     return MongoSerializer.now_utc()
 
 
@@ -2132,7 +2092,7 @@ async def _ensure_player_stats_status_notifications(player: dict) -> None:
         }
         title, message = labels.get(status, ("Stats Request Updated", f"Your stats request {ref} was updated to {req.get('status')}."))
         await _insert_notification(
-            {"player_id": pid, "unique_id": pid, "user_id": pid_val, "user_type": "player"},
+            {"player_id": pid, "unique_id": pid, "user_id": uid, "user_type": "player"},
             notif_type="stats_request_status", title=title, message=message,
             reference_id=ref, extra={"event_key": marker, "request_status": req.get("status")},
         )
@@ -2142,29 +2102,25 @@ async def _ensure_player_stats_status_notifications(player: dict) -> None:
 # ENDPOINT: GET /player/{uid}/profile
 # ============================================================
 
-# ============================================================
-# END: MODULE-SPECIFIC HELPERS
-
-# ============================================================
-# START: API ROUTES
-# ============================================================
-
 @router.get("/player/{uid}/profile")
 async def get_player_profile(uid: str, request: Request):
     """Return the player's full profile document."""
     try:
-        await _require_player_auth(request, uid)
+        user = await get_current_user(request)
+        role = user.get("role", "")
+        if role == "player":
+            u_ids = {user.get("player_id"), user.get("user_id"), str(user.get("_id", ""))}
+            if uid not in u_ids:
+                raise HTTPException(status_code=403, detail="Access denied")
+
         doc = await _resolve_player(uid)
         if not doc:
             raise HTTPException(status_code=404, detail="Player not found")
 
-        serialized = _ser(doc) or {}
-        serialized.pop("password", None)
-        serialized.pop("hashed_password", None)
+        serialized = _ser(doc)
         serialized["achievements"] = _normalize_achievement_list(serialized.get("achievements"))
-        serialized.setdefault("player_id", _pid(doc))
-        serialized.setdefault("user_id", _pid(doc))
-        serialized.setdefault("unique_id", _pid(doc))
+        serialized.setdefault("player_id", uid)
+        serialized.setdefault("user_id", uid)
 
         # Flatten settings.* subdocument so the frontend can read fields
         # (e.g. dob_visible, notif_email_contract) at the document root level
@@ -2199,7 +2155,7 @@ async def get_player_profile(uid: str, request: Request):
 async def get_player_stats_summary(uid: str, request: Request):
     """Aggregate season stats and return match-by-match data."""
     try:
-        await _require_player_auth(request, uid)
+        await get_current_user(request)
         doc = await _resolve_player(uid)
         if not doc:
             raise HTTPException(status_code=404, detail="Player not found")
@@ -2379,7 +2335,7 @@ async def get_player_stats_summary(uid: str, request: Request):
 async def get_player_matches(uid: str, request: Request, limit: int = 50):
     """Return completed match history for this player."""
     try:
-        await _require_player_auth(request, uid)
+        await get_current_user(request)
         doc = await _resolve_player(uid)
         if not doc:
             raise HTTPException(status_code=404, detail="Player not found")
@@ -2412,7 +2368,7 @@ async def get_player_matches(uid: str, request: Request, limit: int = 50):
 async def get_upcoming_fixtures(uid: str, request: Request):
     """Return future player fixtures from pending tracking requests and scheduled fixtures."""
     try:
-        await _require_player_auth(request, uid)
+        await get_current_user(request)
         doc = await _resolve_player(uid)
         if not doc:
             raise HTTPException(status_code=404, detail="Player not found")
@@ -2498,7 +2454,7 @@ async def get_upcoming_fixtures(uid: str, request: Request):
 async def get_player_tokens(uid: str, request: Request):
     """Return token balance, locked amount, and available amount."""
     try:
-        await _require_player_auth(request, uid)
+        await get_current_user(request)
         doc = await _resolve_player(uid)
         if not doc:
             raise HTTPException(status_code=404, detail="Player not found")
@@ -2560,7 +2516,7 @@ async def get_player_tokens(uid: str, request: Request):
 async def get_player_notifications(uid: str, request: Request, limit: int = 100):
     """Return notifications for this player, newest first."""
     try:
-        await _require_player_auth(request, uid)
+        await get_current_user(request)
         doc = await _resolve_player(uid)
         if not doc:
             raise HTTPException(status_code=404, detail="Player not found")
@@ -2783,7 +2739,7 @@ async def terminate_content_manager_contract_by_player(uid: str, contract_id: st
 async def get_player_contracts(uid: str, request: Request):
     """Return active contract, pending requests, and contract history."""
     try:
-        await _require_player_auth(request, uid)
+        await get_current_user(request)
         doc = await _resolve_player(uid)
         if not doc:
             raise HTTPException(status_code=404, detail="Player not found")
@@ -2937,7 +2893,7 @@ async def respond_to_contract(uid: str, body: ContractRespondBody, request: Requ
                             "request_id":  signed_request_id,
                         },
                         "isRead":    False,
-                        "created_at": now,
+                        "createdAt": now,
                         "created_at": now,
                     })
                 except Exception as n6_exc:
@@ -2985,7 +2941,7 @@ async def respond_to_contract(uid: str, body: ContractRespondBody, request: Requ
                                         "declined_reason": "player_signed_elsewhere",
                                     },
                                     "isRead":    False,
-                                    "created_at": now,
+                                    "createdAt": now,
                                     "created_at": now,
                                 })
                             except Exception as n8_exc:
@@ -3037,7 +2993,7 @@ async def respond_to_contract(uid: str, body: ContractRespondBody, request: Requ
                         "declined_at": now.isoformat() if hasattr(now, "isoformat") else str(now),
                     },
                     "isRead":    False,
-                    "created_at": now,
+                    "createdAt": now,
                     "created_at": now,
                 })
             except Exception as n9_exc:
@@ -3062,7 +3018,7 @@ async def respond_to_contract(uid: str, body: ContractRespondBody, request: Requ
 async def get_player_achievements(uid: str, request: Request):
     """Return achievements/awards for this player."""
     try:
-        await _require_player_auth(request, uid)
+        await get_current_user(request)
         doc = await _resolve_player(uid)
         if not doc:
             raise HTTPException(status_code=404, detail="Player not found")
@@ -3100,7 +3056,7 @@ async def get_player_contact_card(uid: str, request: Request):
     Type is 'agent' when an active contract exists; otherwise 'direct'.
     """
     try:
-        await _require_player_auth(request, uid)
+        await get_current_user(request)
         doc = await _resolve_player(uid)
         if not doc:
             raise HTTPException(status_code=404, detail="Player not found")
@@ -3160,7 +3116,7 @@ async def get_player_contact_card(uid: str, request: Request):
 async def get_player_club_history(uid: str, request: Request):
     """Return the player's club history."""
     try:
-        await _require_player_auth(request, uid)
+        await get_current_user(request)
         doc = await _resolve_player(uid)
         if not doc:
             raise HTTPException(status_code=404, detail="Player not found")
@@ -3195,7 +3151,7 @@ async def get_player_club_history(uid: str, request: Request):
 async def get_player_stats_requests(uid: str, request: Request, limit: int = 50):
     """Return stats tracking requests submitted by this player."""
     try:
-        await _require_player_auth(request, uid)
+        await get_current_user(request)
         doc = await _resolve_player(uid)
         if not doc:
             raise HTTPException(status_code=404, detail="Player not found")
@@ -3312,7 +3268,7 @@ async def submit_stats_request(uid: str, body: StatsRequestBody, request: Reques
                     "status": "completed", "reference_id": ref_id, "created_at": _now(),
                 })
             await _insert_notification(
-                {"player_id": pid_val, "unique_id": pid_val, "user_id": pid_val, "user_type": "player"},
+                {"player_id": pid_val, "unique_id": pid_val, "user_id": uid, "user_type": "player"},
                 notif_type="stats_request", title="Stats Request Submitted",
                 message=f"Your {body.match_type or 'match'} stats request {ref_id} was submitted. {token_cost} token(s) were deducted from your wallet.",
                 reference_id=ref_id, extra={"request_status": "Pending", "token_cost": token_cost},
@@ -3416,7 +3372,7 @@ async def cancel_stats_request(uid: str, ref_id: str, request: Request):
                     "status": "completed", "reference_id": ref_id, "created_at": _now(),
                 })
         await _insert_notification(
-            {"player_id": pid_val, "unique_id": pid_val, "user_id": pid_val, "user_type": "player"},
+            {"player_id": pid_val, "unique_id": pid_val, "user_id": uid, "user_type": "player"},
             notif_type="stats_request_status", title="Stats Request Cancelled",
             message=f"Stats request {ref_id} was cancelled. {refunded} token(s) were refunded to your wallet." if refunded else f"Stats request {ref_id} was cancelled.",
             reference_id=ref_id, extra={"request_status": "Cancelled", "token_refunded": refunded, "event_key": f"stats_request_status:{ref_id}:cancelled"},
@@ -3447,7 +3403,7 @@ async def cancel_stats_request(uid: str, ref_id: str, request: Request):
 async def get_player_transactions(uid: str, request: Request, limit: int = 100):
     """Return token transaction history for this player."""
     try:
-        await _require_player_auth(request, uid)
+        await get_current_user(request)
         doc = await _resolve_player(uid)
         if not doc:
             raise HTTPException(status_code=404, detail="Player not found")
@@ -3519,8 +3475,11 @@ async def edit_player_profile(
 
         str_fields = {
             "first_name": first_name,
+            "firstName": first_name,
             "last_name": last_name,
+            "lastName": last_name,
             "middle_name": middle_name,
+            "middleName": middle_name,
             "phone": phone,
             "whatsapp": whatsapp,
             "nationality": nationality,
@@ -3554,12 +3513,15 @@ async def edit_player_profile(
 
         if preferred_foot is not None:
             update_fields["preferred_foot"] = preferred_foot
+            update_fields["preferredFoot"] = preferred_foot
 
         if position is not None:
             update_fields["position"] = position
+            update_fields["preferredPosition"] = position
 
         if preferred_position is not None:
-            update_fields["preferred_position"] = preferred_position
+            update_fields["position"] = preferred_position
+            update_fields["preferredPosition"] = preferred_position
 
         if dob_visible is not None:
             update_fields["dob_visible"] = (
@@ -3575,12 +3537,10 @@ async def edit_player_profile(
                         contents,
                         folder="player_photos",
                         filename=photo.filename,
-                        public_id=_pid(doc),
-                        user_type="player",
-                        file_category="profile",
                     )
 
                     update_fields["photo_url"] = photo_url
+                    update_fields["photoUrl"] = photo_url
 
             except Exception as ue:
                 if logger is not None:
@@ -3911,13 +3871,7 @@ async def verify_token_payment(uid: str, body: TokenVerifyBody, request: Request
         intent = None
         if payment_intents_collection is not None and body.tx_ref:
             intent = await payment_intents_collection.find_one(
-                {
-                    "tx_ref": body.tx_ref,
-                    "$or": [
-                        {"player_id": pid_val},
-                        {"player_id": uid},
-                    ],
-                }
+                {"tx_ref": body.tx_ref}
             )
 
         if not intent:
@@ -4132,7 +4086,3 @@ async def delete_youtube_video(uid: str, yt_id: str, request: Request):
         if logger:
             logger.exception("delete_youtube_video error")
         raise HTTPException(status_code=500, detail=str(e))
-
-# ============================================================
-# END: API ROUTES
-# ============================================================
