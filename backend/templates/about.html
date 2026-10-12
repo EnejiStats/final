@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>About EnejiStats — Nigeria's Trusted Football Data Platform</title>
+  <meta name="description" content="Learn about EnejiStats, our mission to empower African football through verified data, and the team behind the platform."/>
+  <script src="https://unpkg.com/preact@10.19.3/dist/preact.umd.js"></script>
+  <script src="https://unpkg.com/preact@10.19.3/hooks/dist/hooks.umd.js"></script>
+  <script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --primary:#004aad;--primary-light:#0066cc;--gold:#f5b800;--header-bg:#162060;--dark-bg:#1e1e2f;--page-bg:#0f172a;
+      --success:#22c55e;--muted:#94a3b8;--line:rgba(255,255,255,0.08);--radius:12px;
+      --shadow:0 4px 24px rgba(0,0,0,0.4);--font:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
+    }
+    html{scroll-behavior:smooth}
+    body{font-family:var(--font);background:var(--page-bg);color:#e2e8f0;line-height:1.6;overflow-x:hidden}
+    a{text-decoration:none;color:inherit}
+    ul{list-style:none}
+    .container{max-width:1200px;margin:0 auto;padding:0 1rem}
+
+    /* HEADER */
+    .site-header{position:sticky;top:0;z-index:1000;background:var(--header-bg)}
+    .header-stripe{height:4px;background:var(--gold)}
+    .header-inner{display:flex;align-items:center;justify-content:space-between;height:82px;padding:0 1rem;max-width:1200px;margin:0 auto;overflow:visible}
+    .nav-desktop{display:none;gap:0.25rem;align-items:center}
+    @media(min-width:769px){.nav-desktop{display:flex}}
+    .nav-desktop a{color:rgba(255,255,255,0.8);font-size:0.88rem;font-weight:500;padding:0.4rem 0.6rem;border-radius:6px;transition:color 0.2s,background 0.2s}
+    .nav-desktop a:hover,.nav-desktop a.active{color:#fff;background:rgba(255,255,255,0.1)}
+    .btn-nav{background:var(--gold);color:#0f172a!important;padding:0.45rem 1rem!important;border-radius:8px;font-weight:700!important}
+    .hamburger{display:flex;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:4px}
+    @media(min-width:769px){.hamburger{display:none}}
+    .hamburger span{display:block;width:22px;height:2px;background:#fff;border-radius:2px}
+    .mobile-nav{display:none;position:fixed;inset:0;background:var(--header-bg);z-index:2000;flex-direction:column;padding:1.5rem;overflow-y:auto;gap:0.25rem}
+    .mobile-nav.open{display:flex}
+    .mobile-nav-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem}
+    .mobile-nav a{color:rgba(255,255,255,0.85);font-size:1.05rem;font-weight:500;padding:0.8rem;border-radius:8px;display:block}
+    .mobile-nav a:hover{background:rgba(255,255,255,0.1);color:#fff}
+    .close-btn{background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer}
+    .dropdown{position:relative}
+    .dropdown-menu{display:none;position:absolute;top:calc(100%+6px);left:0;background:#1e1e2f;border:1px solid var(--line);border-radius:10px;min-width:160px;overflow:hidden;z-index:200}
+    .dropdown:hover .dropdown-menu{display:block}
+    .dropdown-menu a{display:block;padding:0.65rem 1rem;color:rgba(255,255,255,0.8);font-size:0.88rem}
+    .dropdown-menu a:hover{background:rgba(255,255,255,0.08);color:#fff}
+
+    /* HERO */
+    .hero{background:linear-gradient(135deg,#0a0a1a 0%,#0d1b3e 60%,#162060 100%);color:#fff;padding:5rem 1rem;text-align:center;position:relative;overflow:hidden}
+    .hero::before{content:'';position:absolute;inset:0;background-image:radial-gradient(var(--gold) 1px,transparent 1px);background-size:40px 40px;opacity:0.07;animation:moveDots 60s linear infinite}
+    @keyframes moveDots{from{background-position:0 0}to{background-position:1000px 1000px}}
+    .hero h1{font-size:clamp(1.8rem,5vw,3rem);font-weight:800;margin-bottom:1rem;position:relative}
+    .hero p{font-size:1.05rem;opacity:0.8;max-width:560px;margin:0 auto;position:relative}
+
+    /* SECTIONS */
+    .section{padding:4.5rem 0}
+    .section-alt{background:rgba(255,255,255,0.02)}
+    .section-title{font-size:clamp(1.4rem,3vw,2rem);font-weight:800;text-align:center;margin-bottom:0.75rem}
+    .section-sub{color:var(--muted);text-align:center;margin-bottom:3rem;max-width:600px;margin-left:auto;margin-right:auto}
+
+    /* MISSION CARDS */
+    .grid-3{display:grid;grid-template-columns:1fr;gap:1.5rem}
+    @media(min-width:600px){.grid-3{grid-template-columns:1fr 1fr}}
+    @media(min-width:992px){.grid-3{grid-template-columns:repeat(3,1fr)}}
+    .mission-card{background:var(--dark-bg);border:1px solid var(--line);border-radius:var(--radius);padding:2rem;text-align:center;transition:transform 0.2s,border-color 0.2s}
+    .mission-card:hover{transform:translateY(-6px);border-color:var(--gold)}
+    .mission-card i{font-size:2.5rem;color:var(--gold);margin-bottom:1rem;display:block}
+    .mission-card h3{font-size:1.1rem;font-weight:700;margin-bottom:0.75rem}
+    .mission-card p{color:var(--muted);font-size:0.9rem}
+
+    /* STORY */
+    .story-content{max-width:800px;margin:0 auto;font-size:1rem;color:rgba(255,255,255,0.8);line-height:1.8}
+    .story-content p{margin-bottom:1.25rem}
+
+    /* TABS */
+    .tabs-list{display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:center;margin-bottom:2rem}
+    .tab-btn{padding:0.5rem 1.2rem;border:2px solid var(--line);background:transparent;color:var(--muted);border-radius:30px;cursor:pointer;font-weight:600;font-size:0.88rem;transition:all 0.2s}
+    .tab-btn.active{background:var(--gold);color:#0f172a;border-color:var(--gold)}
+    .tab-panel{background:var(--dark-bg);border:1px solid var(--line);border-radius:var(--radius);padding:2rem}
+    .tab-panel h3{font-size:1.1rem;font-weight:700;margin-bottom:0.75rem;color:var(--gold)}
+    .tab-panel ul{margin:1rem 0}
+    .tab-panel ul li{margin-bottom:0.75rem;display:flex;align-items:flex-start;gap:0.6rem;font-size:0.9rem;color:rgba(255,255,255,0.8)}
+    .tab-panel ul li::before{content:'\f00c';font-family:'Font Awesome 6 Free';font-weight:900;color:var(--success);flex-shrink:0;margin-top:0.15rem}
+    .btn-cta{display:inline-block;background:var(--gold);color:#0f172a;padding:0.7rem 1.5rem;border-radius:8px;font-weight:700;margin-top:1rem}
+
+    /* VALUES */
+    .grid-4{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+    @media(min-width:992px){.grid-4{grid-template-columns:repeat(4,1fr)}}
+    .value-card{background:var(--dark-bg);border:1px solid var(--line);border-radius:var(--radius);padding:1.5rem;text-align:center}
+    .value-card i{font-size:2rem;color:var(--gold);margin-bottom:0.75rem;display:block}
+    .value-card h3{font-size:1rem;font-weight:700;color:#fff;margin-bottom:0.5rem}
+    .value-card p{font-size:0.85rem;color:var(--muted)}
+
+    /* STATS BAND */
+    .stats-band{background:linear-gradient(135deg,var(--header-bg),#0d1b3e);border-top:4px solid var(--gold);padding:3.5rem 0;text-align:center}
+    .stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:2rem}
+    @media(min-width:600px){.stats-grid{grid-template-columns:repeat(4,1fr)}}
+    .stat-item h2{font-size:clamp(1.8rem,4vw,2.5rem);font-weight:900;color:var(--gold)}
+    .stat-item p{font-size:0.8rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-top:0.3rem}
+
+    /* TEAM — each member is a two-part card: 40% photo / 60% text */
+    .team-grid{display:grid;grid-template-columns:1fr;gap:1.5rem;align-items:stretch}
+    @media(min-width:600px){.team-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(min-width:992px){.team-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+    .team-card{background:var(--dark-bg);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;display:grid;grid-template-rows:40% 60%;min-width:0;min-height:420px;box-shadow:var(--shadow);transition:transform .2s,border-color .2s}
+    .team-card:hover{transform:translateY(-4px);border-color:var(--gold)}
+    .team-photo{min-height:0;background:linear-gradient(135deg,var(--header-bg),#0d1b3e);border-bottom:1px solid var(--line);overflow:hidden;display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:2.5rem;font-weight:800}
+    .team-photo img{width:100%;height:100%;object-fit:cover;display:block}
+    .team-text{min-height:0;padding:1.25rem 1.35rem;display:flex;flex-direction:column;justify-content:flex-start;text-align:justify;overflow:hidden}
+    .team-text h3{font-size:1.05rem;font-weight:800;color:#fff;margin:0 0 .25rem;text-align:left}
+    .team-text .role{color:var(--gold);font-size:.85rem;font-weight:700;display:block;margin:0 0 .7rem;text-align:left}
+    .team-bio{font-size:.86rem;color:var(--muted);line-height:1.65;text-align:justify;overflow:auto;overflow-wrap:anywhere;padding-right:.25rem;flex:1;min-height:0}
+    .team-bio::-webkit-scrollbar{width:5px}
+    .team-bio::-webkit-scrollbar-thumb{background:rgba(255,255,255,.16);border-radius:8px}
+    @media(max-width:480px){.team-card{min-height:380px}.team-text{padding:1rem}.team-bio{font-size:.82rem}}
+
+    /* CTA */
+    .contact-cta{background:linear-gradient(135deg,var(--header-bg),#0d1b3e);border-top:4px solid var(--gold);padding:4rem 1rem;text-align:center}
+    .contact-cta h2{font-size:clamp(1.4rem,3vw,2rem);margin-bottom:1rem}
+    .contact-cta p{color:var(--muted);margin-bottom:1.5rem}
+    .btn-gold{display:inline-flex;align-items:center;gap:0.5rem;background:var(--gold);color:#0f172a;padding:0.8rem 1.8rem;border-radius:8px;font-weight:700;font-size:1rem;transition:opacity 0.2s,transform 0.1s}
+    .btn-gold:hover{opacity:0.9;transform:translateY(-2px)}
+
+    /* SKELETON */
+    .skeleton{background:linear-gradient(90deg,#1e1e2f 25%,#2a2a40 50%,#1e1e2f 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:6px}
+    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+    /* FOOTER */
+    .site-footer{background:#0a0a14;border-top:1px solid var(--line);padding:3.5rem 1rem 1.5rem}
+    .footer-grid{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr;gap:2.5rem}
+    @media(min-width:600px){.footer-grid{grid-template-columns:1fr 1fr}}
+    @media(min-width:992px){.footer-grid{grid-template-columns:1.6fr 1fr 1fr 1fr}}
+    .footer-col h4{color:#fff;font-size:0.85rem;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:1rem}
+    .footer-col p,.footer-col ul a{font-size:0.85rem;color:var(--muted)}
+    .footer-col ul li{margin-bottom:0.6rem}
+    .footer-col ul a:hover{color:var(--gold)}
+    .social-row{display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:1rem}
+    .social-row a{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;color:var(--muted);transition:all 0.2s}
+    .social-row a:hover{background:var(--gold);color:#0f172a}
+    .footer-bottom{max-width:1200px;margin:2rem auto 0;padding-top:1.25rem;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:space-between;font-size:0.78rem;color:var(--muted)}
+    .footer-bottom a{color:var(--muted)}.footer-bottom a:hover{color:var(--gold)}
+  
+    @media(max-width:480px){
+      .container{padding:0 0.75rem}
+      .header-inner{height:66px;padding:0 0.75rem}
+      .hero h1{font-size:clamp(1.4rem,7vw,2.2rem)}
+      .section,.section-alt{padding:2.5rem 0}
+      .btn,.btn-nav,.btn-gold{min-height:44px}
+      .mobile-nav a{min-height:44px;display:flex;align-items:center}
+      .footer-grid{gap:1.5rem}
+      .footer-bottom{flex-direction:column;gap:0.4rem}
+    }
+    @media(max-width:360px){
+      .container{padding:0 0.5rem}
+      .header-inner{padding:0 0.5rem}
+    }
+  </style>
+  <link rel="stylesheet" href="/static/css/eneji-branding.css"/>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(function(){
+  'use strict';
+  const {h,render}=preact;
+  const {useState,useEffect,useRef}=preactHooks;
+  const html=htm.bind(h);
+  const year=new Date().getFullYear();
+
+  function Logo(){
+    return html`<a href="/" style=${{textDecoration:'none',display:'inline-block',verticalAlign:'middle'}}>
+      <img src="/static/images/eneji-stats-branding.png" alt="EnejiStats" class="eneji-logo-img"/>
+    </a>`;
+  }
+
+  function Header(){
+    const [open,setOpen]=useState(false);
+    return html`
+      <header class="site-header">
+        <div class="header-stripe"/>
+        <div class="header-inner">
+          <${Logo}/>
+          <nav class="nav-desktop">
+            <a href="/">Home</a>
+            <a href="/about.html" class="active">About</a>
+            <div class="dropdown">
+              <a href="#">Stats Area <i class="fas fa-chevron-down" style="font-size:0.65rem"/></a>
+              <div class="dropdown-menu">
+                <a href="/browse.html">Browse</a>
+              </div>
+            </div>
+            <a href="/leaderboard.html">Leaderboard</a>
+             <a href="/competitions.html">Competitions & Trials</a>
+            <a href="/pricing.html">Pricing</a>
+            <a href="/contact.html">Contact</a>
+            <a href="/register.html" class="btn-nav">Register / Sign In</a>
+          </nav>
+          <button class="hamburger" onClick=${()=>setOpen(true)}>
+            <span/><span/><span/>
+          </button>
+        </div>
+        <div class=${'mobile-nav'+(open?' open':'')}>
+          <div class="mobile-nav-top">
+            <${Logo}/><button class="close-btn" onClick=${()=>setOpen(false)}><i class="fas fa-times"/></button>
+          </div>
+          ${['/','/about.html','/browse.html','/leaderboard.html','/competitions.html','/pricing.html','/contact.html','/register.html'].map((href,i)=>{
+            const labels=['Home','About','Browse','Leaderboard','Competitions & Trials','Pricing','Contact','Register / Sign In'];
+            return html`<a key=${i} href=${href} onClick=${()=>setOpen(false)} style=${i===7?'color:var(--gold);font-weight:700':''}>${labels[i]}</a>`;
+          })}
+        </div>
+      </header>`;
+  }
+
+  function Footer(){
+    return html`<footer class="site-footer">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <${Logo}/>
+          <p style="margin-top:0.75rem">Nigeria's trusted football data platform. Built in Nigeria. Designed for African football.</p>
+          <div class="social-row">
+            <a href="#"><i class="fab fa-x-twitter"/></a>
+            <a href="#"><i class="fab fa-facebook-f"/></a>
+            <a href="#"><i class="fab fa-instagram"/></a>
+            <a href="#"><i class="fab fa-linkedin-in"/></a>
+            <a href="#"><i class="fab fa-youtube"/></a>
+          </div>
+        </div>
+        <div class="footer-col">
+          <h4>Quick Links</h4>
+          <ul>
+            <li><a href="/">Home</a></li><li><a href="/about.html">About</a></li>
+            <li><a href="/pricing.html">Pricing</a></li><li><a href="/leaderboard.html">Leaderboard</a></li>
+            <li><a href="/contact.html">Contact</a></li><li><a href="/register.html">Register</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>For Users</h4>
+          <ul>
+            <li><a href="/browse.html">Player Stats</a></li><li><a href="/browse.html?type=clubs">Club Stats</a></li>
+            <li><a href="/register.html?role=dco">Become a Data Scout</a></li>
+            <li><a href="/register.html?role=scout">Become a Scout</a></li>
+            <li><a href="/register.html?role=agent">Agent Programme</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Connect</h4>
+          <ul>
+            <li><a href="mailto:enejistats@gmail.com"><i class="fas fa-envelope" style="width:16px"/> enejistats@gmail.com</a></li>
+            <li><span style="color:var(--muted)"><i class="fas fa-location-dot" style="width:16px"/> Lagos, Nigeria</span></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© ${year} EnejiStats. All rights reserved.</span>
+        <span><a href="/terms.html">Terms</a> · <a href="/privacy.html">Privacy</a> · <a href="/cookies.html">Cookies</a></span>
+      </div>
+    </footer>`;
+  }
+
+  /* ANIMATED COUNTER */
+  function AnimatedCounter({target,label}){
+    const [count,setCount]=useState(0);
+    const ref=useRef();
+    useEffect(()=>{
+      const obs=new IntersectionObserver(([e])=>{
+        if(e.isIntersecting){
+          let start=null;
+          const animate=ts=>{
+            if(!start)start=ts;
+            const p=Math.min((ts-start)/1500,1);
+            setCount(Math.floor(p*target));
+            if(p<1)requestAnimationFrame(animate);
+          };
+          requestAnimationFrame(animate);
+          obs.unobserve(e.target);
+        }
+      },{threshold:0.4});
+      if(ref.current)obs.observe(ref.current);
+      return()=>obs.disconnect();
+    },[target]);
+    return html`<div class="stat-item" ref=${ref}>
+      <h2>${count.toLocaleString()}+</h2>
+      <p>${label}</p>
+    </div>`;
+  }
+
+   function TeamMember({member}){
+     const [imageFailed,setImageFailed]=useState(false);
+     const name=String(member?.name||'Team member').trim();
+     const bio=String(member?.bio||member?.desc||member?.description||'').trim();
+     const role=String(member?.role||member?.position||'Team member').trim();
+     const photo=member?.photo_url||member?.photo||member?.picture||member?.avatar||member?.profile_photo||'';
+     const initials=name.split(/\s+/).filter(Boolean).slice(0,2).map(word=>word[0]).join('').toUpperCase()||'TM';
+     return html`<article class="team-card">
+       <div class="team-photo" aria-label=${name+' photo'}>
+         ${photo&&!imageFailed
+           ? html`<img src=${photo} alt=${name} loading="lazy" onError=${()=>setImageFailed(true)}/>`
+           : html`<span>${initials}</span>`}
+       </div>
+       <div class="team-text">
+         <h3>${name}</h3>
+         <span class="role">${role}</span>
+         <div class="team-bio">${bio||'Biography not available.'}</div>
+       </div>
+     </article>`;
+   }
+
+   const parseJsonValue=(value,fallback=[])=>{
+     try{
+       const parsed=typeof value==='string'?JSON.parse(value):value;
+       return Array.isArray(parsed)?parsed:fallback;
+     }catch(e){return fallback;}
+   };
+
+   const statNumber=value=>{
+     const n=Number(String(value??0).replace(/,/g,''));
+     return Number.isFinite(n)?Math.max(0,n):0;
+   };
+
+  const TABS=[
+    {id:'players',label:'Players',icon:'fa-futbol',heading:'For Players',points:['Create a verified public profile with live match statistics','Get discovered by scouts and clubs across Africa','Track your performance history across all competitions','Earn a Data Scout rating based on verified match data'],cta:'/register.html?role=player'},
+    {id:'clubs',label:'Clubs',icon:'fa-shield-halved',heading:'For Clubs',points:['Monitor your full squad performance in real-time','Request verified match data for any fixture','Compare your squad against other clubs in your league','Find new talent through our scouting network'],cta:'/register.html?role=club'},
+    {id:'scouts',label:'Scouts',icon:'fa-binoculars',heading:'For Scouts',points:['Access verified stats for players across Nigeria and Africa','Filter players by position, age, height, and performance score','Generate professional scouting reports','Connect directly with clubs and agents'],cta:'/register.html?role=scout'},
+    {id:'agents',label:'Agents',icon:'fa-handshake',heading:'For Agents',points:['Manage up to 10 player profiles from your dashboard','Track each client\'s verified performance data','Showcase your players with professional PDF reports','Commission tracking and payment management'],cta:'/register.html?role=agent'},
+  ];
+
+  const ABOUT_DEFAULTS={
+    hero_title:'About EnejiStats',
+    hero_subtitle:"Nigeria's trusted football data platform. Tracking talent with precision, integrity and reliability.",
+     mission_heading:'Our Mission',
+    mission_intro:'Three pillars drive everything we build at EnejiStats.',
+    mission_cards:[
+      {icon:'fa-crosshairs',title:'Precision',desc:'Every stat is verified by trained Data Collection Officers and reviewed by supervisors before publication.'},
+      {icon:'fa-shield-halved',title:'Integrity',desc:'We do not manipulate data. Verified badges only appear when data has passed our multi-stage review process.'},
+      {icon:'fa-rotate',title:'Reliability',desc:'Live leaderboards, real-time updates, and 99%+ platform uptime so you can trust the data when it matters most.'},
+    ],
+     story_heading:'Our Story',
+     story_paragraphs:[
+      'EnejiStats was born out of a simple but powerful frustration: African football is full of exceptional talent that the world never gets to see — not because the players are not good enough, but because there is no reliable, verified data to prove it.',
+      'Founded in Lagos, Nigeria, we set out to build Nigeria\'s trusted football data platform. Our proprietary Data Collection Officer (DCO) network now spans multiple Nigerian states, with trained officers attending matches, collecting granular performance data, and submitting it for supervisor review.',
+      'The result is a growing database of verified match statistics — goals, assists, tackles, passes, saves, and more — for players across the grassroots and professional levels. This data powers our live leaderboards, public player profiles, and scouting tools.',
+      'We believe African talent deserves the same quality of data infrastructure that exists in European football. EnejiStats is how we build that future — one verified match report at a time.',
+    ],
+     what_we_do_heading:'What We Do',
+     what_we_do_tabs:TABS,
+     values_heading:'Our Values',
+    values:[
+      {icon:'fa-star',title:'Excellence',desc:'We hold every data point to the highest standard of accuracy and professionalism.'},
+      {icon:'fa-users',title:'Community',desc:'We exist to serve the African football community — players, clubs, scouts, and fans.'},
+      {icon:'fa-lightbulb',title:'Innovation',desc:'We continuously improve our platform to stay ahead of the needs of modern football.'},
+      {icon:'fa-handshake',title:'Trust',desc:'Every verified badge represents a promise we have kept to players and clubs.'},
+    ],
+     team_heading:'The Team',
+     team_intro:'Passionate about football, data, and African talent.',
+     team:[
+       {name:'Chukwuemeka Eneji',role:'Founder & CEO',bio:'Former football analyst with 10+ years in African football scouting and data management.',photo_url:''},
+       {name:'Adaeze Okonkwo',role:'Head of Data Operations',bio:'Oversees the DCO network and ensures data integrity across all match reports.',photo_url:''},
+       {name:'Biodun Adeyemi',role:'CTO',bio:'Full-stack engineer with expertise in real-time sports data systems and analytics platforms.',photo_url:''},
+     ],
+     stats_players_label:'Players Registered',
+     stats_clubs_label:'Clubs Onboarded',
+     stats_matches_label:'Matches Tracked',
+     stats_data_scouts_label:'Active Data Scouts',
+    cta_title:"Ready to Join Nigeria's Football Data Revolution?",
+    cta_text:'Register free today and start tracking your football journey with verified data.',
+     cta_button_text:'Get Started Free',
+     cta_contact_text:'Contact Us'
+  };
+
+  function App(){
+    const [activeTab,setActiveTab]=useState('players');
+    const [stats,setStats]=useState(null);
+    const [content,setContent]=useState(ABOUT_DEFAULTS);
+
+    useEffect(()=>{
+       fetch('/api/public/stats').then(r=>r.ok?r.json():Promise.reject())
+         .then(setStats).catch(()=>setStats({players:0,clubs:0,matches:0,data_scouts:0}));
+      fetch('/api/public/about').then(r=>r.ok?r.json():Promise.reject())
+        .then(d=>{
+          const arr=(value,fallback)=>Array.isArray(value)?value:parseJsonValue(value,fallback);
+          setContent(c=>({
+            ...c,...d,
+            mission_cards:arr(d.mission_cards,c.mission_cards),
+            story_paragraphs:arr(d.story_paragraphs,c.story_paragraphs),
+            what_we_do_tabs:arr(d.what_we_do_tabs,c.what_we_do_tabs),
+            values:arr(d.values,c.values),
+            team:arr(d.team,c.team)
+          }));
+        })
+        .catch(()=>{});
+    },[]);
+
+    const tabs=content.what_we_do_tabs||TABS;
+     const tab=tabs.find(t=>t.id===activeTab)||tabs[0]||{id:'default',label:'More',icon:'fa-circle-info',heading:'More',points:[],cta:'/register.html'};
+
+    return html`<div>
+      <${Header}/>
+
+      <section class="hero">
+        <div class="container" style="position:relative;z-index:1">
+           <h1>${content.hero_title}</h1>
+           <p>${content.hero_subtitle}</p>
+        </div>
+      </section>
+
+      <!-- MISSION -->
+      <section class="section section-alt">
+        <div class="container">
+           <h2 class="section-title">${content.mission_heading}</h2>
+           <p class="section-sub">${content.mission_intro}</p>
+          <div class="grid-3">
+             ${(content.mission_cards||[]).map((c,i)=>html`<div key=${i} class="mission-card">
+              <i class=${'fas '+c.icon}/>
+              <h3>${c.title}</h3>
+              <p>${c.desc}</p>
+            </div>`)}
+          </div>
+        </div>
+      </section>
+
+      <!-- STORY -->
+      <section class="section">
+        <div class="container">
+           <h2 class="section-title">${content.story_heading}</h2>
+          <div class="story-content">
+             ${(content.story_paragraphs||[]).map((p,i)=>html`<p key=${i}>${p}</p>`)}
+          </div>
+        </div>
+      </section>
+
+      <!-- WHAT WE DO -->
+      <section class="section section-alt">
+        <div class="container">
+           <h2 class="section-title">${content.what_we_do_heading}</h2>
+          <div style="max-width:800px;margin:0 auto">
+            <div class="tabs-list">
+               ${tabs.map(t=>html`<button key=${t.id} class=${'tab-btn'+(activeTab===t.id?' active':'')} onClick=${()=>setActiveTab(t.id)}>
+                <i class=${'fas '+t.icon}/> ${t.label}
+              </button>`)}
+            </div>
+            <div class="tab-panel">
+              <h3><i class=${'fas '+tab.icon}/> ${tab.heading}</h3>
+              <ul>${tab.points.map((p,i)=>html`<li key=${i}>${p}</li>`)}</ul>
+              <a href=${tab.cta} class="btn-cta">Get Started →</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VALUES -->
+      <section class="section">
+        <div class="container">
+          <h2 class="section-title">${content.values_heading}</h2>
+          <div class="grid-4">
+             ${(content.values||[]).map((v,i)=>html`<div key=${i} class="value-card">
+              <i class=${'fas '+v.icon}/>
+              <h3>${v.title}</h3>
+              <p>${v.desc}</p>
+            </div>`)}
+          </div>
+        </div>
+      </section>
+
+      <!-- STATS BAND -->
+      <section class="stats-band">
+        <div class="container stats-grid">
+           <${AnimatedCounter} target=${statNumber(stats?.players)} label=${content.stats_players_label}/>
+           <${AnimatedCounter} target=${statNumber(stats?.clubs)} label=${content.stats_clubs_label}/>
+           <${AnimatedCounter} target=${statNumber(stats?.matches)} label=${content.stats_matches_label}/>
+           <${AnimatedCounter} target=${statNumber(stats?.data_scouts)} label=${content.stats_data_scouts_label}/>
+        </div>
+      </section>
+
+      <!-- TEAM -->
+      <section class="section section-alt">
+        <div class="container">
+           <h2 class="section-title">${content.team_heading}</h2>
+           <p class="section-sub">${content.team_intro}</p>
+          <div class="team-grid">
+             ${(content.team||[]).map((m,i)=>html`<${TeamMember} key=${m.id||i} member=${m}/>`)}
+          </div>
+        </div>
+      </section>
+
+      <!-- CTA -->
+      <section class="contact-cta">
+        <div class="container">
+           <h2>${content.cta_title}</h2>
+           <p>${content.cta_text}</p>
+           <a href="/register.html" class="btn-gold"><i class="fas fa-user-plus"/> ${content.cta_button_text}</a>
+          <span style="display:inline-block;width:1rem"/>
+           <a href="/contact.html" class="btn-gold" style="background:transparent;border:2px solid var(--gold);color:var(--gold)">${content.cta_contact_text}</a>
+        </div>
+      </section>
+
+      <${Footer}/>
+    </div>`;
+  }
+
+  render(html`<${App}/>`,document.getElementById('app'));
+})();
+</script>
+</body>
+</html>

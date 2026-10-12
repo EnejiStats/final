@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Contact EnejiStats — We're Here to Help</title>
+  <meta name="description" content="Get in touch with EnejiStats for support, partnerships, or inquiries about African football data."/>
+  <meta property="og:type" content="website"/>
+  <meta property="og:title" content="Contact EnejiStats — We're Here to Help"/>
+  <script src="https://unpkg.com/preact@10.19.3/dist/preact.umd.js"></script>
+  <script src="https://unpkg.com/preact@10.19.3/hooks/dist/hooks.umd.js"></script>
+  <script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --primary:#004aad;--primary-light:#0066cc;--gold:#f5b800;--header-bg:#162060;--dark-bg:#1e1e2f;--page-bg:#0f172a;
+      --success:#22c55e;--warning:#f59e0b;--danger:#ef4444;--muted:#94a3b8;--line:rgba(255,255,255,0.08);
+      --radius:12px;--shadow:0 4px 24px rgba(0,0,0,0.4);--font:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
+    }
+    html{scroll-behavior:smooth}
+    body{font-family:var(--font);background:var(--page-bg);color:#e2e8f0;line-height:1.6;overflow-x:hidden}
+    a{text-decoration:none;color:inherit}
+    ul{list-style:none}
+    .container{max-width:1200px;margin:0 auto;padding:0 1rem}
+
+    /* HEADER */
+    .site-header{position:sticky;top:0;z-index:1000;background:var(--header-bg)}
+    .header-stripe{height:4px;background:var(--gold)}
+    .header-inner{display:flex;align-items:center;justify-content:space-between;height:82px;padding:0 1rem;max-width:1200px;margin:0 auto;overflow:visible}
+    .nav-desktop{display:none;gap:0.25rem;align-items:center}
+    @media(min-width:769px){.nav-desktop{display:flex}}
+    .nav-desktop a{color:rgba(255,255,255,0.8);font-size:0.88rem;font-weight:500;padding:0.4rem 0.6rem;border-radius:6px;transition:color 0.2s}
+    .nav-desktop a:hover,.nav-desktop a.active{color:#fff;background:rgba(255,255,255,0.1)}
+    .btn-nav{background:var(--gold);color:#0f172a!important;padding:0.45rem 1rem!important;border-radius:8px;font-weight:700!important}
+    .hamburger{display:flex;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:4px}
+    @media(min-width:769px){.hamburger{display:none}}
+    .hamburger span{display:block;width:22px;height:2px;background:#fff;border-radius:2px}
+    .mobile-nav{display:none;position:fixed;inset:0;background:var(--header-bg);z-index:2000;flex-direction:column;padding:1.5rem;gap:0.25rem}
+    .mobile-nav.open{display:flex}
+    .mobile-nav-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem}
+    .mobile-nav a{color:rgba(255,255,255,0.85);font-size:1.05rem;font-weight:500;padding:0.8rem;border-radius:8px;display:block}
+    .mobile-nav a:hover{background:rgba(255,255,255,0.1);color:#fff}
+    .close-btn{background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer}
+
+    /* HERO */
+    .hero{background:linear-gradient(135deg,var(--header-bg),#0d1b3e);color:#fff;padding:4rem 1rem;text-align:center;border-bottom:4px solid var(--gold)}
+    .hero h1{font-size:clamp(1.6rem,4vw,2.4rem);font-weight:800;margin-bottom:0.5rem}
+    .hero p{color:rgba(255,255,255,0.75);font-size:1rem}
+
+    /* MAIN */
+    .main-content{padding:3rem 0}
+    .contact-grid{display:grid;grid-template-columns:1fr;gap:2rem}
+    @media(min-width:900px){.contact-grid{grid-template-columns:1.5fr 1fr}}
+
+    /* FORM CARD */
+    .card{background:var(--dark-bg);border:1px solid var(--line);border-radius:var(--radius);padding:2rem}
+    .card-title{font-size:1.15rem;font-weight:700;margin-bottom:1.5rem;color:#fff;display:flex;align-items:center;gap:0.5rem}
+    .form-group{margin-bottom:1.25rem}
+    .form-group label{display:block;font-weight:600;font-size:0.82rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);margin-bottom:0.4rem}
+    .form-control{width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--line);border-radius:8px;padding:0.7rem 0.9rem;color:#e2e8f0;font-size:0.95rem;outline:none;transition:border-color 0.2s;font-family:inherit}
+    .form-control:focus{border-color:var(--gold)}
+    .form-control::placeholder{color:var(--muted)}
+    .form-control.error{border-color:var(--danger)}
+    .error-msg{color:var(--danger);font-size:0.78rem;margin-top:0.25rem}
+    .form-row{display:grid;grid-template-columns:1fr;gap:1rem}
+    @media(min-width:480px){.form-row{grid-template-columns:1fr 1fr}}
+    .char-counter{text-align:right;font-size:0.75rem;color:var(--muted);margin-top:0.25rem}
+    .radio-group{display:flex;gap:1.25rem;flex-wrap:wrap;margin-top:0.4rem}
+    .radio-item{display:flex;align-items:center;gap:0.45rem;cursor:pointer;font-size:0.9rem}
+    .radio-item input[type=radio]{accent-color:var(--gold)}
+    .btn-submit{background:var(--gold);color:#0f172a;border:none;width:100%;padding:0.85rem;border-radius:8px;font-weight:700;font-size:1rem;cursor:pointer;transition:opacity 0.2s,transform 0.1s;font-family:inherit}
+    .btn-submit:hover:not(:disabled){opacity:0.9;transform:translateY(-2px)}
+    .btn-submit:disabled{opacity:0.55;cursor:not-allowed}
+    .success-msg{background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.4);border-radius:var(--radius);padding:1.5rem;text-align:center;margin-bottom:1.5rem}
+    .success-msg i{font-size:2.5rem;color:var(--success);margin-bottom:0.75rem;display:block}
+    .success-msg h3{font-size:1.1rem;margin-bottom:0.4rem}
+    .success-msg p{color:var(--muted);font-size:0.9rem}
+
+    /* INFO CARD */
+    .info-item{display:flex;gap:1rem;margin-bottom:1.5rem}
+    .info-item i{color:var(--gold);font-size:1.2rem;width:20px;margin-top:0.1rem;flex-shrink:0}
+    .info-label{font-size:0.78rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);margin-bottom:0.15rem}
+    .info-value{font-size:0.9rem;font-weight:600}
+    .social-row{display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:1.5rem}
+    .social-btn{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:1rem;transition:all 0.2s}
+    .social-btn:hover{background:var(--gold);color:#0f172a}
+
+    /* SUPPORT CATEGORIES */
+    .support-section{padding:3rem 0;background:rgba(255,255,255,0.02)}
+    .section-title{font-size:1.4rem;font-weight:800;text-align:center;margin-bottom:0.5rem}
+    .section-sub{color:var(--muted);text-align:center;margin-bottom:2.5rem;font-size:0.9rem}
+    .categories-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+    @media(min-width:600px){.categories-grid{grid-template-columns:repeat(3,1fr)}}
+    @media(min-width:992px){.categories-grid{grid-template-columns:repeat(6,1fr)}}
+    .cat-card{background:var(--dark-bg);border:1px solid var(--line);border-radius:var(--radius);padding:1.25rem 0.75rem;text-align:center;cursor:pointer;transition:all 0.2s}
+    .cat-card:hover{border-color:var(--gold);transform:translateY(-4px)}
+    .cat-card i{font-size:1.75rem;color:var(--gold);margin-bottom:0.6rem;display:block}
+    .cat-card h4{font-size:0.82rem;font-weight:700;margin-bottom:0.25rem}
+    .cat-card p{font-size:0.72rem;color:var(--muted)}
+
+    /* FAQ */
+    .faq-section{padding:3rem 0}
+    .faq-list{max-width:700px;margin:0 auto;display:flex;flex-direction:column;gap:0.75rem}
+    .faq-item{background:var(--dark-bg);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+    .faq-q{width:100%;text-align:left;background:none;border:none;padding:1rem 1.25rem;font-size:0.92rem;font-weight:600;color:#e2e8f0;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:1rem;font-family:inherit}
+    .faq-q:hover{color:var(--gold)}
+    .faq-q i{color:var(--gold);flex-shrink:0;transition:transform 0.3s}
+    .faq-q.open i{transform:rotate(180deg)}
+    .faq-a{padding:0 1.25rem 1rem;color:var(--muted);font-size:0.88rem;line-height:1.65;display:none}
+    .faq-a.open{display:block}
+
+    /* TOAST */
+    .toast-container{position:fixed;top:1rem;right:1rem;z-index:9999;display:flex;flex-direction:column;gap:0.5rem}
+    .toast{padding:0.8rem 1.2rem;border-radius:8px;color:#fff;font-size:0.9rem;max-width:300px;box-shadow:0 4px 20px rgba(0,0,0,0.4);animation:slideIn 0.3s ease;display:flex;align-items:center;gap:0.5rem}
+    .toast.success{background:var(--success)}.toast.error{background:var(--danger)}.toast.info{background:var(--primary)}
+    @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+    /* FOOTER */
+    .site-footer{background:#0a0a14;border-top:1px solid var(--line);padding:3.5rem 1rem 1.5rem}
+    .footer-grid{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr;gap:2.5rem}
+    @media(min-width:600px){.footer-grid{grid-template-columns:1fr 1fr}}
+    @media(min-width:992px){.footer-grid{grid-template-columns:1.6fr 1fr 1fr 1fr}}
+    .footer-col h4{color:#fff;font-size:0.85rem;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:1rem}
+    .footer-col p,.footer-col ul a{font-size:0.85rem;color:var(--muted)}
+    .footer-col ul li{margin-bottom:0.6rem}
+    .footer-col ul a:hover{color:var(--gold)}
+    .footer-bottom{max-width:1200px;margin:2rem auto 0;padding-top:1.25rem;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:space-between;font-size:0.78rem;color:var(--muted)}
+    .footer-bottom a{color:var(--muted)}.footer-bottom a:hover{color:var(--gold)}
+  
+    @media(max-width:480px){
+      .container{padding:0 0.75rem}
+      .header-inner{height:66px;padding:0 0.75rem}
+      .hero h1{font-size:clamp(1.4rem,7vw,2.2rem)}
+      .section,.section-alt{padding:2.5rem 0}
+      .btn,.btn-nav,.btn-gold{min-height:44px}
+      .mobile-nav a{min-height:44px;display:flex;align-items:center}
+      .footer-grid{gap:1.5rem}
+      .footer-bottom{flex-direction:column;gap:0.4rem}
+    }
+    @media(max-width:360px){
+      .container{padding:0 0.5rem}
+      .header-inner{padding:0 0.5rem}
+    }
+  </style>
+  <link rel="stylesheet" href="/static/css/eneji-branding.css"/>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(function(){
+  'use strict';
+  const {h,render}=preact;
+  const {useState,useEffect,useCallback}=preactHooks;
+  const html=htm.bind(h);
+  const year=new Date().getFullYear();
+
+  function Logo(){
+    return html`<a href="/" style=${{textDecoration:'none',display:'inline-block',verticalAlign:'middle'}}>
+      <img src="/static/images/eneji-stats-branding.png" alt="EnejiStats" class="eneji-logo-img"/>
+    </a>`;
+  }
+
+  function Header(){
+    const [open,setOpen]=useState(false);
+    return html`<header class="site-header">
+      <div class="header-stripe"/>
+      <div class="header-inner">
+        <${Logo}/>
+        <nav class="nav-desktop">
+          <a href="/">Home</a><a href="/about.html">About</a>
+          <a href="/leaderboard.html">Leaderboard</a>
+          <a href="/competitions.html">Competitions &amp; Trials</a>
+          <a href="/pricing.html">Pricing</a>
+          <a href="/contact.html" class="active">Contact</a>
+          <a href="/register.html" class="btn-nav">Register / Sign In</a>
+        </nav>
+        <button class="hamburger" onClick=${()=>setOpen(true)}><span/><span/><span/></button>
+      </div>
+      <div class=${'mobile-nav'+(open?' open':'')}>
+        <div class="mobile-nav-top"><${Logo}/><button class="close-btn" onClick=${()=>setOpen(false)}><i class="fas fa-times"/></button></div>
+        <a href="/" onClick=${()=>setOpen(false)}>Home</a>
+        <a href="/about.html" onClick=${()=>setOpen(false)}>About</a>
+        <a href="/leaderboard.html" onClick=${()=>setOpen(false)}>Leaderboard</a>
+        <a href="/competitions.html" onClick=${()=>setOpen(false)}>Competitions &amp; Trials</a>
+        <a href="/pricing.html" onClick=${()=>setOpen(false)}>Pricing</a>
+        <a href="/contact.html" class="active" onClick=${()=>setOpen(false)}>Contact</a>
+        <a href="/register.html" style="color:var(--gold);font-weight:700" onClick=${()=>setOpen(false)}>Register / Sign In</a>
+      </div>
+    </header>`;
+  }
+
+  function Footer(){
+    return html`<footer class="site-footer">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <${Logo}/>
+          <p style="margin-top:0.75rem">Nigeria's trusted football data platform. Built in Nigeria. Designed for African football.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Quick Links</h4>
+          <ul>
+            <li><a href="/">Home</a></li><li><a href="/about.html">About</a></li>
+            <li><a href="/pricing.html">Pricing</a></li><li><a href="/leaderboard.html">Leaderboard</a></li>
+            <li><a href="/contact.html">Contact</a></li><li><a href="/register.html">Register</a></li>
+          </ul>
+        </div>
+        <div class="footer-col"><h4>For Users</h4><ul>
+          <li><a href="/browse.html">Player Stats</a></li><li><a href="/browse.html?type=clubs">Club Stats</a></li>
+          <li><a href="/register.html?role=dco">Become a Data Scout</a></li>
+          <li><a href="/register.html?role=scout">Become a Scout</a></li>
+          <li><a href="/register.html?role=agent">Agent Programme</a></li>
+        </ul></div>
+        <div class="footer-col"><h4>Connect</h4><ul>
+          <li><a href="mailto:enejistats@gmail.com"><i class="fas fa-envelope" style="width:16px"/> enejistats@gmail.com</a></li>
+          <li><span style="color:var(--muted)"><i class="fas fa-location-dot" style="width:16px"/> Lagos, Nigeria</span></li>
+        </ul></div>
+      </div>
+      <div class="footer-bottom">
+        <span>© ${year} EnejiStats. All rights reserved.</span>
+        <span><a href="/terms.html">Terms</a> · <a href="/privacy.html">Privacy</a> · <a href="/cookies.html">Cookies</a></span>
+      </div>
+    </footer>`;
+  }
+
+  const SUBJECTS=['General Inquiry','Technical Support','Account Issue','Partnership / Listing','Data Dispute','Press Enquiry','Other'];
+  const FAQ_ITEMS=[
+    {q:'How do I create an account?',a:'Click "Register / Sign In" in the top navigation and complete the registration form for your role (Player, Club, Scout, or Agent).'},
+    {q:'How do I request a match stats report?',a:'Log in to your dashboard, go to "Stat Requests", and submit the match details. A Data Collection Officer will be assigned within 24 hours.'},
+    {q:'What happens if no DCO is assigned within 24 hours?',a:'Your tokens are automatically refunded if no Data Collection Officer is assigned within 24 hours or if the request is declined.'},
+    {q:'How are stats verified?',a:'All stats collected by our DCOs are reviewed and approved by a Supervisor before appearing on your profile. This ensures 100% accuracy.'},
+    {q:'Is my payment information secure?',a:'Yes. All payments are processed through Flutterwave, a PCI-DSS compliant payment gateway. We never store your card details.'},
+  ];
+
+  function App(){
+    const [menuOpen,setMenuOpen]=useState(false);
+    const [formData,setFormData]=useState({fullName:'',email:'',phone:'',subject:'',accountId:'',message:'',replyMethod:'Email',honeypot:''});
+    const [file,setFile]=useState(null);
+    const [errors,setErrors]=useState({});
+    const [submitting,setSubmitting]=useState(false);
+    const [success,setSuccess]=useState(null);
+    const [toasts,setToasts]=useState([]);
+    const [openFaq,setOpenFaq]=useState(null);
+
+    useEffect(()=>{
+      const params=new URLSearchParams(window.location.search);
+      const sub=params.get('subject');
+      if(sub)setFormData(f=>({...f,subject:sub==='event-listing'?'Partnership / Listing':sub}));
+    },[]);
+
+    const addToast=(message,type='info')=>{
+      const id=Date.now();
+      setToasts(t=>[...t,{id,message,type}]);
+      setTimeout(()=>setToasts(t=>t.filter(x=>x.id!==id)),4000);
+    };
+
+    const validate=()=>{
+      const e={};
+      if(!formData.fullName.trim())e.fullName='Full name is required';
+      if(!formData.email.trim()||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))e.email='Valid email is required';
+      if(!formData.subject)e.subject='Please select a subject';
+      if(!formData.message.trim())e.message='Message is required';
+      else if(formData.message.length>2000)e.message='Message must be under 2000 characters';
+      setErrors(e);
+      return Object.keys(e).length===0;
+    };
+
+    const handleChange=e=>{
+      const {name,value}=e.target;
+      setFormData(f=>({...f,[name]:value}));
+      if(errors[name])setErrors(er=>{const n={...er};delete n[name];return n;});
+    };
+
+    const handleFile=e=>{
+      const f=e.target.files[0];
+      if(f){
+        if(f.size>5*1024*1024){addToast('File must be ≤ 5MB','error');e.target.value='';return;}
+        if(!['image/png','image/jpeg','application/pdf'].includes(f.type)){addToast('Only PNG, JPG or PDF allowed','error');e.target.value='';return;}
+        setFile(f);
+      }
+    };
+
+    const handleSubmit=async e=>{
+      e.preventDefault();
+      if(!validate()||formData.honeypot)return;
+      setSubmitting(true);
+      try{
+        const fd=new FormData();
+        Object.keys(formData).forEach(k=>{if(k!=='honeypot')fd.append(k,formData[k]);});
+        if(file)fd.append('attachment',file);
+        const res=await fetch('/api/public/contact',{method:'POST',body:fd});
+        const json=await res.json();
+        if(res.ok){
+          setSuccess(json.referenceId||Math.random().toString(36).substr(2,9).toUpperCase());
+          setFormData({fullName:'',email:'',phone:'',subject:'',accountId:'',message:'',replyMethod:'Email',honeypot:''});
+          setFile(null);
+          window.scrollTo({top:0,behavior:'smooth'});
+        }else{
+          addToast(json.message||'Something went wrong. Please try again.','error');
+        }
+      }catch(err){
+        addToast('Network error. Please check your connection.','error');
+      }finally{setSubmitting(false);}
+    };
+
+    return html`<div>
+      <${Header}/>
+      <div class="toast-container">
+        ${toasts.map(t=>html`<div key=${t.id} class=${'toast '+t.type}><i class=${'fas '+(t.type==='success'?'fa-check-circle':'fa-info-circle')}/> ${t.message}</div>`)}
+      </div>
+
+      <section class="hero">
+        <h1><i class="fas fa-envelope-open-text"/> Get in Touch</h1>
+        <p>We typically reply within 24 hours on business days.</p>
+      </section>
+
+      <main class="main-content">
+        <div class="container contact-grid">
+          <!-- FORM -->
+          <div class="card">
+            <div class="card-title"><i class="fas fa-paper-plane" style="color:var(--gold)"/> Send a Message</div>
+            ${success?html`<div class="success-msg">
+              <i class="fas fa-check-circle"/>
+              <h3>Message Sent!</h3>
+              <p>Your reference number is <strong>#${success}</strong>. We'll reply within 24 hours.</p>
+            </div>`:null}
+            <form onSubmit=${handleSubmit} novalidate>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Full Name *</label>
+                  <input class=${'form-control'+(errors.fullName?' error':'')} name="fullName" value=${formData.fullName} onInput=${handleChange} placeholder="Your full name"/>
+                  ${errors.fullName&&html`<div class="error-msg">${errors.fullName}</div>`}
+                </div>
+                <div class="form-group">
+                  <label>Email *</label>
+                  <input class=${'form-control'+(errors.email?' error':'')} type="email" name="email" value=${formData.email} onInput=${handleChange} placeholder="you@example.com"/>
+                  ${errors.email&&html`<div class="error-msg">${errors.email}</div>`}
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Phone (Optional)</label>
+                  <input class="form-control" type="tel" name="phone" value=${formData.phone} onInput=${handleChange} placeholder="+234 800 000 0000"/>
+                </div>
+                <div class="form-group">
+                  <label>Account ID (Optional)</label>
+                  <input class="form-control" name="accountId" value=${formData.accountId} onInput=${handleChange} placeholder="ES-00001 or CL-0001"/>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Subject *</label>
+                <select class=${'form-control'+(errors.subject?' error':'')} name="subject" value=${formData.subject} onChange=${handleChange}>
+                  <option value="">Select a subject…</option>
+                  ${SUBJECTS.map(s=>html`<option key=${s} value=${s}>${s}</option>`)}
+                </select>
+                ${errors.subject&&html`<div class="error-msg">${errors.subject}</div>`}
+              </div>
+              <div class="form-group">
+                <label>Message *</label>
+                <textarea class=${'form-control'+(errors.message?' error':'')} name="message" rows="5" value=${formData.message} onInput=${handleChange} placeholder="Describe your issue or enquiry in detail…"></textarea>
+                <div class="char-counter">${formData.message.length}/2000</div>
+                ${errors.message&&html`<div class="error-msg">${errors.message}</div>`}
+              </div>
+              <div class="form-group">
+                <label>Preferred Reply Method</label>
+                <div class="radio-group">
+                  ${['Email','WhatsApp','Phone'].map(m=>html`<label key=${m} class="radio-item">
+                    <input type="radio" name="replyMethod" value=${m} checked=${formData.replyMethod===m} onChange=${handleChange}/>
+                    ${m}
+                  </label>`)}
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Attachment (Optional — PNG, JPG, PDF · max 5MB)</label>
+                <input class="form-control" type="file" accept=".png,.jpg,.jpeg,.pdf" onChange=${handleFile}/>
+              </div>
+              <!-- Honeypot -->
+              <input name="honeypot" value=${formData.honeypot} onInput=${handleChange} style="display:none" tabIndex="-1" autoComplete="off"/>
+              <button class="btn-submit" type="submit" disabled=${submitting}>
+                ${submitting?html`<i class="fas fa-spinner fa-spin"/> Sending…`:'Send Message'}
+              </button>
+            </form>
+          </div>
+
+          <!-- INFO -->
+          <div>
+            <div class="card" style="margin-bottom:1.5rem">
+              <div class="card-title"><i class="fas fa-circle-info" style="color:var(--gold)"/> Contact Info</div>
+              <div class="info-item">
+                <i class="fas fa-envelope"/>
+                <div><div class="info-label">Email</div><div class="info-value"><a href="mailto:enejistats@gmail.com" style="color:var(--gold)">enejistats@gmail.com</a></div></div>
+              </div>
+              <div class="info-item">
+                <i class="fas fa-location-dot"/>
+                <div><div class="info-label">Location</div><div class="info-value">Lagos, Nigeria</div></div>
+              </div>
+              <div class="info-item">
+                <i class="fas fa-clock"/>
+                <div><div class="info-label">Business Hours</div><div class="info-value">Mon–Fri · 9am–6pm WAT</div></div>
+              </div>
+              <div class="info-item">
+                <i class="fas fa-reply"/>
+                <div><div class="info-label">Response Time</div><div class="info-value">Within 24 hours</div></div>
+              </div>
+              <div class="social-row">
+                <a href="#" class="social-btn" aria-label="Twitter/X"><i class="fab fa-x-twitter"/></a>
+                <a href="#" class="social-btn" aria-label="Facebook"><i class="fab fa-facebook-f"/></a>
+                <a href="#" class="social-btn" aria-label="Instagram"><i class="fab fa-instagram"/></a>
+                <a href="#" class="social-btn" aria-label="LinkedIn"><i class="fab fa-linkedin-in"/></a>
+                <a href="#" class="social-btn" aria-label="YouTube"><i class="fab fa-youtube"/></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- SUPPORT CATEGORIES -->
+      <section class="support-section">
+        <div class="container">
+          <h2 class="section-title">How Can We Help?</h2>
+          <p class="section-sub">Select a category to pre-fill your message subject</p>
+          <div class="categories-grid">
+            ${[
+              {icon:'fa-life-ring',title:'General Support',desc:'Account help',sub:'General Inquiry'},
+              {icon:'fa-bug',title:'Technical Issue',desc:'Bug or error',sub:'Technical Support'},
+              {icon:'fa-user-lock',title:'Account Issue',desc:'Login or access',sub:'Account Issue'},
+              {icon:'fa-handshake',title:'Partnership',desc:'List an event',sub:'Partnership / Listing'},
+              {icon:'fa-file-circle-question',title:'Data Dispute',desc:'Incorrect stats',sub:'Data Dispute'},
+              {icon:'fa-newspaper',title:'Press',desc:'Media enquiry',sub:'Press Enquiry'},
+            ].map(c=>html`<div key=${c.sub} class="cat-card" onClick=${()=>setFormData(f=>({...f,subject:c.sub}))}>
+              <i class=${'fas '+c.icon}/>
+              <h4>${c.title}</h4>
+              <p>${c.desc}</p>
+            </div>`)}
+          </div>
+        </div>
+      </section>
+
+      <!-- FAQ -->
+      <section class="faq-section">
+        <div class="container">
+          <h2 class="section-title">Frequently Asked Questions</h2>
+          <div class="faq-list">
+            ${FAQ_ITEMS.map((f,i)=>html`<div key=${i} class="faq-item">
+              <button class=${'faq-q'+(openFaq===i?' open':'')} onClick=${()=>setOpenFaq(openFaq===i?null:i)}>
+                ${f.q}<i class=${'fas '+(openFaq===i?'fa-chevron-up':'fa-chevron-down')}/>
+              </button>
+              <div class=${'faq-a'+(openFaq===i?' open':'')}>
+                ${f.a}
+              </div>
+            </div>`)}
+          </div>
+        </div>
+      </section>
+
+      <${Footer}/>
+    </div>`;
+  }
+
+  render(html`<${App}/>`,document.getElementById('app'));
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>EnejiStats — Nigeria's Trusted Football Data Platform</title>
+  <meta name="description" content="Nigeria's trusted platform for verified football statistics — connecting players, clubs, scouts, and agents."/>
+  <script src="https://unpkg.com/preact@10.19.3/dist/preact.umd.js"></script>
+  <script src="https://unpkg.com/preact@10.19.3/hooks/dist/hooks.umd.js"></script>
+  <script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --primary:#004aad;--primary-light:#0066cc;--gold:#f5b800;
+      --header-bg:#162060;--dark-bg:#1e1e2f;--page-bg:#0f172a;
+      --success:#22c55e;--warning:#f59e0b;--danger:#ef4444;
+      --muted:#94a3b8;--line:rgba(255,255,255,0.08);
+      --radius:12px;--shadow:0 4px 24px rgba(0,0,0,0.4);
+      --font:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
+    }
+    html{scroll-behavior:smooth}
+    body{font-family:var(--font);background:var(--page-bg);color:#e2e8f0;line-height:1.6;overflow-x:hidden}
+    a{text-decoration:none;color:inherit}
+    ul{list-style:none}
+    .container{max-width:1200px;margin:0 auto;padding:0 1rem}
+
+    /* HEADER */
+    .site-header{position:sticky;top:0;z-index:1000;background:var(--header-bg)}
+    .header-stripe{height:4px;background:var(--gold)}
+    .header-inner{display:flex;align-items:center;justify-content:space-between;height:82px;padding:0 1rem;max-width:1200px;margin:0 auto;overflow:visible}
+    .nav-desktop{display:none;gap:0.25rem;align-items:center}
+    @media(min-width:769px){.nav-desktop{display:flex}}
+    .nav-desktop a{color:rgba(255,255,255,0.8);font-size:0.88rem;font-weight:500;padding:0.4rem 0.6rem;border-radius:6px;transition:color 0.2s,background 0.2s}
+    .nav-desktop a:hover,.nav-desktop a.active{color:#fff;background:rgba(255,255,255,0.1)}
+    .nav-desktop a.active{border-bottom:2px solid var(--gold);border-radius:6px 6px 0 0}
+    .btn-nav{background:var(--gold);color:#0f172a!important;padding:0.45rem 1rem!important;border-radius:8px;font-weight:700!important}
+    .btn-nav:hover{opacity:0.9}
+    .hamburger{display:flex;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:4px}
+    @media(min-width:769px){.hamburger{display:none}}
+    .hamburger span{display:block;width:22px;height:2px;background:#fff;border-radius:2px}
+    .mobile-nav{display:none;position:fixed;inset:0;background:var(--header-bg);z-index:2000;flex-direction:column;padding:1.5rem;overflow-y:auto;gap:0.25rem}
+    .mobile-nav.open{display:flex}
+    .mobile-nav-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem}
+    .mobile-nav a{color:rgba(255,255,255,0.85);font-size:1.05rem;font-weight:500;padding:0.8rem;border-radius:8px;display:block}
+    .mobile-nav a:hover,.mobile-nav a.active{background:rgba(255,255,255,0.1);color:#fff}
+    .close-btn{background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer}
+    .dropdown{position:relative}
+    .dropdown-menu{display:none;position:absolute;top:calc(100%+6px);left:0;background:#1e1e2f;border:1px solid var(--line);border-radius:10px;min-width:160px;overflow:hidden;z-index:200}
+    .dropdown:hover .dropdown-menu{display:block}
+    .dropdown-menu a{display:block;padding:0.65rem 1rem;color:rgba(255,255,255,0.8);font-size:0.88rem}
+    .dropdown-menu a:hover{background:rgba(255,255,255,0.08);color:#fff}
+
+    /* HERO */
+    .hero{min-height:92vh;display:flex;align-items:center;justify-content:center;text-align:center;background:linear-gradient(135deg,#0a0a1a 0%,#0d1b3e 60%,#162060 100%);position:relative;overflow:hidden;padding:5rem 1rem}
+    .hero::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle,rgba(255,255,255,0.06) 1px,transparent 1px);background-size:28px 28px;animation:dotmove 80s linear infinite}
+    @keyframes dotmove{from{background-position:0 0}to{background-position:1000px 1000px}}
+    .hero-content{position:relative;z-index:1;max-width:800px}
+    .hero h1{font-size:clamp(2rem,7vw,4rem);font-weight:900;line-height:1.1;margin-bottom:1rem}
+    .hero h1 .gold{color:var(--gold)}
+    .hero-tag{font-size:clamp(1rem,2.5vw,1.3rem);color:rgba(255,255,255,0.75);margin-bottom:2.5rem}
+    .hero-ctas{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap}
+    .btn{display:inline-flex;align-items:center;gap:0.5rem;padding:0.75rem 1.75rem;border-radius:10px;font-weight:700;font-size:1rem;transition:all 0.2s;border:none;cursor:pointer}
+    .btn-gold{background:var(--gold);color:#0f172a}
+    .btn-gold:hover{opacity:0.9;transform:translateY(-2px)}
+    .btn-outline-white{background:transparent;border:2px solid rgba(255,255,255,0.4);color:#fff}
+    .btn-outline-white:hover{background:rgba(255,255,255,0.1);border-color:#fff}
+
+    /* TRUST STRIP */
+    .trust-strip{background:var(--dark-bg);border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:1.2rem 0;overflow:hidden}
+    .trust-inner{display:flex;align-items:center;gap:2rem;white-space:nowrap;animation:marquee 30s linear infinite}
+    @keyframes marquee{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+    .trust-item{display:flex;align-items:center;gap:0.5rem;color:var(--muted);font-size:0.85rem;font-weight:500}
+    .trust-item i{color:var(--gold)}
+
+    /* SECTIONS */
+    .section{padding:5rem 0}
+    .section-title{font-size:clamp(1.5rem,4vw,2.2rem);font-weight:800;text-align:center;margin-bottom:0.75rem}
+    .section-sub{color:var(--muted);text-align:center;margin-bottom:3rem;font-size:1rem}
+    .section-light{background:rgba(255,255,255,0.02)}
+
+    /* NUMBERS BAND */
+    .numbers-band{background:linear-gradient(135deg,var(--header-bg),#0d1b3e);padding:4rem 0;text-align:center;border-top:4px solid var(--gold)}
+    .numbers-grid{position:relative;display:flex;align-items:center;justify-content:center;min-height:150px;overflow:hidden}
+    .metrics-carousel{width:100%;max-width:760px;position:relative}
+    .metric-slide{display:none;align-items:center;justify-content:center;gap:1rem;min-height:120px;text-align:center;animation:metricEnter .55s ease both}
+    .metric-slide.active{display:flex}
+    .metric-icon{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(245,184,0,.14);color:var(--gold);font-size:1.5rem;flex:0 0 auto}
+    .metric-copy{text-align:left}
+    .metric-arrow{position:absolute;top:50%;transform:translateY(-50%);width:38px;height:38px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.2);color:#fff;border-radius:50%;cursor:pointer;z-index:2}
+    .metric-arrow:hover{background:var(--gold);color:#0f172a}
+    .metric-arrow.prev{left:0}.metric-arrow.next{right:0}
+    .metric-dots{display:flex;justify-content:center;gap:.4rem;margin-top:.25rem}
+    .metric-dot{width:7px;height:7px;border:0;border-radius:50%;background:rgba(255,255,255,.28);padding:0;cursor:pointer}
+    .metric-dot.active{background:var(--gold);transform:scale(1.3)}
+    @keyframes metricEnter{from{opacity:0;transform:translateX(35px)}to{opacity:1;transform:translateX(0)}}
+    @media(max-width:480px){.metric-copy{text-align:center}.metric-slide{flex-direction:column;gap:.5rem}.metric-arrow{width:32px;height:32px}.metric-arrow.prev{left:.25rem}.metric-arrow.next{right:.25rem}}
+    .num-val{font-size:clamp(2rem,5vw,3rem);font-weight:900;color:var(--gold);line-height:1}
+    .num-label{font-size:0.8rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-top:0.4rem}
+
+    /* ROLES */
+    .roles-grid{display:grid;grid-template-columns:1fr;gap:1.5rem}
+    @media(min-width:600px){.roles-grid{grid-template-columns:1fr 1fr}}
+    @media(min-width:992px){.roles-grid{grid-template-columns:repeat(4,1fr)}}
+    .role-card{background:var(--dark-bg);border:1px solid var(--line);border-radius:var(--radius);padding:2rem;transition:transform 0.2s,border-color 0.2s;cursor:pointer}
+    .role-card:hover{transform:translateY(-6px);border-color:var(--gold)}
+    .role-icon{font-size:2.5rem;color:var(--gold);margin-bottom:1rem}
+    .role-name{font-size:1.2rem;font-weight:700;margin-bottom:0.5rem}
+    .role-desc{color:var(--muted);font-size:0.9rem;margin-bottom:1.25rem}
+    .learn-more{color:var(--gold);font-weight:600;font-size:0.9rem}
+
+    /* HOW IT WORKS */
+    .steps-grid{display:grid;grid-template-columns:1fr;gap:2rem}
+    @media(min-width:600px){.steps-grid{grid-template-columns:1fr 1fr}}
+    @media(min-width:992px){.steps-grid{grid-template-columns:repeat(4,1fr)}}
+    .step{text-align:center}
+    .step-num{width:56px;height:56px;border-radius:50%;background:var(--gold);color:#0f172a;font-size:1.5rem;font-weight:900;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem}
+    .step h3{font-size:1.1rem;margin-bottom:0.5rem}
+    .step p{color:var(--muted);font-size:0.9rem}
+
+    /* LEADERBOARD TEASER */
+    .teaser-grid{display:grid;grid-template-columns:1fr;gap:2rem}
+    @media(min-width:768px){.teaser-grid{grid-template-columns:1fr 1fr}}
+    .mini-card{background:var(--dark-bg);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+    .mini-card-head{background:var(--header-bg);padding:1rem 1.25rem;font-weight:700;font-size:0.95rem;border-bottom:3px solid var(--gold)}
+    .mini-table{width:100%;border-collapse:collapse}
+    .mini-table th{padding:0.75rem 1rem;font-size:0.75rem;text-transform:uppercase;color:var(--muted);text-align:left}
+    .mini-table td{padding:0.75rem 1rem;border-top:1px solid var(--line);font-size:0.9rem;vertical-align:middle}
+    .rank-badge{background:var(--gold);color:#0f172a;width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:0.75rem}
+
+    /* PRICING TEASER */
+    .pricing-grid{display:grid;grid-template-columns:1fr;gap:1.5rem}
+    @media(min-width:600px){.pricing-grid{grid-template-columns:repeat(3,1fr)}}
+    .plan-card{background:var(--dark-bg);border:1px solid var(--line);border-radius:var(--radius);padding:2rem;text-align:center;transition:transform 0.2s,border-color 0.2s}
+    .plan-card:hover{transform:translateY(-4px);border-color:var(--gold)}
+    .plan-name{font-size:1.1rem;font-weight:700;margin-bottom:0.5rem;text-transform:capitalize}
+    .plan-price{font-size:2rem;font-weight:900;color:var(--gold);margin:0.75rem 0}
+    .plan-price span{font-size:1rem;font-weight:400;color:var(--muted)}
+    .plan-feature{font-size:0.85rem;color:var(--muted);margin-bottom:0.4rem;display:flex;align-items:center;gap:0.5rem;text-align:left}
+    .plan-feature i{color:var(--success);flex-shrink:0}
+
+    /* TESTIMONIALS */
+    .testimonials-grid{display:grid;grid-template-columns:1fr;gap:1.5rem}
+    @media(min-width:600px){.testimonials-grid{grid-template-columns:1fr 1fr}}
+    @media(min-width:992px){.testimonials-grid{grid-template-columns:repeat(3,1fr)}}
+    .testimonial-card{background:var(--dark-bg);border:1px solid var(--line);border-radius:var(--radius);padding:1.75rem}
+    .testimonial-quote{font-style:italic;color:rgba(255,255,255,0.8);margin-bottom:1.25rem;font-size:0.95rem;line-height:1.7}
+    .testimonial-user{display:flex;align-items:center;gap:0.75rem}
+    .user-avatar{width:44px;height:44px;border-radius:50%;background:var(--header-bg);border:2px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:700;color:var(--gold)}
+    .user-name{font-weight:600;font-size:0.9rem}
+    .user-role{font-size:0.78rem;color:var(--muted)}
+
+    /* CTA BANNER */
+    .cta-banner{background:linear-gradient(135deg,var(--header-bg),#0d1b3e);border-top:4px solid var(--gold);padding:4rem 1.5rem;text-align:center;border-radius:var(--radius);margin:2rem 0}
+    .cta-banner h2{font-size:clamp(1.4rem,3vw,2rem);margin-bottom:0.75rem}
+    .cta-banner p{color:var(--muted);margin-bottom:1.75rem}
+
+    /* FOOTER */
+    .site-footer{background:#0a0a14;border-top:1px solid var(--line);padding:3.5rem 1rem 1.5rem}
+    .footer-grid{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr;gap:2.5rem}
+    @media(min-width:600px){.footer-grid{grid-template-columns:1fr 1fr}}
+    @media(min-width:992px){.footer-grid{grid-template-columns:1.6fr 1fr 1fr 1fr}}
+    .footer-col h4{color:#fff;font-size:0.85rem;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:1rem}
+    .footer-col p{font-size:0.85rem;color:var(--muted);line-height:1.65}
+    .footer-col ul li{margin-bottom:0.6rem}
+    .footer-col ul a{color:var(--muted);font-size:0.85rem;transition:color 0.2s}
+    .footer-col ul a:hover{color:var(--gold)}
+    .social-row{display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:1rem}
+    .social-row a{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:1rem;transition:all 0.2s}
+    .social-row a:hover{background:var(--gold);color:#0f172a}
+    .footer-bottom{max-width:1200px;margin:2rem auto 0;padding-top:1.25rem;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:space-between;font-size:0.78rem;color:var(--muted)}
+    .footer-bottom a{color:var(--muted);transition:color 0.2s}
+    .footer-bottom a:hover{color:var(--gold)}
+    .tagline-footer{font-style:italic;font-size:0.78rem;color:rgba(255,255,255,0.35);margin-top:0.5rem}
+
+    /* SKELETON */
+    .skeleton{background:linear-gradient(90deg,#1e1e2f 25%,#2a2a40 50%,#1e1e2f 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:6px}
+    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+    /* TOAST */
+    .toast-container{position:fixed;top:1rem;right:1rem;z-index:9999;display:flex;flex-direction:column;gap:0.5rem}
+    .toast{padding:0.8rem 1.2rem;border-radius:8px;color:#fff;font-size:0.9rem;max-width:300px;box-shadow:0 4px 20px rgba(0,0,0,0.4);animation:slideIn 0.3s ease;display:flex;align-items:center;gap:0.5rem}
+    .toast.success{background:var(--success)}.toast.error{background:var(--danger)}.toast.info{background:var(--primary)}
+    @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+    .dropdown-toggle{
+    display:flex;
+    align-items:center;
+    gap:.35rem;
+
+    background:none;
+    border:none;
+    outline:none;
+
+    color:inherit;
+    font:inherit;
+    cursor:pointer;
+
+    padding:0;
+    margin:0;
+    text-decoration:none;
+
+    transition:color .2s ease;
+}
+
+.dropdown-toggle:hover{
+    color:var(--gold);
+}
+
+.dropdown-toggle:focus-visible{
+    outline:2px solid var(--gold);
+    outline-offset:4px;
+    border-radius:4px;
+}
+  
+    @media(max-width:480px){
+      .container{padding:0 0.75rem}
+      .header-inner{height:66px;padding:0 0.75rem}
+      .hero h1{font-size:clamp(1.4rem,7vw,2.2rem)}
+      .section,.section-alt{padding:2.5rem 0}
+      .btn,.btn-nav,.btn-gold{min-height:44px}
+      .mobile-nav a{min-height:44px;display:flex;align-items:center}
+      .footer-grid{gap:1.5rem}
+      .footer-bottom{flex-direction:column;gap:0.4rem}
+    }
+    @media(max-width:360px){
+      .container{padding:0 0.5rem}
+      .header-inner{padding:0 0.5rem}
+    }
+  </style>
+  <link rel="stylesheet" href="/static/css/eneji-branding.css"/>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(function(){
+  'use strict';
+  const {h,render}=preact;
+  const {useState,useEffect,useRef,useCallback}=preactHooks;
+  const html=htm.bind(h);
+  const year=new Date().getFullYear();
+  const fmt=n=>'₦'+Number(n).toLocaleString('en-NG',{maximumFractionDigits:0});
+
+  /* ── SHARED COMPONENTS ── */
+  function Logo(){
+    return html`<a href="/" style=${{textDecoration:'none',display:'inline-block',verticalAlign:'middle'}}>
+      <img src="/static/images/eneji-stats-branding.png" alt="EnejiStats" class="eneji-logo-img"/>
+    </a>`;
+  }
+
+  function Header(){
+  const [open,setOpen]=useState(false);
+
+  return html`
+    <header class="site-header">
+      <div class="header-stripe"></div>
+
+      <div class="header-inner">
+
+        <${Logo}/>
+
+        <nav class="nav-desktop">
+
+          <a href="/" class="active">Home</a>
+
+          <a href="/about.html">About</a>
+
+          <div class="dropdown">
+
+            <button
+              type="button"
+              class="dropdown-toggle"
+              aria-haspopup="true"
+              aria-expanded="false">
+
+              Stats Area
+              <i class="fas fa-chevron-down" style="font-size:.65rem"></i>
+
+            </button>
+
+            <div class="dropdown-menu">
+              <a href="/browse.html">Browse</a>
+            </div>
+
+          </div>
+
+          <a href="/leaderboard.html">Leaderboard</a>
+
+          <a href="/competitions.html">
+            Competitions & Trials
+          </a>
+
+          <a href="/pricing.html">Pricing</a>
+
+          <a href="/contact.html">Contact</a>
+
+          <a href="/register.html" class="btn-nav">
+            Register / Sign In
+          </a>
+
+        </nav>
+
+        <button
+          class="hamburger"
+          onClick=${()=>setOpen(true)}
+          aria-label="Open menu">
+
+          <span></span>
+          <span></span>
+          <span></span>
+
+        </button>
+
+      </div>
+
+      <div class=${'mobile-nav'+(open?' open':'')}>
+
+        <div class="mobile-nav-top">
+
+          <${Logo}/>
+
+          <button
+            class="close-btn"
+            onClick=${()=>setOpen(false)}
+            aria-label="Close">
+
+            <i class="fas fa-times"></i>
+
+          </button>
+
+        </div>
+
+        <a href="/" class="active" onClick=${()=>setOpen(false)}>
+          Home
+        </a>
+
+        <a href="/about.html" onClick=${()=>setOpen(false)}>
+          About
+        </a>
+
+        <a href="/browse.html" onClick=${()=>setOpen(false)}>
+          Browse
+        </a>
+
+        <a href="/leaderboard.html" onClick=${()=>setOpen(false)}>
+          Leaderboard
+        </a>
+
+        <a href="/competitions.html" onClick=${()=>setOpen(false)}>
+          Competitions & Trials
+        </a>
+
+        <a href="/pricing.html" onClick=${()=>setOpen(false)}>
+          Pricing
+        </a>
+
+        <a href="/contact.html" onClick=${()=>setOpen(false)}>
+          Contact
+        </a>
+
+        <a
+          href="/register.html"
+          style="color:var(--gold);font-weight:700"
+          onClick=${()=>setOpen(false)}>
+
+          Register / Sign In
+
+        </a>
+
+      </div>
+
+    </header>
+  `;
+}
+
+  function Footer(){
+    return html`
+      <footer class="site-footer">
+        <div class="footer-grid">
+          <div class="footer-col">
+            <${Logo}/>
+            <p style="margin-top:0.75rem">Nigeria's trusted football data platform. We connect talent with opportunity through precision, integrity and reliability.</p>
+            <p class="tagline-footer">"Tracking talent with precision, integrity and reliability."</p>
+            <div class="social-row">
+              <a href="#" aria-label="Twitter/X"><i class="fab fa-x-twitter"/></a>
+              <a href="#" aria-label="Facebook"><i class="fab fa-facebook-f"/></a>
+              <a href="#" aria-label="Instagram"><i class="fab fa-instagram"/></a>
+              <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin-in"/></a>
+              <a href="#" aria-label="YouTube"><i class="fab fa-youtube"/></a>
+            </div>
+          </div>
+          <div class="footer-col">
+            <h4>Quick Links</h4>
+            <ul>
+              <li><a href="/">Home</a></li>
+              <li><a href="/about.html">About</a></li>
+              <li><a href="/pricing.html">Pricing</a></li>
+              <li><a href="/leaderboard.html">Leaderboard</a></li>
+              <li><a href="/contact.html">Contact</a></li>
+              <li><a href="/register.html">Register</a></li>
+            </ul>
+          </div>
+          <div class="footer-col">
+            <h4>For Users</h4>
+            <ul>
+              <li><a href="/browse.html">Player Stats</a></li>
+              <li><a href="/browse.html?type=clubs">Club Stats</a></li>
+              <li><a href="/register.html?role=dco">Become a Data Scout</a></li>
+              <li><a href="/register.html?role=scout">Become a Scout</a></li>
+              <li><a href="/register.html?role=agent">Agent Programme</a></li>
+            </ul>
+          </div>
+          <div class="footer-col">
+            <h4>Connect</h4>
+            <ul>
+              <li><a href="mailto:enejistats@gmail.com"><i class="fas fa-envelope" style="width:16px"/> enejistats@gmail.com</a></li>
+              <li><span style="color:var(--muted)"><i class="fas fa-location-dot" style="width:16px"/> Lagos, Nigeria</span></li>
+              <li><span style="color:var(--muted)">Mon–Fri · 9am–6pm WAT</span></li>
+            </ul>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <span>© ${year} EnejiStats. All rights reserved.</span>
+          <span>
+            <a href="/terms.html">Terms</a> ·
+            <a href="/privacy.html">Privacy</a> ·
+            <a href="/cookies.html">Cookies</a>
+          </span>
+        </div>
+      </footer>`;
+  }
+
+  /* ── COUNTER ── */
+  function Counter({target,label}){
+    const [count,setCount]=useState(0);
+    const ref=useRef();
+    useEffect(()=>{
+      const obs=new IntersectionObserver(([e])=>{
+        if(e.isIntersecting){
+          let start=null;
+          const dur=1600;
+          const tick=ts=>{
+            if(!start)start=ts;
+            const p=Math.min((ts-start)/dur,1);
+            setCount(Math.floor(p*target));
+            if(p<1)requestAnimationFrame(tick);
+          };
+          requestAnimationFrame(tick);
+          obs.unobserve(e.target);
+        }
+      },{threshold:0.4});
+      if(ref.current)obs.observe(ref.current);
+      return()=>obs.disconnect();
+    },[target]);
+    return html`<div ref=${ref}>
+      <div class="num-val">${count.toLocaleString()}+</div>
+      <div class="num-label">${label}</div>
+    </div>`;
+  }
+
+  /* ── NUMBERS BAND ── */
+  function NumbersBand(){
+    const [stats,setStats]=useState(null);
+    const [active,setActive]=useState(0);
+    const timer=useRef(null);
+    useEffect(()=>{
+      fetch('/api/public/stats')
+        .then(r=>{if(!r.ok)throw new Error('Unable to load platform metrics');return r.json()})
+        .then(setStats)
+        .catch(()=>setStats({players:0,clubs:0,venues:0,matches:0,data_scouts:0}));
+    },[]);
+    const metrics=stats?[
+      {key:'players',label:'Players Registered',icon:'fa-futbol'},
+      {key:'clubs',label:'Clubs Registered',icon:'fa-shield-halved'},
+      {key:'venues',label:'Venues Covered',icon:'fa-location-dot'},
+      {key:'data_scouts',label:'Data-Scouts Available',icon:'fa-binoculars'},
+      {key:'matches',label:'Matches Tracked',icon:'fa-chart-line'}
+    ]:[];
+    const next=useCallback(()=>setActive(i=>(i+1)%5),[]);
+    const prev=useCallback(()=>setActive(i=>(i+4)%5),[]);
+    useEffect(()=>{
+      if(!stats)return;
+      timer.current=setInterval(next,5000);
+      return()=>clearInterval(timer.current);
+    },[stats,next]);
+    if(!stats)return html`<div class="numbers-band"><div class="container numbers-grid">
+      <div class="skeleton" style="height:90px;width:70%;border-radius:var(--radius)"/>
+    </div></div>`;
+    return html`<section class="numbers-band">
+      <div class="container numbers-grid">
+        <div class="metrics-carousel" aria-label="Platform metrics">
+          <button class="metric-arrow prev" onClick=${prev} aria-label="Previous metric"><i class="fas fa-chevron-left"/></button>
+          ${metrics.map((metric,i)=>html`<div key=${metric.key} class=${'metric-slide'+(active===i?' active':'')} aria-hidden=${active!==i}>
+            <div class="metric-icon"><i class=${'fas '+metric.icon}/></div>
+            <div class="metric-copy"><${Counter} target=${Number(stats[metric.key])||0} label=${metric.label}/></div>
+          </div>`)}
+          <button class="metric-arrow next" onClick=${next} aria-label="Next metric"><i class="fas fa-chevron-right"/></button>
+          <div class="metric-dots">${metrics.map((metric,i)=>html`<button key=${metric.key} class=${'metric-dot'+(active===i?' active':'')} onClick=${()=>setActive(i)} aria-label=${'Show '+metric.label}/>`)} </div>
+        </div>
+      </div>
+    </section>`;
+  }
+
+  /* ── LEADERBOARD TEASER ── */
+  function LeaderboardTeaser(){
+    const [data,setData]=useState(null);
+    useEffect(()=>{
+      fetch('/api/public/leaderboard?limit=5',{headers:{Accept:'application/json'}})
+        .then(async r=>{
+          const body=await r.json().catch(()=>null);
+          if(!r.ok)throw new Error(body?.detail||'Unable to load leaderboard');
+          return body||{players:[],clubs:[]};
+        })
+        .then(d=>setData({players:Array.isArray(d.players)?d.players:[],clubs:Array.isArray(d.clubs)?d.clubs:[]}))
+        .catch(()=>setData({players:[],clubs:[]}));
+    },[]);
+    return html`<section class="section">
+      <div class="container">
+        <h2 class="section-title">Latest from the Leaderboard</h2>
+        <p class="section-sub">Live rankings updated after every verified match report</p>
+        <div class="teaser-grid">
+          <div class="mini-card">
+            <div class="mini-card-head"><i class="fas fa-user"/> Top Players</div>
+            <table class="mini-table">
+              <thead><tr><th>Rank</th><th>Player</th><th>Club</th><th>Rating</th></tr></thead>
+              <tbody>
+                ${data?data.players.map(p=>html`<tr key=${p.rank}>
+                  <td><span class="rank-badge">${p.rank}</span></td>
+                  <td><strong>${p.name}</strong></td>
+                  <td style="color:var(--muted);font-size:0.85rem">${p.club}</td>
+                  <td style="color:var(--gold);font-weight:700">${p.rating}</td>
+                </tr>`):Array(5).fill(0).map((_,i)=>html`<tr key=${i}><td colspan="4"><div class="skeleton" style="height:24px"/></td></tr>`)}
+              </tbody>
+            </table>
+          </div>
+          <div class="mini-card">
+            <div class="mini-card-head"><i class="fas fa-shield-halved"/> Top Clubs</div>
+            <table class="mini-table">
+              <thead><tr><th>Rank</th><th>Club</th><th>State</th><th>Pts</th></tr></thead>
+              <tbody>
+                ${data?data.clubs.map(c=>html`<tr key=${c.rank}>
+                  <td><span class="rank-badge">${c.rank}</span></td>
+                  <td><strong>${c.name}</strong></td>
+                  <td style="color:var(--muted);font-size:0.85rem">${c.state}</td>
+                  <td style="font-weight:700">${c.points}</td>
+                </tr>`):Array(5).fill(0).map((_,i)=>html`<tr key=${i}><td colspan="4"><div class="skeleton" style="height:24px"/></td></tr>`)}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div style="text-align:center;margin-top:2rem">
+          <a href="/leaderboard.html" class="btn btn-gold">View Full Leaderboard <i class="fas fa-arrow-right"/></a>
+        </div>
+      </div>
+    </section>`;
+  }
+
+  /* ── PRICING TEASER ── */
+  function PricingTeaser(){
+    const [plans,setPlans]=useState(null);
+    const [error,setError]=useState('');
+
+    useEffect(()=>{
+      let cancelled=false;
+      const country=(new URLSearchParams(window.location.search).get('country')||'NG').toUpperCase().slice(0,2);
+      fetch('/api/config/pricing?country='+encodeURIComponent(country),{headers:{Accept:'application/json'}})
+        .then(async r=>{
+          const body=await r.json().catch(()=>null);
+          if(!r.ok)throw new Error(body?.detail||'Unable to load pricing');
+          return body;
+        })
+        .then(d=>{
+          if(cancelled)return;
+          const subscriptions=d?.subscription_plans||{};
+          const preferredRoles=['player','club','agent'];
+          const cards=[];
+
+          preferredRoles.forEach(role=>{
+            const rolePlans=subscriptions[role];
+            let level='';
+            let list=rolePlans;
+            if(role==='player'||role==='club'){
+              level='professional';
+              list=rolePlans?.[level]||{};
+            }
+            const arr=Array.isArray(list)?list:Object.values(list||{});
+            const monthly=arr.find(x=>String(x?.key||'').toLowerCase()==='monthly')||arr[0];
+            if(monthly){
+              cards.push({
+                name:role.charAt(0).toUpperCase()+role.slice(1)+(level?' · Professional':''),
+                price:Number(monthly.amount??monthly.price??0),
+                features:[
+                  'Monthly subscription',
+                  monthly.discount||'Flexible subscription options',
+                  role==='player'||role==='club'?'Level-based pricing':'Role-based pricing',
+                  'View full pricing and token packages'
+                ]
+              });
+            }
+          });
+
+          if(!cards.length)throw new Error('No public pricing plans are currently available');
+          setPlans(cards);
+          setError('');
+        })
+        .catch(err=>{
+          if(cancelled)return;
+          setPlans([]);
+          setError(err?.message||'Unable to load pricing');
+        });
+      return()=>{cancelled=true};
+    },[]);
+
+    return html`<section class="section section-light">
+      <div class="container">
+        <h2 class="section-title">Simple, Transparent Pricing</h2>
+        <p class="section-sub">Choose the plan that fits your role. Pay monthly, quarterly, or yearly.</p>
+        <div class="pricing-grid">
+          ${plans===null?Array(3).fill(0).map((_,i)=>html`<div key=${i} class="skeleton" style="height:280px;border-radius:var(--radius)"/>`):
+            plans.length?plans.map((p,i)=>html`<div key=${i} class="plan-card">
+              <div class="plan-name">${p.name}</div>
+              <div class="plan-price">${p.price>0?fmt(p.price):'Unavailable'}${p.price>0?html`<span>/mo</span>`:''}</div>
+              <div style="margin:1rem 0">
+                ${(p.features||[]).map((f,j)=>html`<div key=${j} class="plan-feature"><i class="fas fa-check"/><span>${f}</span></div>`)}
+              </div>
+              <a href="/pricing.html" class="btn btn-gold" style="width:100%;justify-content:center">View Plan</a>
+            </div>`):html`<div style="grid-column:1/-1;text-align:center;padding:2rem;color:var(--muted)">
+              <i class="fas fa-circle-exclamation" style="font-size:1.5rem;margin-bottom:.6rem"/>
+              <div>${error||'Pricing is temporarily unavailable.'}</div>
+              <a href="/pricing.html" style="display:inline-block;margin-top:1rem;color:var(--gold);font-weight:600">Open Pricing →</a>
+            </div>`}
+        </div>
+        <div style="text-align:center;margin-top:2rem">
+          <a href="/pricing.html" style="color:var(--gold);font-weight:600">See all plans and token packages →</a>
+        </div>
+      </div>
+    </section>`;
+  }
+
+  /* ── APP ── */
+  function App(){
+    return html`
+      <div>
+        <${Header}/>
+
+        <!-- HERO -->
+        <section class="hero">
+          <div class="hero-content">
+            <h1>Nigeria's Trusted<br/><span class="gold">Football Data</span> Platform</h1>
+            <p class="hero-tag">Tracking talent with precision, integrity and reliability</p>
+            <div class="hero-ctas">
+              <a href="/register.html" class="btn btn-gold"><i class="fas fa-user-plus"/> Register Free</a>
+              <a href="/browse.html" class="btn btn-outline-white"><i class="fas fa-search"/> Browse Players</a>
+            </div>
+          </div>
+        </section>
+
+        <!-- TRUST STRIP -->
+        <div class="trust-strip">
+          <div style="overflow:hidden">
+            <div class="trust-inner">
+              ${['Players Registered','Clubs Onboarded','Matches Tracked','Data Scouts Active','Verified Reports','Nigerian States Covered'].concat(['Players Registered','Clubs Onboarded','Matches Tracked','Data Scouts Active','Verified Reports','Nigerian States Covered']).map((t,i)=>html`
+                <span key=${i} class="trust-item"><i class="fas fa-check-circle"/> ${t}</span>
+              `)}
+            </div>
+          </div>
+        </div>
+
+        <!-- NUMBERS BAND -->
+        <${NumbersBand}/>
+
+        <!-- WHO WE SERVE -->
+        <section class="section section-light">
+          <div class="container">
+            <h2 class="section-title">Built for Every Stakeholder</h2>
+            <p class="section-sub">From grassroots players to professional clubs — EnejiStats has you covered.</p>
+            <div class="roles-grid">
+              ${[
+                {icon:'fa-futbol',name:'Players',desc:'Track your performance, showcase your stats to scouts and clubs, and build your verified profile.',href:'/register.html?role=player'},
+                {icon:'fa-shield-halved',name:'Clubs',desc:'Monitor squad performance, request verified match stats, and find new talent through our network.',href:'/register.html?role=club'},
+                {icon:'fa-binoculars',name:'Scouts',desc:'Access verified player data, compare performances, and find the next African football star.',href:'/register.html?role=scout'},
+                {icon:'fa-handshake',name:'Agents',desc:'Manage your player portfolio, track their performance, and connect with clubs looking for talent.',href:'/register.html?role=agent'},
+              ].map((r,i)=>html`<div key=${i} class="role-card" onClick=${()=>window.location.href=r.href}>
+                <div class="role-icon"><i class=${'fas '+r.icon}/></div>
+                <div class="role-name">${r.name}</div>
+                <div class="role-desc">${r.desc}</div>
+                <span class="learn-more">Learn more →</span>
+              </div>`)}
+            </div>
+          </div>
+        </section>
+
+        <!-- HOW IT WORKS -->
+        <section class="section">
+          <div class="container">
+            <h2 class="section-title">How EnejiStats Works</h2>
+            <p class="section-sub">Four simple steps to verified football data</p>
+            <div class="steps-grid">
+              ${[
+                {n:1,title:'Register',desc:'Create your free account and choose your role — player, club, scout, or agent.'},
+                {n:2,title:'Request Stats',desc:'Submit a match stats request and our verified Data Collection Officers gather the data.'},
+                {n:3,title:'Verify',desc:'Our supervisors review and approve all submitted data for 100% accuracy.'},
+                {n:4,title:'Showcase',desc:'Your verified stats appear on your public profile and the live leaderboard.'},
+              ].map(s=>html`<div key=${s.n} class="step">
+                <div class="step-num">${s.n}</div>
+                <h3>${s.title}</h3>
+                <p>${s.desc}</p>
+              </div>`)}
+            </div>
+          </div>
+        </section>
+
+        <!-- LEADERBOARD TEASER -->
+        <div style="background:rgba(255,255,255,0.02)">
+          <${LeaderboardTeaser}/>
+        </div>
+
+        <!-- PRICING TEASER -->
+        <${PricingTeaser}/>
+
+        <!-- TESTIMONIALS -->
+        <section class="section">
+          <div class="container">
+            <h2 class="section-title">What Our Users Say</h2>
+            <div class="testimonials-grid">
+              ${[
+                {q:'EnejiStats transformed how we scout talent. The data is verified and reliable — exactly what we need.',name:'Coach Emmanuel',role:'Head Coach, Enyimba FC'},
+                {q:'As a player, having verified stats on my profile opened doors I never thought possible. Scouts reached out within weeks.',name:'Emeka Okafor',role:'Striker, Shooting Stars'},
+                {q:'The leaderboard keeps me motivated every week. Real data, real rankings — this is what Nigerian football needed.',name:'Taiwo Adesanya',role:'Midfielder, NPFL'},
+              ].map((t,i)=>html`<div key=${i} class="testimonial-card">
+                <div class="testimonial-quote">"${t.q}"</div>
+                <div class="testimonial-user">
+                  <div class="user-avatar">${t.name[0]}</div>
+                  <div>
+                    <div class="user-name">${t.name}</div>
+                    <div class="user-role">${t.role}</div>
+                  </div>
+                </div>
+              </div>`)}
+            </div>
+          </div>
+        </section>
+
+        <!-- CTA BANNER -->
+        <div class="container">
+          <div class="cta-banner">
+            <h2>Ready to Track Your Football Journey?</h2>
+            <p>Join thousands of players, clubs, scouts and agents on Nigeria's trusted football data platform.</p>
+            <a href="/register.html" class="btn btn-gold"><i class="fas fa-user-plus"/> Get Started Free</a>
+          </div>
+        </div>
+
+        <${Footer}/>
+      </div>`;
+  }
+
+  render(html`<${App}/>`,document.getElementById('app'));
+})();
+</script>
+</body>
+</html>

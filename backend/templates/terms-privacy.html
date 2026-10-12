@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+    <title>Terms &amp; Privacy — Enejistats</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+    <script src="https://unpkg.com/preact@10.19.3/dist/preact.umd.js"></script>
+    <script src="https://unpkg.com/preact@10.19.3/hooks/dist/hooks.umd.js"></script>
+    <script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js"></script>
+    <style>
+      *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+      :root{--primary:#004aad;--primary-light:#0066cc;--gold:#ffd700;--dark-bg:#1e1e2f;--muted:#64748b;--line:#e2e8f0;--radius:12px;--shadow:0 4px 20px rgba(0,0,0,.08);--font:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif}
+      html{scroll-behavior:smooth}
+      body{font-family:var(--font);color:#1e293b;background:#f8fafc}
+      .site-header{position:sticky;top:0;z-index:100;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.06)}
+      .header-inner{max-width:1200px;margin:0 auto;padding:0 1.5rem;height:64px;display:flex;align-items:center;justify-content:space-between}
+      .logo{text-decoration:none;font-size:1.4rem;font-weight:900;letter-spacing:1.5px}
+      .logo .eneji{color:var(--dark-bg)}.logo .stats{color:var(--gold)}
+      .nav-links{display:none;align-items:center;gap:.1rem;list-style:none}
+      @media(min-width:769px){.nav-links{display:flex}}
+      .nav-links a{color:#374151;text-decoration:none;font-size:.88rem;font-weight:500;padding:.4rem .65rem;transition:color .2s}
+      .nav-links a:hover{color:var(--primary)}
+      .nav-links .btn-nav{background:var(--primary);color:#fff!important;border-radius:8px;padding:.45rem 1rem!important;font-weight:600}
+      .dropdown{position:relative}
+      .dropdown-menu{display:none;position:absolute;top:calc(100% + 8px);left:0;background:#fff;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.12);min-width:150px;overflow:hidden;z-index:200}
+      .dropdown:hover .dropdown-menu{display:block}
+      .dropdown-menu a{display:block;padding:.65rem 1rem;color:#374151;font-size:.88rem;text-decoration:none}
+      .dropdown-menu a:hover{background:#f1f5f9;color:var(--primary)}
+      .hamburger{display:flex;flex-direction:column;gap:5px;cursor:pointer;background:none;border:none;padding:.3rem}
+      @media(min-width:769px){.hamburger{display:none}}
+      .hamburger span{display:block;width:24px;height:2px;background:#374151;border-radius:2px}
+      .mobile-nav{display:none;position:fixed;inset:0;background:#fff;z-index:200;flex-direction:column;padding:2rem 1.5rem;gap:.5rem;overflow-y:auto}
+      .mobile-nav.open{display:flex}
+      .mobile-nav-close{align-self:flex-end;background:none;border:none;font-size:1.5rem;color:#374151;cursor:pointer;margin-bottom:1rem}
+      .mobile-nav a{color:#374151;text-decoration:none;font-size:1rem;font-weight:500;padding:.75rem;border-radius:8px;display:block}
+      .mobile-nav a:hover{background:#f1f5f9;color:var(--primary)}
+      .page-hero{background:linear-gradient(135deg,#1e1e2f 0%,#004aad 100%);color:#fff;padding:3rem 1.5rem 2.5rem}
+      .page-hero .inner{max-width:900px;margin:0 auto}
+      .page-hero h1{font-size:clamp(1.6rem,3.5vw,2.4rem);font-weight:800;margin-bottom:.4rem}
+      .page-hero .meta{color:rgba(255,255,255,.6);font-size:.88rem;margin-bottom:.5rem}
+      .page-hero .summary{color:rgba(255,255,255,.8);font-size:1rem;border-left:3px solid var(--gold);padding-left:1rem}
+      /* Tab bar */
+      .tab-bar{max-width:1100px;margin:0 auto;padding:1.5rem 1.5rem 0;display:flex;gap:.5rem}
+      .tab-btn{padding:.65rem 1.4rem;border-radius:8px 8px 0 0;font-size:.9rem;font-weight:700;cursor:pointer;border:2px solid transparent;background:#e2e8f0;color:var(--muted);transition:all .2s;font-family:var(--font)}
+      .tab-btn.active{background:#fff;color:var(--primary);border-color:var(--line);border-bottom-color:#fff;position:relative;z-index:1}
+      .tab-btn:not(.active):hover{background:#f1f5f9;color:var(--primary)}
+      .tab-panel{display:none}.tab-panel.active{display:block}
+      .doc-layout{max-width:1100px;margin:0 auto;padding:0 1.5rem 3rem;display:flex;gap:2.5rem;align-items:flex-start;border-top:2px solid var(--line)}
+      .toc{display:none}
+      @media(min-width:992px){.toc{display:block;width:230px;flex-shrink:0;position:sticky;top:80px;background:#fff;border-radius:12px;box-shadow:var(--shadow);padding:1.2rem}}
+      .toc h3{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:.8rem}
+      .toc ol{list-style:none;display:flex;flex-direction:column;gap:.15rem;counter-reset:toc-counter}
+      .toc ol li{counter-increment:toc-counter}
+      .toc ol li a{display:flex;align-items:baseline;gap:.4rem;color:#475569;text-decoration:none;font-size:.82rem;padding:.35rem .5rem;border-radius:6px;transition:all .2s}
+      .toc ol li a::before{content:counter(toc-counter);color:var(--gold);font-weight:700;font-size:.7rem;flex-shrink:0}
+      .toc ol li a:hover{background:#f1f5f9;color:var(--primary)}
+      .toc ol li a.active{background:#eff6ff;color:var(--primary);font-weight:600}
+      .doc-content{flex:1;min-width:0;padding-top:1.5rem}
+      .doc-content section{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:1.8rem 2rem;margin-bottom:1.5rem}
+      .doc-content h2{font-size:1.2rem;font-weight:700;color:var(--primary);margin-bottom:1rem;display:flex;align-items:center;gap:.5rem;padding-bottom:.7rem;border-bottom:2px solid var(--line)}
+      .doc-content h2 .num{background:var(--primary);color:#fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:.75rem;flex-shrink:0}
+      .doc-content p{color:#374151;font-size:.92rem;line-height:1.75;margin-bottom:.85rem}
+      .doc-content p:last-child{margin-bottom:0}
+      .doc-content ul,.doc-content ol{padding-left:1.4rem;margin:.7rem 0}
+      .doc-content li{color:#374151;font-size:.92rem;line-height:1.7;margin-bottom:.35rem}
+      .doc-content strong{color:#1e293b}
+      .doc-content a{color:var(--primary)}
+      .anchor-link{color:var(--muted)!important;text-decoration:none;margin-left:.5rem;font-size:.8rem;opacity:0;transition:opacity .2s}
+      .doc-content h2:hover .anchor-link{opacity:1}
+      .data-table{width:100%;border-collapse:collapse;margin:1rem 0;font-size:.88rem}
+      .data-table th{background:#eff6ff;color:var(--primary);text-align:left;padding:.65rem .9rem;font-weight:700;border-bottom:2px solid var(--line)}
+      .data-table td{padding:.6rem .9rem;border-bottom:1px solid var(--line);color:#374151}
+      .data-table tr:last-child td{border-bottom:none}
+      .legal-contact{background:#eff6ff;border-left:4px solid var(--primary);border-radius:0 var(--radius) var(--radius) 0;padding:1.2rem 1.5rem;margin-top:2rem;font-size:.9rem;color:#1e293b}
+      .legal-contact a{color:var(--primary)}
+      .site-footer{background:#1e1e1e;color:rgba(255,255,255,.75);padding:3rem 1.5rem 1.5rem}
+      .footer-grid{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr;gap:2rem}
+      @media(min-width:600px){.footer-grid{grid-template-columns:1fr 1fr}}
+      @media(min-width:992px){.footer-grid{grid-template-columns:1.5fr 1fr 1fr 1fr}}
+      .footer-col h4{color:#fff;font-size:.9rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:1rem}
+      .footer-col p{font-size:.85rem;line-height:1.65}
+      .footer-col ul{list-style:none;display:flex;flex-direction:column;gap:.5rem}
+      .footer-col ul a{color:rgba(255,255,255,.65);text-decoration:none;font-size:.85rem;transition:color .2s}
+      .footer-col ul a:hover{color:var(--gold)}
+      .social-links{display:flex;gap:.75rem;flex-wrap:wrap;margin-top:.5rem}
+      .social-links a{color:rgba(255,255,255,.65);font-size:1.1rem;transition:color .2s}
+      .social-links a:hover{color:var(--gold)}
+      .footer-bottom{max-width:1200px;margin:2rem auto 0;padding-top:1rem;border-top:1px solid rgba(255,255,255,.1);display:flex;flex-wrap:wrap;gap:.5rem;justify-content:space-between;align-items:center;font-size:.8rem;color:rgba(255,255,255,.4)}
+      .footer-bottom a{color:rgba(255,255,255,.45);text-decoration:none}
+      .footer-bottom a:hover{color:var(--gold)}
+      .cookie-banner{position:fixed;bottom:0;left:0;right:0;background:#1e2840;color:#fff;z-index:999;padding:1rem 1.5rem;box-shadow:0 -4px 20px rgba(0,0,0,.3)}
+      .cookie-inner{max-width:1100px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;gap:1rem;justify-content:space-between}
+      .cookie-text{font-size:.88rem;color:rgba(255,255,255,.8);flex:1;min-width:200px}
+      .cookie-text a{color:var(--gold)}
+      .cookie-actions{display:flex;gap:.6rem;flex-wrap:wrap;flex-shrink:0}
+      .cookie-btn{padding:.5rem 1rem;border-radius:8px;font-size:.85rem;font-weight:600;cursor:pointer;border:none;transition:opacity .2s}
+      .cookie-btn.accept{background:var(--gold);color:#0a0a1a}
+      .cookie-btn.reject{background:rgba(255,255,255,.12);color:#fff}
+      .cookie-btn.manage{background:transparent;color:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.25)}
+      .cookie-btn:hover{opacity:.85}
+      .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1100;display:flex;align-items:center;justify-content:center;padding:1rem}
+      .modal-box{background:#fff;border-radius:16px;padding:2rem;max-width:500px;width:100%;max-height:90vh;overflow-y:auto}
+      .modal-box h3{font-size:1.1rem;font-weight:700;color:var(--dark-bg);margin-bottom:1rem}
+      .pref-row{display:flex;justify-content:space-between;align-items:center;padding:.8rem 0;border-bottom:1px solid var(--line);gap:1rem}
+      .pref-row:last-of-type{border-bottom:none}
+      .pref-row label{font-size:.9rem;font-weight:600;color:#1e293b}
+      .pref-row span{font-size:.8rem;color:var(--muted);display:block;margin-top:.2rem}
+      .toggle-switch{position:relative;width:44px;height:24px;flex-shrink:0}
+      .toggle-switch input{opacity:0;width:0;height:0}
+      .toggle-slider{position:absolute;inset:0;background:#cbd5e1;border-radius:24px;cursor:pointer;transition:background .2s}
+      .toggle-slider::before{content:'';position:absolute;width:18px;height:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:transform .2s}
+      .toggle-switch input:checked+.toggle-slider{background:var(--primary)}
+      .toggle-switch input:checked+.toggle-slider::before{transform:translateX(20px)}
+      .toggle-switch input:disabled+.toggle-slider{opacity:.6;cursor:not-allowed}
+      .modal-actions{display:flex;gap:.7rem;margin-top:1.5rem}
+      .modal-actions button{flex:1;padding:.7rem;border-radius:8px;font-size:.9rem;font-weight:600;cursor:pointer;border:none}
+      .btn-save-pref{background:var(--primary);color:#fff}
+      .btn-reject-all{background:#f1f5f9;color:var(--muted)}
+      @media print{.site-header,.site-footer,.cookie-banner,.toc,.tab-bar{display:none!important}.doc-content section{box-shadow:none;border:1px solid var(--line);page-break-inside:avoid}}
+    </style>
+  </head>
+  <body>
+  <div id="app"></div>
+  <script>
+  (function(){
+  'use strict';
+  const { h, render } = preact;
+  const { useState, useEffect, useRef } = preactHooks;
+  const html = htm.bind(h);
+  const year = new Date().getFullYear();
+
+  function Header(){
+    const [menuOpen,setMenuOpen]=useState(false);
+    return html`<header class="site-header">
+      <div class="header-inner">
+        <a href="/" class="logo"><span class="eneji">ENEJI</span><span class="stats">STATS</span></a>
+        <nav><ul class="nav-links">
+          <li><a href="/">Home</a></li>
+          <li><a href="/about.html">About</a></li>
+          <li class="dropdown">
+            <a href="#">Stats Area <i class="fas fa-chevron-down" style="font-size:.65rem"></i></a>
+            <div class="dropdown-menu"><a href="/player-stats.html">Player</a><a href="/browse.html">Browse</a></div>
+          </li>
+          <li><a href="/leaderboard.html">Leaderboard</a></li>
+          <li><a href="/competitions.html">Competitions &amp; Trials</a></li>
+          <li><a href="/pricing.html">Pricing</a></li>
+          <li><a href="/contact.html">Contact</a></li>
+          <li><a href="/register.html" class="btn-nav">Register / Sign In</a></li>
+        </ul></nav>
+        <button class="hamburger" onClick=${()=>setMenuOpen(true)} aria-label="Open menu">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+      <div class=${'mobile-nav'+(menuOpen?' open':'')}>
+        <button class="mobile-nav-close" onClick=${()=>setMenuOpen(false)}><i class="fas fa-times"></i></button>
+        <a href="/" onClick=${()=>setMenuOpen(false)}>Home</a>
+        <a href="/about.html" onClick=${()=>setMenuOpen(false)}>About</a>
+        <a href="/pricing.html" onClick=${()=>setMenuOpen(false)}>Pricing</a>
+        <a href="/contact.html" onClick=${()=>setMenuOpen(false)}>Contact</a>
+        <a href="/register.html" style="color:var(--primary);font-weight:700" onClick=${()=>setMenuOpen(false)}>Register / Sign In</a>
+      </div>
+    </header>`;
+  }
+
+  function Footer(){
+    return html`<footer class="site-footer">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <h4>About Enejistats</h4>
+          <p>The leading platform for football talent tracking in Nigeria. Connecting players, clubs, scouts, and agents through verified data.</p>
+          <p style="margin-top:.6rem;font-style:italic;font-size:.82rem;color:rgba(255,255,255,.45)">Tracking talent with precision, integrity and reliability.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Quick Links</h4>
+          <ul>
+            <li><a href="/">Home</a></li><li><a href="/about.html">About</a></li>
+            <li><a href="/pricing.html">Pricing</a></li><li><a href="/leaderboard.html">Leaderboard</a></li>
+            <li><a href="/contact.html">Contact</a></li><li><a href="/register.html">Register</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>For Users</h4>
+          <ul>
+            <li><a href="/player-stats.html">Player Stats</a></li>
+            <li><a href="/club-stats.html">Club Stats</a></li>
+            <li><a href="/become-data-scout.html">Become a Data Scout</a></li>
+            <li><a href="/become-scout.html">Become a Scout</a></li>
+            <li><a href="/agent-programme.html">Agent Programme</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Connect</h4>
+          <ul><li><a href="mailto:enejistats@gmail.com"><i class="fas fa-envelope" style="width:16px"></i> enejistats@gmail.com</a></li></ul>
+          <div class="social-links">
+            <a href="#" aria-label="Twitter/X"><i class="fab fa-x-twitter"></i></a>
+            <a href="#" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
+            <a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+            <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+            <a href="#" aria-label="YouTube"><i class="fab fa-youtube"></i></a>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© ${year} Enejistats. All rights reserved.</span>
+        <span><a href="/terms-privacy.html">Terms &amp; Privacy</a> · <a href="/cookies.html">Cookies</a></span>
+      </div>
+    </footer>`;
+  }
+
+  function CookieBanner(){
+    const [visible,setVisible]=useState(false);
+    const [modalOpen,setModalOpen]=useState(false);
+    const [prefs,setPrefs]=useState({functional:true,analytics:false,marketing:false});
+    useEffect(()=>{if(!localStorage.getItem('enejistats_cookie_consent'))setVisible(true);},[]);
+    function acceptAll(){localStorage.setItem('enejistats_cookie_consent',JSON.stringify({essential:true,functional:true,analytics:true,marketing:true}));setVisible(false);}
+    function rejectNonEssential(){localStorage.setItem('enejistats_cookie_consent',JSON.stringify({essential:true,functional:false,analytics:false,marketing:false}));setVisible(false);}
+    function savePrefs(){localStorage.setItem('enejistats_cookie_consent',JSON.stringify({essential:true,...prefs}));setVisible(false);setModalOpen(false);}
+    if(!visible)return null;
+    return html`
+      ${modalOpen&&html`<div class="modal-overlay" onClick=${e=>e.target===e.currentTarget&&setModalOpen(false)}>
+        <div class="modal-box" role="dialog" aria-modal="true">
+          <h3>Manage Cookie Preferences</h3>
+          ${[{key:'essential',label:'Essential Cookies',desc:'Required for the site to function. Cannot be disabled.',locked:true},
+             {key:'functional',label:'Functional Cookies',desc:'Remember your preferences and settings.'},
+             {key:'analytics',label:'Analytics Cookies',desc:'Help us understand how visitors use the site.'},
+             {key:'marketing',label:'Marketing Cookies',desc:'Used to show relevant advertisements.'}
+          ].map(c=>html`<div class="pref-row" key=${c.key}>
+            <div><label for=${'pref-'+c.key}>${c.label}</label><span>${c.desc}</span></div>
+            <label class="toggle-switch">
+              <input id=${'pref-'+c.key} type="checkbox" checked=${c.locked||prefs[c.key]} disabled=${c.locked}
+                onChange=${e=>!c.locked&&setPrefs(p=>({...p,[c.key]:e.target.checked}))}/>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>`)}
+          <div class="modal-actions">
+            <button class="btn-reject-all" onClick=${rejectNonEssential}>Reject All</button>
+            <button class="btn-save-pref" onClick=${savePrefs}>Save Preferences</button>
+          </div>
+        </div>
+      </div>`}
+      <div class="cookie-banner">
+        <div class="cookie-inner">
+          <p class="cookie-text">We use cookies to enhance your experience. See our <a href="/cookies.html">Cookie Policy</a> and <a href="/terms-privacy.html">Terms &amp; Privacy</a>.</p>
+          <div class="cookie-actions">
+            <button class="cookie-btn manage" onClick=${()=>setModalOpen(true)}>Manage preferences</button>
+            <button class="cookie-btn reject" onClick=${rejectNonEssential}>Reject non-essential</button>
+            <button class="cookie-btn accept" onClick=${acceptAll}>Accept all</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  /* ─── TERMS SECTIONS ─────────────────────────────────────────────── */
+  const TERMS_SECTIONS=[
+    {id:'acceptance',title:'Acceptance of Terms',num:1},
+    {id:'eligibility',title:'Eligibility',num:2},
+    {id:'registration',title:'Account Registration',num:3},
+    {id:'roles',title:'Roles & Responsibilities',num:4},
+    {id:'tokens',title:'Tokens & Subscriptions',num:5},
+    {id:'data-collection',title:'Data Collection & Match Statistics',num:6},
+    {id:'liveness',title:'Liveness Verification & Data Retention',num:7},
+    {id:'gps',title:'GPS Location Capture',num:8},
+    {id:'conduct',title:'User Conduct',num:9},
+    {id:'ip',title:'Intellectual Property & Content',num:10},
+    {id:'termination',title:'Termination',num:11},
+    {id:'disclaimers',title:'Disclaimers',num:12},
+    {id:'liability',title:'Limitation of Liability',num:13},
+    {id:'law',title:'Governing Law',num:14},
+    {id:'terms-contact',title:'Contact Us',num:15},
+  ];
+
+  /* ─── PRIVACY SECTIONS ───────────────────────────────────────────── */
+  const PRIVACY_SECTIONS=[
+    {id:'controller',title:'Data Controller',num:1},
+    {id:'categories',title:'Categories of Data Collected',num:2},
+    {id:'purposes',title:'Purposes of Processing',num:3},
+    {id:'legal-basis',title:'Legal Basis for Processing',num:4},
+    {id:'sharing',title:'Sharing & Third Parties',num:5},
+    {id:'storage',title:'Storage Locations',num:6},
+    {id:'retention',title:'Data Retention',num:7},
+    {id:'cookies',title:'Cookies',num:8},
+    {id:'rights',title:'Your Rights (NDPR)',num:9},
+    {id:'children',title:'Children',num:10},
+    {id:'international',title:'International Transfers',num:11},
+    {id:'security',title:'Security',num:12},
+    {id:'updates',title:'Policy Updates',num:13},
+    {id:'contact-dpo',title:'Contact / DPO',num:14},
+  ];
+
+  function Section({id,num,title,children}){
+    return html`<section id=${id}>
+      <h2>
+        <span class="num">${num}</span>${title}
+        <a href=${'#'+id} class="anchor-link" aria-label=${'Link to '+title}><i class="fas fa-link"></i></a>
+      </h2>
+      ${children}
+    </section>`;
+  }
+
+  function TOC({sections,activeId}){
+    return html`<nav class="toc" aria-label="Table of contents">
+      <h3>Contents</h3>
+      <ol>
+        ${sections.map(s=>html`<li key=${s.id}><a href=${'#'+s.id} class=${activeId===s.id?'active':''}>${s.title}</a></li>`)}
+      </ol>
+    </nav>`;
+  }
+
+  function TermsContent(){
+    const [activeId,setActiveId]=useState('');
+    useEffect(()=>{
+      const observer=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting)setActiveId(e.target.id);});},{rootMargin:'-60px 0px -70% 0px'});
+      TERMS_SECTIONS.forEach(s=>{const el=document.getElementById(s.id);if(el)observer.observe(el);});
+      return ()=>observer.disconnect();
+    },[]);
+    return html`<div class="doc-layout">
+      <${TOC} sections=${TERMS_SECTIONS} activeId=${activeId}/>
+      <div class="doc-content" id="terms-doc-content">
+        <${Section} id="acceptance" num=${1} title="Acceptance of Terms">
+          <p>By accessing or using the Enejistats platform (the "Service"), whether through our website, mobile application, or any related services, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service ("Terms") and our Privacy Policy.</p>
+          <p>If you are accessing the Service on behalf of an organisation, you represent that you have the authority to bind that organisation to these Terms. If you do not agree to these Terms, you must not use the Service.</p>
+          <p>Enejistats reserves the right to modify these Terms at any time. Continued use of the Service after any changes constitutes your acceptance of the revised Terms. We will notify registered users of material changes via email or in-app notification.</p>
+        <//>
+        <${Section} id="eligibility" num=${2} title="Eligibility">
+          <p>To use the Enejistats platform, you must:</p>
+          <ul>
+            <li>Be at least 18 years of age, or 16 years with verifiable parental or guardian consent.</li>
+            <li>Reside in a jurisdiction where the use of such services is permitted.</li>
+            <li>Not have had a prior account suspended or terminated for violations of these Terms.</li>
+            <li>Provide accurate, current, and complete information during the registration process.</li>
+          </ul>
+          <p>Enejistats reserves the right to refuse service, suspend, or terminate accounts at its sole discretion.</p>
+        <//>
+        <${Section} id="registration" num=${3} title="Account Registration">
+          <p>To access most features of the Service, you must create an account. You agree to:</p>
+          <ul>
+            <li>Provide truthful and accurate registration information, including your real name, valid email address, and phone number.</li>
+            <li>Maintain the security and confidentiality of your account credentials.</li>
+            <li>Promptly notify Enejistats of any unauthorised access to your account.</li>
+            <li>Accept responsibility for all activities conducted through your account.</li>
+            <li>Not share, transfer, or sell your account to any third party.</li>
+          </ul>
+          <p>Certain roles (Player, Club, Agent, Scout, Data Collection Officer, Supervisor) require identity verification, liveness checks, and in some cases GPS location capture as part of the registration process.</p>
+        <//>
+        <${Section} id="roles" num=${4} title="Roles & Responsibilities">
+          <p>The Enejistats platform serves multiple user roles, each with distinct capabilities and responsibilities:</p>
+          <ul>
+            <li><strong>Players:</strong> May request match statistics, manage their profiles, and view their performance data. Players are responsible for ensuring their personal information is accurate.</li>
+            <li><strong>Clubs:</strong> May manage squad records, request match reports, and access aggregate statistics. Club administrators are responsible for the accuracy of squad and match data submitted.</li>
+            <li><strong>Scouts:</strong> May discover talent and submit scouting reports. Scouts must conduct their activities ethically and in accordance with applicable laws.</li>
+            <li><strong>Agents:</strong> May manage player portfolios and liaise with clubs and scouts. Agents must hold appropriate licences where required by law.</li>
+            <li><strong>Data Collection Officers (DCOs):</strong> Are responsible for accurate, real-time match data collection. DCOs must attend assigned matches and submit data promptly.</li>
+            <li><strong>Supervisors:</strong> Oversee DCO activities and validate submitted data within their assigned region.</li>
+            <li><strong>Administrators/Sub-Admins:</strong> Manage platform configuration, user accounts, and dispute resolution. Administrators hold the highest level of responsibility for platform integrity.</li>
+          </ul>
+        <//>
+        <${Section} id="tokens" num=${5} title="Tokens & Subscriptions">
+          <p>Enejistats uses a token economy to facilitate certain platform actions. Token costs and subscription prices are set exclusively by platform administrators and are not fixed. Current prices are always available at <a href="/pricing.html">enejistats.com/pricing.html</a> and via the platform API.</p>
+          <p><strong>Token acquisition:</strong> Tokens may be purchased directly or earned through Data Scout activities.</p>
+          <p><strong>Token flow:</strong> Tokens are locked when a request is submitted. They are deducted upon assignment or approval of a Data Collection Officer. If no DCO is assigned within 24 hours or an administrator declines the request, tokens are automatically refunded.</p>
+          <p><strong>Subscriptions:</strong> Subscription plans provide enhanced features and may include token allocations. Subscription prices, periods, and features are admin-controlled.</p>
+          <p><strong>Refunds:</strong> Token purchases are non-refundable once tokens have been used. Unused tokens are non-transferable and forfeited upon account termination. Subscription fees are non-refundable once a billing period has commenced.</p>
+        <//>
+        <${Section} id="data-collection" num=${6} title="Data Collection & Live Match Statistics">
+          <p>Enejistats collects, processes, and stores live football match statistics through its network of Data Collection Officers. By requesting statistics:</p>
+          <ul>
+            <li>Players and clubs consent to the collection and display of match-related performance data.</li>
+            <li>All published statistics are attributed to the submitting DCO and reviewed by Supervisors.</li>
+            <li>Enejistats does not guarantee the accuracy of any submitted statistics, though we implement verification processes to ensure quality.</li>
+            <li>Match statistics data may be used in aggregated or anonymised form for platform analytics and public leaderboards.</li>
+          </ul>
+        <//>
+        <${Section} id="liveness" num=${7} title="Liveness Verification & Data Retention">
+          <p>Certain registration and verification processes on Enejistats require a liveness check — a short analysis performed through your device's camera in real time. This requirement applies to Player, Club, Agent, Scout, DCO, and Supervisor registrations.</p>
+          <p><strong>Purpose:</strong> Liveness verification is used solely to confirm the physical presence of the user at the time of registration, and to prevent fraudulent account creation.</p>
+          <p><strong>Data Retention:</strong> No video is recorded, stored, or transmitted. The liveness check is performed entirely on-device using AI face analysis. The metadata record (timestamp, user ID, purpose) is retained for audit purposes.</p>
+          <p><strong>Consent:</strong> By proceeding through a liveness check, you explicitly consent to the temporary processing of your biometric data for identity verification purposes on your device only.</p>
+        <//>
+        <${Section} id="gps" num=${8} title="GPS Location Capture">
+          <p>Certain platform actions require the capture of your GPS coordinates, including but not limited to: club registration (stadium location), player registration (current location), and DCO match check-in.</p>
+          <p>Your location data is:</p>
+          <ul>
+            <li>Captured only with your explicit consent at the time of the action.</li>
+            <li>Used solely for verification, assignment, and operational purposes.</li>
+            <li>Not shared with third parties except where required by law or as described in the Privacy Policy.</li>
+            <li>Retained in accordance with the data retention schedule in the Privacy Policy.</li>
+          </ul>
+          <p>You may withdraw consent for location capture; however, this may prevent access to certain platform features.</p>
+        <//>
+        <${Section} id="conduct" num=${9} title="User Conduct">
+          <p>You agree not to use the Enejistats platform to:</p>
+          <ul>
+            <li>Submit false, misleading, or fraudulent information, including fabricated match statistics.</li>
+            <li>Impersonate any person, player, club, or organisation.</li>
+            <li>Interfere with or disrupt the integrity or performance of the Service.</li>
+            <li>Attempt to gain unauthorised access to any part of the platform or another user's account.</li>
+            <li>Engage in any activity that violates applicable Nigerian law or international law.</li>
+            <li>Harass, abuse, or harm other users, referees, DCOs, or platform staff.</li>
+            <li>Use automated tools, bots, or scripts to access or scrape the Service.</li>
+          </ul>
+          <p>Violations may result in immediate account suspension, forfeiture of tokens, and referral to law enforcement where warranted.</p>
+        <//>
+        <${Section} id="ip" num=${10} title="Intellectual Property & Content">
+          <p>All platform software, design, trademarks, logos, and original content are the intellectual property of Enejistats or its licensors and are protected by applicable Nigerian and international intellectual property law.</p>
+          <p>By submitting content to the platform you grant Enejistats a non-exclusive, royalty-free, worldwide licence to use, display, reproduce, and distribute such content for the purposes of operating and improving the Service. You retain ownership of content you submit.</p>
+        <//>
+        <${Section} id="termination" num=${11} title="Termination">
+          <p>You may terminate your account at any time by contacting Enejistats support. Upon termination, your access to the Service will cease, and unused tokens and subscription balances will be forfeited.</p>
+          <p>Enejistats may suspend or terminate your account without notice for material breaches of these Terms, fraudulent activity, non-payment, or for any other reason at our sole discretion.</p>
+        <//>
+        <${Section} id="disclaimers" num=${12} title="Disclaimers">
+          <p>The Enejistats platform is provided on an "as is" and "as available" basis. To the fullest extent permitted by law, Enejistats disclaims all warranties, express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, accuracy of match statistics, and uninterrupted operation.</p>
+        <//>
+        <${Section} id="liability" num=${13} title="Limitation of Liability">
+          <p>To the maximum extent permitted by applicable Nigerian law, Enejistats, its directors, employees, agents, and affiliates shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of or inability to use the Service.</p>
+          <p>Our total liability to you for any cause of action shall not exceed the total amount paid by you to Enejistats in the three (3) months preceding the claim.</p>
+        <//>
+        <${Section} id="law" num=${14} title="Governing Law">
+          <p>These Terms and any disputes arising from your use of the Enejistats platform shall be governed by and construed in accordance with the laws of the Federal Republic of Nigeria, without regard to conflict of law principles. Any legal proceedings shall be subject to the exclusive jurisdiction of the courts located in Nigeria.</p>
+        <//>
+        <${Section} id="terms-contact" num=${15} title="Contact Us">
+          <p>If you have questions about these Terms of Service, please contact:</p>
+          <div class="legal-contact">
+            <strong>Enejistats Legal &amp; Compliance</strong><br/>
+            Email: <a href="mailto:enejistats@gmail.com">enejistats@gmail.com</a><br/>
+            Subject line: "Terms of Service Enquiry"
+          </div>
+        <//>
+      </div>
+    </div>`;
+  }
+
+  function PrivacyContent(){
+    const [activeId,setActiveId]=useState('');
+    useEffect(()=>{
+      const observer=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting)setActiveId(e.target.id);});},{rootMargin:'-60px 0px -70% 0px'});
+      PRIVACY_SECTIONS.forEach(s=>{const el=document.getElementById(s.id);if(el)observer.observe(el);});
+      return ()=>observer.disconnect();
+    },[]);
+    return html`<div class="doc-layout">
+      <${TOC} sections=${PRIVACY_SECTIONS} activeId=${activeId}/>
+      <div class="doc-content" id="privacy-doc-content">
+        <${Section} id="controller" num=${1} title="Data Controller">
+          <p>Enejistats is the data controller responsible for the personal data collected through the Enejistats platform. For the purposes of the Nigeria Data Protection Regulation (NDPR) 2019:</p>
+          <div class="legal-contact">
+            <strong>Enejistats Data Protection Officer</strong><br/>
+            Email: <a href="mailto:enejistats@gmail.com">enejistats@gmail.com</a><br/>
+            Subject: "Privacy / Data Protection"
+          </div>
+        <//>
+        <${Section} id="categories" num=${2} title="Categories of Data Collected">
+          <p>Depending on your role and usage, Enejistats may collect:</p>
+          <table class="data-table">
+            <thead><tr><th>Category</th><th>Examples</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Identity Data</strong></td><td>Full name, date of birth, gender, NIN</td></tr>
+              <tr><td><strong>Contact Data</strong></td><td>Email address, phone number, address</td></tr>
+              <tr><td><strong>Professional Data</strong></td><td>Playing position, club affiliation, agent licence, scout credentials</td></tr>
+              <tr><td><strong>Biometric Data</strong></td><td>Liveness verification — processed entirely on-device; no video stored</td></tr>
+              <tr><td><strong>Location Data</strong></td><td>GPS coordinates captured during registration and location updates</td></tr>
+              <tr><td><strong>Financial Data</strong></td><td>Transaction records, token history (card details processed by Flutterwave — not stored by Enejistats)</td></tr>
+              <tr><td><strong>Performance Data</strong></td><td>Match statistics, heatmaps, match reports, scouting notes</td></tr>
+              <tr><td><strong>Technical Data</strong></td><td>IP address, browser type, device information, log data</td></tr>
+              <tr><td><strong>Usage Data</strong></td><td>Pages visited, features used, session duration</td></tr>
+              <tr><td><strong>Communications Data</strong></td><td>Support tickets, emails, in-app messages</td></tr>
+            </tbody>
+          </table>
+        <//>
+        <${Section} id="purposes" num=${3} title="Purposes of Processing">
+          <p>Enejistats processes your personal data for the following purposes:</p>
+          <ul>
+            <li><strong>Account management:</strong> Creating, maintaining, and managing your account and subscription.</li>
+            <li><strong>Identity verification:</strong> Conducting liveness checks and verifying GPS location to prevent fraud.</li>
+            <li><strong>Service delivery:</strong> Collecting and presenting match statistics, scouting reports, and performance data.</li>
+            <li><strong>Payment processing:</strong> Facilitating token purchases and subscription payments through Flutterwave.</li>
+            <li><strong>Platform operations:</strong> Assigning DCOs, managing workflow, and coordinating between user roles.</li>
+            <li><strong>Communications:</strong> Sending transactional emails, support responses, and (where consent is given) platform updates.</li>
+            <li><strong>Analytics:</strong> Understanding platform usage to improve user experience.</li>
+            <li><strong>Legal compliance:</strong> Meeting obligations under Nigerian law.</li>
+          </ul>
+        <//>
+        <${Section} id="legal-basis" num=${4} title="Legal Basis for Processing">
+          <p>Enejistats processes your personal data on the following legal bases under the NDPR:</p>
+          <ul>
+            <li><strong>Contractual necessity:</strong> Processing required to deliver the services you have registered for.</li>
+            <li><strong>Legitimate interests:</strong> Platform security, fraud prevention, and improving the quality of the service.</li>
+            <li><strong>Legal obligation:</strong> Compliance with Nigerian financial regulations, tax law, and regulatory requirements.</li>
+            <li><strong>Consent:</strong> Where we process special categories of data (biometric/liveness, precise location), we obtain your explicit consent at the point of collection.</li>
+          </ul>
+        <//>
+        <${Section} id="sharing" num=${5} title="Sharing & Third Parties">
+          <p>Enejistats does not sell your personal data. We may share data with:</p>
+          <ul>
+            <li><strong>Flutterwave:</strong> Our payment processor. Card data is processed by Flutterwave under their PCI-DSS framework.</li>
+            <li><strong>Cloud infrastructure providers:</strong> Servers hosting the Enejistats platform in compliant cloud environments.</li>
+            <li><strong>Platform stakeholders:</strong> Certain data is shared within the platform between authorised roles as part of the core service.</li>
+            <li><strong>Legal authorities:</strong> We may disclose data if required by law or court order in Nigeria.</li>
+            <li><strong>Business transfers:</strong> In the event of a merger or acquisition, user data may be transferred with prior notification.</li>
+          </ul>
+        <//>
+        <${Section} id="storage" num=${6} title="Storage Locations">
+          <p>Data is stored on secure cloud servers. Enejistats takes reasonable steps to ensure subprocessors and hosting providers maintain appropriate security standards. Where data is transferred outside Nigeria, Enejistats ensures appropriate safeguards are in place as required by the NDPR.</p>
+        <//>
+        <${Section} id="retention" num=${7} title="Data Retention">
+          <table class="data-table">
+            <thead><tr><th>Data Type</th><th>Retention Period</th></tr></thead>
+            <tbody>
+              <tr><td>Liveness verification</td><td><strong>No video stored</strong> — on-device only; metadata audit record retained</td></tr>
+              <tr><td>Account / profile data</td><td>Duration of account; deleted upon verified account closure request</td></tr>
+              <tr><td>Match statistics &amp; performance data</td><td>Indefinite (forms core platform value)</td></tr>
+              <tr><td>Financial records</td><td><strong>7 years</strong> (Nigerian financial law requirements)</td></tr>
+              <tr><td>GPS coordinates</td><td>Retained while account is active; deleted upon account closure</td></tr>
+              <tr><td>Support communications</td><td>3 years from last contact</td></tr>
+              <tr><td>Log / technical data</td><td>90 days</td></tr>
+            </tbody>
+          </table>
+        <//>
+        <${Section} id="cookies" num=${8} title="Cookies">
+          <p>Enejistats uses cookies and similar tracking technologies to operate and improve the platform. For full details, see our <a href="/cookies.html">Cookie Policy</a>.</p>
+          <p>You can manage your cookie preferences at any time using the preference tool in the banner at the bottom of this page, or by adjusting your browser settings.</p>
+        <//>
+        <${Section} id="rights" num=${9} title="Your Rights (NDPR)">
+          <p>Under the Nigeria Data Protection Regulation (NDPR), you have the following rights:</p>
+          <ul>
+            <li><strong>Right of access:</strong> Request a copy of personal data Enejistats holds about you.</li>
+            <li><strong>Right to rectification:</strong> Request correction of inaccurate or incomplete data.</li>
+            <li><strong>Right to erasure:</strong> Request deletion of your data where there is no lawful reason for continued processing.</li>
+            <li><strong>Right to data portability:</strong> Receive your data in a structured, machine-readable format.</li>
+            <li><strong>Right to object:</strong> Object to processing based on legitimate interests or for direct marketing.</li>
+            <li><strong>Right to withdraw consent:</strong> Withdraw consent at any time without affecting prior processing.</li>
+            <li><strong>Right to lodge a complaint:</strong> Lodge a complaint with the Nigeria Data Protection Bureau (NDPB).</li>
+          </ul>
+          <p>To exercise any of these rights, contact our DPO at <a href="mailto:enejistats@gmail.com">enejistats@gmail.com</a> with the subject "Data Subject Request." We will respond within 30 days.</p>
+        <//>
+        <${Section} id="children" num=${10} title="Children">
+          <p>Enejistats does not knowingly collect personal data from individuals under the age of 16 without verified parental or guardian consent. If we become aware that a child's data has been collected without appropriate consent, we will take immediate steps to delete such data.</p>
+        <//>
+        <${Section} id="international" num=${11} title="International Transfers">
+          <p>If personal data is transferred outside Nigeria, Enejistats ensures the receiving country or organisation provides an adequate level of data protection consistent with the NDPR. Where required, we implement appropriate safeguards such as standard contractual clauses.</p>
+        <//>
+        <${Section} id="security" num=${12} title="Security">
+          <p>Enejistats implements appropriate technical and organisational measures to protect your personal data, including:</p>
+          <ul>
+            <li>Encrypted data transmission (HTTPS/TLS).</li>
+            <li>Secure storage of passwords using industry-standard hashing.</li>
+            <li>Role-based access controls to limit internal data access.</li>
+            <li>Regular security reviews and vulnerability assessments.</li>
+            <li>On-device only biometric processing — no video recorded or stored.</li>
+          </ul>
+          <p>No method of electronic transmission or storage is 100% secure. If you become aware of a security breach affecting your account, please notify us immediately.</p>
+        <//>
+        <${Section} id="updates" num=${13} title="Policy Updates">
+          <p>Enejistats may update this Privacy Policy periodically to reflect changes in our practices, technology, or legal requirements. We will notify registered users of material changes via email or in-app notification at least 14 days before changes take effect.</p>
+          <p>Continued use of the Service after the effective date of any update constitutes your acceptance of the revised policy.</p>
+        <//>
+        <${Section} id="contact-dpo" num=${14} title="Contact / DPO">
+          <p>For all privacy-related enquiries, data subject requests, or complaints:</p>
+          <div class="legal-contact">
+            <strong>Enejistats Data Protection Officer</strong><br/>
+            Email: <a href="mailto:enejistats@gmail.com">enejistats@gmail.com</a><br/>
+            Subject: "Privacy / Data Protection"<br/><br/>
+            We aim to respond to all data protection enquiries within <strong>30 days</strong>.
+          </div>
+        <//>
+      </div>
+    </div>`;
+  }
+
+  function App(){
+    const [activeTab,setActiveTab]=useState('terms');
+    const tabFromHash=()=>{
+      const h=location.hash;
+      if(h.startsWith('#privacy-')||h==='#privacy')return 'privacy';
+      return 'terms';
+    };
+    useEffect(()=>{
+      setActiveTab(tabFromHash());
+      const onHash=()=>setActiveTab(tabFromHash());
+      window.addEventListener('hashchange',onHash);
+      return ()=>window.removeEventListener('hashchange',onHash);
+    },[]);
+
+    return html`
+      <${Header}/>
+      <div class="page-hero">
+        <div class="inner">
+          <h1>Terms of Service &amp; Privacy Policy</h1>
+          <p class="meta">Last updated: 18 May 2025</p>
+          <p class="summary">These documents govern your access to and use of the Enejistats platform and explain how we collect, use, and protect your personal data.</p>
+        </div>
+      </div>
+      <div class="tab-bar">
+        <button class=${'tab-btn'+(activeTab==='terms'?' active':'')} onClick=${()=>setActiveTab('terms')}>
+          <i class="fas fa-file-contract" style="margin-right:6px"></i>Terms of Service
+        </button>
+        <button class=${'tab-btn'+(activeTab==='privacy'?' active':'')} onClick=${()=>setActiveTab('privacy')}>
+          <i class="fas fa-shield-alt" style="margin-right:6px"></i>Privacy Policy
+        </button>
+      </div>
+      <div class=${'tab-panel'+(activeTab==='terms'?' active':'')} id="tab-terms">
+        <${TermsContent}/>
+      </div>
+      <div class=${'tab-panel'+(activeTab==='privacy'?' active':'')} id="tab-privacy">
+        <${PrivacyContent}/>
+      </div>
+      <${Footer}/>
+      <${CookieBanner}/>
+    `;
+  }
+
+  render(html`<${App}/>`, document.getElementById('app'));
+  })();
+  </script>
+
+  <!-- Static content for DocOverlay DOMParser extraction (not displayed by default) -->
+  <div id="terms-doc-content" hidden>
+    <section id="acceptance">
+      <h2><span class="num">1</span>Acceptance of Terms</h2>
+      <p>By accessing or using the Enejistats platform (the "Service"), whether through our website, mobile application, or any related services, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service ("Terms") and our Privacy Policy.</p>
+      <p>If you are accessing the Service on behalf of an organisation, you represent that you have the authority to bind that organisation to these Terms. If you do not agree to these Terms, you must not use the Service.</p>
+      <p>Enejistats reserves the right to modify these Terms at any time. Continued use of the Service after any changes constitutes your acceptance of the revised Terms. We will notify registered users of material changes via email or in-app notification.</p>
+    </section>
+    <section id="eligibility">
+      <h2><span class="num">2</span>Eligibility</h2>
+      <p>To use the Enejistats platform, you must:</p>
+      <ul>
+        <li>Be at least 18 years of age, or 16 years with verifiable parental or guardian consent.</li>
+        <li>Reside in a jurisdiction where the use of such services is permitted.</li>
+        <li>Not have had a prior account suspended or terminated for violations of these Terms.</li>
+        <li>Provide accurate, current, and complete information during the registration process.</li>
+      </ul>
+      <p>Enejistats reserves the right to refuse service, suspend, or terminate accounts at its sole discretion.</p>
+    </section>
+    <section id="registration">
+      <h2><span class="num">3</span>Account Registration</h2>
+      <p>To access most features of the Service, you must create an account. You agree to:</p>
+      <ul>
+        <li>Provide truthful and accurate registration information, including your real name, valid email address, and phone number.</li>
+        <li>Maintain the security and confidentiality of your account credentials.</li>
+        <li>Promptly notify Enejistats of any unauthorised access to your account.</li>
+        <li>Accept responsibility for all activities conducted through your account.</li>
+        <li>Not share, transfer, or sell your account to any third party.</li>
+      </ul>
+      <p>Certain roles (Player, Club, Agent, Scout, Data Collection Officer, Supervisor) require identity verification, liveness checks, and in some cases GPS location capture as part of the registration process.</p>
+    </section>
+    <section id="roles">
+      <h2><span class="num">4</span>Roles &amp; Responsibilities</h2>
+      <p>The Enejistats platform serves multiple user roles, each with distinct capabilities and responsibilities:</p>
+      <ul>
+        <li><strong>Players:</strong> May request match statistics, manage their profiles, and view their performance data. Players are responsible for ensuring their personal information is accurate.</li>
+        <li><strong>Clubs:</strong> May manage squad records, request match reports, and access aggregate statistics. Club administrators are responsible for the accuracy of squad and match data submitted.</li>
+        <li><strong>Scouts:</strong> May discover talent and submit scouting reports. Scouts must conduct their activities ethically and in accordance with applicable laws.</li>
+        <li><strong>Agents:</strong> May manage player portfolios and liaise with clubs and scouts. Agents must hold appropriate licences where required by law.</li>
+        <li><strong>Data Collection Officers (DCOs):</strong> Are responsible for accurate, real-time match data collection. DCOs must attend assigned matches and submit data promptly.</li>
+        <li><strong>Supervisors:</strong> Oversee DCO activities and validate submitted data within their assigned region.</li>
+        <li><strong>Administrators/Sub-Admins:</strong> Manage platform configuration, user accounts, and dispute resolution. Administrators hold the highest level of responsibility for platform integrity.</li>
+      </ul>
+    </section>
+    <section id="tokens">
+      <h2><span class="num">5</span>Tokens &amp; Subscriptions</h2>
+      <p>Enejistats uses a token economy to facilitate certain platform actions. Token costs and subscription prices are set exclusively by platform administrators and are not fixed. Current prices are always available at <a href="/pricing.html">enejistats.com/pricing.html</a> and via the platform API.</p>
+      <p><strong>Token acquisition:</strong> Tokens may be purchased directly or earned through Data Scout activities.</p>
+      <p><strong>Token flow:</strong> Tokens are locked when a request is submitted. They are deducted upon assignment or approval of a Data Collection Officer. If no DCO is assigned within 24 hours or an administrator declines the request, tokens are automatically refunded.</p>
+      <p><strong>Subscriptions:</strong> Subscription plans provide enhanced features and may include token allocations. Subscription prices, periods, and features are admin-controlled.</p>
+      <p><strong>Refunds:</strong> Token purchases are non-refundable once tokens have been used. Unused tokens are non-transferable and forfeited upon account termination. Subscription fees are non-refundable once a billing period has commenced.</p>
+    </section>
+    <section id="data-collection">
+      <h2><span class="num">6</span>Data Collection &amp; Live Match Statistics</h2>
+      <p>Enejistats collects, processes, and stores live football match statistics through its network of Data Collection Officers. By requesting statistics:</p>
+      <ul>
+        <li>Players and clubs consent to the collection and display of match-related performance data.</li>
+        <li>All published statistics are attributed to the submitting DCO and reviewed by Supervisors.</li>
+        <li>Enejistats does not guarantee the accuracy of any submitted statistics, though we implement verification processes to ensure quality.</li>
+        <li>Match statistics data may be used in aggregated or anonymised form for platform analytics and public leaderboards.</li>
+      </ul>
+    </section>
+    <section id="liveness">
+      <h2><span class="num">7</span>Liveness Verification &amp; Data Retention</h2>
+      <p>Certain registration and verification processes on Enejistats require a liveness check — a short analysis performed through your device's camera in real time. This requirement applies to Player, Club, Agent, Scout, DCO, and Supervisor registrations.</p>
+      <p><strong>Purpose:</strong> Liveness verification is used solely to confirm the physical presence of the user at the time of registration, and to prevent fraudulent account creation.</p>
+      <p><strong>Data Retention:</strong> No video is recorded, stored, or transmitted. The liveness check is performed entirely on-device using AI face analysis. The metadata record (timestamp, user ID, purpose) is retained for audit purposes.</p>
+      <p><strong>Consent:</strong> By proceeding through a liveness check, you explicitly consent to the temporary processing of your biometric data for identity verification purposes on your device only.</p>
+    </section>
+    <section id="gps">
+      <h2><span class="num">8</span>GPS Location Capture</h2>
+      <p>Certain platform actions require the capture of your GPS coordinates, including but not limited to: club registration (stadium location), player registration (current location), and DCO match check-in.</p>
+      <p>Your location data is:</p>
+      <ul>
+        <li>Captured only with your explicit consent at the time of the action.</li>
+        <li>Used solely for verification, assignment, and operational purposes.</li>
+        <li>Not shared with third parties except where required by law or as described in the Privacy Policy.</li>
+        <li>Retained in accordance with the data retention schedule in the Privacy Policy.</li>
+      </ul>
+      <p>You may withdraw consent for location capture; however, this may prevent access to certain platform features.</p>
+    </section>
+    <section id="conduct">
+      <h2><span class="num">9</span>User Conduct</h2>
+      <p>You agree not to use the Enejistats platform to:</p>
+      <ul>
+        <li>Submit false, misleading, or fraudulent information, including fabricated match statistics.</li>
+        <li>Impersonate any person, player, club, or organisation.</li>
+        <li>Interfere with or disrupt the integrity or performance of the Service.</li>
+        <li>Attempt to gain unauthorised access to any part of the platform or another user's account.</li>
+        <li>Engage in any activity that violates applicable Nigerian law or international law.</li>
+        <li>Harass, abuse, or harm other users, referees, DCOs, or platform staff.</li>
+        <li>Use automated tools, bots, or scripts to access or scrape the Service.</li>
+      </ul>
+      <p>Violations may result in immediate account suspension, forfeiture of tokens, and referral to law enforcement where warranted.</p>
+    </section>
+    <section id="ip">
+      <h2><span class="num">10</span>Intellectual Property &amp; Content</h2>
+      <p>All platform software, design, trademarks, logos, and original content are the intellectual property of Enejistats or its licensors and are protected by applicable Nigerian and international intellectual property law.</p>
+      <p>By submitting content to the platform you grant Enejistats a non-exclusive, royalty-free, worldwide licence to use, display, reproduce, and distribute such content for the purposes of operating and improving the Service. You retain ownership of content you submit.</p>
+    </section>
+    <section id="termination">
+      <h2><span class="num">11</span>Termination</h2>
+      <p>You may terminate your account at any time by contacting Enejistats support. Upon termination, your access to the Service will cease, and unused tokens and subscription balances will be forfeited.</p>
+      <p>Enejistats may suspend or terminate your account without notice for material breaches of these Terms, fraudulent activity, non-payment, or for any other reason at our sole discretion.</p>
+    </section>
+    <section id="disclaimers">
+      <h2><span class="num">12</span>Disclaimers</h2>
+      <p>The Enejistats platform is provided on an "as is" and "as available" basis. To the fullest extent permitted by law, Enejistats disclaims all warranties, express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, accuracy of match statistics, and uninterrupted operation.</p>
+    </section>
+    <section id="liability">
+      <h2><span class="num">13</span>Limitation of Liability</h2>
+      <p>To the maximum extent permitted by applicable Nigerian law, Enejistats, its directors, employees, agents, and affiliates shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of or inability to use the Service.</p>
+      <p>Our total liability to you for any cause of action shall not exceed the total amount paid by you to Enejistats in the three (3) months preceding the claim.</p>
+    </section>
+    <section id="law">
+      <h2><span class="num">14</span>Governing Law</h2>
+      <p>These Terms and any disputes arising from your use of the Enejistats platform shall be governed by and construed in accordance with the laws of the Federal Republic of Nigeria, without regard to conflict of law principles. Any legal proceedings shall be subject to the exclusive jurisdiction of the courts located in Nigeria.</p>
+    </section>
+    <section id="terms-contact">
+      <h2><span class="num">15</span>Contact Us</h2>
+      <p>If you have questions about these Terms of Service, please contact:</p>
+      <div class="legal-contact">
+        <strong>Enejistats Legal &amp; Compliance</strong><br/>
+        Email: <a href="mailto:enejistats@gmail.com">enejistats@gmail.com</a><br/>
+        Subject line: "Terms of Service Enquiry"
+      </div>
+    </section>
+  </div>
+
+  <div id="privacy-doc-content" hidden>
+    <section id="controller">
+      <h2><span class="num">1</span>Data Controller</h2>
+      <p>Enejistats is the data controller responsible for the personal data collected through the Enejistats platform. For the purposes of the Nigeria Data Protection Regulation (NDPR) 2019:</p>
+      <div class="legal-contact">
+        <strong>Enejistats Data Protection Officer</strong><br/>
+        Email: <a href="mailto:enejistats@gmail.com">enejistats@gmail.com</a><br/>
+        Subject: "Privacy / Data Protection"
+      </div>
+    </section>
+    <section id="categories">
+      <h2><span class="num">2</span>Categories of Data Collected</h2>
+      <p>Depending on your role and usage, Enejistats may collect:</p>
+      <table class="data-table">
+        <thead><tr><th>Category</th><th>Examples</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Identity Data</strong></td><td>Full name, date of birth, gender, NIN</td></tr>
+          <tr><td><strong>Contact Data</strong></td><td>Email address, phone number, address</td></tr>
+          <tr><td><strong>Professional Data</strong></td><td>Playing position, club affiliation, agent licence, scout credentials</td></tr>
+          <tr><td><strong>Biometric Data</strong></td><td>Liveness verification — processed entirely on-device; no video stored</td></tr>
+          <tr><td><strong>Location Data</strong></td><td>GPS coordinates captured during registration and location updates</td></tr>
+          <tr><td><strong>Financial Data</strong></td><td>Transaction records, token history (card details processed by Flutterwave — not stored by Enejistats)</td></tr>
+          <tr><td><strong>Performance Data</strong></td><td>Match statistics, heatmaps, match reports, scouting notes</td></tr>
+          <tr><td><strong>Technical Data</strong></td><td>IP address, browser type, device information, log data</td></tr>
+          <tr><td><strong>Usage Data</strong></td><td>Pages visited, features used, session duration</td></tr>
+          <tr><td><strong>Communications Data</strong></td><td>Support tickets, emails, in-app messages</td></tr>
+        </tbody>
+      </table>
+    </section>
+    <section id="purposes">
+      <h2><span class="num">3</span>Purposes of Processing</h2>
+      <p>Enejistats processes your personal data for the following purposes:</p>
+      <ul>
+        <li><strong>Account management:</strong> Creating, maintaining, and managing your account and subscription.</li>
+        <li><strong>Identity verification:</strong> Conducting liveness checks and verifying GPS location to prevent fraud.</li>
+        <li><strong>Service delivery:</strong> Collecting and presenting match statistics, scouting reports, and performance data.</li>
+        <li><strong>Payment processing:</strong> Facilitating token purchases and subscription payments through Flutterwave.</li>
+        <li><strong>Platform operations:</strong> Assigning DCOs, managing workflow, and coordinating between user roles.</li>
+        <li><strong>Communications:</strong> Sending transactional emails, support responses, and (where consent is given) platform updates.</li>
+        <li><strong>Analytics:</strong> Understanding platform usage to improve user experience.</li>
+        <li><strong>Legal compliance:</strong> Meeting obligations under Nigerian law.</li>
+      </ul>
+    </section>
+    <section id="legal-basis">
+      <h2><span class="num">4</span>Legal Basis for Processing</h2>
+      <p>Enejistats processes your personal data on the following legal bases under the NDPR:</p>
+      <ul>
+        <li><strong>Contractual necessity:</strong> Processing required to deliver the services you have registered for.</li>
+        <li><strong>Legitimate interests:</strong> Platform security, fraud prevention, and improving the quality of the service.</li>
+        <li><strong>Legal obligation:</strong> Compliance with Nigerian financial regulations, tax law, and regulatory requirements.</li>
+        <li><strong>Consent:</strong> Where we process special categories of data (biometric/liveness, precise location), we obtain your explicit consent at the point of collection.</li>
+      </ul>
+    </section>
+    <section id="sharing">
+      <h2><span class="num">5</span>Sharing &amp; Third Parties</h2>
+      <p>Enejistats does not sell your personal data. We may share data with:</p>
+      <ul>
+        <li><strong>Flutterwave:</strong> Our payment processor. Card data is processed by Flutterwave under their PCI-DSS framework.</li>
+        <li><strong>Cloud infrastructure providers:</strong> Servers hosting the Enejistats platform in compliant cloud environments.</li>
+        <li><strong>Platform stakeholders:</strong> Certain data is shared within the platform between authorised roles as part of the core service.</li>
+        <li><strong>Legal authorities:</strong> We may disclose data if required by law or court order in Nigeria.</li>
+        <li><strong>Business transfers:</strong> In the event of a merger or acquisition, user data may be transferred with prior notification.</li>
+      </ul>
+    </section>
+    <section id="storage">
+      <h2><span class="num">6</span>Storage Locations</h2>
+      <p>Data is stored on secure cloud servers. Enejistats takes reasonable steps to ensure subprocessors and hosting providers maintain appropriate security standards. Where data is transferred outside Nigeria, Enejistats ensures appropriate safeguards are in place as required by the NDPR.</p>
+    </section>
+    <section id="retention">
+      <h2><span class="num">7</span>Data Retention</h2>
+      <table class="data-table">
+        <thead><tr><th>Data Type</th><th>Retention Period</th></tr></thead>
+        <tbody>
+          <tr><td>Liveness verification</td><td><strong>No video stored</strong> — on-device only; metadata audit record retained</td></tr>
+          <tr><td>Account / profile data</td><td>Duration of account; deleted upon verified account closure request</td></tr>
+          <tr><td>Match statistics &amp; performance data</td><td>Indefinite (forms core platform value)</td></tr>
+          <tr><td>Financial records</td><td><strong>7 years</strong> (Nigerian financial law requirements)</td></tr>
+          <tr><td>GPS coordinates</td><td>Retained while account is active; deleted upon account closure</td></tr>
+          <tr><td>Support communications</td><td>3 years from last contact</td></tr>
+          <tr><td>Log / technical data</td><td>90 days</td></tr>
+        </tbody>
+      </table>
+    </section>
+    <section id="cookies">
+      <h2><span class="num">8</span>Cookies</h2>
+      <p>Enejistats uses cookies and similar tracking technologies to operate and improve the platform. For full details, see our <a href="/cookies.html">Cookie Policy</a>.</p>
+      <p>You can manage your cookie preferences at any time using the preference tool in the banner at the bottom of this page, or by adjusting your browser settings.</p>
+    </section>
+    <section id="rights">
+      <h2><span class="num">9</span>Your Rights (NDPR)</h2>
+      <p>Under the Nigeria Data Protection Regulation (NDPR), you have the following rights:</p>
+      <ul>
+        <li><strong>Right of access:</strong> Request a copy of personal data Enejistats holds about you.</li>
+        <li><strong>Right to rectification:</strong> Request correction of inaccurate or incomplete data.</li>
+        <li><strong>Right to erasure:</strong> Request deletion of your data where there is no lawful reason for continued processing.</li>
+        <li><strong>Right to data portability:</strong> Receive your data in a structured, machine-readable format.</li>
+        <li><strong>Right to object:</strong> Object to processing based on legitimate interests or for direct marketing.</li>
+        <li><strong>Right to withdraw consent:</strong> Withdraw consent at any time without affecting prior processing.</li>
+        <li><strong>Right to lodge a complaint:</strong> Lodge a complaint with the Nigeria Data Protection Bureau (NDPB).</li>
+      </ul>
+      <p>To exercise any of these rights, contact our DPO at <a href="mailto:enejistats@gmail.com">enejistats@gmail.com</a> with the subject "Data Subject Request." We will respond within 30 days.</p>
+    </section>
+    <section id="children">
+      <h2><span class="num">10</span>Children</h2>
+      <p>Enejistats does not knowingly collect personal data from individuals under the age of 16 without verified parental or guardian consent. If we become aware that a child's data has been collected without appropriate consent, we will take immediate steps to delete such data.</p>
+    </section>
+    <section id="international">
+      <h2><span class="num">11</span>International Transfers</h2>
+      <p>If personal data is transferred outside Nigeria, Enejistats ensures the receiving country or organisation provides an adequate level of data protection consistent with the NDPR. Where required, we implement appropriate safeguards such as standard contractual clauses.</p>
+    </section>
+    <section id="security">
+      <h2><span class="num">12</span>Security</h2>
+      <p>Enejistats implements appropriate technical and organisational measures to protect your personal data, including:</p>
+      <ul>
+        <li>Encrypted data transmission (HTTPS/TLS).</li>
+        <li>Secure storage of passwords using industry-standard hashing.</li>
+        <li>Role-based access controls to limit internal data access.</li>
+        <li>Regular security reviews and vulnerability assessments.</li>
+        <li>On-device only biometric processing — no video recorded or stored.</li>
+      </ul>
+      <p>No method of electronic transmission or storage is 100% secure. If you become aware of a security breach affecting your account, please notify us immediately.</p>
+    </section>
+    <section id="updates">
+      <h2><span class="num">13</span>Policy Updates</h2>
+      <p>Enejistats may update this Privacy Policy periodically to reflect changes in our practices, technology, or legal requirements. We will notify registered users of material changes via email or in-app notification at least 14 days before changes take effect.</p>
+      <p>Continued use of the Service after the effective date of any update constitutes your acceptance of the revised policy.</p>
+    </section>
+    <section id="contact-dpo">
+      <h2><span class="num">14</span>Contact / DPO</h2>
+      <p>For all privacy-related enquiries, data subject requests, or complaints:</p>
+      <div class="legal-contact">
+        <strong>Enejistats Data Protection Officer</strong><br/>
+        Email: <a href="mailto:enejistats@gmail.com">enejistats@gmail.com</a><br/>
+        Subject: "Privacy / Data Protection"<br/><br/>
+        We aim to respond to all data protection enquiries within <strong>30 days</strong>.
+      </div>
+    </section>
+  </div>
+
+  </body>
+  </html>

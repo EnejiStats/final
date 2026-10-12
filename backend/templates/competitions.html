@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Competitions & Trials — EnejiStats</title>
+  <meta name="description" content="Find active and upcoming football trials, tournaments, and local competitions tracked or hosted via EnejiStats."/>
+  <script src="https://unpkg.com/preact@10.19.3/dist/preact.umd.js"></script>
+  <script src="https://unpkg.com/preact@10.19.3/hooks/dist/hooks.umd.js"></script>
+  <script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --primary:#004aad;--primary-light:#0066cc;--gold:#f5b800;--header-bg:#162060;--dark-bg:#1e1e2f;--page-bg:#0f172a;
+      --success:#22c55e;--warning:#f59e0b;--danger:#ef4444;--muted:#94a3b8;
+      --line:rgba(255,255,255,0.08);--radius:12px;--shadow:0 4px 24px rgba(0,0,0,0.4);
+      --font:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
+    }
+    html{scroll-behavior:smooth}
+    body{font-family:var(--font);background:var(--page-bg);color:#e2e8f0;line-height:1.6;overflow-x:hidden}
+    a{text-decoration:none;color:inherit}
+    ul{list-style:none}
+    .container{max-width:1200px;margin:0 auto;padding:0 1rem}
+
+    /* HEADER */
+    .site-header{position:sticky;top:0;z-index:1000;background:var(--header-bg)}
+    .header-stripe{height:4px;background:var(--gold)}
+    .header-inner{display:flex;align-items:center;justify-content:space-between;height:82px;padding:0 1rem;max-width:1200px;margin:0 auto;overflow:visible}
+    .nav-desktop{display:none;gap:0.25rem;align-items:center}
+    @media(min-width:769px){.nav-desktop{display:flex}}
+    .nav-desktop a{color:rgba(255,255,255,0.8);font-size:0.88rem;font-weight:500;padding:0.4rem 0.6rem;border-radius:6px;transition:color 0.2s}
+    .nav-desktop a:hover,.nav-desktop a.active{color:#fff;background:rgba(255,255,255,0.1)}
+    .btn-nav{background:var(--gold);color:#0f172a!important;padding:0.45rem 1rem!important;border-radius:8px;font-weight:700!important}
+    .hamburger{display:flex;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:4px}
+    @media(min-width:769px){.hamburger{display:none}}
+    .hamburger span{display:block;width:22px;height:2px;background:#fff;border-radius:2px}
+    .mobile-nav{display:none;position:fixed;inset:0;background:var(--header-bg);z-index:2000;flex-direction:column;padding:1.5rem;gap:0.25rem}
+    .mobile-nav.open{display:flex}
+    .mobile-nav-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem}
+    .mobile-nav a{color:rgba(255,255,255,0.85);font-size:1.05rem;font-weight:500;padding:0.8rem;border-radius:8px;display:block}
+    .mobile-nav a:hover{background:rgba(255,255,255,0.1);color:#fff}
+    .close-btn{background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer}
+    .dropdown{position:relative}
+    .dropdown-menu{display:none;position:absolute;top:calc(100%+6px);left:0;background:#1e1e2f;border:1px solid var(--line);border-radius:10px;min-width:160px;overflow:hidden;z-index:200}
+    .dropdown:hover .dropdown-menu{display:block}
+    .dropdown-menu a{display:block;padding:0.65rem 1rem;color:rgba(255,255,255,0.8);font-size:0.88rem}
+    .dropdown-menu a:hover{background:rgba(255,255,255,0.08);color:#fff}
+
+    /* HERO */
+    .hero{background:linear-gradient(135deg,var(--header-bg),#0d1b3e);color:#fff;padding:4rem 1rem;text-align:center;border-bottom:4px solid var(--gold)}
+    .hero h1{font-size:clamp(1.6rem,4vw,2.4rem);font-weight:800;margin-bottom:0.75rem}
+    .hero p{color:rgba(255,255,255,0.75);font-size:1rem;max-width:500px;margin:0 auto}
+
+    /* FILTER BAR */
+    .filter-bar{background:var(--dark-bg);position:sticky;top:68px;z-index:900;padding:1rem;border-bottom:1px solid var(--line)}
+    .filters-grid{max-width:1200px;margin:0 auto;display:grid;gap:0.75rem;grid-template-columns:1fr}
+    @media(min-width:600px){.filters-grid{grid-template-columns:1fr 1fr}}
+    @media(min-width:992px){.filters-grid{grid-template-columns:2fr repeat(3,1fr)}}
+    .filter-input{width:100%;background:rgba(255,255,255,0.06);border:1px solid var(--line);border-radius:8px;padding:0.6rem 0.85rem;color:#e2e8f0;font-size:0.9rem;outline:none}
+    .filter-input:focus{border-color:var(--gold)}
+    .filter-input option{background:var(--dark-bg)}
+    .type-tabs{max-width:1200px;margin:0.75rem auto 0;display:flex;gap:0.5rem;overflow-x:auto;padding-bottom:0.25rem}
+    .type-tab{padding:0.4rem 1rem;background:rgba(255,255,255,0.06);border:1px solid var(--line);border-radius:20px;font-size:0.82rem;font-weight:500;white-space:nowrap;cursor:pointer;transition:all 0.2s;color:#e2e8f0}
+    .type-tab.active{background:var(--gold);color:#0f172a;border-color:var(--gold)}
+
+    /* CARDS GRID */
+    .content-area{max-width:1200px;margin:0 auto;padding:2rem 1rem}
+    .cards-grid{display:grid;gap:1.5rem;grid-template-columns:1fr}
+    @media(min-width:600px){.cards-grid{grid-template-columns:1fr 1fr}}
+    @media(min-width:992px){.cards-grid{grid-template-columns:repeat(3,1fr)}}
+
+    /* EVENT CARD — enlarged, structured and status-aware */
+    .cards-grid{max-width:1380px}
+    @media(min-width:992px){.cards-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:1.75rem}}
+    @media(min-width:1500px){.cards-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+    .ev-card{min-height:540px;background:linear-gradient(180deg,rgba(30,30,47,.98),rgba(15,23,42,.98));border:1px solid rgba(255,255,255,.10);border-radius:16px;overflow:hidden;display:flex;flex-direction:column;position:relative;isolation:isolate;box-shadow:0 10px 32px rgba(0,0,0,.28);transition:transform .25s ease,border-color .25s ease,box-shadow .25s ease}
+    .ev-card-open{border-color:rgba(34,197,94,.48);box-shadow:0 0 0 1px rgba(34,197,94,.12),0 0 26px rgba(34,197,94,.20),0 16px 42px rgba(0,0,0,.34);animation:openCompetitionGlow 3s ease-in-out infinite}
+    .ev-card-closed{box-shadow:0 10px 32px rgba(0,0,0,.28)}
+    .ev-card:hover{transform:translateY(-6px);border-color:var(--gold);box-shadow:0 16px 42px rgba(0,0,0,.38)}
+    .ev-card-open:hover{box-shadow:0 0 0 1px rgba(34,197,94,.18),0 0 34px rgba(34,197,94,.28),0 18px 48px rgba(0,0,0,.4)}
+    @keyframes openCompetitionGlow{0%,100%{box-shadow:0 0 0 1px rgba(34,197,94,.10),0 0 18px rgba(34,197,94,.14),0 12px 34px rgba(0,0,0,.28)}50%{box-shadow:0 0 0 1px rgba(34,197,94,.20),0 0 34px rgba(34,197,94,.26),0 16px 42px rgba(0,0,0,.34)}}
+    @media(prefers-reduced-motion:reduce){.ev-card-open{animation:none}}
+    .ev-image{height:220px;background:linear-gradient(135deg,var(--header-bg),#0d1b3e);position:relative;display:flex;align-items:center;justify-content:center;font-size:4rem;overflow:hidden}
+    .ev-image img{width:100%;height:100%;object-fit:cover;display:block}
+    .ev-image img+.image-shade{position:absolute;inset:0;background:linear-gradient(180deg,transparent 35%,rgba(0,0,0,.62))}
+    .ev-body{padding:1.45rem 1.5rem 1.2rem;flex:1;min-width:0}
+    .ev-title{font-size:1.25rem;font-weight:800;line-height:1.3;margin-bottom:.7rem;color:#fff;overflow-wrap:anywhere}
+    .ev-meta-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.45rem .9rem;margin:.85rem 0}
+    .ev-meta{font-size:.82rem;color:var(--muted);margin:0;display:flex;align-items:flex-start;gap:.5rem;min-width:0}
+    .ev-meta i{width:16px;flex:0 0 16px;color:#93c5fd;margin-top:.18rem}
+    .ev-meta span{min-width:0;overflow-wrap:anywhere}
+    .ev-desc{font-size:.88rem;color:rgba(255,255,255,.70);display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;margin:1rem 0 0;line-height:1.6}
+    .ev-footer{padding:1rem 1.5rem;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:1rem;font-size:.85rem;background:rgba(0,0,0,.14);margin-top:auto}
+    .ev-actions{display:flex;gap:.55rem;flex-wrap:wrap;justify-content:flex-end}
+    .btn-sm{padding:.55rem .9rem;min-height:40px;background:var(--gold);color:#0f172a;border-radius:8px;font-size:.8rem;font-weight:800;border:none;cursor:pointer;transition:transform .2s,opacity .2s,box-shadow .2s}
+    .btn-sm:hover{opacity:.92;transform:translateY(-1px);box-shadow:0 5px 16px rgba(245,184,0,.22)}
+    .btn-sm.btn-secondary{background:rgba(255,255,255,.08);color:#e2e8f0;border:1px solid var(--line)}
+    @media(max-width:640px){.overlay-backdrop{padding:.5rem}.overlay-card{width:100%;max-height:calc(100dvh - 1rem);height:calc(100dvh - 1rem);border-radius:14px}.overlay-content{padding:1rem}.overlay-footer{padding:.8rem 1rem;flex-wrap:wrap}.overlay-footer .btn,.overlay-footer .btn-gold{min-height:42px}.ev-card{min-height:0}.ev-image{height:190px}.ev-body{padding:1.1rem}.ev-meta-grid{grid-template-columns:1fr}.ev-footer{padding:.85rem 1.1rem;align-items:flex-end}.ev-actions{width:100%}.ev-actions .btn-sm{flex:1}}
+
+    /* MODALS — fixed to the viewport so content can never flow into the footer */
+    .overlay-backdrop{position:fixed;inset:0;z-index:5000;background:rgba(2,6,23,.78);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:clamp(.75rem,3vw,2rem);overflow:hidden;animation:modalFadeIn .18s ease-out}
+    .overlay-card{width:min(940px,100%);max-height:min(900px,calc(100dvh - 1.5rem));height:min(900px,calc(100dvh - 1.5rem));background:#111827;border:1px solid rgba(255,255,255,.13);border-radius:18px;box-shadow:0 28px 90px rgba(0,0,0,.62),0 0 0 1px rgba(245,184,0,.05);display:flex;flex-direction:column;overflow:hidden;min-height:0;animation:modalRise .2s ease-out}
+    .overlay-header{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.35rem;background:linear-gradient(135deg,#18245f,#111827);border-bottom:1px solid var(--line)}
+    .overlay-header h3{font-size:1.08rem;color:#fff;line-height:1.35;overflow-wrap:anywhere}
+    .overlay-header .close-btn{width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;background:rgba(255,255,255,.07);border:1px solid var(--line);color:#fff;font-size:1.25rem;cursor:pointer;flex:0 0 auto}
+    .overlay-header .close-btn:hover{background:rgba(239,68,68,.18);border-color:rgba(239,68,68,.4)}
+    .overlay-content{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;padding:1.25rem 1.35rem;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-gutter:stable}
+    .overlay-content::-webkit-scrollbar{width:9px}.overlay-content::-webkit-scrollbar-thumb{background:rgba(148,163,184,.35);border-radius:20px}.overlay-content::-webkit-scrollbar-track{background:rgba(255,255,255,.03)}
+    .overlay-card>form{display:flex;flex:1 1 auto;flex-direction:column;min-height:0;overflow:hidden}
+    .overlay-card>form>.overlay-content{flex:1 1 auto;min-height:0;max-height:none;overflow-y:auto;overflow-x:hidden}
+    .overlay-footer{flex:0 0 auto;display:flex;justify-content:flex-end;align-items:center;gap:.7rem;padding:.9rem 1.35rem;background:#0d1422;border-top:1px solid var(--line);position:relative;z-index:2}
+    .overlay-footer .btn{flex:0 0 auto}
+    .overlay-tabs{display:flex;gap:.45rem;overflow-x:auto;padding-bottom:.65rem;margin-bottom:1rem;border-bottom:1px solid var(--line);scrollbar-width:thin}
+    .overlay-tab-btn{border:1px solid var(--line);background:rgba(255,255,255,.04);color:#cbd5e1;border-radius:8px;padding:.55rem .85rem;font-weight:700;font-size:.78rem;white-space:nowrap;cursor:pointer}.overlay-tab-btn.active{background:var(--gold);color:#0f172a;border-color:var(--gold)}
+    .overlay-doc{background:rgba(255,255,255,.025);border:1px solid var(--line);border-radius:12px;padding:1rem 1.1rem;color:#cbd5e1;line-height:1.7;overflow-wrap:anywhere}
+    .overlay-doc h4{color:#fff;margin:1.1rem 0 .5rem;font-size:.92rem}.overlay-doc h4:first-child{margin-top:0}.overlay-doc p{margin:.45rem 0}.overlay-doc strong{color:#fff}
+    .section-block{background:rgba(255,255,255,.025);border:1px solid var(--line);border-radius:12px;padding:1rem;margin-bottom:1rem}.section-block-title{font-weight:800;color:#fff;margin-bottom:.8rem;display:flex;align-items:center;gap:.5rem}
+    .form-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.form-group{margin-bottom:.8rem}.form-group label{display:block;font-size:.78rem;color:#cbd5e1;font-weight:700;margin-bottom:.35rem}.form-control{width:100%;background:#0b1220;color:#e2e8f0;border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:.65rem .75rem;outline:none;min-height:40px}.form-control:focus{border-color:#60a5fa;box-shadow:0 0 0 3px rgba(96,165,250,.10)}
+    @keyframes modalFadeIn{from{opacity:0}to{opacity:1}}@keyframes modalRise{from{opacity:0;transform:translateY(12px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+    @media(max-width:640px){.overlay-backdrop{padding:.5rem}.overlay-card{max-height:calc(100dvh - 1rem);border-radius:14px}.overlay-header{padding:.85rem 1rem}.overlay-content{padding:1rem}.overlay-footer{padding:.8rem 1rem}.form-row{grid-template-columns:1fr}.overlay-footer .btn,.overlay-footer .btn-gold{flex:1;min-height:42px}}
+
+
+    /* PAGINATION */
+    .pagination{display:flex;justify-content:center;gap:0.4rem;margin:2rem 0;flex-wrap:wrap}
+    .page-btn{width:38px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:8px;border:1px solid var(--line);background:var(--dark-bg);cursor:pointer;font-weight:600;color:#e2e8f0;font-size:0.85rem;transition:all 0.2s}
+    .page-btn:hover:not(:disabled){border-color:var(--gold);color:var(--gold)}
+    .page-btn.active{background:var(--gold);color:#0f172a;border-color:var(--gold)}
+    .page-btn:disabled{opacity:0.4;cursor:not-allowed}
+
+    /* CTA */
+    .cta-banner{background:linear-gradient(135deg,var(--header-bg),#0d1b3e);border:1px solid var(--line);border-radius:var(--radius);padding:2.5rem 1.5rem;text-align:center;margin-bottom:3rem;border-top:4px solid var(--gold)}
+    .cta-banner h2{font-size:1.4rem;margin-bottom:0.75rem}
+    .cta-banner p{color:var(--muted);margin-bottom:1.5rem;font-size:0.9rem}
+    .btn-gold{display:inline-flex;align-items:center;gap:0.5rem;background:var(--gold);color:#0f172a;padding:0.75rem 1.75rem;border-radius:8px;font-weight:700;transition:opacity 0.2s}
+    .btn-gold:hover{opacity:0.9}
+
+    /* EMPTY / SKELETON */
+    .empty-state{text-align:center;padding:4rem 1rem;background:var(--dark-bg);border:1px solid var(--line);border-radius:var(--radius)}
+    .empty-state i{font-size:3rem;color:var(--muted);margin-bottom:1rem;display:block}
+    .skeleton{background:linear-gradient(90deg,#1e1e2f 25%,#2a2a40 50%,#1e1e2f 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:6px}
+    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+    /* FOOTER */
+    .site-footer{background:#0a0a14;border-top:1px solid var(--line);padding:3.5rem 1rem 1.5rem}
+    .footer-grid{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr;gap:2.5rem}
+    @media(min-width:600px){.footer-grid{grid-template-columns:1fr 1fr}}
+    @media(min-width:992px){.footer-grid{grid-template-columns:1.6fr 1fr 1fr 1fr}}
+    .footer-col h4{color:#fff;font-size:0.85rem;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:1rem}
+    .footer-col p,.footer-col ul a{font-size:0.85rem;color:var(--muted)}
+    .footer-col ul li{margin-bottom:0.6rem}
+    .footer-col ul a:hover{color:var(--gold)}
+    .footer-bottom{max-width:1200px;margin:2rem auto 0;padding-top:1.25rem;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:space-between;font-size:0.78rem;color:var(--muted)}
+    .footer-bottom a{color:var(--muted)}.footer-bottom a:hover{color:var(--gold)}
+  
+    @media(max-width:480px){
+      .container{padding:0 0.75rem}
+      .header-inner{height:66px;padding:0 0.75rem}
+      .hero h1{font-size:clamp(1.4rem,7vw,2.2rem)}
+      .section,.section-alt{padding:2.5rem 0}
+      .btn,.btn-nav,.btn-gold{min-height:44px}
+      .mobile-nav a{min-height:44px;display:flex;align-items:center}
+      .footer-grid{gap:1.5rem}
+      .footer-bottom{flex-direction:column;gap:0.4rem}
+    }
+    @media(max-width:360px){
+      .container{padding:0 0.5rem}
+      .header-inner{padding:0 0.5rem}
+    }
+
+    .workflow-note{background:rgba(37,99,235,.12);border:1px solid rgba(96,165,250,.25);padding:.75rem .9rem;border-radius:9px;font-size:.78rem;line-height:1.55;color:#bfdbfe;margin-bottom:1rem}
+    .workflow-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem;margin-bottom:1rem}
+    @media(max-width:640px){.workflow-grid{grid-template-columns:1fr}}
+    .workflow-card{border:1px solid var(--line);background:rgba(255,255,255,.03);border-radius:10px;padding:1rem}
+    .workflow-card h4{color:#fff;margin-bottom:.35rem}.workflow-card p{font-size:.76rem;color:var(--muted);line-height:1.5}
+    .workflow-code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:1.25rem;letter-spacing:2px;font-weight:900;color:var(--gold);background:rgba(245,184,0,.08);border:1px dashed rgba(245,184,0,.5);padding:.75rem;text-align:center;border-radius:9px;margin:.75rem 0}
+    .pw-stepbar{display:grid;grid-template-columns:repeat(4,1fr);gap:.35rem;margin-bottom:1rem}.pw-step{padding:.45rem .25rem;text-align:center;font-size:.67rem;color:var(--muted);border-bottom:2px solid var(--line)}.pw-step.active{color:#fff;border-color:var(--gold);font-weight:800}.pw-step.done{color:var(--success);border-color:var(--success)}
+    .bank-details{background:#0b1220;border:1px solid var(--line);border-radius:9px;padding:.85rem;margin:.8rem 0}.bank-row{display:flex;justify-content:space-between;gap:1rem;padding:.42rem 0;border-bottom:1px solid var(--line);font-size:.8rem}.bank-row:last-child{border-bottom:0}.bank-label{color:var(--muted)}.bank-value{font-weight:800;text-align:right;word-break:break-word}.copy-mini{border:0;background:var(--primary);color:#fff;border-radius:5px;padding:.2rem .45rem;font-size:.68rem;cursor:pointer;margin-left:.35rem}
+    .receipt-drop{border:1.5px dashed #64748b;border-radius:10px;padding:1.5rem;text-align:center;cursor:pointer;background:rgba(255,255,255,.02)}.receipt-drop:hover{border-color:var(--gold)}
+    .global-booking{display:flex;justify-content:center;gap:.65rem;flex-wrap:wrap;margin-top:1.25rem}.global-booking .btn-gold{padding:.55rem 1rem;font-size:.82rem}
+  </style>
+  <link rel="stylesheet" href="/static/css/eneji-branding.css"/>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(function(){
+'use strict';
+const {h,render}=preact;
+const {useState,useEffect,useMemo}=preactHooks;
+const html=htm.bind(h);
+const year=new Date().getFullYear();
+const fmtMoney=n=>'₦'+Number(n||0).toLocaleString('en-NG',{maximumFractionDigits:0});
+const escText=v=>String(v??'').trim();
+const first=(o,...keys)=>{for(const k of keys){const v=o?.[k];if(v!==undefined&&v!==null&&String(v).trim()!=='')return v;}return '';};
+
+function Logo(){return html`<a href="/" style=${{textDecoration:'none',display:'inline-block',verticalAlign:'middle'}}><img src="/static/images/eneji-stats-branding.png" alt="EnejiStats" class="eneji-logo-img"/></a>`}
+function Header(){
+ const [open,setOpen]=useState(false);
+ return html`<header class="site-header"><div class="header-stripe"></div><div class="header-inner"><${Logo}/>
+ <nav class="nav-desktop"><a href="/">Home</a><a href="/about.html">About</a><div class="dropdown"><a href="#">Stats Area <i class="fas fa-chevron-down" style="font-size:.65rem"/></a><div class="dropdown-menu"><a href="/browse.html">Browse</a></div></div><a href="/leaderboard.html">Leaderboard</a><a href="/competitions.html" class="active">Competitions & Trials</a><a href="/pricing.html">Pricing</a><a href="/contact.html">Contact</a><a href="/register.html" class="btn-nav">Register / Sign In</a></nav>
+ <button class="hamburger" onClick=${()=>setOpen(true)}><span/><span/><span/></button></div>
+ <div class=${'mobile-nav'+(open?' open':'')}><div class="mobile-nav-top"><${Logo}/><button class="close-btn" onClick=${()=>setOpen(false)}><i class="fas fa-times"/></button></div>${[['/','Home'],['/about.html','About'],['/browse.html','Browse'],['/leaderboard.html','Leaderboard'],['/competitions.html','Competitions & Trials'],['/pricing.html','Pricing'],['/contact.html','Contact'],['/register.html','Register / Sign In']].map(([u,t])=>html`<a href=${u} class=${u==='/competitions.html'?'active':''} onClick=${()=>setOpen(false)}>${t}</a>`)}</div></header>`;
+}
+function Footer(){return html`<footer class="site-footer"><div class="footer-grid"><div class="footer-col"><${Logo}/><p style="margin-top:.75rem">Nigeria's trusted football data platform. Built in Nigeria. Designed for African football.</p></div><div class="footer-col"><h4>Quick Links</h4><ul><li><a href="/">Home</a></li><li><a href="/about.html">About</a></li><li><a href="/pricing.html">Pricing</a></li><li><a href="/leaderboard.html">Leaderboard</a></li><li><a href="/contact.html">Contact</a></li><li><a href="/register.html">Register</a></li></ul></div><div class="footer-col"><h4>For Users</h4><ul><li><a href="/browse.html">Player Stats</a></li><li><a href="/browse.html?type=clubs">Club Stats</a></li><li><a href="/register.html?role=dco">Become a Data Scout</a></li><li><a href="/register.html?role=scout">Become a Scout</a></li><li><a href="/register.html?role=agent">Agent Programme</a></li></ul></div><div class="footer-col"><h4>Connect</h4><ul><li><a href="mailto:enejistats@gmail.com"><i class="fas fa-envelope" style="width:16px"/> enejistats@gmail.com</a></li></ul></div></div><div class="footer-bottom"><span>© ${year} EnejiStats. All rights reserved.</span><span><a href="/terms.html">Terms</a> · <a href="/privacy.html">Privacy</a> · <a href="/cookies.html">Cookies</a></span></div></footer>`}
+const EVENT_TYPES=['All','Trial','Tournament','League','Cup','Friendly'];
+const TYPE_ICONS={trial:'fa-user-check',tournament:'fa-trophy',league:'fa-layer-group',friendly:'fa-handshake',cup:'fa-award'};
+
+function normaliseEvent(e){
+ const x=e&&typeof e==='object'?e:{};
+ const max=Number(first(x,'maxTeams','max_teams','capacity','participants')||0);
+ const registered=Number(first(x,'registeredTeams','registered_teams','registration_count','registrationCount')||0);
+ const booked=Number(first(x,'bookedTeams','booked_teams','reservedTeams','reserved_teams')||0);
+ const maxBookings=Number(first(x,'maxBookingSlots','max_booking_slots','booking_limit')||0);
+ const explicitAvailable=first(x,'registrationAvailableSlots','availableSlots','registration_available_slots');
+ const explicitBookingAvailable=first(x,'bookingAvailableSlots','availableBookingSlots','booking_available_slots','available_booking_slots');
+ const rawStatus=String(first(x,'status')||'upcoming').trim().toLowerCase();
+ const status=['ongoing','active','live','in_progress'].includes(rawStatus)?'active':['completed','closed','finished','ended'].includes(rawStatus)?'completed':'upcoming';
+ const rawType=first(x,'event_type','type','category','competition_type')||'Event';
+ const rawLocation=first(x,'location','detailedAddress','detailed_address','venue','city','state','region','country')||'Nigeria';
+ const id=first(x,'id','_id','competition_id','event_id');
+ const image=first(x,'image_url','image','banner_url','banner','cover_image','coverImage')||'';
+ const custom=first(x,'customFields','custom_fields');
+ return {...x,id:id||crypto.randomUUID?.()||String(Math.random()),title:first(x,'title','name')||'Competition',name:first(x,'name','title')||'Competition',event_type:String(rawType),type:String(rawType),category:first(x,'category','event_type','type')||String(rawType),status,raw_status:first(x,'status')||'',location:String(rawLocation),state:first(x,'state','region')||'',region:first(x,'region','state')||'',country:first(x,'country')||'',lga:first(x,'lga','localGovernmentArea')||'',city:first(x,'city','town','district')||'',detailedAddress:first(x,'detailedAddress','detailed_address','address')||'',venue:first(x,'venue','venue_name')||'',venueId:first(x,'venueId','venue_id')||'',start_at:first(x,'start_at','startDate','start_date','date')||'',end_at:first(x,'end_at','endDate','end_date')||'',deadline:first(x,'deadline','registrationDeadline','registration_deadline')||'',organiser:first(x,'organiser','organiserName','organizer','organizerName','contact')||'EnejiStats',organiserName:first(x,'organiserName','organiser','organizer','organizerName')||'EnejiStats',organiserPhone:first(x,'organiserPhone','organizer_phone')||'',description:first(x,'description','summary','details')||'',registration_fee:Number(first(x,'registration_fee','registrationFee','fee')||0),image_url:String(image),maxTeams:max,registeredTeams:registered,bookedTeams:booked,reservedTeams:Number(first(x,'reservedTeams','reserved_teams')||booked),maxBookingSlots:maxBookings,availableSlots:explicitAvailable!==''&&explicitAvailable!==undefined&&explicitAvailable!==null?Math.max(0,Number(explicitAvailable)||0):(max>0?Math.max(0,max-registered):null),bookingAvailableSlots:explicitBookingAvailable!==''&&explicitBookingAvailable!==undefined&&explicitBookingAvailable!==null?Math.max(0,Number(explicitBookingAvailable)||0):(maxBookings>0?Math.max(0,maxBookings-booked):null),prize:first(x,'prize')||'',rules:first(x,'rules')||'',ageGroup:first(x,'ageGroup','age_group')||'',eligibleTypes:first(x,'eligibleTypes','eligible_types')||'Both',eligibleClubs:first(x,'eligibleClubs','eligible_clubs')||'All',customFields:Array.isArray(custom)?custom:[]};
+}
+function fmtDate(v){if(!v)return '—';const d=new Date(v);return Number.isNaN(d.getTime())?String(v):d.toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'});}
+function fmtRange(a,b){return a&&b?`${fmtDate(a)} – ${fmtDate(b)}`:fmtDate(a||b);}
+function statusLabel(s){return s==='active'?'Active':s==='completed'?'Completed':'Upcoming';}
+
+function EventCard({event,onDetails,onRegister}){
+ const icon=TYPE_ICONS[String(event.event_type).toLowerCase()]||'fa-trophy';
+ const isOpen=event.status!=='completed';
+ return html`<article class=${'ev-card '+(isOpen?'ev-card-open':'ev-card-closed')}>
+  <div class="ev-image">${event.image_url||event.image||event.banner_url?html`<img src=${event.image_url||event.image||event.banner_url} alt="" loading="lazy"/><span class="image-shade"/>`:html`<i class=${'fas '+icon} style="color:rgba(245,184,0,.3)"/>`}<div class=${'status-pill '+(event.status==='active'?'status-active':event.status==='completed'?'status-completed':'status-upcoming')}>${statusLabel(event.status)}</div></div>
+  <div class="ev-body"><span class="type-badge">${event.event_type}</span><div class="ev-title">${event.title}</div>
+   <div class="ev-meta-grid">
+    <div class="ev-meta"><i class="fas fa-location-dot"/><span>${[event.city,event.lga,event.state,event.country].filter(Boolean).join(', ')||event.location}</span></div>
+    <div class="ev-meta"><i class="fas fa-calendar"/><span>${fmtRange(event.start_at,event.end_at)}</span></div>
+    ${event.venue?html`<div class="ev-meta"><i class="fas fa-futbol"/><span>${event.venue}</span></div>`:''}
+    <div class="ev-meta"><i class="fas fa-users"/><span>${event.availableSlots===null?`${event.registeredTeams} teams registered`:event.availableSlots===0?'Registration full':`${event.availableSlots} registration slots available`}${event.bookingAvailableSlots!==null?` · ${event.bookingAvailableSlots} booking holds available`:''}</span></div>
+   </div>
+   <div class="ev-desc">${event.description||'Join this competition to showcase your team and compete.'}</div>
+  </div>
+  <div class="ev-footer"><span class="ev-fee">${event.registration_fee===0?'Free':fmtMoney(event.registration_fee)}</span><span class="ev-actions"><button class="btn-sm btn-secondary" onClick=${()=>onDetails(event)}><i class="fas fa-eye"/> View Details</button>${event.status!=='completed'?html`<button class="btn-sm" onClick=${()=>onRegister(event)}><i class="fas fa-ticket"/> ${event.availableSlots===0?'Full':'Reserve Slot'}</button>`:''}</span></div>
+ </article>`;
+}
+
+function useLocationRegions(country){const [items,setItems]=useState([]),[loading,setLoading]=useState(false),[label,setLabel]=useState('State / Region');useEffect(()=>{if(!country){setItems([]);setLabel('State / Region');return;}const c=new AbortController();setLoading(true);fetch('/api/public/countries/'+encodeURIComponent(country)+'/regions',{signal:c.signal}).then(r=>r.ok?r.json():Promise.reject()).then(d=>{setItems((d.regions||[]).map(x=>typeof x==='string'?x:(x.name||x.state||x.region||'')).filter(Boolean));setLabel(d.region_label||'State / Region');}).catch(e=>{if(e.name!=='AbortError')setItems([])}).finally(()=>{if(!c.signal.aborted)setLoading(false)});return()=>c.abort()},[country]);return[items,loading,label]}
+function useLocationSubregions(country,state){const [items,setItems]=useState([]),[loading,setLoading]=useState(false),[label,setLabel]=useState('LGA / Local Area');useEffect(()=>{if(!country||!state){setItems([]);setLabel('LGA / Local Area');return;}const c=new AbortController();setLoading(true);fetch('/api/public/countries/'+encodeURIComponent(country)+'/regions/'+encodeURIComponent(state)+'/subregions',{signal:c.signal}).then(r=>r.ok?r.json():Promise.reject()).then(d=>{setItems((d.subregions||[]).map(x=>typeof x==='string'?x:(x.name||x.lga||x.subregion||'')).filter(Boolean));setLabel(d.subregion_label||'LGA / Local Area');}).catch(e=>{if(e.name!=='AbortError')setItems([])}).finally(()=>{if(!c.signal.aborted)setLoading(false)});return()=>c.abort()},[country,state]);return[items,loading,label]}
+function LocationFields({data,setData,countries}){
+ const [states,statesLoading,regionLabel]=useLocationRegions(data.country);
+ const [subregions,subLoading,subregionLabel]=useLocationSubregions(data.country,data.state);
+ const capture=()=>{if(!navigator.geolocation){alert('GPS is not supported by this browser.');return;}navigator.geolocation.getCurrentPosition(p=>setData(d=>({...d,gps_lat:p.coords.latitude,gps_lng:p.coords.longitude})),()=>alert('Unable to get GPS location.'));};
+ return html`<div class="section-block" style="margin-bottom:0"><div class="section-block-title"><i class="fas fa-map-marker-alt"></i> Team Location</div>
+ <div class="form-row"><div class="form-group"><label>Country <span class="req">*</span></label><select class="form-control" value=${data.country||''} onChange=${e=>setData(d=>({...d,country:e.target.value,state:'',lga:'',city:''}))}><option value="">Select country</option>${countries.map(c=>html`<option key=${c.code} value=${c.code}>${c.name}</option>`)}</select></div>
+ <div class="form-group"><label>${regionLabel} <span class="req">*</span></label><select class="form-control" value=${data.state||''} disabled=${!data.country||statesLoading} onChange=${e=>setData(d=>({...d,state:e.target.value,lga:''}))}><option value="">${statesLoading?'Loading…':'Select '+regionLabel}</option>${states.map(x=>html`<option key=${x} value=${x}>${x}</option>`)}</select></div></div>
+ <div class="form-row"><div class="form-group"><label>${subregionLabel} <span class="req">*</span></label><select class="form-control" value=${data.lga||''} disabled=${!data.state||subLoading} onChange=${e=>setData(d=>({...d,lga:e.target.value}))}><option value="">${subLoading?'Loading…':'Select '+subregionLabel}</option>${subregions.map(x=>html`<option key=${x} value=${x}>${x}</option>`)}</select></div>
+ <div class="form-group"><label>City / District <span class="req">*</span></label><input class="form-control" value=${data.city||''} onInput=${e=>setData(d=>({...d,city:e.target.value}))} placeholder="City, town or district name"/></div></div>
+ <div class="form-group"><label>Detailed Address <span class="req">*</span></label><textarea class="form-control" rows="2" value=${data.detailed_address||''} onInput=${e=>setData(d=>({...d,detailed_address:e.target.value}))} placeholder="House number, street, area, town…"></textarea></div>
+ <button type="button" class="btn btn-sm" onClick=${capture}><i class="fas fa-location-crosshairs"></i> Capture GPS</button>${data.gps_lat!=null?html`<div class="helper-text">Lat ${Number(data.gps_lat).toFixed(6)} · Lng ${Number(data.gps_lng).toFixed(6)}</div>`:''}
+ </div>`;
+}
+
+function ContinueBookingModal({onClose,countries}){
+ const [code,setCode]=useState(''),[email,setEmail]=useState(''),[loading,setLoading]=useState(false),[error,setError]=useState(''),[record,setRecord]=useState(null),[event,setEvent]=useState(null),[showPayment,setShowPayment]=useState(false);
+ const lookup=async()=>{setLoading(true);setError('');const fd=new FormData();fd.append('booking_code',code.trim().toUpperCase());if(email.trim())fd.append('contact_email',email.trim());try{const r=await fetch('/api/public/competitions/continue-booking',{method:'POST',body:fd});const j=await r.json();if(!r.ok)throw new Error(j.detail||'Booking not found.');const rec=j.registration;setRecord(rec);setEvent(normaliseEvent(j.competition||{}));}catch(e){setError(e.message)}finally{setLoading(false)}};
+ const openPayment=()=>setShowPayment(true);
+ return html`<div class="overlay-backdrop" onClick=${onClose}><div class="overlay-card" style="max-width:800px" onClick=${e=>e.stopPropagation()}><div class="overlay-header"><div><h3><i class="fas fa-ticket-alt" style="color:var(--gold)"></i> Continue a Competition Booking</h3><div style="font-size:.75rem;color:var(--muted)">${record?event?.title:'Enter the booking code sent to your email'}</div></div><button class="close-btn" onClick=${onClose}>×</button></div><div class="overlay-content">
+ ${!record?html`<div class="workflow-card"><div class="form-group"><label>Booking / Reservation Code <span class="req">*</span></label><input class="form-control" value=${code} onInput=${e=>setCode(e.target.value.toUpperCase())} placeholder="ENJ-XXXXXXXXXX"/></div><div class="form-group"><label>Email used for the booking (recommended)</label><input class="form-control" type="email" value=${email} onInput=${e=>setEmail(e.target.value)} placeholder="team@example.com"/></div><div class="workflow-note">Your booking code reloads the saved booking so you can continue to payment.</div><button class="btn-gold" disabled=${loading||!code.trim()} onClick=${lookup}>${loading?'Checking…':'Continue Booking'}</button></div>`:
+ record.status==='registered'?html`<div style="text-align:center;padding:1rem"><i class="fas fa-circle-check" style="font-size:3rem;color:var(--success)"></i><h3 style="margin-top:.6rem">Team already registered</h3><p>${record.team_name} is registered for ${event.title}.</p><div class="workflow-code">${record.booking_code}</div><button class="btn-gold" onClick=${onClose}>Done</button></div>`:
+ html`<div><div class="workflow-card"><h4>${record.team_name}</h4><p>${event.title} · ${record.contact_name} · ${record.contact_email}</p><p style="margin-top:.4rem">Payment status: <b>${record.payment_status||'unpaid'}</b></p><p style="margin-top:.35rem"><b>Booking code:</b> ${record.booking_code}</p><p style="font-size:.76rem;color:var(--muted);margin-top:.35rem">Hold expires: ${fmtDate(record.expires_at)}</p></div><div class="btn-row" style="margin:.8rem 0">${Number(event.registration_fee||0)>0?html`<button class="btn-gold" onClick=${openPayment}><i class="fas fa-credit-card"></i> Continue to Payment</button>`:''}</div>${Number(event.registration_fee||0)>0?(showPayment?html`<${CompletionPanel} event=${event} record=${record} onClose=${onClose}/>`:html`<div class="workflow-card"><div class="workflow-note">Your saved booking has been reloaded. Continue to the bank-transfer payment workflow when you are ready.</div></div>`):html`<${CompletionPanel} event=${event} record=${record} onClose=${onClose}/>`}${error&&html`<div style="margin-top:.75rem;padding:.65rem .8rem;color:#fca5a5;border:1px solid rgba(239,68,68,.35);border-radius:8px">${error}</div>`}</div>`}
+ </div></div></div>`;
+}
+
+function RegisterModal({event,onClose,countries}){
+ const [data,setData]=useState({team_name:'',contact_name:'',contact_phone:'',contact_email:'',country:'',state:'',lga:'',city:'',detailed_address:'',gps_lat:null,gps_lng:null}),[answers,setAnswers]=useState({}),[submitting,setSubmitting]=useState(false),[done,setDone]=useState(null),[verificationId,setVerificationId]=useState(''),[verificationCode,setVerificationCode]=useState(''),[verificationPending,setVerificationPending]=useState(false),[emailHint,setEmailHint]=useState(''),[error,setError]=useState(''),[payNow,setPayNow]=useState(false);
+ const fields=Array.isArray(event.customFields)?event.customFields:[];
+ const submit=async e=>{e.preventDefault();setError('');if(!data.team_name.trim()||!data.contact_name.trim()||!data.contact_phone.trim()||!data.contact_email.trim()||!data.country||!data.state||!data.lga||!data.city.trim()||!data.detailed_address.trim()){setError('Please complete all required team, contact, email and location fields.');return;}setSubmitting(true);const fd=new FormData();Object.entries(data).forEach(([k,v])=>{if(v!==null&&v!==undefined)fd.append(k,v)});fd.append('custom_answers',JSON.stringify(answers));try{const r=await fetch('/api/public/competitions/'+encodeURIComponent(event.id)+'/register',{method:'POST',body:fd});const j=await r.json();if(!r.ok)throw new Error(typeof j.detail==='string'?j.detail:'Booking request could not be started.');if(j.verification_required){setVerificationId(j.verification_id||'');setEmailHint(j.email_hint||data.contact_email);setVerificationPending(true);return;}setDone(j.registration||j)}catch(err){setError(err.message)}finally{setSubmitting(false)}};
+ const verify=async()=>{setError('');const code=verificationCode.trim();if(!verificationId||!/^[0-9]{6}$/.test(code)){setError('Enter the 6-digit verification code sent to your email.');return;}setSubmitting(true);const fd=new FormData();fd.append('verification_id',verificationId);fd.append('otp',code);try{const r=await fetch('/api/public/competitions/'+encodeURIComponent(event.id)+'/verify-booking-email',{method:'POST',body:fd});const j=await r.json();if(!r.ok)throw new Error(typeof j.detail==='string'?j.detail:'Email verification failed.');setVerificationPending(false);setDone(j.registration||j)}catch(err){setError(err.message)}finally{setSubmitting(false)}};
+ return html`<div class="overlay-backdrop" onClick=${onClose}><div class="overlay-card" style="max-width:780px" onClick=${e=>e.stopPropagation()}><div class="overlay-header"><div><h3><i class="fas fa-ticket-alt" style="color:var(--gold)"></i> ${done?'Booking Confirmed':verificationPending?'Verify Email':'Reserve or Register'} </h3><div style="font-size:.75rem;color:var(--muted);margin-top:.25rem">${event.title}</div></div><button class="close-btn" onClick=${onClose}>×</button></div>
+ ${done?html`<div class="overlay-content"><div style="text-align:center"><i class="fas fa-circle-check" style="font-size:3.5rem;color:var(--success)"></i><h2 style="margin:.6rem 0;color:#fff">Booking confirmed</h2><p>${done.team_name} has a temporary booking hold. The registration slot is still available until registration is completed.</p><div class="workflow-code">${done.booking_code}</div><p style="font-size:.76rem;color:var(--muted)">We emailed this code to ${done.contact_email}. Keep it safe to continue later.</p>${event.registration_fee>0?html`<button class="btn-gold" onClick=${()=>setPayNow(true)}>Continue to Bank Transfer Payment</button>`:html`<button class="btn-gold" onClick=${onClose}>Done</button>`}${payNow&&html`<div style="margin-top:1rem;text-align:left"><${BankTransferWizard} event=${event} booking=${done} onClose=${onClose}/></div>`}</div></div>`:verificationPending?html`<div class="overlay-content"><div class="workflow-card" style="max-width:520px;margin:0 auto"><div style="text-align:center"><i class="fas fa-envelope-circle-check" style="font-size:3rem;color:var(--gold)"></i><h2 style="margin:.7rem 0;color:#fff">Verify your email</h2><p>We sent a 6-digit verification code to <strong>${emailHint}</strong>.</p><p class="workflow-note">No booking hold or slot has been locked yet. The hold is created only after the code is verified.</p></div><div class="form-group"><label>Email verification code <span class="req">*</span></label><input class="form-control" inputmode="numeric" maxlength="6" autocomplete="one-time-code" value=${verificationCode} onInput=${e=>setVerificationCode(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="000000"/></div>${error&&html`<div style="padding:.75rem 1rem;color:#fca5a5;border:1px solid rgba(239,68,68,.35);border-radius:8px">${error}</div>`}<div class="btn-row" style="margin-top:1rem"><button type="button" class="btn btn-outline" onClick=${onClose}>Cancel</button><button type="button" class="btn-gold" disabled=${submitting||verificationCode.length!==6} onClick=${verify}>${submitting?'Verifying…':'Verify & Create Booking Hold'}</button></div></div></div>`:html`<form onSubmit=${submit}><div class="overlay-content"><div class="workflow-note"><b>Email verification is mandatory:</b> your email must be verified before any booking hold is created or any booking capacity is locked. After verification, the hold is temporary and does not consume a registration slot until final registration is completed.</div><div class="section-block"><div class="section-block-title"><i class="fas fa-shield-halved"></i> Team & Contact</div><div class="form-row"><div class="form-group"><label>Team Name <span class="req">*</span></label><input class="form-control" required value=${data.team_name} onInput=${e=>setData(d=>({...d,team_name:e.target.value}))}/></div><div class="form-group"><label>Contact Person <span class="req">*</span></label><input class="form-control" required value=${data.contact_name} onInput=${e=>setData(d=>({...d,contact_name:e.target.value}))}/></div></div><div class="form-row"><div class="form-group"><label>Contact Phone <span class="req">*</span></label><input class="form-control" required type="tel" value=${data.contact_phone} onInput=${e=>setData(d=>({...d,contact_phone:e.target.value}))} placeholder="+234…"/></div><div class="form-group"><label>Email <span class="req">*</span></label><input class="form-control" required type="email" value=${data.contact_email} onInput=${e=>setData(d=>({...d,contact_email:e.target.value}))} placeholder="team@example.com"/></div></div></div><${LocationFields} data=${data} setData=${setData} countries=${countries}/>${fields.length?html`<div class="section-block" style="margin-top:1rem"><div class="section-block-title"><i class="fas fa-sliders-h"></i> Competition Details</div>${fields.map(f=>{const key=f.key||f.id||f.label;return html`<div class="form-group"><label>${f.label||key}${f.required?html` <span class="req">*</span>`:''}</label>${f.type==='textarea'?html`<textarea class="form-control" rows="3" value=${answers[key]||''} onInput=${e=>setAnswers(a=>({...a,[key]:e.target.value}))}/>`:f.type==='select'?html`<select class="form-control" value=${answers[key]||''} onChange=${e=>setAnswers(a=>({...a,[key]:e.target.value}))}><option value="">Select</option>${(f.options||[]).map(o=>html`<option value=${o}>${o}</option>`)}</select>`:f.type==='checkbox'?html`<label><input type="checkbox" checked=${!!answers[key]} onChange=${e=>setAnswers(a=>({...a,[key]:e.target.checked}))}/> Yes</label>`:html`<input class="form-control" type=${['number','date','url','email'].includes(f.type)?f.type:'text'} value=${answers[key]||''} onInput=${e=>setAnswers(a=>({...a,[key]:e.target.value}))}/>`}</div>`})}</div>`:''}${error&&html`<div style="padding:.75rem 1rem;color:#fca5a5;border:1px solid rgba(239,68,68,.35);border-radius:8px">${error}</div>`}</div><div class="overlay-footer"><button type="button" class="btn btn-outline" onClick=${onClose}>Cancel</button><button type="submit" class="btn-gold" disabled=${submitting}>${submitting?'Sending verification…':'Continue & Verify Email'}</button></div></form>`}
+ </div></div>`;
+}
+
+function DetailsModal({event,onClose,onRegister}){
+ const [tab,setTab]=useState('overview');
+ return html`<div class="overlay-backdrop" onClick=${onClose}><div class="overlay-card" onClick=${e=>e.stopPropagation()}><div class="overlay-header"><div><h3>${event.title}</h3><div style="font-size:.75rem;color:var(--muted)">${event.event_type} · ${statusLabel(event.status)}</div></div><button class="close-btn" onClick=${onClose}>×</button></div>
+ <div class="overlay-content"><div class="overlay-tabs"><button class=${'overlay-tab-btn '+(tab==='overview'?'active':'')} onClick=${()=>setTab('overview')}>Overview</button><button class=${'overlay-tab-btn '+(tab==='location'?'active':'')} onClick=${()=>setTab('location')}>Location</button><button class=${'overlay-tab-btn '+(tab==='rules'?'active':'')} onClick=${()=>setTab('rules')}>Eligibility & Rules</button></div>
+ ${tab==='overview'?html`<div class="overlay-doc"><p>${event.description||'No description provided.'}</p><h4>Competition details</h4><p><strong>Dates:</strong> ${fmtRange(event.start_at,event.end_at)}</p><p><strong>Registration fee:</strong> ${event.registration_fee===0?'Free':fmtMoney(event.registration_fee)}</p><p><strong>Slots:</strong> ${event.availableSlots===null?`${event.registeredTeams} teams registered`:`${event.availableSlots} registration slots available of ${event.maxTeams}`}${event.bookingAvailableSlots!==null?html`<p><strong>Booking holds:</strong> ${event.bookingAvailableSlots} available of ${event.maxBookingSlots}</p>`:''}</p><p><strong>Organiser:</strong> ${event.organiser}${event.organiserPhone?` · ${event.organiserPhone}`:''}</p>${event.prize?html`<p><strong>Prize:</strong> ${event.prize}</p>`:''}</div>`:
+ tab==='location'?html`<div class="overlay-doc"><h4><i class="fas fa-location-dot"></i> Venue & Location</h4><p><strong>Venue:</strong> ${event.venue||'—'}</p><p><strong>Country:</strong> ${event.country||'—'}</p><p><strong>State / Region:</strong> ${event.state||'—'}</p><p><strong>LGA / Local Area:</strong> ${event.lga||'—'}</p><p><strong>City / District:</strong> ${event.city||'—'}</p><p><strong>Detailed Address:</strong> ${event.detailedAddress||event.location||'—'}</p></div>`:
+ html`<div class="overlay-doc"><p><strong>Age group:</strong> ${event.ageGroup||'All eligible ages'}</p><p><strong>Eligible types:</strong> ${event.eligibleTypes||'Both'}</p><p><strong>Club level:</strong> ${event.eligibleClubs||'All'}</p><h4>Rules & eligibility</h4><p>${event.rules||'No additional rules provided.'}</p></div>`}
+ </div><div class="overlay-footer"><button class="btn btn-outline" onClick=${onClose}>Close</button>${event.status!=='completed'?html`<button class="btn-gold" onClick=${()=>{onClose();onRegister(event)}}>${event.availableSlots===0?'Fully Reserved':'Reserve Team Slot'}</button>`:''}</div></div></div>`;
+}
+
+
+/* ENEJISTATS REGISTER GEO CONTRACT — exact endpoint/reset semantics mirrored from register(5).html. */
+function useRegisterGeoCountries(){const [countries,setCountries]=useState([]);useEffect(()=>{let cancelled=false;const c=new AbortController();fetch('/api/public/countries',{credentials:'include',signal:c.signal}).then(r=>r.ok?r.json():Promise.reject(new Error('countries request failed'))).then(d=>{if(cancelled)return;const list=Array.isArray(d)?d:(d.countries||d.data||[]);setCountries(list.map(c=>({code:c.code||c.v||c.value||c.id,name:c.name||c.l||c.label||c.code||c.v||c.value||c.id,regionLabel:c.region_label||'State / Region',subregionLabel:c.subregion_label||'LGA / Local Area'})).filter(c=>c.code&&c.name));}).catch(e=>{if(e.name!=='AbortError')setCountries([])});return()=>{cancelled=true;c.abort()};},[]);return countries}
+function useRegisterGeoRegions(countryCode){const [items,setItems]=useState([]),[loading,setLoading]=useState(false),[label,setLabel]=useState('State / Region');useEffect(()=>{if(!countryCode){setItems([]);setLabel('State / Region');return}const c=new AbortController();setLoading(true);fetch('/api/public/countries/'+encodeURIComponent(String(countryCode).toUpperCase())+'/regions',{credentials:'include',signal:c.signal}).then(r=>r.ok?r.json():Promise.reject(new Error('regions request failed'))).then(d=>{const a=Array.isArray(d)?d:(d.regions||[]);setItems(a.map(x=>typeof x==='string'?x:(x?.name||x?.state||x?.region||'')).filter(Boolean));setLabel(d.region_label||'State / Region')}).catch(e=>{if(e.name!=='AbortError')setItems([])}).finally(()=>{if(!c.signal.aborted)setLoading(false)});return()=>c.abort()},[countryCode]);return [items,loading,label]}
+function useRegisterGeoSubregions(countryCode,region){const [items,setItems]=useState([]),[loading,setLoading]=useState(false),[label,setLabel]=useState('LGA / Local Area');useEffect(()=>{if(!countryCode||!region){setItems([]);setLabel('LGA / Local Area');return}const c=new AbortController();setLoading(true);fetch('/api/public/countries/'+encodeURIComponent(String(countryCode).toUpperCase())+'/regions/'+encodeURIComponent(region)+'/subregions',{credentials:'include',signal:c.signal}).then(r=>r.ok?r.json():Promise.reject(new Error('subregions request failed'))).then(d=>{const a=Array.isArray(d)?d:(d.subregions||[]);setItems(a.map(x=>typeof x==='string'?x:(x?.name||x?.lga||x?.subregion||'')).filter(Boolean));setLabel(d.subregion_label||'LGA / Local Area')}).catch(e=>{if(e.name!=='AbortError')setItems([])}).finally(()=>{if(!c.signal.aborted)setLoading(false)});return()=>c.abort()},[countryCode,region]);return [items,loading,label]}
+
+function App(){
+ const [events,setEvents]=useState([]),[loading,setLoading]=useState(true),[pageContent,setPageContent]=useState({hero_title:'Competitions & Trials',intro:'Find active and upcoming football trials, tournaments, leagues, and cups across Nigeria.',cta_title:'Want to list your competition on EnejiStats?',cta_text:'We partner with clubs, associations, and academies to list verified competitions and trials.',cta_button_text:'Contact Us to List'});
+ const [search,setSearch]=useState(''),[statusFilter,setStatusFilter]=useState('All'),[typeFilter,setTypeFilter]=useState('All'),[page,setPage]=useState(1),[totalPages,setTotalPages]=useState(1),[detail,setDetail]=useState(null),[register,setRegister]=useState(null),[continueBooking,setContinueBooking]=useState(false),[countries,setCountries]=useState([]);
+ const geoCountries=useRegisterGeoCountries(); const [geoCountry,setGeoCountry]=useState(''); const [geoRegions,geoRegionsLoading,geoRegionLabel]=useRegisterGeoRegions(geoCountry); const [geoState,setGeoState]=useState('All'); const [geoSubregions,geoSubregionsLoading,geoSubregionLabel]=useRegisterGeoSubregions(geoCountry,geoState==='All'?'':geoState); const [geoLga,setGeoLga]=useState('All');
+ const PAGE_SIZE=9;
+ useEffect(()=>{const locked=!!(detail||register||continueBooking);document.body.style.overflow=locked?'hidden':'';return()=>{document.body.style.overflow=''}},[detail,register,continueBooking]);
+ useEffect(()=>{fetch('/api/public/pages/competitions').then(r=>r.ok?r.json():Promise.reject()).then(r=>setPageContent(c=>({...c,...(r.content||{})}))).catch(()=>{});fetch('/api/public/countries').then(r=>r.ok?r.json():Promise.reject()).then(r=>{const a=Array.isArray(r)?r:r.countries||r.data||[];setCountries(a.map(c=>({code:c.code||c.v||c.value||c.id,name:c.name||c.label||c.code||c.v||c.value||c.id})).filter(c=>c.code&&c.name));}).catch(()=>{});},[]);
+ useEffect(()=>{
+  let cancelled=false;
+  const controller=new AbortController();
+  const load=async()=>{
+    setLoading(true);
+    try{
+      const params=new URLSearchParams({limit:String(PAGE_SIZE),page:String(page),...(search.trim()?{q:search.trim()}:{}),...(statusFilter!=='All'?{status:statusFilter.toLowerCase()}:{}),...(geoCountry?{country:geoCountry}:{}),...(geoState!=='All'?{state:geoState}:{}),...(geoLga!=='All'?{lga:geoLga}:{}),...(typeFilter!=='All'?{type:typeFilter.toLowerCase()}:{}),});
+      const r=await fetch('/api/public/competitions?'+params.toString(),{method:'GET',headers:{Accept:'application/json','Cache-Control':'no-cache'},cache:'no-store',signal:controller.signal});
+      const j=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(j?.detail||j?.message||`Competition request failed (${r.status})`);
+      if(cancelled)return;
+      const rows=Array.isArray(j)?j:(Array.isArray(j?.data)?j.data:(Array.isArray(j?.events)?j.events:[]));
+      setEvents(rows.map(normaliseEvent));
+      const total=Number(j?.total)||0;
+      const serverPages=Number(j?.pages)||(total?Math.ceil(total/PAGE_SIZE):1);
+      const safePages=Math.max(1,serverPages);
+      setTotalPages(safePages);
+      if(page>safePages){setPage(safePages);return;}
+    }catch(err){
+      if(err?.name==='AbortError')return;
+      if(!cancelled){setEvents([]);setTotalPages(1);}
+    }finally{if(!cancelled)setLoading(false);}
+  };
+  load();
+  return()=>{cancelled=true;controller.abort()};
+},[search,statusFilter,typeFilter,page,geoCountry,geoState,geoLga]);
+ const filtered=useMemo(()=>events.filter(e=>(!search||JSON.stringify([e.title,e.description,e.location,e.venue]).toLowerCase().includes(search.toLowerCase()))&&(statusFilter==='All'||e.status===statusFilter.toLowerCase())&&(geoState==='All'||e.state===geoState||e.location===geoState)&&(geoLga==='All'||e.lga===geoLga)&&(typeFilter==='All'||String(e.event_type).toLowerCase()===typeFilter.toLowerCase())),[events,search,statusFilter,typeFilter,geoState,geoLga]);
+ return html`<div><${Header}/><section class="hero"><h1><i class="fas fa-trophy"/> ${pageContent.hero_title}</h1><p>${pageContent.intro}</p><div class="global-booking"><button type="button" class="btn-gold" onClick=${()=>setContinueBooking(true)}><i class="fas fa-ticket-alt"/> Reload / Continue Reservation</button></div></section>
+ <div class="filter-bar"><div class="filters-grid"><input class="filter-input" type="search" placeholder="Search competitions, venues or teams…" value=${search} onInput=${e=>{setPage(1);setSearch(e.target.value)}}/><select class="filter-input" value=${geoCountry} onChange=${e=>{setPage(1);setGeoCountry(e.target.value);setGeoState('All');setGeoLga('All')}}><option value="">All Countries</option>${geoCountries.map(c=>html`<option key=${c.code} value=${String(c.code).toUpperCase()}>${c.name}</option>`)}</select><select class="filter-input" value=${geoState} disabled=${!geoCountry||geoRegionsLoading} onChange=${e=>{setPage(1);setGeoState(e.target.value);setGeoLga('All')}}>${['All',...geoRegions].map(x=>html`<option key=${x} value=${x}>${x==='All'?'All '+geoRegionLabel+'s':x}</option>`)}</select><select class="filter-input" value=${geoLga} disabled=${!geoState||geoState==='All'||geoSubregionsLoading} onChange=${e=>{setPage(1);setGeoLga(e.target.value)}}>${['All',...geoSubregions].map(x=>html`<option key=${x} value=${x}>${x==='All'?'All '+geoSubregionLabel+'s':x}</option>`)}</select><select class="filter-input" value=${statusFilter} onChange=${e=>{setPage(1);setStatusFilter(e.target.value)}}>${['All','Active','Upcoming','Completed'].map(s=>html`<option value=${s}>${s}</option>`)}</select></div><div class="type-tabs">${EVENT_TYPES.map(t=>html`<button class=${'type-tab'+(typeFilter===t?' active':'')} onClick=${()=>{setPage(1);setTypeFilter(t)}}>${t}</button>`)}</div></div>
+ <main class="content-area">${loading?html`<div class="cards-grid">${Array(6).fill(0).map((_,i)=>html`<div key=${i} class="skeleton" style="height:360px;border-radius:var(--radius)"/>`)}</div>`:filtered.length===0?html`<div class="empty-state"><i class="fas fa-calendar-xmark"/><h3>No competitions found</h3><p>Try adjusting your filters or check back soon for new listings.</p></div>`:html`<div class="cards-grid">${filtered.map(ev=>html`<${EventCard} key=${ev.id||ev._id||`${ev.title}-${ev.start_at}`} event=${ev} onDetails=${setDetail} onRegister=${setRegister}/>` )}</div>`}
+ ${!loading&&totalPages>1?html`<div class="pagination"><button class="page-btn" disabled=${page===1} onClick=${()=>setPage(p=>Math.max(1,p-1))}><i class="fas fa-chevron-left"/></button>${Array.from({length:totalPages},(_,i)=>html`<button class=${'page-btn'+(page===i+1?' active':'')} onClick=${()=>setPage(i+1)}>${i+1}</button>`)}<button class="page-btn" disabled=${page===totalPages} onClick=${()=>setPage(p=>Math.min(totalPages,p+1))}><i class="fas fa-chevron-right"/></button></div>`:''}
+ <div class="cta-banner"><h2>${pageContent.cta_title}</h2><p>${pageContent.cta_text}</p><a href="/contact.html?subject=event-listing" class="btn-gold"><i class="fas fa-envelope"/> ${pageContent.cta_button_text}</a></div></main>
+ ${detail&&html`<${DetailsModal} event=${detail} onClose=${()=>setDetail(null)} onRegister=${setRegister}/>`}${register&&html`<${RegisterModal} event=${register} onClose=${()=>setRegister(null)} countries=${countries}/>`}${continueBooking&&html`<${ContinueBookingModal} onClose=${()=>setContinueBooking(false)} countries=${countries}/>`}<${Footer}/></div>`;
+}
+render(html`<${App}/>`,document.getElementById('app'));
+})();
+</script>
+</body>
+</html>

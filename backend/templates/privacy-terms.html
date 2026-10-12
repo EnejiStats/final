@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Terms &amp; Privacy — Enejistats</title>
+  <meta name="description" content="Enejistats Terms of Service and Privacy Policy governing use of Africa's trusted football intelligence platform."/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <script src="https://unpkg.com/preact@10.19.3/dist/preact.umd.js"></script>
+  <script src="https://unpkg.com/preact@10.19.3/hooks/dist/hooks.umd.js"></script>
+  <script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --primary:#004aad;--primary-light:#0066cc;--gold:#ffd700;
+      --dark-bg:#1e1e2f;--muted:#64748b;--line:#e2e8f0;
+      --radius:12px;--shadow:0 4px 20px rgba(0,0,0,.08);
+      --font:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif
+    }
+    html{scroll-behavior:smooth}
+    body{font-family:var(--font);color:#1e293b;background:#f8fafc}
+
+    /* ── Header ── */
+    .site-header{position:sticky;top:0;z-index:100;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.06)}
+    .header-inner{max-width:1200px;margin:0 auto;padding:0 1.5rem;height:64px;display:flex;align-items:center;justify-content:space-between}
+    .logo{text-decoration:none;font-size:1.4rem;font-weight:900;letter-spacing:1.5px}
+    .logo .eneji{color:var(--dark-bg)}.logo .stats{color:var(--gold)}
+    .nav-links{display:none;align-items:center;gap:.1rem;list-style:none}
+    @media(min-width:769px){.nav-links{display:flex}}
+    .nav-links a{color:#374151;text-decoration:none;font-size:.88rem;font-weight:500;padding:.4rem .65rem;transition:color .2s}
+    .nav-links a:hover{color:var(--primary)}
+    .nav-links .btn-nav{background:var(--primary);color:#fff!important;border-radius:8px;padding:.45rem 1rem!important;font-weight:600}
+    .dropdown{position:relative}
+    .dropdown-menu{display:none;position:absolute;top:calc(100% + 8px);left:0;background:#fff;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.12);min-width:150px;overflow:hidden;z-index:200}
+    .dropdown:hover .dropdown-menu{display:block}
+    .dropdown-menu a{display:block;padding:.65rem 1rem;color:#374151;font-size:.88rem;text-decoration:none}
+    .dropdown-menu a:hover{background:#f1f5f9;color:var(--primary)}
+    .hamburger{display:flex;flex-direction:column;gap:5px;cursor:pointer;background:none;border:none;padding:.3rem}
+    @media(min-width:769px){.hamburger{display:none}}
+    .hamburger span{display:block;width:24px;height:2px;background:#374151;border-radius:2px}
+    .mobile-nav{display:none;position:fixed;inset:0;background:#fff;z-index:200;flex-direction:column;padding:2rem 1.5rem;gap:.5rem;overflow-y:auto}
+    .mobile-nav.open{display:flex}
+    .mobile-nav-close{align-self:flex-end;background:none;border:none;font-size:1.5rem;color:#374151;cursor:pointer;margin-bottom:1rem}
+    .mobile-nav a{color:#374151;text-decoration:none;font-size:1rem;font-weight:500;padding:.75rem;border-radius:8px;display:block}
+    .mobile-nav a:hover{background:#f1f5f9;color:var(--primary)}
+
+    /* ── Hero ── */
+    .page-hero{background:linear-gradient(135deg,#1e1e2f 0%,#004aad 100%);color:#fff;padding:3rem 1.5rem 2.5rem}
+    .page-hero .inner{max-width:900px;margin:0 auto}
+    .page-hero h1{font-size:clamp(1.6rem,3.5vw,2.4rem);font-weight:800;margin-bottom:.4rem}
+    .page-hero .meta{color:rgba(255,255,255,.6);font-size:.88rem;margin-bottom:.5rem}
+    .page-hero .summary{color:rgba(255,255,255,.8);font-size:1rem;border-left:3px solid var(--gold);padding-left:1rem}
+
+    /* ── Personalization banner ── */
+    .personalization-banner{background:linear-gradient(135deg,#004aad 0%,#0066cc 100%);color:#fff;padding:1.2rem 1.5rem;border-bottom:3px solid var(--gold)}
+    .personalization-banner .inner{max-width:1100px;margin:0 auto}
+    .personalization-banner h3{font-size:.92rem;font-weight:700;margin-bottom:.6rem;display:flex;align-items:center;gap:.5rem;text-transform:uppercase;letter-spacing:.8px;color:var(--gold)}
+    .per-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.5rem .75rem}
+    .per-item{font-size:.82rem}
+    .per-item .lbl{color:rgba(255,255,255,.55);font-size:.72rem;text-transform:uppercase;letter-spacing:.7px;display:block;margin-bottom:1px}
+    .per-item .val{color:#fff;font-weight:600}
+    .per-item .val.pending{color:rgba(255,255,255,.55);font-style:italic}
+
+    /* ── Tab bar ── */
+    .tab-bar{max-width:1100px;margin:0 auto;padding:1.5rem 1.5rem 0;display:flex;gap:.5rem}
+    .tab-btn{padding:.65rem 1.4rem;border-radius:8px 8px 0 0;font-size:.9rem;font-weight:700;cursor:pointer;border:2px solid transparent;background:#e2e8f0;color:var(--muted);transition:all .2s;font-family:var(--font)}
+    .tab-btn.active{background:#fff;color:var(--primary);border-color:var(--line);border-bottom-color:#fff;position:relative;z-index:1}
+    .tab-btn:not(.active):hover{background:#f1f5f9;color:var(--primary)}
+    .tab-panel{display:none}.tab-panel.active{display:block}
+
+    /* ── Document layout ── */
+    .doc-layout{max-width:1100px;margin:0 auto;padding:0 1.5rem 3rem;display:flex;gap:2.5rem;align-items:flex-start;border-top:2px solid var(--line)}
+    .toc{display:none}
+    @media(min-width:992px){.toc{display:block;width:230px;flex-shrink:0;position:sticky;top:80px;background:#fff;border-radius:12px;box-shadow:var(--shadow);padding:1.2rem}}
+    .toc h3{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:.8rem}
+    .toc ol{list-style:none;display:flex;flex-direction:column;gap:.15rem;counter-reset:toc-counter}
+    .toc ol li{counter-increment:toc-counter}
+    .toc ol li a{display:flex;align-items:baseline;gap:.4rem;color:#475569;text-decoration:none;font-size:.82rem;padding:.35rem .5rem;border-radius:6px;transition:all .2s}
+    .toc ol li a::before{content:counter(toc-counter);color:var(--gold);font-weight:700;font-size:.7rem;flex-shrink:0}
+    .toc ol li a:hover{background:#f1f5f9;color:var(--primary)}
+    .toc ol li a.active{background:#eff6ff;color:var(--primary);font-weight:600}
+    .doc-content{flex:1;min-width:0;padding-top:1.5rem}
+    .doc-content section{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:1.8rem 2rem;margin-bottom:1.5rem}
+    .doc-content h2{font-size:1.2rem;font-weight:700;color:var(--primary);margin-bottom:1rem;display:flex;align-items:center;gap:.5rem;padding-bottom:.7rem;border-bottom:2px solid var(--line)}
+    .doc-content h2 .num{background:var(--primary);color:#fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:.75rem;flex-shrink:0}
+    .doc-content p{color:#374151;font-size:.92rem;line-height:1.75;margin-bottom:.85rem}
+    .doc-content p:last-child{margin-bottom:0}
+    .doc-content ul,.doc-content ol{padding-left:1.4rem;margin:.7rem 0}
+    .doc-content li{color:#374151;font-size:.92rem;line-height:1.7;margin-bottom:.35rem}
+    .doc-content strong{color:#1e293b}
+    .doc-content a{color:var(--primary)}
+    .anchor-link{color:var(--muted)!important;text-decoration:none;margin-left:.5rem;font-size:.8rem;opacity:0;transition:opacity .2s}
+    .doc-content h2:hover .anchor-link{opacity:1}
+    .data-table{width:100%;border-collapse:collapse;margin:1rem 0;font-size:.88rem}
+    .data-table th{background:#eff6ff;color:var(--primary);text-align:left;padding:.65rem .9rem;font-weight:700;border-bottom:2px solid var(--line)}
+    .data-table td{padding:.6rem .9rem;border-bottom:1px solid var(--line);color:#374151}
+    .data-table tr:last-child td{border-bottom:none}
+    .legal-contact{background:#eff6ff;border-left:4px solid var(--primary);border-radius:0 var(--radius) var(--radius) 0;padding:1.2rem 1.5rem;margin-top:1rem;font-size:.9rem;color:#1e293b}
+    .legal-contact a{color:var(--primary)}
+    .doc-version-badge{display:inline-flex;align-items:center;gap:.35rem;background:#eff6ff;color:var(--primary);border:1px solid #bfdbfe;border-radius:20px;font-size:.75rem;font-weight:700;padding:.2rem .75rem;margin-bottom:1rem}
+
+    /* ── Acceptance record section ── */
+    .acceptance-record{background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%);border:1.5px solid #86efac;border-radius:var(--radius);padding:1.5rem;margin-bottom:1.5rem}
+    .acceptance-record h3{font-size:.85rem;font-weight:700;color:#166534;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem;text-transform:uppercase;letter-spacing:.8px}
+    .ar-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.5rem}
+    .ar-item dt{font-size:.72rem;color:#4ade80;text-transform:uppercase;letter-spacing:.7px;font-weight:700}
+    .ar-item dd{font-size:.85rem;color:#166534;font-weight:600;word-break:break-word}
+
+    /* ── Footer ── */
+    .site-footer{background:#1e1e1e;color:rgba(255,255,255,.75);padding:3rem 1.5rem 1.5rem}
+    .footer-grid{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr;gap:2rem}
+    @media(min-width:600px){.footer-grid{grid-template-columns:1fr 1fr}}
+    @media(min-width:992px){.footer-grid{grid-template-columns:1.5fr 1fr 1fr 1fr}}
+    .footer-col h4{color:#fff;font-size:.9rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:1rem}
+    .footer-col p{font-size:.85rem;line-height:1.65}
+    .footer-col ul{list-style:none;display:flex;flex-direction:column;gap:.5rem}
+    .footer-col ul a{color:rgba(255,255,255,.65);text-decoration:none;font-size:.85rem;transition:color .2s}
+    .footer-col ul a:hover{color:var(--gold)}
+    .social-links{display:flex;gap:.75rem;flex-wrap:wrap;margin-top:.5rem}
+    .social-links a{color:rgba(255,255,255,.65);font-size:1.1rem;transition:color .2s}
+    .social-links a:hover{color:var(--gold)}
+    .footer-bottom{max-width:1200px;margin:2rem auto 0;padding-top:1rem;border-top:1px solid rgba(255,255,255,.1);display:flex;flex-wrap:wrap;gap:.5rem;justify-content:space-between;align-items:center;font-size:.8rem;color:rgba(255,255,255,.4)}
+    .footer-bottom a{color:rgba(255,255,255,.45);text-decoration:none}
+    .footer-bottom a:hover{color:var(--gold)}
+
+    /* ── Cookie banner ── */
+    .cookie-banner{position:fixed;bottom:0;left:0;right:0;background:#1e2840;color:#fff;z-index:999;padding:1rem 1.5rem;box-shadow:0 -4px 20px rgba(0,0,0,.3)}
+    .cookie-inner{max-width:1100px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;gap:1rem;justify-content:space-between}
+    .cookie-text{font-size:.88rem;color:rgba(255,255,255,.8);flex:1;min-width:200px}
+    .cookie-text a{color:var(--gold)}
+    .cookie-actions{display:flex;gap:.6rem;flex-wrap:wrap;flex-shrink:0}
+    .cookie-btn{padding:.5rem 1rem;border-radius:8px;font-size:.85rem;font-weight:600;cursor:pointer;border:none;transition:opacity .2s}
+    .cookie-btn.accept{background:var(--gold);color:#0a0a1a}
+    .cookie-btn.reject{background:rgba(255,255,255,.12);color:#fff}
+    .cookie-btn.manage{background:transparent;color:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.25)}
+    .cookie-btn:hover{opacity:.85}
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1100;display:flex;align-items:center;justify-content:center;padding:1rem}
+    .modal-box{background:#fff;border-radius:16px;padding:2rem;max-width:500px;width:100%;max-height:90vh;overflow-y:auto}
+    .modal-box h3{font-size:1.1rem;font-weight:700;color:var(--dark-bg);margin-bottom:1rem}
+    .pref-row{display:flex;justify-content:space-between;align-items:center;padding:.8rem 0;border-bottom:1px solid var(--line);gap:1rem}
+    .pref-row:last-of-type{border-bottom:none}
+    .pref-row label{font-size:.9rem;font-weight:600;color:#1e293b}
+    .pref-row span{font-size:.8rem;color:var(--muted);display:block;margin-top:.2rem}
+    .toggle-switch{position:relative;width:44px;height:24px;flex-shrink:0}
+    .toggle-switch input{opacity:0;width:0;height:0}
+    .toggle-slider{position:absolute;inset:0;background:#cbd5e1;border-radius:24px;cursor:pointer;transition:background .2s}
+    .toggle-slider::before{content:'';position:absolute;width:18px;height:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:transform .2s}
+    .toggle-switch input:checked+.toggle-slider{background:var(--primary)}
+    .toggle-switch input:checked+.toggle-slider::before{transform:translateX(20px)}
+    .toggle-switch input:disabled+.toggle-slider{opacity:.6;cursor:not-allowed}
+    .modal-actions{display:flex;gap:.7rem;margin-top:1.5rem}
+    .modal-actions button{flex:1;padding:.7rem;border-radius:8px;font-size:.9rem;font-weight:600;cursor:pointer;border:none}
+    .btn-save-pref{background:var(--primary);color:#fff}
+    .btn-reject-all{background:#f1f5f9;color:var(--muted)}
+
+    @media print{
+      .site-header,.site-footer,.cookie-banner,.toc,.tab-bar,.personalization-banner{display:none!important}
+      .doc-content section{box-shadow:none;border:1px solid var(--line);page-break-inside:avoid}
+    }
+  </style>
+</head>
+<body>
+<div id="app"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     STATIC CONTENT DIVS — used by DocOverlay DOMParser extraction
+     {{placeholder}} tokens are replaced by register.html before display
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
+<div id="terms-doc-content" hidden>
+
+  <!-- Personalized Agreement Cover -->
+  <section id="terms-cover">
+    <div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:1.2rem 1.5rem;margin-bottom:1rem">
+      <p style="font-size:.78rem;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.8px;margin-bottom:.7rem"><i class="fas fa-file-signature"></i> Agreement Details</p>
+      <dl style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.4rem .75rem">
+        <div><dt style="font-size:.7rem;color:#6b7280;text-transform:uppercase;letter-spacing:.6px">Full Name</dt><dd style="font-size:.86rem;color:#1e293b;font-weight:600">{{fullName}}</dd></div>
+        <div><dt style="font-size:.7rem;color:#6b7280;text-transform:uppercase;letter-spacing:.6px">Email</dt><dd style="font-size:.86rem;color:#1e293b;font-weight:600">{{email}}</dd></div>
+        <div><dt style="font-size:.7rem;color:#6b7280;text-transform:uppercase;letter-spacing:.6px">Phone</dt><dd style="font-size:.86rem;color:#1e293b;font-weight:600">{{phone}}</dd></div>
+        <div><dt style="font-size:.7rem;color:#6b7280;text-transform:uppercase;letter-spacing:.6px">User Type</dt><dd style="font-size:.86rem;color:#1e293b;font-weight:600">{{userType}}</dd></div>
+        <div><dt style="font-size:.7rem;color:#6b7280;text-transform:uppercase;letter-spacing:.6px">Category</dt><dd style="font-size:.86rem;color:#1e293b;font-weight:600">{{userCategory}}</dd></div>
+        <div><dt style="font-size:.7rem;color:#6b7280;text-transform:uppercase;letter-spacing:.6px">Organisation</dt><dd style="font-size:.86rem;color:#1e293b;font-weight:600">{{businessName}}</dd></div>
+        <div><dt style="font-size:.7rem;color:#6b7280;text-transform:uppercase;letter-spacing:.6px">Date</dt><dd style="font-size:.86rem;color:#1e293b;font-weight:600">{{currentDate}}</dd></div>
+        <div><dt style="font-size:.7rem;color:#6b7280;text-transform:uppercase;letter-spacing:.6px">User ID</dt><dd style="font-size:.86rem;color:#94a3b8;font-style:italic">{{userId}}</dd></div>
+      </dl>
+    </div>
+    <p style="font-size:.82rem;color:#6b7280;line-height:1.65"><strong>Platform:</strong> {{applicationName}} — operated by {{companyName}}. <strong>Terms Version:</strong> 2.0. By scrolling to the bottom and clicking "I Accept", {{fullName}} agrees to all terms below.</p>
+  </section>
+
+  <section id="acceptance">
+    <h2><span class="num">1</span>Acceptance of Terms<a href="#acceptance" class="anchor-link" aria-label="Link to Acceptance of Terms"><i class="fas fa-link"></i></a></h2>
+    <p>By accessing or using the {{applicationName}} platform (the "Service"), whether through our website, mobile application, or any related services, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service ("Terms") and our Privacy Policy.</p>
+    <p>If you are accessing the Service on behalf of an organisation, you represent that you have authority to bind that organisation to these Terms. If you do not agree to these Terms, you must not use the Service.</p>
+    <p>{{companyName}} reserves the right to modify these Terms at any time. Continued use of the Service after any changes constitutes your acceptance of the revised Terms. We will notify registered users of material changes via email or in-app notification at least 14 days before changes take effect.</p>
+  </section>
+
+  <section id="eligibility">
+    <h2><span class="num">2</span>Eligibility<a href="#eligibility" class="anchor-link" aria-label="Link to Eligibility"><i class="fas fa-link"></i></a></h2>
+    <p>To use the {{applicationName}} platform, you must:</p>
+    <ul>
+      <li>Be at least 18 years of age, or 16 years with verifiable parental or guardian consent.</li>
+      <li>Reside in a jurisdiction where the use of such services is permitted.</li>
+      <li>Not have had a prior account suspended or terminated for violations of these Terms.</li>
+      <li>Provide accurate, current, and complete information during the registration process.</li>
+    </ul>
+    <p>{{companyName}} reserves the right to refuse service, suspend, or terminate accounts at its sole discretion.</p>
+  </section>
+
+  <section id="registration">
+    <h2><span class="num">3</span>Account Registration<a href="#registration" class="anchor-link" aria-label="Link to Account Registration"><i class="fas fa-link"></i></a></h2>
+    <p>To access most features of the Service, you must create an account. You agree to:</p>
+    <ul>
+      <li>Provide truthful and accurate registration information, including your real name, valid email address, and phone number.</li>
+      <li>Maintain the security and confidentiality of your account credentials.</li>
+      <li>Promptly notify {{companyName}} of any unauthorised access to your account.</li>
+      <li>Accept responsibility for all activities conducted through your account.</li>
+      <li>Not share, transfer, or sell your account to any third party.</li>
+    </ul>
+    <p>Certain roles (Player, Club, Agent, Scout, Data Collection Officer, Supervisor) require identity verification, liveness checks, and in some cases GPS location capture as part of the registration process. Details of how this data is handled are set out in our Privacy Policy.</p>
+  </section>
+
+  <section id="roles">
+    <h2><span class="num">4</span>Roles &amp; Responsibilities<a href="#roles" class="anchor-link" aria-label="Link to Roles"><i class="fas fa-link"></i></a></h2>
+    <p>The {{applicationName}} platform serves multiple user roles, each with distinct capabilities and responsibilities:</p>
+    <ul>
+      <li><strong>Players:</strong> May request match statistics, manage their profiles, and view their performance data. Players are responsible for ensuring their personal information is accurate.</li>
+      <li><strong>Clubs:</strong> May manage squad records, request match reports, and access aggregate statistics. Club administrators are responsible for the accuracy of squad and match data submitted.</li>
+      <li><strong>Scouts:</strong> May discover talent and submit scouting reports. Scouts must conduct their activities ethically and in accordance with applicable laws.</li>
+      <li><strong>Agents:</strong> May manage player portfolios and liaise with clubs and scouts. Agents must hold appropriate licences where required by law.</li>
+      <li><strong>Data Collection Officers (DCOs):</strong> Are responsible for accurate, real-time match data collection. DCOs must attend assigned matches and submit data promptly.</li>
+      <li><strong>Supervisors:</strong> Oversee DCO activities and validate submitted data within their assigned region.</li>
+      <li><strong>Administrators / Sub-Admins:</strong> Manage platform configuration, user accounts, and dispute resolution. Administrators hold the highest level of responsibility for platform integrity.</li>
+    </ul>
+    <p>Your current registered role: <strong>{{userType}}</strong> ({{userCategory}}).</p>
+  </section>
+
+  <section id="tokens">
+    <h2><span class="num">5</span>Tokens &amp; Subscriptions<a href="#tokens" class="anchor-link" aria-label="Link to Tokens"><i class="fas fa-link"></i></a></h2>
+    <p>{{companyName}} uses a token economy to facilitate certain platform actions. Token costs and subscription prices are set exclusively by platform administrators. Current prices are always available at <a href="/pricing.html">enejistats.com/pricing.html</a> and via the platform API.</p>
+    <p><strong>Token acquisition:</strong> Tokens may be purchased directly or earned through Data Scout activities.</p>
+    <p><strong>Token flow:</strong> Tokens are locked when a request is submitted. They are deducted upon assignment or approval of a Data Collection Officer. If no DCO is assigned within 24 hours or an administrator declines the request, tokens are automatically refunded.</p>
+    <p><strong>Subscriptions:</strong> Subscription plans provide enhanced features and may include token allocations. Subscription prices, periods, and features are admin-controlled.</p>
+    <p><strong>Refunds:</strong> Token purchases are non-refundable once tokens have been used. Unused tokens are non-transferable and forfeited upon account termination. Subscription fees are non-refundable once a billing period has commenced.</p>
+  </section>
+
+  <section id="data-collection">
+    <h2><span class="num">6</span>Data Collection &amp; Live Match Statistics<a href="#data-collection" class="anchor-link" aria-label="Link to Data Collection"><i class="fas fa-link"></i></a></h2>
+    <p>{{companyName}} collects, processes, and stores live football match statistics through its network of Data Collection Officers. By requesting statistics:</p>
+    <ul>
+      <li>Players and clubs consent to the collection and display of match-related performance data.</li>
+      <li>All published statistics are attributed to the submitting DCO and reviewed by Supervisors.</li>
+      <li>{{companyName}} does not guarantee the accuracy of any submitted statistics, though we implement verification processes to ensure quality.</li>
+      <li>Match statistics data may be used in aggregated or anonymised form for platform analytics and public leaderboards.</li>
+    </ul>
+  </section>
+
+  <section id="liveness">
+    <h2><span class="num">7</span>Liveness Verification &amp; Consent<a href="#liveness" class="anchor-link" aria-label="Link to Liveness"><i class="fas fa-link"></i></a></h2>
+    <p>Certain registration and verification processes on {{applicationName}} require a liveness check — a secure, server-issued challenge phrase verified in real time. This requirement applies to Player, Club, Agent, Scout, DCO, and Supervisor registrations.</p>
+    <p><strong>Purpose:</strong> Liveness verification is used solely to confirm the physical presence and identity of the user at the time of registration, and to prevent fraudulent account creation.</p>
+    <p><strong>Consent:</strong> By proceeding through a liveness check, you explicitly consent to the temporary processing of your identity credentials for verification purposes. You understand that the verification is performed via a secure server challenge and no biometric video is recorded or stored.</p>
+    <p>Full details of biometric and liveness data handling, including retention schedules, are set out in Section 7 of the Privacy Policy.</p>
+  </section>
+
+  <section id="gps">
+    <h2><span class="num">8</span>GPS Location — Consent &amp; Use<a href="#gps" class="anchor-link" aria-label="Link to GPS"><i class="fas fa-link"></i></a></h2>
+    <p>Certain platform actions require the capture of your GPS coordinates, including but not limited to: club registration (office/stadium location), player registration (current location), and DCO match check-in.</p>
+    <p>By providing your GPS coordinates, you consent to:</p>
+    <ul>
+      <li>Capture of your location at the time of the relevant platform action.</li>
+      <li>Use of that location for verification, assignment, and operational purposes only.</li>
+      <li>Storage and handling of location data as described in the Privacy Policy.</li>
+    </ul>
+    <p>You may withdraw consent for location capture; however, this may prevent access to certain platform features. Full details of location data retention and third-party sharing are set out in the Privacy Policy.</p>
+  </section>
+
+  <section id="conduct">
+    <h2><span class="num">9</span>User Conduct<a href="#conduct" class="anchor-link" aria-label="Link to User Conduct"><i class="fas fa-link"></i></a></h2>
+    <p>You agree not to use the {{applicationName}} platform to:</p>
+    <ul>
+      <li>Submit false, misleading, or fraudulent information, including fabricated match statistics.</li>
+      <li>Impersonate any person, player, club, or organisation.</li>
+      <li>Interfere with or disrupt the integrity or performance of the Service.</li>
+      <li>Attempt to gain unauthorised access to any part of the platform or another user's account.</li>
+      <li>Engage in any activity that violates applicable Nigerian law or international law.</li>
+      <li>Harass, abuse, or harm other users, referees, DCOs, or platform staff.</li>
+      <li>Use automated tools, bots, or scripts to access or scrape the Service.</li>
+    </ul>
+    <p>Violations may result in immediate account suspension, forfeiture of tokens, and referral to law enforcement where warranted.</p>
+  </section>
+
+  <section id="ip">
+    <h2><span class="num">10</span>Intellectual Property &amp; Content<a href="#ip" class="anchor-link" aria-label="Link to IP"><i class="fas fa-link"></i></a></h2>
+    <p>All platform software, design, trademarks, logos, and original content are the intellectual property of {{companyName}} or its licensors and are protected by applicable Nigerian and international intellectual property law.</p>
+    <p>By submitting content to the platform you grant {{companyName}} a non-exclusive, royalty-free, worldwide licence to use, display, reproduce, and distribute such content for the purposes of operating and improving the Service. You retain ownership of content you submit.</p>
+  </section>
+
+  <section id="termination">
+    <h2><span class="num">11</span>Termination<a href="#termination" class="anchor-link" aria-label="Link to Termination"><i class="fas fa-link"></i></a></h2>
+    <p>You may terminate your account at any time by contacting {{companyName}} support. Upon termination, your access to the Service will cease, and unused tokens and subscription balances will be forfeited.</p>
+    <p>{{companyName}} may suspend or terminate your account without notice for material breaches of these Terms, fraudulent activity, non-payment, or for any other reason at our sole discretion.</p>
+  </section>
+
+  <section id="disclaimers">
+    <h2><span class="num">12</span>Disclaimers<a href="#disclaimers" class="anchor-link" aria-label="Link to Disclaimers"><i class="fas fa-link"></i></a></h2>
+    <p>The {{applicationName}} platform is provided on an "as is" and "as available" basis. To the fullest extent permitted by law, {{companyName}} disclaims all warranties, express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, accuracy of match statistics, and uninterrupted operation.</p>
+  </section>
+
+  <section id="liability">
+    <h2><span class="num">13</span>Limitation of Liability<a href="#liability" class="anchor-link" aria-label="Link to Liability"><i class="fas fa-link"></i></a></h2>
+    <p>To the maximum extent permitted by applicable Nigerian law, {{companyName}}, its directors, employees, agents, and affiliates shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of or inability to use the Service.</p>
+    <p>Our total liability to you for any cause of action shall not exceed the total amount paid by you to {{companyName}} in the three (3) months preceding the claim.</p>
+  </section>
+
+  <section id="law">
+    <h2><span class="num">14</span>Governing Law<a href="#law" class="anchor-link" aria-label="Link to Governing Law"><i class="fas fa-link"></i></a></h2>
+    <p>These Terms and any disputes arising from your use of the {{applicationName}} platform shall be governed by and construed in accordance with the laws of the Federal Republic of Nigeria, without regard to conflict of law principles. Any legal proceedings shall be subject to the exclusive jurisdiction of the courts located in Nigeria.</p>
+  </section>
+
+  <section id="terms-contact">
+    <h2><span class="num">15</span>Contact Us<a href="#terms-contact" class="anchor-link" aria-label="Link to Contact"><i class="fas fa-link"></i></a></h2>
+    <p>If you have questions about these Terms of Service, please contact:</p>
+    <div class="legal-contact">
+      <strong>{{companyName}} Legal &amp; Compliance</strong><br/>
+      Email: <a href="mailto:enejistats@gmail.com">enejistats@gmail.com</a><br/>
+      Subject line: "Terms of Service Enquiry"
+    </div>
+  </section>
+</div><!-- /#terms-doc-content -->
+
+<div id="privacy-doc-content" hidden>
+
+  <!-- Personalized Privacy Cover -->
+  <section id="privacy-cover">
+    <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:1.2rem 1.5rem;margin-bottom:1rem">
+      <p style="font-size:.78rem;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:.8px;margin-bottom:.7rem"><i class="fas fa-shield-alt"></i> Data Subject Record</p>
+      <dl style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.4rem .75rem">
+        <div><dt style="font-size:.7rem;color:#6b7280;text-transform:uppercase;letter-spacing:.6px">Full Name</dt><dd style="font-size:.86rem;color:#1e293b;font-weight:600">{{fullName}}</dd></div>
+        <div><dt style="font-size:.7rem;color:#6b7280;text-transform:uppercase;letter-spacing:.6px">Email</dt><dd style="font-size:.86rem;color:#1e293b;font-weight:600">{{email}}</dd></div>
+        <div><dt style="font-size:.7rem;color:#6b7280;text-transform:uppercase;letter-spacing:.6px">Phone</dt><dd style="font-size:.86rem;color:#1e293b;font-weight:600">{{phone}}</dd></div>
+        <div><dt style="font-size:.7rem;color:#6b7280;text-transform:uppercase;letter-spacing:.6px">User Type</dt><dd style="font-size:.86rem;color:#1e293b;font-weight:600">{{userType}}</dd></div>
+        <div><dt style="font-size:.7rem;color:#6b7280;text-transform:uppercase;letter-spacing:.6px">Category</dt><dd style="font-size:.86rem;color:#1e293b;font-weight:600">{{userCategory}}</dd></div>
+        <div><dt style="font-size:.7rem;color:#6b7280;text-transform:uppercase;letter-spacing:.6px">Date</dt><dd style="font-size:.86rem;color:#1e293b;font-weight:600">{{currentDate}}</dd></div>
+        <div><dt style="font-size:.7rem;color:#6b7280;text-transform:uppercase;letter-spacing:.6px">User ID</dt><dd style="font-size:.86rem;color:#94a3b8;font-style:italic">{{userId}}</dd></div>
+      </dl>
+    </div>
+    <p style="font-size:.82rem;color:#6b7280;line-height:1.65">This Privacy Policy sets out how <strong>{{companyName}}</strong> processes the personal data of <strong>{{fullName}}</strong> in connection with their registration and use of {{applicationName}}. <strong>Privacy Policy Version:</strong> 2.0.</p>
+  </section>
+
+  <section id="controller">
+    <h2><span class="num">1</span>Data Controller<a href="#controller" class="anchor-link" aria-label="Link to Data Controller"><i class="fas fa-link"></i></a></h2>
+    <p>{{companyName}} is the data controller responsible for the personal data collected through the {{applicationName}} platform. For the purposes of the Nigeria Data Protection Regulation (NDPR) 2019:</p>
+    <div class="legal-contact">
+      <strong>{{companyName}} Data Protection Officer</strong><br/>
+      Email: <a href="mailto:enejistats@gmail.com">enejistats@gmail.com</a><br/>
+      Subject: "Privacy / Data Protection"
+    </div>
+  </section>
+
+  <section id="categories">
+    <h2><span class="num">2</span>Categories of Personal Data Collected<a href="#categories" class="anchor-link" aria-label="Link to Data Categories"><i class="fas fa-link"></i></a></h2>
+    <p>Depending on your role ({{userType}}) and usage, {{companyName}} may collect:</p>
+    <table class="data-table">
+      <thead><tr><th>Category</th><th>Examples</th><th>Applies To</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Identity Data</strong></td><td>Full name, date of birth, gender, NIN</td><td>All roles</td></tr>
+        <tr><td><strong>Contact Data</strong></td><td>Email address, phone number, postal address</td><td>All roles</td></tr>
+        <tr><td><strong>Professional Data</strong></td><td>Playing position, club affiliation, agent licence, scout credentials, DCO tier</td><td>Role-dependent</td></tr>
+        <tr><td><strong>Biometric Metadata</strong></td><td>Challenge-phrase session ID, verification timestamp — no video or image stored</td><td>All registered roles</td></tr>
+        <tr><td><strong>Location Data</strong></td><td>GPS coordinates captured during registration and check-ins</td><td>Player, Club, Scout, Agent, DCO, Supervisor</td></tr>
+        <tr><td><strong>Financial Data</strong></td><td>Transaction records, token history — card details processed by Flutterwave; not stored by {{companyName}}</td><td>Paying users</td></tr>
+        <tr><td><strong>Performance Data</strong></td><td>Match statistics, heatmaps, match reports, scouting notes</td><td>Players, Clubs</td></tr>
+        <tr><td><strong>Technical Data</strong></td><td>IP address, browser type, device information, log data</td><td>All users</td></tr>
+        <tr><td><strong>Usage Data</strong></td><td>Pages visited, features used, session duration</td><td>All users</td></tr>
+        <tr><td><strong>Legal Acceptance Records</strong></td><td>Rendered Terms &amp; Privacy HTML, document hash, acceptance timestamp, signer details</td><td>All registered users</td></tr>
+        <tr><td><strong>Communications Data</strong></td><td>Support tickets, emails, in-app messages</td><td>All users</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="purposes">
+    <h2><span class="num">3</span>Purposes of Processing<a href="#purposes" class="anchor-link" aria-label="Link to Purposes"><i class="fas fa-link"></i></a></h2>
+    <p>{{companyName}} processes your personal data for the following purposes:</p>
+    <ul>
+      <li><strong>Account management:</strong> Creating, maintaining, and managing your account and subscription.</li>
+      <li><strong>Identity verification:</strong> Confirming your identity via a server-issued challenge phrase at the time of registration to prevent fraudulent account creation.</li>
+      <li><strong>Service delivery:</strong> Collecting and presenting match statistics, scouting reports, and performance data.</li>
+      <li><strong>Payment processing:</strong> Facilitating token purchases and subscription payments through Flutterwave.</li>
+      <li><strong>Platform operations:</strong> Assigning DCOs, managing workflow, and coordinating between user roles.</li>
+      <li><strong>Legal compliance &amp; audit:</strong> Storing your accepted agreement (Terms and Privacy Policy) including the rendered document, hash, acceptance timestamp, and signer details for legal and regulatory audit purposes.</li>
+      <li><strong>Communications:</strong> Sending transactional emails, support responses, and (where consent is given) platform updates.</li>
+      <li><strong>Analytics:</strong> Understanding platform usage to improve user experience.</li>
+      <li><strong>Legal compliance:</strong> Meeting obligations under Nigerian law.</li>
+    </ul>
+  </section>
+
+  <section id="legal-basis">
+    <h2><span class="num">4</span>Legal Basis for Processing<a href="#legal-basis" class="anchor-link" aria-label="Link to Legal Basis"><i class="fas fa-link"></i></a></h2>
+    <p>{{companyName}} processes your personal data on the following legal bases under the NDPR:</p>
+    <ul>
+      <li><strong>Contractual necessity:</strong> Processing required to deliver the services you have registered for.</li>
+      <li><strong>Legitimate interests:</strong> Platform security, fraud prevention, improving service quality, and maintaining legal acceptance audit trails.</li>
+      <li><strong>Legal obligation:</strong> Compliance with Nigerian financial regulations, tax law, data protection law, and regulatory requirements.</li>
+      <li><strong>Consent:</strong> Where we process location data and identity verification credentials, we obtain your explicit consent at the point of collection. You may withdraw consent at any time, subject to the limitations described in Section 9.</li>
+    </ul>
+  </section>
+
+  <section id="sharing">
+    <h2><span class="num">5</span>Sharing &amp; Third Parties<a href="#sharing" class="anchor-link" aria-label="Link to Sharing"><i class="fas fa-link"></i></a></h2>
+    <p>{{companyName}} does not sell your personal data. We may share data with:</p>
+    <ul>
+      <li><strong>Flutterwave:</strong> Our payment processor. Card data is processed by Flutterwave under their PCI-DSS framework. {{companyName}} does not store payment card details.</li>
+      <li><strong>Cloud infrastructure providers:</strong> Servers hosting the {{applicationName}} platform in compliant cloud environments under data processing agreements.</li>
+      <li><strong>Platform stakeholders:</strong> Certain data is shared within the platform between authorised roles (e.g. a Player's match statistics are visible to Scouts with appropriate access).</li>
+      <li><strong>Legal authorities:</strong> We may disclose data if required by law, court order, or regulatory directive in Nigeria.</li>
+      <li><strong>Business transfers:</strong> In the event of a merger, acquisition, or sale of assets, user data may be transferred. We will provide prior notification of any such transfer.</li>
+    </ul>
+    <p>We do not transfer your personal data to any country outside Nigeria without ensuring appropriate safeguards are in place, as described in Section 11.</p>
+  </section>
+
+  <section id="storage">
+    <h2><span class="num">6</span>Storage Locations &amp; Security<a href="#storage" class="anchor-link" aria-label="Link to Storage"><i class="fas fa-link"></i></a></h2>
+    <p>Data is stored on secure cloud servers located in compliant data centres. {{companyName}} implements the following security measures to protect your personal data:</p>
+    <ul>
+      <li>Encrypted data transmission using HTTPS/TLS on all connections.</li>
+      <li>Secure storage of passwords using industry-standard hashing (bcrypt).</li>
+      <li>Role-based access controls to limit internal data access to authorised personnel only.</li>
+      <li>Regular security reviews and vulnerability assessments.</li>
+      <li>Server-side challenge-phrase verification — no biometric video or image is recorded or stored at any point.</li>
+      <li>Immutable acceptance records: once an agreement is stored upon registration, it cannot be altered.</li>
+    </ul>
+    <p>No method of electronic transmission or storage is 100% secure. If you become aware of a security breach affecting your account, please notify us immediately at <a href="mailto:enejistats@gmail.com">enejistats@gmail.com</a>.</p>
+    <p>Where data is transferred outside Nigeria, {{companyName}} ensures the receiving country or organisation provides an adequate level of protection consistent with the NDPR, including standard contractual clauses where required.</p>
+  </section>
+
+  <section id="retention">
+    <h2><span class="num">7</span>Data Retention<a href="#retention" class="anchor-link" aria-label="Link to Retention"><i class="fas fa-link"></i></a></h2>
+    <p>We retain your personal data only as long as necessary for the purposes set out in this Policy, unless a longer retention period is required or permitted by Nigerian law.</p>
+    <table class="data-table">
+      <thead><tr><th>Data Type</th><th>Retention Period</th><th>Basis</th></tr></thead>
+      <tbody>
+        <tr><td>Identity verification session metadata</td><td>Audit record retained for the life of the account</td><td>Legitimate interests / Legal obligation</td></tr>
+        <tr><td>Account / profile data</td><td>Duration of account; deleted within 30 days of verified closure request</td><td>Contractual necessity</td></tr>
+        <tr><td>Match statistics &amp; performance data</td><td>Indefinite (forms core platform value)</td><td>Legitimate interests</td></tr>
+        <tr><td>Financial records</td><td><strong>7 years</strong></td><td>Nigerian financial law requirements</td></tr>
+        <tr><td>GPS coordinates (registration)</td><td>Retained while account is active; deleted upon account closure</td><td>Consent / Contractual necessity</td></tr>
+        <tr><td>Legal acceptance records (rendered agreement, hash)</td><td><strong>7 years</strong> after last use of account</td><td>Legal obligation / Legitimate interests</td></tr>
+        <tr><td>Support communications</td><td>3 years from last contact</td><td>Legitimate interests</td></tr>
+        <tr><td>Log / technical data</td><td>90 days</td><td>Legitimate interests</td></tr>
+        <tr><td>Marketing / communications consent</td><td>Until withdrawn or 3 years of inactivity</td><td>Consent</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="cookies">
+    <h2><span class="num">8</span>Cookies<a href="#cookies" class="anchor-link" aria-label="Link to Cookies"><i class="fas fa-link"></i></a></h2>
+    <p>{{companyName}} uses cookies and similar tracking technologies to operate and improve the {{applicationName}} platform. We use the following categories:</p>
+    <ul>
+      <li><strong>Essential cookies:</strong> Required for the platform to function (authentication, session management). Cannot be disabled.</li>
+      <li><strong>Functional cookies:</strong> Remember your preferences and settings for a better experience.</li>
+      <li><strong>Analytics cookies:</strong> Help us understand how users interact with the platform so we can improve it (e.g. usage statistics, error tracking).</li>
+      <li><strong>Marketing cookies:</strong> Used where you have consented to receive personalised content or communications.</li>
+    </ul>
+    <p>You can manage your cookie preferences at any time using the preference tool in the banner at the bottom of this page, or by adjusting your browser settings. For full details, see our <a href="/cookies.html">Cookie Policy</a>.</p>
+  </section>
+
+  <section id="rights">
+    <h2><span class="num">9</span>Your Rights (NDPR)<a href="#rights" class="anchor-link" aria-label="Link to Your Rights"><i class="fas fa-link"></i></a></h2>
+    <p>Under the Nigeria Data Protection Regulation (NDPR) 2019, you — <strong>{{fullName}}</strong> — have the following rights in relation to your personal data:</p>
+    <ul>
+      <li><strong>Right of access:</strong> Request a copy of the personal data {{companyName}} holds about you.</li>
+      <li><strong>Right to rectification:</strong> Request correction of inaccurate or incomplete data.</li>
+      <li><strong>Right to erasure:</strong> Request deletion of your data where there is no lawful reason for continued processing. Note: legal acceptance records and financial records must be retained for the periods specified in Section 7.</li>
+      <li><strong>Right to data portability:</strong> Receive your data in a structured, machine-readable format.</li>
+      <li><strong>Right to object:</strong> Object to processing based on legitimate interests or for direct marketing.</li>
+      <li><strong>Right to withdraw consent:</strong> Withdraw consent for consent-based processing (e.g. marketing, location capture) at any time without affecting the lawfulness of prior processing.</li>
+      <li><strong>Right to lodge a complaint:</strong> Lodge a complaint with the Nigeria Data Protection Bureau (NDPB) at <a href="https://ndpb.gov.ng" target="_blank" rel="noopener noreferrer">ndpb.gov.ng</a>.</li>
+    </ul>
+    <p>To exercise any of these rights, contact our DPO at <a href="mailto:enejistats@gmail.com">enejistats@gmail.com</a> with the subject "Data Subject Request — {{email}}". We will respond within 30 days.</p>
+  </section>
+
+  <section id="children">
+    <h2><span class="num">10</span>Children<a href="#children" class="anchor-link" aria-label="Link to Children"><i class="fas fa-link"></i></a></h2>
+    <p>{{companyName}} does not knowingly collect personal data from individuals under the age of 16 without verified parental or guardian consent. Registration requires confirmation that you meet the eligibility criteria set out in the Terms of Service.</p>
+    <p>If we become aware that a child's data has been collected without appropriate consent, we will take immediate steps to delete such data and notify the relevant guardian where possible.</p>
+  </section>
+
+  <section id="international">
+    <h2><span class="num">11</span>International Transfers<a href="#international" class="anchor-link" aria-label="Link to International Transfers"><i class="fas fa-link"></i></a></h2>
+    <p>If personal data is transferred outside Nigeria, {{companyName}} ensures the receiving country or organisation provides an adequate level of data protection consistent with the NDPR. Where required, we implement appropriate safeguards such as standard contractual clauses approved by the NDPB.</p>
+    <p>By registering for {{applicationName}}, you acknowledge that your data may be stored on servers located outside Nigeria where our cloud infrastructure providers operate, subject to the safeguards described above.</p>
+  </section>
+
+  <section id="updates">
+    <h2><span class="num">12</span>Policy Updates<a href="#updates" class="anchor-link" aria-label="Link to Policy Updates"><i class="fas fa-link"></i></a></h2>
+    <p>{{companyName}} may update this Privacy Policy periodically to reflect changes in our practices, technology, or legal requirements. We will notify registered users of material changes via email or in-app notification at least <strong>14 days</strong> before changes take effect.</p>
+    <p>Continued use of the Service after the effective date of any update constitutes your acceptance of the revised policy. The version of this Privacy Policy accepted by {{fullName}} on {{acceptedDate}} is version <strong>2.0</strong> and is permanently recorded in your account.</p>
+  </section>
+
+  <section id="contact-dpo">
+    <h2><span class="num">13</span>Contact / Data Protection Officer<a href="#contact-dpo" class="anchor-link" aria-label="Link to DPO Contact"><i class="fas fa-link"></i></a></h2>
+    <p>For all privacy-related enquiries, data subject requests, or complaints relating to this account (<strong>{{email}}</strong>):</p>
+    <div class="legal-contact">
+      <strong>{{companyName}} Data Protection Officer</strong><br/>
+      Email: <a href="mailto:enejistats@gmail.com">enejistats@gmail.com</a><br/>
+      Subject: "Privacy / Data Protection — {{email}}"<br/><br/>
+      We aim to respond to all data protection enquiries within <strong>30 days</strong>.
+    </div>
+  </section>
+</div><!-- /#privacy-doc-content -->
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     PREACT APPLICATION — Standalone web page renderer
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+'use strict';
+const { h, render } = preact;
+const { useState, useEffect, useRef } = preactHooks;
+const html = htm.bind(h);
+const year = new Date().getFullYear();
+
+/* ─── URL PARAM / POSTMESSAGE TEMPLATE ENGINE ──────────────────────────── */
+function readUrlParams() {
+  const p = new URLSearchParams(window.location.search);
+  const keys = ['fullName','firstName','lastName','email','phone','userId','userType',
+                 'userRole','userCategory','department','organization','businessName',
+                 'registrationDate','acceptedDate','currentDate','applicationName','companyName'];
+  const data = {};
+  keys.forEach(k => { const v = p.get(k); if (v) data[k] = decodeURIComponent(v); });
+  return Object.keys(data).length ? data : null;
+}
+
+/* ─── HEADER ─────────────────────────────────────────────────────────────── */
+function Header(){
+  const [menuOpen,setMenuOpen]=useState(false);
+  return html`<header class="site-header">
+    <div class="header-inner">
+      <a href="/" class="logo"><span class="eneji">ENEJI</span><span class="stats">STATS</span></a>
+      <nav><ul class="nav-links">
+        <li><a href="/">Home</a></li>
+        <li><a href="/about.html">About</a></li>
+        <li><a href="/pricing.html">Pricing</a></li>
+        <li><a href="/contact.html">Contact</a></li>
+        <li><a href="/register.html" class="btn-nav">Register / Sign In</a></li>
+      </ul></nav>
+      <button class="hamburger" onClick=${()=>setMenuOpen(true)} aria-label="Open menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+    <div class=${'mobile-nav'+(menuOpen?' open':'')}>
+      <button class="mobile-nav-close" onClick=${()=>setMenuOpen(false)}><i class="fas fa-times"></i></button>
+      <a href="/" onClick=${()=>setMenuOpen(false)}>Home</a>
+      <a href="/about.html" onClick=${()=>setMenuOpen(false)}>About</a>
+      <a href="/pricing.html" onClick=${()=>setMenuOpen(false)}>Pricing</a>
+      <a href="/contact.html" onClick=${()=>setMenuOpen(false)}>Contact</a>
+      <a href="/register.html" style="color:var(--primary);font-weight:700" onClick=${()=>setMenuOpen(false)}>Register / Sign In</a>
+    </div>
+  </header>`;
+}
+
+/* ─── FOOTER ─────────────────────────────────────────────────────────────── */
+function Footer(){
+  return html`<footer class="site-footer">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>About Enejistats</h4>
+        <p>The leading platform for football talent tracking in Nigeria. Connecting players, clubs, scouts, and agents through verified data.</p>
+        <p style="margin-top:.6rem;font-style:italic;font-size:.82rem;color:rgba(255,255,255,.45)">Tracking talent with precision, integrity and reliability.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Quick Links</h4>
+        <ul>
+          <li><a href="/">Home</a></li><li><a href="/about.html">About</a></li>
+          <li><a href="/pricing.html">Pricing</a></li><li><a href="/leaderboard.html">Leaderboard</a></li>
+          <li><a href="/contact.html">Contact</a></li><li><a href="/register.html">Register</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Legal</h4>
+        <ul>
+          <li><a href="/privacy-terms.html">Terms of Service</a></li>
+          <li><a href="/privacy-terms.html#privacy">Privacy Policy</a></li>
+          <li><a href="/cookies.html">Cookie Policy</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Connect</h4>
+        <ul><li><a href="mailto:enejistats@gmail.com"><i class="fas fa-envelope" style="width:16px"></i> enejistats@gmail.com</a></li></ul>
+        <div class="social-links">
+          <a href="#" aria-label="Twitter/X"><i class="fab fa-x-twitter"></i></a>
+          <a href="#" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
+          <a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+          <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+          <a href="#" aria-label="YouTube"><i class="fab fa-youtube"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© ${year} Enejistats. All rights reserved.</span>
+      <span><a href="/privacy-terms.html">Terms &amp; Privacy</a> · <a href="/cookies.html">Cookies</a></span>
+    </div>
+  </footer>`;
+}
+
+/* ─── COOKIE BANNER ──────────────────────────────────────────────────────── */
+function CookieBanner(){
+  const [visible,setVisible]=useState(false);
+  const [modalOpen,setModalOpen]=useState(false);
+  const [prefs,setPrefs]=useState({functional:true,analytics:false,marketing:false});
+  useEffect(()=>{if(!localStorage.getItem('enejistats_cookie_consent'))setVisible(true);},[]);
+  function acceptAll(){localStorage.setItem('enejistats_cookie_consent',JSON.stringify({essential:true,functional:true,analytics:true,marketing:true}));setVisible(false);}
+  function rejectNonEssential(){localStorage.setItem('enejistats_cookie_consent',JSON.stringify({essential:true,functional:false,analytics:false,marketing:false}));setVisible(false);}
+  function savePrefs(){localStorage.setItem('enejistats_cookie_consent',JSON.stringify({essential:true,...prefs}));setVisible(false);setModalOpen(false);}
+  if(!visible)return null;
+  return html`
+    ${modalOpen&&html`<div class="modal-overlay" onClick=${e=>e.target===e.currentTarget&&setModalOpen(false)}>
+      <div class="modal-box" role="dialog" aria-modal="true">
+        <h3>Manage Cookie Preferences</h3>
+        ${[{key:'essential',label:'Essential Cookies',desc:'Required for the site to function. Cannot be disabled.',locked:true},
+           {key:'functional',label:'Functional Cookies',desc:'Remember your preferences and settings.'},
+           {key:'analytics',label:'Analytics Cookies',desc:'Help us understand how visitors use the site.'},
+           {key:'marketing',label:'Marketing Cookies',desc:'Used to show relevant advertisements.'}
+        ].map(c=>html`<div class="pref-row" key=${c.key}>
+          <div><label for=${'pref-'+c.key}>${c.label}</label><span>${c.desc}</span></div>
+          <label class="toggle-switch">
+            <input id=${'pref-'+c.key} type="checkbox" checked=${c.locked||prefs[c.key]} disabled=${c.locked}
+              onChange=${e=>!c.locked&&setPrefs(p=>({...p,[c.key]:e.target.checked}))}/>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>`)}
+        <div class="modal-actions">
+          <button class="btn-reject-all" onClick=${rejectNonEssential}>Reject All</button>
+          <button class="btn-save-pref" onClick=${savePrefs}>Save Preferences</button>
+        </div>
+      </div>
+    </div>`}
+    <div class="cookie-banner">
+      <div class="cookie-inner">
+        <p class="cookie-text">We use cookies to enhance your experience. See our <a href="/cookies.html">Cookie Policy</a> and <a href="/privacy-terms.html">Terms &amp; Privacy</a>.</p>
+        <div class="cookie-actions">
+          <button class="cookie-btn manage" onClick=${()=>setModalOpen(true)}>Manage preferences</button>
+          <button class="cookie-btn reject" onClick=${rejectNonEssential}>Reject non-essential</button>
+          <button class="cookie-btn accept" onClick=${acceptAll}>Accept all</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ─── PERSONALIZATION BANNER ─────────────────────────────────────────────── */
+function PersonalizationBanner({data}){
+  if(!data||!data.fullName||data.fullName==='Not provided')return null;
+  const fields=[
+    {l:'Name',v:data.fullName},
+    {l:'Email',v:data.email},
+    {l:'Phone',v:data.phone},
+    {l:'User Type',v:data.userType},
+    {l:'Category',v:data.userCategory},
+    data.businessName&&data.businessName!=='N/A'?{l:'Organisation',v:data.businessName}:null,
+    {l:'Date',v:data.currentDate},
+    {l:'User ID',v:data.userId,pending:true},
+  ].filter(Boolean);
+  return html`<div class="personalization-banner">
+    <div class="inner">
+      <h3><i class="fas fa-user-circle" aria-hidden="true"></i> This agreement has been personalised for: ${data.fullName}</h3>
+      <div class="per-grid">
+        ${fields.map((f,i)=>html`<div key=${i} class="per-item">
+          <span class="lbl">${f.l}</span>
+          <span class=${'val'+(f.pending?' pending':'')}>${f.v||'—'}</span>
+        </div>`)}
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ─── TOC COMPONENT ──────────────────────────────────────────────────────── */
+function TOC({sections,activeId}){
+  return html`<nav class="toc" aria-label="Table of contents">
+    <h3>Contents</h3>
+    <ol>
+      ${sections.map(s=>html`<li key=${s.id}><a href=${'#'+s.id} class=${activeId===s.id?'active':''}>${s.title}</a></li>`)}
+    </ol>
+  </nav>`;
+}
+
+/* ─── SECTION COMPONENT ──────────────────────────────────────────────────── */
+function Section({id,num,title,children}){
+  return html`<section id=${id}>
+    <h2>
+      <span class="num">${num}</span>${title}
+      <a href=${'#'+id} class="anchor-link" aria-label=${'Link to '+title}><i class="fas fa-link"></i></a>
+    </h2>
+    ${children}
+  </section>`;
+}
+
+/* ─── TERMS SECTIONS ─────────────────────────────────────────────────────── */
+const TERMS_SECTIONS=[
+  {id:'acceptance',title:'Acceptance of Terms',num:1},
+  {id:'eligibility',title:'Eligibility',num:2},
+  {id:'registration',title:'Account Registration',num:3},
+  {id:'roles',title:'Roles & Responsibilities',num:4},
+  {id:'tokens',title:'Tokens & Subscriptions',num:5},
+  {id:'data-collection',title:'Data Collection & Match Statistics',num:6},
+  {id:'liveness',title:'Liveness Verification & Consent',num:7},
+  {id:'gps',title:'GPS Location — Consent & Use',num:8},
+  {id:'conduct',title:'User Conduct',num:9},
+  {id:'ip',title:'Intellectual Property & Content',num:10},
+  {id:'termination',title:'Termination',num:11},
+  {id:'disclaimers',title:'Disclaimers',num:12},
+  {id:'liability',title:'Limitation of Liability',num:13},
+  {id:'law',title:'Governing Law',num:14},
+  {id:'terms-contact',title:'Contact Us',num:15},
+];
+
+/* ─── PRIVACY SECTIONS ───────────────────────────────────────────────────── */
+const PRIVACY_SECTIONS=[
+  {id:'controller',title:'Data Controller',num:1},
+  {id:'categories',title:'Categories of Data Collected',num:2},
+  {id:'purposes',title:'Purposes of Processing',num:3},
+  {id:'legal-basis',title:'Legal Basis for Processing',num:4},
+  {id:'sharing',title:'Sharing & Third Parties',num:5},
+  {id:'storage',title:'Storage Locations & Security',num:6},
+  {id:'retention',title:'Data Retention',num:7},
+  {id:'cookies',title:'Cookies',num:8},
+  {id:'rights',title:'Your Rights (NDPR)',num:9},
+  {id:'children',title:'Children',num:10},
+  {id:'international',title:'International Transfers',num:11},
+  {id:'updates',title:'Policy Updates',num:12},
+  {id:'contact-dpo',title:'Contact / DPO',num:13},
+];
+
+/* ─── TERMS CONTENT ──────────────────────────────────────────────────────── */
+function TermsContent({regData}){
+  const [activeId,setActiveId]=useState('');
+  const app  = (regData&&regData.applicationName)||'Enejistats';
+  const co   = (regData&&regData.companyName)||'Enejistats';
+  const role = (regData&&regData.userType)||'';
+  const cat  = (regData&&regData.userCategory)||'';
+  useEffect(()=>{
+    const observer=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting)setActiveId(e.target.id);});},{rootMargin:'-60px 0px -70% 0px'});
+    TERMS_SECTIONS.forEach(s=>{const el=document.getElementById(s.id);if(el)observer.observe(el);});
+    return ()=>observer.disconnect();
+  },[]);
+  return html`<div class="doc-layout">
+    <${TOC} sections=${TERMS_SECTIONS} activeId=${activeId}/>
+    <div class="doc-content" id="terms-rendered-content">
+      <span class="doc-version-badge"><i class="fas fa-shield-check" style="font-size:.7rem"></i> Terms of Service v2.0 — Effective 18 May 2025</span>
+      ${regData&&regData.fullName&&regData.fullName!=='Not provided'?html`
+        <div class="acceptance-record">
+          <h3><i class="fas fa-user-check"></i> Personalised for This Registration</h3>
+          <dl class="ar-grid">
+            <div class="ar-item"><dt>Name</dt><dd>${regData.fullName}</dd></div>
+            <div class="ar-item"><dt>Email</dt><dd>${regData.email||'—'}</dd></div>
+            <div class="ar-item"><dt>Phone</dt><dd>${regData.phone||'—'}</dd></div>
+            <div class="ar-item"><dt>User Type</dt><dd>${role||'—'}</dd></div>
+            <div class="ar-item"><dt>Category</dt><dd>${cat||'—'}</dd></div>
+            <div class="ar-item"><dt>Date</dt><dd>${regData.currentDate||new Date().toLocaleDateString()}</dd></div>
+            <div class="ar-item"><dt>User ID</dt><dd style="color:#94a3b8;font-style:italic">${regData.userId||'Assigned after registration'}</dd></div>
+          </dl>
+        </div>`:null}
+
+      <${Section} id="acceptance" num=${1} title="Acceptance of Terms">
+        <p>By accessing or using the ${app} platform (the "Service"), whether through our website, mobile application, or any related services, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service ("Terms") and our Privacy Policy.</p>
+        <p>If you are accessing the Service on behalf of an organisation, you represent that you have authority to bind that organisation to these Terms. If you do not agree to these Terms, you must not use the Service.</p>
+        <p>${co} reserves the right to modify these Terms at any time. Continued use of the Service after any changes constitutes your acceptance of the revised Terms. We will notify registered users of material changes via email or in-app notification at least 14 days before changes take effect.</p>
+      <//>
+
+      <${Section} id="eligibility" num=${2} title="Eligibility">
+        <p>To use the ${app} platform, you must:</p>
+        <ul>
+          <li>Be at least 18 years of age, or 16 years with verifiable parental or guardian consent.</li>
+          <li>Reside in a jurisdiction where the use of such services is permitted.</li>
+          <li>Not have had a prior account suspended or terminated for violations of these Terms.</li>
+          <li>Provide accurate, current, and complete information during the registration process.</li>
+        </ul>
+        <p>${co} reserves the right to refuse service, suspend, or terminate accounts at its sole discretion.</p>
+      <//>
+
+      <${Section} id="registration" num=${3} title="Account Registration">
+        <p>To access most features of the Service, you must create an account. You agree to:</p>
+        <ul>
+          <li>Provide truthful and accurate registration information, including your real name, valid email address, and phone number.</li>
+          <li>Maintain the security and confidentiality of your account credentials.</li>
+          <li>Promptly notify ${co} of any unauthorised access to your account.</li>
+          <li>Accept responsibility for all activities conducted through your account.</li>
+          <li>Not share, transfer, or sell your account to any third party.</li>
+        </ul>
+        <p>Certain roles (Player, Club, Agent, Scout, Data Collection Officer, Supervisor) require identity verification, liveness checks, and in some cases GPS location capture as part of the registration process. Details of how this data is handled are set out in our Privacy Policy.</p>
+      <//>
+
+      <${Section} id="roles" num=${4} title="Roles & Responsibilities">
+        <p>The ${app} platform serves multiple user roles, each with distinct capabilities and responsibilities${role?html`. Your current role: <strong>${role}</strong> (${cat})`:null}:</p>
+        <ul>
+          <li><strong>Players:</strong> May request match statistics, manage their profiles, and view their performance data. Players are responsible for ensuring their personal information is accurate.</li>
+          <li><strong>Clubs:</strong> May manage squad records, request match reports, and access aggregate statistics. Club administrators are responsible for the accuracy of squad and match data submitted.</li>
+          <li><strong>Scouts:</strong> May discover talent and submit scouting reports. Scouts must conduct their activities ethically and in accordance with applicable laws.</li>
+          <li><strong>Agents:</strong> May manage player portfolios and liaise with clubs and scouts. Agents must hold appropriate licences where required by law.</li>
+          <li><strong>Data Collection Officers (DCOs):</strong> Are responsible for accurate, real-time match data collection. DCOs must attend assigned matches and submit data promptly.</li>
+          <li><strong>Supervisors:</strong> Oversee DCO activities and validate submitted data within their assigned region.</li>
+          <li><strong>Administrators / Sub-Admins:</strong> Manage platform configuration, user accounts, and dispute resolution.</li>
+        </ul>
+      <//>
+
+      <${Section} id="tokens" num=${5} title="Tokens & Subscriptions">
+        <p>${co} uses a token economy to facilitate certain platform actions. Token costs and subscription prices are set exclusively by platform administrators. Current prices are always available at <a href="/pricing.html">enejistats.com/pricing.html</a> and via the platform API.</p>
+        <p><strong>Token acquisition:</strong> Tokens may be purchased directly or earned through Data Scout activities.</p>
+        <p><strong>Token flow:</strong> Tokens are locked when a request is submitted. They are deducted upon assignment or approval of a Data Collection Officer. If no DCO is assigned within 24 hours or an administrator declines the request, tokens are automatically refunded.</p>
+        <p><strong>Subscriptions:</strong> Subscription plans provide enhanced features and may include token allocations. Subscription prices, periods, and features are admin-controlled.</p>
+        <p><strong>Refunds:</strong> Token purchases are non-refundable once tokens have been used. Unused tokens are non-transferable and forfeited upon account termination. Subscription fees are non-refundable once a billing period has commenced.</p>
+      <//>
+
+      <${Section} id="data-collection" num=${6} title="Data Collection & Live Match Statistics">
+        <p>${co} collects, processes, and stores live football match statistics through its network of Data Collection Officers. By requesting statistics:</p>
+        <ul>
+          <li>Players and clubs consent to the collection and display of match-related performance data.</li>
+          <li>All published statistics are attributed to the submitting DCO and reviewed by Supervisors.</li>
+          <li>${co} does not guarantee the accuracy of any submitted statistics, though we implement verification processes to ensure quality.</li>
+          <li>Match statistics data may be used in aggregated or anonymised form for platform analytics and public leaderboards.</li>
+        </ul>
+      <//>
+
+      <${Section} id="liveness" num=${7} title="Liveness Verification & Consent">
+        <p>Certain registration and verification processes on ${app} require a liveness check — a secure, server-issued challenge phrase verified in real time. This requirement applies to Player, Club, Agent, Scout, DCO, and Supervisor registrations.</p>
+        <p><strong>Purpose:</strong> Liveness verification is used solely to confirm the physical presence and identity of the user at the time of registration, and to prevent fraudulent account creation.</p>
+        <p><strong>Consent:</strong> By proceeding through a liveness check, you explicitly consent to the temporary processing of your identity credentials for verification purposes only. The verification is performed via a secure server challenge — no biometric video or image is recorded or stored at any time.</p>
+        <p>Full details of identity verification data handling, including retention schedules, are set out in Section 7 of the Privacy Policy.</p>
+      <//>
+
+      <${Section} id="gps" num=${8} title="GPS Location — Consent & Use">
+        <p>Certain platform actions require the capture of your GPS coordinates, including but not limited to: club registration (office/stadium location), player registration (current location), and DCO match check-in.</p>
+        <p>By providing your GPS coordinates, you consent to:</p>
+        <ul>
+          <li>Capture of your location at the time of the relevant platform action.</li>
+          <li>Use of that location for verification, assignment, and operational purposes only.</li>
+          <li>Storage and handling of location data as described in the Privacy Policy.</li>
+        </ul>
+        <p>You may withdraw consent for location capture; however, this may prevent access to certain platform features. Full details of location data retention and third-party sharing are set out in the Privacy Policy.</p>
+      <//>
+
+      <${Section} id="conduct" num=${9} title="User Conduct">
+        <p>You agree not to use the ${app} platform to:</p>
+        <ul>
+          <li>Submit false, misleading, or fraudulent information, including fabricated match statistics.</li>
+          <li>Impersonate any person, player, club, or organisation.</li>
+          <li>Interfere with or disrupt the integrity or performance of the Service.</li>
+          <li>Attempt to gain unauthorised access to any part of the platform or another user's account.</li>
+          <li>Engage in any activity that violates applicable Nigerian law or international law.</li>
+          <li>Harass, abuse, or harm other users, referees, DCOs, or platform staff.</li>
+          <li>Use automated tools, bots, or scripts to access or scrape the Service.</li>
+        </ul>
+        <p>Violations may result in immediate account suspension, forfeiture of tokens, and referral to law enforcement where warranted.</p>
+      <//>
+
+      <${Section} id="ip" num=${10} title="Intellectual Property & Content">
+        <p>All platform software, design, trademarks, logos, and original content are the intellectual property of ${co} or its licensors and are protected by applicable Nigerian and international intellectual property law.</p>
+        <p>By submitting content to the platform you grant ${co} a non-exclusive, royalty-free, worldwide licence to use, display, reproduce, and distribute such content for the purposes of operating and improving the Service. You retain ownership of content you submit.</p>
+      <//>
+
+      <${Section} id="termination" num=${11} title="Termination">
+        <p>You may terminate your account at any time by contacting ${co} support. Upon termination, your access to the Service will cease, and unused tokens and subscription balances will be forfeited.</p>
+        <p>${co} may suspend or terminate your account without notice for material breaches of these Terms, fraudulent activity, non-payment, or for any other reason at our sole discretion.</p>
+      <//>
+
+      <${Section} id="disclaimers" num=${12} title="Disclaimers">
+        <p>The ${app} platform is provided on an "as is" and "as available" basis. To the fullest extent permitted by law, ${co} disclaims all warranties, express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, accuracy of match statistics, and uninterrupted operation.</p>
+      <//>
+
+      <${Section} id="liability" num=${13} title="Limitation of Liability">
+        <p>To the maximum extent permitted by applicable Nigerian law, ${co}, its directors, employees, agents, and affiliates shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of or inability to use the Service.</p>
+        <p>Our total liability to you for any cause of action shall not exceed the total amount paid by you to ${co} in the three (3) months preceding the claim.</p>
+      <//>
+
+      <${Section} id="law" num=${14} title="Governing Law">
+        <p>These Terms and any disputes arising from your use of the ${app} platform shall be governed by and construed in accordance with the laws of the Federal Republic of Nigeria, without regard to conflict of law principles. Any legal proceedings shall be subject to the exclusive jurisdiction of the courts located in Nigeria.</p>
+      <//>
+
+      <${Section} id="terms-contact" num=${15} title="Contact Us">
+        <p>If you have questions about these Terms of Service, please contact:</p>
+        <div class="legal-contact">
+          <strong>${co} Legal &amp; Compliance</strong><br/>
+          Email: <a href="mailto:enejistats@gmail.com">enejistats@gmail.com</a><br/>
+          Subject line: "Terms of Service Enquiry"
+        </div>
+      <//>
+    </div>
+  </div>`;
+}
+
+/* ─── PRIVACY CONTENT ────────────────────────────────────────────────────── */
+function PrivacyContent({regData}){
+  const [activeId,setActiveId]=useState('');
+  const app = (regData&&regData.applicationName)||'Enejistats';
+  const co  = (regData&&regData.companyName)||'Enejistats';
+  const nm  = (regData&&regData.fullName&&regData.fullName!=='Not provided')?regData.fullName:null;
+  const em  = (regData&&regData.email)||null;
+  useEffect(()=>{
+    const observer=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting)setActiveId(e.target.id);});},{rootMargin:'-60px 0px -70% 0px'});
+    PRIVACY_SECTIONS.forEach(s=>{const el=document.getElementById(s.id);if(el)observer.observe(el);});
+    return ()=>observer.disconnect();
+  },[]);
+  return html`<div class="doc-layout">
+    <${TOC} sections=${PRIVACY_SECTIONS} activeId=${activeId}/>
+    <div class="doc-content" id="privacy-rendered-content">
+      <span class="doc-version-badge"><i class="fas fa-shield-alt" style="font-size:.7rem"></i> Privacy Policy v2.0 — Effective 18 May 2025</span>
+      ${nm?html`
+        <div class="acceptance-record">
+          <h3><i class="fas fa-id-card"></i> Data Subject Record</h3>
+          <dl class="ar-grid">
+            <div class="ar-item"><dt>Data Subject</dt><dd>${nm}</dd></div>
+            <div class="ar-item"><dt>Email</dt><dd>${em||'—'}</dd></div>
+            <div class="ar-item"><dt>User Type</dt><dd>${(regData&&regData.userType)||'—'}</dd></div>
+            <div class="ar-item"><dt>Date</dt><dd>${(regData&&regData.currentDate)||new Date().toLocaleDateString()}</dd></div>
+            <div class="ar-item"><dt>User ID</dt><dd style="color:#94a3b8;font-style:italic">${(regData&&regData.userId)||'Assigned after registration'}</dd></div>
+          </dl>
+        </div>`:null}
+
+      <${Section} id="controller" num=${1} title="Data Controller">
+        <p>${co} is the data controller responsible for the personal data collected through the ${app} platform. For the purposes of the Nigeria Data Protection Regulation (NDPR) 2019:</p>
+        <div class="legal-contact">
+          <strong>${co} Data Protection Officer</strong><br/>
+          Email: <a href="mailto:enejistats@gmail.com">enejistats@gmail.com</a><br/>
+          Subject: "Privacy / Data Protection"
+        </div>
+      <//>
+
+      <${Section} id="categories" num=${2} title="Categories of Personal Data Collected">
+        <p>Depending on your role${nm?html` (registered as <strong>${(regData&&regData.userType)||'user'}</strong>)`:null} and usage, ${co} may collect:</p>
+        <table class="data-table">
+          <thead><tr><th>Category</th><th>Examples</th><th>Applies To</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Identity Data</strong></td><td>Full name, date of birth, gender, NIN</td><td>All roles</td></tr>
+            <tr><td><strong>Contact Data</strong></td><td>Email address, phone number, postal address</td><td>All roles</td></tr>
+            <tr><td><strong>Professional Data</strong></td><td>Playing position, club affiliation, agent licence, scout credentials, DCO tier</td><td>Role-dependent</td></tr>
+            <tr><td><strong>Identity Verification Metadata</strong></td><td>Challenge-phrase session ID and verification timestamp — no video or image stored</td><td>All registered roles</td></tr>
+            <tr><td><strong>Location Data</strong></td><td>GPS coordinates captured during registration and operational check-ins</td><td>Player, Club, Scout, Agent, DCO, Supervisor</td></tr>
+            <tr><td><strong>Financial Data</strong></td><td>Transaction records, token history — card details processed by Flutterwave, not stored by ${co}</td><td>Paying users</td></tr>
+            <tr><td><strong>Performance Data</strong></td><td>Match statistics, heatmaps, match reports, scouting notes</td><td>Players, Clubs</td></tr>
+            <tr><td><strong>Technical Data</strong></td><td>IP address, browser type, device information, log data</td><td>All users</td></tr>
+            <tr><td><strong>Usage Data</strong></td><td>Pages visited, features used, session duration</td><td>All users</td></tr>
+            <tr><td><strong>Legal Acceptance Records</strong></td><td>Rendered Terms &amp; Privacy Policy HTML, document hash, acceptance timestamp, signer details, device info</td><td>All registered users</td></tr>
+            <tr><td><strong>Communications Data</strong></td><td>Support tickets, emails, in-app messages</td><td>All users</td></tr>
+          </tbody>
+        </table>
+      <//>
+
+      <${Section} id="purposes" num=${3} title="Purposes of Processing">
+        <p>${co} processes your personal data for the following purposes:</p>
+        <ul>
+          <li><strong>Account management:</strong> Creating, maintaining, and managing your account and subscription.</li>
+          <li><strong>Identity verification:</strong> Confirming your identity via a secure server challenge at registration to prevent fraudulent account creation.</li>
+          <li><strong>Service delivery:</strong> Collecting and presenting match statistics, scouting reports, and performance data.</li>
+          <li><strong>Payment processing:</strong> Facilitating token purchases and subscription payments through Flutterwave.</li>
+          <li><strong>Platform operations:</strong> Assigning DCOs, managing workflow, and coordinating between user roles.</li>
+          <li><strong>Legal audit trail:</strong> Storing your accepted agreement (Terms and Privacy Policy) including rendered document, hash, acceptance timestamp, and signer details for legal and regulatory audit purposes.</li>
+          <li><strong>Communications:</strong> Sending transactional emails, support responses, and (where consent is given) platform updates.</li>
+          <li><strong>Analytics:</strong> Understanding platform usage to improve user experience.</li>
+          <li><strong>Legal compliance:</strong> Meeting obligations under Nigerian law and the NDPR.</li>
+        </ul>
+      <//>
+
+      <${Section} id="legal-basis" num=${4} title="Legal Basis for Processing">
+        <p>${co} processes your personal data on the following legal bases under the NDPR:</p>
+        <ul>
+          <li><strong>Contractual necessity:</strong> Processing required to deliver the services you have registered for.</li>
+          <li><strong>Legitimate interests:</strong> Platform security, fraud prevention, improving service quality, and maintaining immutable legal acceptance audit trails.</li>
+          <li><strong>Legal obligation:</strong> Compliance with Nigerian financial regulations, tax law, data protection law, and regulatory requirements.</li>
+          <li><strong>Consent:</strong> Where we process location data and identity verification credentials, we obtain your explicit consent at the point of collection. You may withdraw consent at any time, subject to the limitations described in Section 9.</li>
+        </ul>
+      <//>
+
+      <${Section} id="sharing" num=${5} title="Sharing & Third Parties">
+        <p>${co} does not sell your personal data. We may share data with:</p>
+        <ul>
+          <li><strong>Flutterwave:</strong> Our payment processor. Card data is processed by Flutterwave under their PCI-DSS framework. ${co} does not store payment card details.</li>
+          <li><strong>Cloud infrastructure providers:</strong> Servers hosting the ${app} platform in compliant cloud environments under data processing agreements.</li>
+          <li><strong>Platform stakeholders:</strong> Certain data is shared within the platform between authorised roles as part of the core service (e.g. player statistics visible to scouts).</li>
+          <li><strong>Legal authorities:</strong> We may disclose data if required by law or court order in Nigeria.</li>
+          <li><strong>Business transfers:</strong> In the event of a merger or acquisition, user data may be transferred with prior notification.</li>
+        </ul>
+        <p>We do not transfer your personal data to any country outside Nigeria without ensuring appropriate safeguards are in place.</p>
+      <//>
+
+      <${Section} id="storage" num=${6} title="Storage Locations & Security">
+        <p>${co} implements the following security measures to protect your personal data:</p>
+        <ul>
+          <li>Encrypted data transmission using HTTPS/TLS on all connections.</li>
+          <li>Secure storage of passwords using industry-standard hashing (bcrypt).</li>
+          <li>Role-based access controls limiting data access to authorised personnel only.</li>
+          <li>Regular security reviews and vulnerability assessments.</li>
+          <li>Server-side challenge-phrase verification only — no biometric video or image is recorded or stored.</li>
+          <li>Immutable acceptance records: once an agreement is stored at registration, it cannot be altered or deleted for the retention period.</li>
+        </ul>
+        <p>No method of electronic transmission is 100% secure. If you become aware of a security breach, please notify us immediately at <a href="mailto:enejistats@gmail.com">enejistats@gmail.com</a>.</p>
+        <p>Where data is transferred outside Nigeria, ${co} ensures the receiving organisation provides an adequate level of protection consistent with the NDPR, including standard contractual clauses where required.</p>
+      <//>
+
+      <${Section} id="retention" num=${7} title="Data Retention">
+        <p>We retain your personal data only as long as necessary for the purposes set out in this Policy, unless a longer retention period is required or permitted by Nigerian law.</p>
+        <table class="data-table">
+          <thead><tr><th>Data Type</th><th>Retention Period</th><th>Basis</th></tr></thead>
+          <tbody>
+            <tr><td>Identity verification session metadata</td><td>Retained for the life of the account</td><td>Legitimate interests / Legal obligation</td></tr>
+            <tr><td>Account / profile data</td><td>Duration of account; deleted within 30 days of verified closure request</td><td>Contractual necessity</td></tr>
+            <tr><td>Match statistics &amp; performance data</td><td>Indefinite (forms core platform value)</td><td>Legitimate interests</td></tr>
+            <tr><td>Financial records</td><td><strong>7 years</strong></td><td>Nigerian financial law requirements</td></tr>
+            <tr><td>GPS coordinates (registration)</td><td>Retained while account active; deleted upon closure</td><td>Consent / Contractual necessity</td></tr>
+            <tr><td>Legal acceptance records (rendered HTML, hash)</td><td><strong>7 years</strong> after last account use</td><td>Legal obligation / Legitimate interests</td></tr>
+            <tr><td>Support communications</td><td>3 years from last contact</td><td>Legitimate interests</td></tr>
+            <tr><td>Log / technical data</td><td>90 days</td><td>Legitimate interests</td></tr>
+          </tbody>
+        </table>
+      <//>
+
+      <${Section} id="cookies" num=${8} title="Cookies">
+        <p>${co} uses cookies and similar tracking technologies to operate and improve the ${app} platform. We use the following categories:</p>
+        <ul>
+          <li><strong>Essential cookies:</strong> Required for the platform to function (authentication, session management). Cannot be disabled.</li>
+          <li><strong>Functional cookies:</strong> Remember your preferences and settings.</li>
+          <li><strong>Analytics cookies:</strong> Help us understand how users interact with the platform.</li>
+          <li><strong>Marketing cookies:</strong> Used where you have consented to receive personalised content.</li>
+        </ul>
+        <p>You can manage your cookie preferences at any time using the preference tool in the banner at the bottom of this page. For full details, see our <a href="/cookies.html">Cookie Policy</a>.</p>
+      <//>
+
+      <${Section} id="rights" num=${9} title="Your Rights (NDPR)">
+        <p>Under the Nigeria Data Protection Regulation (NDPR) 2019${nm?html`, you — <strong>${nm}</strong> —`:null} have the following rights:</p>
+        <ul>
+          <li><strong>Right of access:</strong> Request a copy of the personal data ${co} holds about you.</li>
+          <li><strong>Right to rectification:</strong> Request correction of inaccurate or incomplete data.</li>
+          <li><strong>Right to erasure:</strong> Request deletion of your data where there is no lawful reason for continued processing. Note: legal acceptance records and financial records must be retained for the periods specified in Section 7.</li>
+          <li><strong>Right to data portability:</strong> Receive your data in a structured, machine-readable format.</li>
+          <li><strong>Right to object:</strong> Object to processing based on legitimate interests or for direct marketing.</li>
+          <li><strong>Right to withdraw consent:</strong> Withdraw consent at any time without affecting prior lawful processing.</li>
+          <li><strong>Right to lodge a complaint:</strong> Lodge a complaint with the Nigeria Data Protection Bureau (NDPB) at <a href="https://ndpb.gov.ng" target="_blank" rel="noopener noreferrer">ndpb.gov.ng</a>.</li>
+        </ul>
+        <p>To exercise any of these rights, contact our DPO at <a href="mailto:enejistats@gmail.com">enejistats@gmail.com</a> with the subject "Data Subject Request${em?' — '+em:''}". We will respond within 30 days.</p>
+      <//>
+
+      <${Section} id="children" num=${10} title="Children">
+        <p>${co} does not knowingly collect personal data from individuals under the age of 16 without verified parental or guardian consent. Registration requires confirmation that you meet the eligibility criteria in the Terms of Service.</p>
+        <p>If we become aware that a child's data has been collected without appropriate consent, we will take immediate steps to delete such data.</p>
+      <//>
+
+      <${Section} id="international" num=${11} title="International Transfers">
+        <p>If personal data is transferred outside Nigeria, ${co} ensures the receiving country or organisation provides an adequate level of data protection consistent with the NDPR. Where required, we implement appropriate safeguards such as standard contractual clauses approved by the NDPB.</p>
+      <//>
+
+      <${Section} id="updates" num=${12} title="Policy Updates">
+        <p>${co} may update this Privacy Policy periodically to reflect changes in our practices, technology, or legal requirements. We will notify registered users of material changes via email or in-app notification at least <strong>14 days</strong> before changes take effect.</p>
+        <p>Continued use of the Service after the effective date of any update constitutes your acceptance of the revised policy.</p>
+      <//>
+
+      <${Section} id="contact-dpo" num=${13} title="Contact / Data Protection Officer">
+        <p>For all privacy-related enquiries, data subject requests, or complaints:</p>
+        <div class="legal-contact">
+          <strong>${co} Data Protection Officer</strong><br/>
+          Email: <a href="mailto:enejistats@gmail.com">enejistats@gmail.com</a><br/>
+          Subject: "Privacy / Data Protection${em?' — '+em:''}"<br/><br/>
+          We aim to respond to all data protection enquiries within <strong>30 days</strong>.
+        </div>
+      <//>
+    </div>
+  </div>`;
+}
+
+/* ─── ROOT APP ───────────────────────────────────────────────────────────── */
+function App(){
+  const [activeTab, setActiveTab] = useState('terms');
+  const [regData,   setRegData]   = useState(null);
+
+  useEffect(()=>{
+    // Read URL params on load
+    const params = readUrlParams();
+    if(params) setRegData(params);
+
+    // Listen for postMessage from parent window (register.html DocOverlay)
+    function onMessage(e){
+      if(e.data && e.data.type === 'ENEJISTATS_REG_DATA'){
+        setRegData(e.data.payload);
+      }
+    }
+    window.addEventListener('message', onMessage);
+
+    // Tab from hash
+    const fromHash = ()=>{
+      const h = location.hash;
+      if(h.startsWith('#privacy')||h==='#privacy') return 'privacy';
+      return 'terms';
+    };
+    setActiveTab(fromHash());
+    const onHash = ()=>setActiveTab(fromHash());
+    window.addEventListener('hashchange', onHash);
+    return ()=>{
+      window.removeEventListener('message', onMessage);
+      window.removeEventListener('hashchange', onHash);
+    };
+  },[]);
+
+  return html`
+    <${Header}/>
+    ${regData ? html`<${PersonalizationBanner} data=${regData}/>` : null}
+    <div class="page-hero">
+      <div class="inner">
+        <h1>Terms of Service &amp; Privacy Policy</h1>
+        <p class="meta">Last updated: 18 May 2025 &mdash; Version 2.0</p>
+        <p class="summary">These documents govern your access to and use of the Enejistats platform and explain how we collect, use, and protect your personal data in accordance with the Nigeria Data Protection Regulation (NDPR) 2019.</p>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <button class=${'tab-btn'+(activeTab==='terms'?' active':'')} onClick=${()=>setActiveTab('terms')}>
+        <i class="fas fa-file-contract" style="margin-right:6px"></i>Terms of Service
+      </button>
+      <button class=${'tab-btn'+(activeTab==='privacy'?' active':'')} onClick=${()=>setActiveTab('privacy')}>
+        <i class="fas fa-shield-alt" style="margin-right:6px"></i>Privacy Policy
+      </button>
+    </div>
+    <div class=${'tab-panel'+(activeTab==='terms'?' active':'')} id="tab-terms">
+      <${TermsContent} regData=${regData}/>
+    </div>
+    <div class=${'tab-panel'+(activeTab==='privacy'?' active':'')} id="tab-privacy">
+      <${PrivacyContent} regData=${regData}/>
+    </div>
+    <${Footer}/>
+    <${CookieBanner}/>
+  `;
+}
+
+render(html`<${App}/>`, document.getElementById('app'));
+})();
+</script>
+</body>
+</html>

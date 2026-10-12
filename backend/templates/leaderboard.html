@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Live Leaderboard — EnejiStats</title>
+  <meta name="description" content="Live rankings for Nigerian football players and clubs — updated after every verified match report."/>
+  <script src="https://unpkg.com/preact@10.19.3/dist/preact.umd.js"></script>
+  <script src="https://unpkg.com/preact@10.19.3/hooks/dist/hooks.umd.js"></script>
+  <script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --primary:#004aad;--primary-light:#0066cc;--gold:#f5b800;--header-bg:#162060;--dark-bg:#1e1e2f;--page-bg:#0f172a;
+      --success:#22c55e;--muted:#94a3b8;--line:rgba(255,255,255,0.08);--radius:12px;
+      --font:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
+    }
+    html{scroll-behavior:smooth}
+    body{font-family:var(--font);background:var(--page-bg);color:#e2e8f0;line-height:1.6;overflow-x:hidden}
+    a{text-decoration:none;color:inherit}
+    ul{list-style:none}
+    .container{max-width:1200px;margin:0 auto;padding:0 1rem}
+
+    /* HEADER */
+    .site-header{position:sticky;top:0;z-index:1000;background:var(--header-bg)}
+    .header-stripe{height:4px;background:var(--gold)}
+    .header-inner{display:flex;align-items:center;justify-content:space-between;height:82px;padding:0 1rem;max-width:1200px;margin:0 auto;overflow:visible}
+    .nav-desktop{display:none;gap:0.25rem;align-items:center}
+    @media(min-width:769px){.nav-desktop{display:flex}}
+    .nav-desktop a{color:rgba(255,255,255,0.8);font-size:0.88rem;font-weight:500;padding:0.4rem 0.6rem;border-radius:6px;transition:color 0.2s}
+    .nav-desktop a:hover,.nav-desktop a.active{color:#fff;background:rgba(255,255,255,0.1)}
+    .btn-nav{background:var(--gold);color:#0f172a!important;padding:0.45rem 1rem!important;border-radius:8px;font-weight:700!important}
+    .hamburger{display:flex;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:4px}
+    @media(min-width:769px){.hamburger{display:none}}
+    .hamburger span{display:block;width:22px;height:2px;background:#fff;border-radius:2px}
+    .mobile-nav{display:none;position:fixed;inset:0;background:var(--header-bg);z-index:2000;flex-direction:column;padding:1.5rem;gap:0.25rem}
+    .mobile-nav.open{display:flex}
+    .mobile-nav-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem}
+    .mobile-nav a{color:rgba(255,255,255,0.85);font-size:1.05rem;font-weight:500;padding:0.8rem;border-radius:8px;display:block}
+    .mobile-nav a:hover{background:rgba(255,255,255,0.1);color:#fff}
+    .close-btn{background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer}
+    .dropdown{position:relative}
+    .dropdown-menu{display:none;position:absolute;top:calc(100%+6px);left:0;background:#1e1e2f;border:1px solid var(--line);border-radius:10px;min-width:160px;overflow:hidden;z-index:200}
+    .dropdown:hover .dropdown-menu{display:block}
+    .dropdown-menu a{display:block;padding:0.65rem 1rem;color:rgba(255,255,255,0.8);font-size:0.88rem}
+    .dropdown-menu a:hover{background:rgba(255,255,255,0.08);color:#fff}
+
+    /* HERO */
+    .hero{background:linear-gradient(135deg,var(--header-bg),#0d1b3e);color:#fff;padding:4rem 1rem 3rem;text-align:center;border-bottom:4px solid var(--gold)}
+    .hero h1{font-size:clamp(1.6rem,4vw,2.4rem);font-weight:800;margin-bottom:0.5rem}
+    .hero p{color:rgba(255,255,255,0.75);font-size:1rem}
+    .live-badge{display:inline-flex;align-items:center;gap:0.4rem;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.4);color:#22c55e;padding:0.25rem 0.75rem;border-radius:20px;font-size:0.78rem;font-weight:700;margin-top:0.75rem}
+    .live-badge::before{content:'';width:8px;height:8px;border-radius:50%;background:#22c55e;animation:pulse 1.5s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+    /* FILTERS */
+    .filter-bar{background:var(--dark-bg);position:sticky;top:68px;z-index:900;padding:1rem;border-bottom:1px solid var(--line)}
+    .filters-inner{max-width:1200px;margin:0 auto;display:grid;gap:0.75rem;grid-template-columns:1fr}
+    @media(min-width:600px){.filters-inner{grid-template-columns:1fr 1fr}}
+    @media(min-width:992px){.filters-inner{grid-template-columns:repeat(4,1fr)}}
+    .filter-select{width:100%;background:rgba(255,255,255,0.06);border:1px solid var(--line);border-radius:8px;padding:0.6rem 0.85rem;color:#e2e8f0;font-size:0.9rem;outline:none;cursor:pointer}
+    .filter-select:focus{border-color:var(--gold)}
+    .filter-select option{background:var(--dark-bg);color:#e2e8f0}
+
+    /* TABS */
+    .content-area{max-width:1200px;margin:0 auto;padding:2rem 1rem}
+    .tab-bar{display:flex;gap:0.5rem;margin-bottom:1.5rem;border-bottom:1px solid var(--line)}
+    .tab-btn{background:none;border:none;cursor:pointer;font-weight:600;font-size:0.95rem;color:var(--muted);padding:0.75rem 1.25rem;border-bottom:3px solid transparent;transition:all 0.2s}
+    .tab-btn:hover{color:#fff}
+    .tab-btn.active{color:var(--gold);border-bottom-color:var(--gold)}
+
+    /* SPOTLIGHT */
+    .spotlight-card{background:linear-gradient(135deg,var(--header-bg),#0d1b3e);border:1px solid rgba(245,184,0,0.3);border-radius:var(--radius);padding:1.75rem;margin-bottom:1.5rem;display:flex;flex-wrap:wrap;gap:1.5rem;align-items:center}
+    .spotlight-badge{background:var(--gold);color:#0f172a;padding:0.2rem 0.75rem;border-radius:20px;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;width:fit-content;margin-bottom:0.5rem}
+    .spotlight-name{font-size:1.3rem;font-weight:800;color:#fff;margin-bottom:0.25rem}
+    .spotlight-meta{font-size:0.85rem;color:var(--muted)}
+    .spotlight-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-top:1rem;width:100%}
+    @media(min-width:500px){.spotlight-stats{width:auto;flex:1}}
+    .sp-stat{text-align:center;background:rgba(255,255,255,0.04);border-radius:8px;padding:0.75rem}
+    .sp-stat-val{font-size:1.4rem;font-weight:900;color:var(--gold)}
+    .sp-stat-label{font-size:0.72rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);margin-top:0.2rem}
+    .sp-avatar{width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.1);border:3px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:700;color:var(--gold);flex-shrink:0}
+
+    /* LEADERBOARD TABLE */
+    .lb-table-wrap{background:var(--dark-bg);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;overflow-x:auto}
+    .lb-table{width:100%;border-collapse:collapse;min-width:500px}
+    .lb-table thead th{padding:0.85rem 1rem;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);text-align:left;background:rgba(0,0,0,0.2);border-bottom:1px solid var(--line);white-space:nowrap}
+    .lb-table tbody tr{border-bottom:1px solid var(--line);transition:background 0.15s;cursor:pointer}
+    .lb-table tbody tr:last-child{border-bottom:none}
+    .lb-table tbody tr:hover{background:rgba(255,255,255,0.04)}
+    .lb-table td{padding:0.85rem 1rem;vertical-align:middle;font-size:0.9rem}
+    .rank-medal{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;font-weight:800;font-size:0.8rem}
+    .rank-1{background:var(--gold);color:#0f172a}
+    .rank-2{background:#c0c0c0;color:#0f172a}
+    .rank-3{background:#cd7f32;color:#fff}
+    .rank-other{background:rgba(255,255,255,0.08);color:var(--muted)}
+    .player-cell{display:flex;align-items:center;gap:0.75rem}
+    .player-avatar{width:36px;height:36px;border-radius:50%;background:var(--header-bg);border:1px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:0.85rem;font-weight:700;color:var(--gold);flex-shrink:0}
+    .player-name{font-weight:700;color:#fff;display:flex;align-items:center;gap:0.35rem}
+    .player-sub{font-size:0.78rem;color:var(--muted)}
+    .verified-tick{color:var(--primary);font-size:0.8rem}
+    .rating-pill{background:rgba(245,184,0,0.15);color:var(--gold);padding:0.2rem 0.5rem;border-radius:4px;font-weight:700;font-size:0.82rem;border:1px solid rgba(245,184,0,0.3)}
+    .trend-up{color:var(--success);font-size:0.8rem}
+    .trend-down{color:#ef4444;font-size:0.8rem}
+    .trend-same{color:var(--muted);font-size:0.8rem}
+    .view-link{color:var(--gold);font-size:0.8rem;font-weight:600;white-space:nowrap}
+    .view-link:hover{text-decoration:underline}
+
+    /* PAGINATION */
+    .pagination{display:flex;justify-content:center;gap:0.4rem;margin:2rem 0;flex-wrap:wrap}
+    .page-btn{width:38px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:8px;border:1px solid var(--line);background:var(--dark-bg);cursor:pointer;font-weight:600;color:#e2e8f0;font-size:0.85rem;transition:all 0.2s}
+    .page-btn:hover:not(:disabled){border-color:var(--gold);color:var(--gold)}
+    .page-btn.active{background:var(--gold);color:#0f172a;border-color:var(--gold)}
+    .page-btn:disabled{opacity:0.4;cursor:not-allowed}
+
+    /* SKELETON */
+    .skeleton{background:linear-gradient(90deg,#1e1e2f 25%,#2a2a40 50%,#1e1e2f 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:6px}
+    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+    /* CTA */
+    .cta-banner{background:linear-gradient(135deg,var(--header-bg),#0d1b3e);border:1px solid var(--line);border-radius:var(--radius);padding:2.5rem;text-align:center;margin-bottom:3rem;border-top:4px solid var(--gold)}
+    .cta-banner h2{font-size:1.35rem;margin-bottom:0.75rem}
+    .cta-banner p{color:var(--muted);margin-bottom:1.5rem;font-size:0.9rem}
+    .btn-gold{display:inline-flex;align-items:center;gap:0.5rem;background:var(--gold);color:#0f172a;padding:0.7rem 1.5rem;border-radius:8px;font-weight:700;transition:opacity 0.2s}
+    .btn-gold:hover{opacity:0.9}
+
+    /* FOOTER */
+    .site-footer{background:#0a0a14;border-top:1px solid var(--line);padding:3.5rem 1rem 1.5rem}
+    .footer-grid{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr;gap:2.5rem}
+    @media(min-width:600px){.footer-grid{grid-template-columns:1fr 1fr}}
+    @media(min-width:992px){.footer-grid{grid-template-columns:1.6fr 1fr 1fr 1fr}}
+    .footer-col h4{color:#fff;font-size:0.85rem;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:1rem}
+    .footer-col p,.footer-col ul a{font-size:0.85rem;color:var(--muted)}
+    .footer-col ul li{margin-bottom:0.6rem}
+    .footer-col ul a:hover{color:var(--gold)}
+    .footer-bottom{max-width:1200px;margin:2rem auto 0;padding-top:1.25rem;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:space-between;font-size:0.78rem;color:var(--muted)}
+    .footer-bottom a{color:var(--muted)}.footer-bottom a:hover{color:var(--gold)}
+  
+    @media(max-width:480px){
+      .container{padding:0 0.75rem}
+      .header-inner{height:66px;padding:0 0.75rem}
+      .hero h1{font-size:clamp(1.4rem,7vw,2.2rem)}
+      .section,.section-alt{padding:2.5rem 0}
+      .btn,.btn-nav,.btn-gold{min-height:44px}
+      .mobile-nav a{min-height:44px;display:flex;align-items:center}
+      .footer-grid{gap:1.5rem}
+      .footer-bottom{flex-direction:column;gap:0.4rem}
+    }
+    @media(max-width:360px){
+      .container{padding:0 0.5rem}
+      .header-inner{padding:0 0.5rem}
+    }
+  </style>
+  <link rel="stylesheet" href="/static/css/eneji-branding.css"/>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(function(){
+  'use strict';
+  const {h,render}=preact;
+  const {useState,useEffect,useCallback,useMemo}=preactHooks;
+  const html=htm.bind(h);
+  const year=new Date().getFullYear();
+
+  function Logo(){
+    return html`<a href="/" style=${{textDecoration:'none',display:'inline-block',verticalAlign:'middle'}}>
+      <img src="/static/images/eneji-stats-branding.png" alt="EnejiStats" class="eneji-logo-img"/>
+    </a>`;
+  }
+
+  function Header(){
+    const [open,setOpen]=useState(false);
+    return html`<header class="site-header">
+      <div class="header-stripe"/>
+      <div class="header-inner">
+        <${Logo}/>
+        <nav class="nav-desktop">
+          <a href="/">Home</a><a href="/about.html">About</a>
+          <div class="dropdown">
+            <a href="#">Stats Area <i class="fas fa-chevron-down" style="font-size:0.65rem"/></a>
+            <div class="dropdown-menu"><a href="/browse.html">Browse</a></div>
+          </div>
+          <a href="/leaderboard.html" class="active">Leaderboard</a>
+          <a href="/competitions.html">Competitions &amp; Trials</a>
+          <a href="/pricing.html">Pricing</a><a href="/contact.html">Contact</a>
+          <a href="/register.html" class="btn-nav">Register / Sign In</a>
+        </nav>
+        <button class="hamburger" onClick=${()=>setOpen(true)}><span/><span/><span/></button>
+      </div>
+      <div class=${'mobile-nav'+(open?' open':'')}>
+        <div class="mobile-nav-top"><${Logo}/><button class="close-btn" onClick=${()=>setOpen(false)}><i class="fas fa-times"/></button></div>
+        <a href="/" onClick=${()=>setOpen(false)}>Home</a>
+        <a href="/about.html" onClick=${()=>setOpen(false)}>About</a>
+        <a href="/browse.html" onClick=${()=>setOpen(false)}>Browse</a>
+        <a href="/leaderboard.html" class="active" onClick=${()=>setOpen(false)}>Leaderboard</a>
+        <a href="/competitions.html" onClick=${()=>setOpen(false)}>Competitions &amp; Trials</a>
+        <a href="/pricing.html" onClick=${()=>setOpen(false)}>Pricing</a>
+        <a href="/contact.html" onClick=${()=>setOpen(false)}>Contact</a>
+        <a href="/register.html" style="color:var(--gold);font-weight:700" onClick=${()=>setOpen(false)}>Register / Sign In</a>
+      </div>
+    </header>`;
+  }
+
+  function Footer(){
+    return html`<footer class="site-footer">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <${Logo}/>
+          <p style="margin-top:0.75rem">Nigeria's trusted football data platform. Tracking talent with precision, integrity and reliability.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Quick Links</h4>
+          <ul>
+            <li><a href="/">Home</a></li><li><a href="/about.html">About</a></li>
+            <li><a href="/pricing.html">Pricing</a></li><li><a href="/leaderboard.html">Leaderboard</a></li>
+            <li><a href="/contact.html">Contact</a></li><li><a href="/register.html">Register</a></li>
+          </ul>
+        </div>
+        <div class="footer-col"><h4>For Users</h4><ul>
+          <li><a href="/browse.html">Player Stats</a></li><li><a href="/browse.html?type=clubs">Club Stats</a></li>
+          <li><a href="/register.html?role=dco">Become a Data Scout</a></li>
+          <li><a href="/register.html?role=scout">Become a Scout</a></li>
+        </ul></div>
+        <div class="footer-col"><h4>Connect</h4><ul>
+          <li><a href="mailto:enejistats@gmail.com"><i class="fas fa-envelope" style="width:16px"/> enejistats@gmail.com</a></li>
+          <li><span style="color:var(--muted)"><i class="fas fa-location-dot" style="width:16px"/> Lagos, Nigeria</span></li>
+        </ul></div>
+      </div>
+      <div class="footer-bottom">
+        <span>© ${year} EnejiStats. All rights reserved.</span>
+        <span><a href="/terms.html">Terms</a> · <a href="/privacy.html">Privacy</a> · <a href="/cookies.html">Cookies</a></span>
+      </div>
+    </footer>`;
+  }
+
+  const POSITIONS=['All','Goalkeeper','Defender','Midfielder','Forward'];
+  const STATES_LIST=['All'];
+  const PERIODS=['all_time','monthly','weekly'];
+  const SAMPLE_PLAYERS=Array.from({length:20},(_,i)=>({
+    id:i+1,rank:i+1,name:['Emeka Okafor','Taiwo Adesanya','Musa Adamu','Chidi Nwosu','Ibrahim Suleiman','Tobi Olawale','Seun Abiodun','Yakubu Hassan','Nduka Eze','Emmanuel Obi','Bashir Yusuf','David Akinyemi','Femi Adeoye','James Okonkwo','Michael Udo','Bello Abdullahi','Collins Eze','Samson Taiwo','Peter Nwachukwu','Andrew Okafor'][i],
+    position:['Striker','Midfielder','Defender','Goalkeeper','Forward','Midfielder','Defender','Striker','Midfielder','Forward','Defender','Goalkeeper','Midfielder','Striker','Forward','Defender','Midfielder','Striker','Goalkeeper','Forward'][i],
+    club:['Shooting Stars','Enyimba FC','Kano Pillars','Rivers United','Sunshine Stars','Plateau United','Heartland FC','Nasarawa United','Wikki Tourists','Abia Warriors','Lobi Stars','Sporting Lagos','Bendel Insurance','Remo Stars','Akwa United','Niger Tornadoes','Gombe United','FC IfeanyiUbah','El-Kanemi Warriors','Warri Wolves'][i],
+    state:['Oyo','Abia','Kano','Rivers','Ondo','Plateau','Imo','Nasarawa','Bauchi','Abia','Benue','Lagos','Edo','Ogun','Akwa Ibom','Niger','Gombe','Anambra','Borno','Delta'][i],
+    rating:+(9.4-i*0.12).toFixed(1),
+    goals:[14,11,2,null,9,7,4,12,8,6,3,null,10,13,5,2,7,9,null,4][i],
+    assists:[5,9,1,null,4,11,2,3,7,4,1,null,8,6,3,0,5,2,null,3][i],
+    matches:[22,24,26,28,20,25,27,21,23,22,24,26,20,18,22,24,19,21,25,23][i],
+    verified:i<12,
+    trend:i%3===0?'up':i%3===1?'down':'same',
+  }));
+  const SAMPLE_CLUBS=Array.from({length:20},(_,i)=>({
+    id:i+1,rank:i+1,
+    name:['Enyimba FC','Rivers United','Kano Pillars','Shooting Stars','Sunshine Stars','Plateau United','Heartland FC','Remo Stars','Akwa United','Lobi Stars','Nasarawa United','Abia Warriors','El-Kanemi Warriors','Gombe United','Wikki Tourists','Bendel Insurance','FC IfeanyiUbah','Sporting Lagos','Niger Tornadoes','Warri Wolves'][i],
+    state:['Abia','Rivers','Kano','Oyo','Ondo','Plateau','Imo','Ogun','Akwa Ibom','Benue','Nasarawa','Abia','Borno','Gombe','Bauchi','Edo','Anambra','Lagos','Niger','Delta'][i],
+    points:[58,55,52,48,45,42,40,38,37,36,35,34,32,31,30,29,28,27,26,25][i],
+    wins:[18,17,16,14,13,12,11,10,10,9,9,8,8,7,7,6,6,5,5,4][i],
+    goals_for:[51,48,44,40,37,35,33,31,30,29,28,27,26,25,24,23,22,21,20,19][i],
+    squad_size:[28,26,25,24,22,23,21,20,22,19,21,18,20,19,18,17,16,15,17,16][i],
+    verified:i<10,
+  }));
+
+  function RankMedal({rank}){
+    const cls=rank===1?'rank-1':rank===2?'rank-2':rank===3?'rank-3':'rank-other';
+    return html`<span class=${'rank-medal '+cls}>${rank}</span>`;
+  }
+
+  function TrendIcon({trend}){
+    if(trend==='up')return html`<i class="fas fa-arrow-up trend-up" title="Moving up"/>`;
+    if(trend==='down')return html`<i class="fas fa-arrow-down trend-down" title="Moving down"/>`;
+    return html`<i class="fas fa-minus trend-same" title="No change"/>`;
+  }
+
+  
+/* ═══════════════════════════════════════════════════════════════════════════
+   ENEJISTATS CANONICAL REGISTRATION GEO — mirrored from register.html
+   Contract: Country(ISO) → Region(dynamic label) → Subregion(dynamic label).
+   City/District, detailed address and GPS remain independent fields.
+═══════════════════════════════════════════════════════════════════════════ */
+function useCanonicalCountries(){
+  const [countries,setCountries]=useState([]);
+  useEffect(()=>{let cancelled=false; const c=new AbortController();
+    fetch('/api/public/countries',{credentials:'include',signal:c.signal})
+      .then(r=>r.ok?r.json():Promise.reject(new Error('countries request failed')))
+      .then(d=>{if(cancelled)return; const list=Array.isArray(d)?d:(d.countries||d.data||[]);
+        setCountries(list.map(x=>({code:x.code||x.v||x.value||x.id,name:x.name||x.l||x.label||x.code||x.v||x.value||x.id,regionLabel:x.region_label||'State / Region',subregionLabel:x.subregion_label||'LGA / Local Area'})).filter(x=>x.code&&x.name));
+      }).catch(e=>{if(e.name!=='AbortError')setCountries([]);});
+    return()=>{cancelled=true;c.abort();};
+  },[]); return countries;
+}
+function useCanonicalRegions(countryCode){
+  const [regions,setRegions]=useState([]),[loading,setLoading]=useState(false),[regionLabel,setRegionLabel]=useState('State / Region');
+  useEffect(()=>{if(!countryCode){setRegions([]);setRegionLabel('State / Region');return;} const c=new AbortController();setLoading(true);
+    fetch('/api/public/countries/'+encodeURIComponent(String(countryCode).toUpperCase())+'/regions',{credentials:'include',signal:c.signal})
+      .then(r=>r.ok?r.json():Promise.reject(new Error('regions request failed'))).then(d=>{const list=Array.isArray(d)?d:(d.regions||[]);setRegions(list.map(x=>typeof x==='string'?x:(x?.name||x?.state||x?.region||'')).filter(Boolean));setRegionLabel(d.region_label||'State / Region');})
+      .catch(e=>{if(e.name!=='AbortError')setRegions([]);}).finally(()=>{if(!c.signal.aborted)setLoading(false)}); return()=>c.abort();
+  },[countryCode]); return [regions,loading,regionLabel];
+}
+function useCanonicalSubregions(countryCode,region){
+  const [subregions,setSubregions]=useState([]),[loading,setLoading]=useState(false),[subregionLabel,setSubregionLabel]=useState('LGA / Local Area');
+  useEffect(()=>{if(!countryCode||!region){setSubregions([]);setSubregionLabel('LGA / Local Area');return;} const c=new AbortController();setLoading(true);
+    fetch('/api/public/countries/'+encodeURIComponent(String(countryCode).toUpperCase())+'/regions/'+encodeURIComponent(region)+'/subregions',{credentials:'include',signal:c.signal})
+      .then(r=>r.ok?r.json():Promise.reject(new Error('subregions request failed'))).then(d=>{const list=Array.isArray(d)?d:(d.subregions||[]);setSubregions(list.map(x=>typeof x==='string'?x:(x?.name||x?.lga||x?.subregion||'')).filter(Boolean));setSubregionLabel(d.subregion_label||'LGA / Local Area');})
+      .catch(e=>{if(e.name!=='AbortError')setSubregions([]);}).finally(()=>{if(!c.signal.aborted)setLoading(false)}); return()=>c.abort();
+  },[countryCode,region]); return [subregions,loading,subregionLabel];
+}
+function CanonicalGeoFields({value,onChange,required=true,showCity=true,showAddress=false,showGps=false,title='Location'}){
+  const v=value||{}; const countries=useCanonicalCountries(); const [regions,regionsLoading,regionLabel]=useCanonicalRegions(v.country); const [subregions,subregionsLoading,subregionLabel]=useCanonicalSubregions(v.country,v.state);
+  const set=(k,x)=>onChange({...v,[k]:x});
+  const resetCountry=code=>onChange({...v,country:code,state:'',lga:'',...(showCity?{city:''}:{}),...(showAddress?{detailedAddress:''}:{})});
+  const resetRegion=state=>onChange({...v,state,lga:'',...(showCity?{city:''}:{}),...(showAddress?{detailedAddress:''}:{})});
+  const selected=countries.find(c=>String(c.code).toUpperCase()===String(v.country||'').toUpperCase());
+  const [search,setSearch]=useState(''),[open,setOpen]=useState(false); const filtered=useMemo(()=>countries.filter(c=>c.name.toLowerCase().includes(search.toLowerCase())).slice(0,40),[countries,search]);
+  return html`<div class="canonical-geo" data-geo-source="register">
+    ${title&&html`<div class="section-block-title"><i class="fas fa-map-marker-alt"></i> ${title}</div>`}
+    <div class="form-row">
+      <div class="form-group"><label>Country${required&&html`<span class="req"> *</span>`}</label><div class="smart-select-wrap"><div class="input-group"><input class="form-control" value=${selected?selected.name:search} onInput=${e=>{setSearch(e.target.value);resetCountry('');setOpen(true)}} onFocus=${()=>{setOpen(true);setSearch('')}} placeholder="Search country…" autocomplete="country"/><span class="input-icon"><i class="fas fa-globe-africa"></i></span></div>${open&&filtered.length&&html`<div class="smart-select-results" role="listbox">${filtered.map(c=>html`<div key=${c.code} class="smart-select-item" onMouseDown=${e=>{e.preventDefault();resetCountry(String(c.code).toUpperCase());setSearch('');setOpen(false)}}><span>${c.name}</span><small style="color:var(--muted);margin-left:8px">${c.code}</small></div>`)}</div>`}</div></div>
+      <div class="form-group"><label>${regionLabel}${required&&html`<span class="req"> *</span>`}</label><select class="form-control" value=${v.state||''} disabled=${!v.country||regionsLoading} onChange=${e=>resetRegion(e.target.value)}><option value="">${regionsLoading?'Loading…':'Select '+regionLabel.toLowerCase()+'…'}</option>${regions.map(x=>html`<option key=${x} value=${x}>${x}</option>`)}</select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>${subregionLabel}${required&&html`<span class="req"> *</span>`}</label><select class="form-control" value=${v.lga||''} disabled=${!v.state||subregionsLoading} onChange=${e=>set('lga',e.target.value)}><option value="">${subregionsLoading?'Loading…':'Select '+subregionLabel.toLowerCase()+'…'}</option>${subregions.map(x=>html`<option key=${x} value=${x}>${x}</option>`)}</select></div>
+      ${showCity&&html`<div class="form-group"><label>City / District${required&&html`<span class="req"> *</span>`}</label><input class="form-control" value=${v.city||''} onInput=${e=>set('city',e.target.value)} placeholder="City, town or district" autocomplete="address-level2"/></div>`}
+    </div>
+    ${showAddress&&html`<div class="form-group"><label>Street / Detailed Address${required&&html`<span class="req"> *</span>`}</label><textarea class="form-control" rows="2" value=${v.detailedAddress||''} onInput=${e=>set('detailedAddress',e.target.value)} placeholder="House number, street, area, town…" autocomplete="street-address"></textarea></div>`}
+  </div>`;
+}
+
+function App(){
+    const [tab,setTab]=useState('players');
+    const [period,setPeriod]=useState('all_time');
+    const [posFilter,setPosFilter]=useState('All');
+    const [competition,setCompetition]=useState('All');
+    const [players,setPlayers]=useState([]);
+    const [clubs,setClubs]=useState([]);
+    const [spotlight,setSpotlight]=useState(null);
+    const [loading,setLoading]=useState(true);
+    const [page,setPage]=useState(1);
+    const [totalPages,setTotalPages]=useState(1);
+    const [countryCode,setCountryCode]=useState('');
+    const [stateFilter,setStateFilter]=useState('All');
+    const [lgaFilter,setLgaFilter]=useState('All');
+    const geoCountries=useCanonicalCountries(); const [regions,regionsLoading,regionLabel]=useCanonicalRegions(countryCode); const [subregions,subregionsLoading,subregionLabel]=useCanonicalSubregions(countryCode,stateFilter==='All'?'':stateFilter);
+
+    const PAGE_SIZE=10;
+
+    useEffect(()=>{
+      const load=async()=>{
+        setLoading(true);
+        try{
+          const params=new URLSearchParams({period,limit:50});
+          if(countryCode)params.set('country',countryCode); if(stateFilter!=='All')params.set('state',stateFilter); if(lgaFilter!=='All')params.set('lga',lgaFilter);
+          if(posFilter!=='All')params.set('position',posFilter);
+          const [pRes,cRes,spRes]=await Promise.allSettled([
+            fetch('/api/public/leaderboard/players?'+params).then(r=>r.json()),
+            fetch('/api/public/leaderboard/clubs?'+params).then(r=>r.json()),
+            fetch('/api/public/leaderboard/spotlight').then(r=>r.json()),
+          ]);
+          if(pRes.status==='fulfilled'){
+            const d=pRes.value;
+            setPlayers(d.data||d.players||d||[]);
+            setTotalPages(d.pages||1);
+          }else setPlayers(SAMPLE_PLAYERS);
+          if(cRes.status==='fulfilled')setClubs(cRes.value.data||cRes.value.clubs||cRes.value||[]);
+          else setClubs(SAMPLE_CLUBS);
+          if(spRes.status==='fulfilled')setSpotlight(spRes.value?.player||spRes.value||null);
+          else setSpotlight(SAMPLE_PLAYERS[0]);
+        }catch(e){
+          setPlayers(SAMPLE_PLAYERS);setClubs(SAMPLE_CLUBS);setSpotlight(SAMPLE_PLAYERS[0]);
+        }finally{setLoading(false);}
+      };
+      load();
+    },[period,posFilter,countryCode,stateFilter,lgaFilter]);
+
+    const activeList=tab==='players'?players:clubs;
+    const filteredList=useMemo(()=>{
+      let list=activeList;
+      if(tab==='players'&&posFilter!=='All')list=list.filter(p=>p.position===posFilter);
+      if(stateFilter!=='All')list=list.filter(x=>x.state===stateFilter); if(lgaFilter!=='All')list=list.filter(x=>x.lga===lgaFilter);
+      return list;
+    },[activeList,tab,posFilter,stateFilter,lgaFilter]);
+    const paginated=filteredList.slice((page-1)*PAGE_SIZE,page*PAGE_SIZE);
+    const pages=Math.max(1,Math.ceil(filteredList.length/PAGE_SIZE));
+
+    useEffect(()=>setPage(1),[tab,posFilter,countryCode,stateFilter,lgaFilter,period]);
+
+    return html`<div>
+      <${Header}/>
+      <section class="hero">
+        <h1><i class="fas fa-trophy" style="color:var(--gold)"/> Live Leaderboard</h1>
+        <p>Real-time rankings based on verified match data — updated after every approved report</p>
+        <span class="live-badge">Live Rankings</span>
+      </section>
+
+      <div class="filter-bar">
+        <div class="filters-inner">
+          <select class="filter-select" value=${period} onChange=${e=>{setPeriod(e.target.value)}}>
+            <option value="all_time">All Time</option>
+            <option value="monthly">This Month</option>
+            <option value="weekly">This Week</option>
+          </select>
+          <select class="filter-select" value=${countryCode} onChange=${e=>{setCountryCode(e.target.value);setStateFilter('All');setLgaFilter('All');}}>
+            <option value="">All Countries</option>${geoCountries.map(c=>html`<option key=${c.code} value=${String(c.code).toUpperCase()}>${c.name}</option>`)}
+          </select>
+          <select class="filter-select" value=${stateFilter} disabled=${!countryCode||regionsLoading} onChange=${e=>{setStateFilter(e.target.value);setLgaFilter('All');}}>
+            ${['All',...regions].map(s=>html`<option key=${s} value=${s}>${s==='All'?'All '+regionLabel+'s':s}</option>`)}
+          </select>
+          <select class="filter-select" value=${lgaFilter} disabled=${!stateFilter||stateFilter==='All'||subregionsLoading} onChange=${e=>setLgaFilter(e.target.value)}>
+            ${['All',...subregions].map(s=>html`<option key=${s} value=${s}>${s==='All'?'All '+subregionLabel+'s':s}</option>`)}
+          </select>
+          ${tab==='players'&&html`<select class="filter-select" value=${posFilter} onChange=${e=>setPosFilter(e.target.value)}>
+            ${POSITIONS.map(p=>html`<option key=${p} value=${p}>${p==='All'?'All Positions':p}</option>`)}
+          </select>`}
+          <select class="filter-select" value=${competition} onChange=${e=>setCompetition(e.target.value)}>
+            <option value="All">All Competitions</option>
+            <option value="npfl">NPFL</option>
+            <option value="nwfl">NWFL</option>
+            <option value="nfl">NLO</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="content-area">
+        <!-- SPOTLIGHT -->
+        ${spotlight&&html`<div class="spotlight-card">
+          <div class="sp-avatar">${(spotlight.name||'?')[0]}</div>
+          <div style="flex:1;min-width:0">
+            <div class="spotlight-badge"><i class="fas fa-star"/> Spotlight Player</div>
+            <div class="spotlight-name">${spotlight.name}</div>
+            <div class="spotlight-meta">${spotlight.position||''} · ${spotlight.club||''} · ${spotlight.state||''}</div>
+            <div class="spotlight-stats">
+              <div class="sp-stat"><div class="sp-stat-val">${spotlight.rating||'—'}</div><div class="sp-stat-label">Rating</div></div>
+              <div class="sp-stat"><div class="sp-stat-val">${spotlight.goals??'—'}</div><div class="sp-stat-label">Goals</div></div>
+              <div class="sp-stat"><div class="sp-stat-val">${spotlight.matches||'—'}</div><div class="sp-stat-label">Matches</div></div>
+            </div>
+          </div>
+          <a href=${'/player-profile.html?id='+spotlight.id} style="background:var(--gold);color:#0f172a;padding:0.6rem 1.2rem;border-radius:8px;font-weight:700;font-size:0.85rem;align-self:flex-start;white-space:nowrap">
+            View Profile
+          </a>
+        </div>`}
+
+        <div class="tab-bar">
+          <button class=${'tab-btn'+(tab==='players'?' active':'')} onClick=${()=>setTab('players')}>
+            <i class="fas fa-user"/> Players
+          </button>
+          <button class=${'tab-btn'+(tab==='clubs'?' active':'')} onClick=${()=>setTab('clubs')}>
+            <i class="fas fa-shield-halved"/> Clubs
+          </button>
+        </div>
+
+        ${loading?html`<div class="lb-table-wrap">
+          <table class="lb-table"><thead><tr><th>Rank</th><th>Name</th><th>State</th><th>Rating/Pts</th></tr></thead>
+          <tbody>${Array(10).fill(0).map((_,i)=>html`<tr key=${i}><td colspan="4"><div class="skeleton" style="height:28px;margin:4px 0"/></td></tr>`)}</tbody></table>
+        </div>`:html`
+        <div class="lb-table-wrap">
+          <table class="lb-table">
+            <thead>
+              <tr>
+                <th style="width:60px">Rank</th>
+                <th>${tab==='players'?'Player':'Club'}</th>
+                <th>${tab==='players'?'Position':'State'}</th>
+                ${tab==='players'?html`<th>Goals</th><th>Assists</th><th>Matches</th>`:html`<th>Wins</th><th>GF</th><th>Squad</th>`}
+                <th>${tab==='players'?'Rating':'Points'}</th>
+                <th>Trend</th>
+                <th/>
+              </tr>
+            </thead>
+            <tbody>
+              ${paginated.map((item,i)=>{
+                const absRank=(page-1)*PAGE_SIZE+i+1;
+                const href=tab==='players'?'/player-profile.html?id='+item.id:'/club-profile.html?id='+item.id;
+                return html`<tr key=${item.id} onClick=${()=>window.location.href=href}>
+                  <td><${RankMedal} rank=${item.rank||absRank}/></td>
+                  <td>
+                    <div class="player-cell">
+                      <div class="player-avatar">${(item.name||'?')[0]}</div>
+                      <div>
+                        <div class="player-name">
+                          ${item.name}
+                          ${item.verified&&html`<i class="fas fa-circle-check verified-tick"/>`}
+                        </div>
+                        <div class="player-sub">${tab==='players'?item.club:item.state}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td style="color:var(--muted)">${tab==='players'?item.position:item.state}</td>
+                  ${tab==='players'?html`<td>${item.goals??'—'}</td><td>${item.assists??'—'}</td><td>${item.matches||'—'}</td>`:html`<td>${item.wins||'—'}</td><td>${item.goals_for||'—'}</td><td>${item.squad_size||'—'}</td>`}
+                  <td><span class="rating-pill">${tab==='players'?item.rating:item.points}</span></td>
+                  <td><${TrendIcon} trend=${item.trend||'same'}/></td>
+                  <td><a href=${href} class="view-link">View →</a></td>
+                </tr>`;
+              })}
+            </tbody>
+          </table>
+        </div>`}
+
+        ${!loading&&pages>1&&html`<div class="pagination">
+          <button class="page-btn" disabled=${page===1} onClick=${()=>setPage(p=>p-1)}><i class="fas fa-chevron-left"/></button>
+          ${Array.from({length:pages},(_,i)=>html`<button key=${i+1} class=${'page-btn'+(page===i+1?' active':'')} onClick=${()=>setPage(i+1)}>${i+1}</button>`)}
+          <button class="page-btn" disabled=${page===pages} onClick=${()=>setPage(p=>p+1)}><i class="fas fa-chevron-right"/></button>
+        </div>`}
+
+        <div class="cta-banner">
+          <h2>Get on the Leaderboard</h2>
+          <p>Register as a player or club and request verified match stats to start climbing the rankings.</p>
+          <a href="/register.html" class="btn-gold"><i class="fas fa-user-plus"/> Register Free</a>
+        </div>
+      </div>
+      <${Footer}/>
+    </div>`;
+  }
+
+  render(html`<${App}/>`,document.getElementById('app'));
+})();
+</script>
+</body>
+</html>

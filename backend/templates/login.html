@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign In — EnejiStats</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <script src="https://unpkg.com/preact@10.19.3/dist/preact.umd.js"></script>
+  <script src="https://unpkg.com/preact@10.19.3/hooks/dist/hooks.umd.js"></script>
+  <script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary: #004aad;
+      --primary-light: #0066cc;
+      --gold: #f5b800;
+      --header-bg: #162060;
+      --dark-bg: #1e1e2f;
+      --page-bg: #0f172a;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --muted: #94a3b8;
+      --line: rgba(255,255,255,0.1);
+      --radius: 12px;
+      --font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    html, body { height: 100%; font-family: var(--font); }
+    body { background: var(--page-bg); min-height: 100vh; }
+
+    /* Toast */
+    .toast-container { position: fixed; top: 1rem; right: 1rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.5rem; }
+    .toast { padding: 0.8rem 1.2rem; border-radius: 8px; color: #fff; font-size: 0.9rem; font-weight: 500; max-width: 320px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); animation: slideIn 0.3s ease; display: flex; align-items: center; gap: 0.5rem; }
+    .toast.success { background: var(--success); }
+    .toast.error { background: var(--danger); }
+    .toast.info { background: var(--primary); }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    /* Layout */
+    .page { display: flex; min-height: 100vh; }
+    .left-panel { display: none; width: 42%; background: linear-gradient(135deg, #162060 0%, #0d1b3e 100%); padding: 3rem 2.5rem; flex-direction: column; justify-content: center; align-items: center; text-align: center; border-right: 4px solid var(--gold); }
+    .right-panel { flex: 1; display: flex; align-items: center; justify-content: center; padding: 2rem 1.5rem; }
+    @media (min-width: 992px) {
+      .left-panel { display: flex; }
+    }
+
+    /* Left panel logo */
+    .left-panel .eneji-logo-img{max-height:100px;max-width:360px;width:100%;height:auto;margin:0 auto 1.6rem;display:block;}
+    /* Left panel inner */
+    .lp-heading { color: #fff; font-size: 1.45rem; font-weight: 700; margin: 1.6rem 0 0.5rem; line-height: 1.3; }
+    .lp-sub { color: rgba(255,255,255,0.65); font-size: 0.88rem; line-height: 1.65; margin-bottom: 1.8rem; }
+    .lp-features { list-style: none; width: 100%; margin: 0 0 1.8rem; text-align: left; }
+    .lp-features li { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0; color: rgba(255,255,255,0.82); font-size: 0.87rem; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .lp-features li:last-child { border-bottom: none; }
+    .lp-features li i { color: var(--gold); width: 16px; flex-shrink: 0; }
+    .lp-quote { color: var(--gold); font-style: italic; font-size: 0.92rem; line-height: 1.55; margin: 0.5rem 0 1.5rem; border-left: 3px solid var(--gold); padding-left: 1rem; text-align: left; }
+    .lp-cta { color: rgba(255,255,255,0.6); font-size: 0.88rem; margin-top: 1rem; }
+    .lp-cta a { color: var(--gold); text-decoration: none; font-weight: 700; }
+    .lp-cta a:hover { text-decoration: underline; }
+
+    /* Form card */
+    .form-card { background: var(--dark-bg); border-radius: 20px; padding: 2.5rem 2rem; width: 100%; max-width: 440px; box-shadow: 0 8px 40px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.07); }
+    .mobile-logo { text-align: center; margin-bottom: 1.5rem; display: flex; flex-direction: column; align-items: center; }
+    @media (min-width: 992px) { .mobile-logo { display: none; } }
+    .mobile-tagline { font-size: 0.78rem; color: rgba(255,255,255,0.45); font-style: italic; margin-top: 0.25rem; }
+    .form-card h2 { color: #fff; font-size: 1.7rem; font-weight: 700; margin-bottom: 0.3rem; }
+    .form-card .sub { color: rgba(255,255,255,0.55); font-size: 0.9rem; margin-bottom: 1.8rem; }
+
+    /* Role hint pill */
+    .role-hint { display: inline-flex; align-items: center; gap: 0.4rem; background: rgba(245,184,0,0.12); border: 1px solid rgba(245,184,0,0.35); border-radius: 20px; padding: 0.3rem 0.8rem; color: var(--gold); font-size: 0.8rem; font-weight: 600; margin-bottom: 1rem; }
+
+    /* Form fields */
+    .field { margin-bottom: 1.1rem; }
+    .field label { display: block; color: rgba(255,255,255,0.75); font-size: 0.82rem; font-weight: 600; margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .field .input-wrap { position: relative; }
+    .field input { width: 100%; padding: 0.75rem 1rem; background: rgba(255,255,255,0.07); border: 1.5px solid rgba(255,255,255,0.12); border-radius: 8px; color: #fff; font-size: 0.95rem; font-family: var(--font); outline: none; transition: border-color 0.2s; }
+    .field input:focus { border-color: var(--gold); background: rgba(255,255,255,0.1); }
+    .field input::placeholder { color: rgba(255,255,255,0.3); }
+    .field .eye-btn { position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); background: none; border: none; color: rgba(255,255,255,0.45); cursor: pointer; padding: 0.2rem; font-size: 1rem; }
+    .field .eye-btn:hover { color: var(--gold); }
+    .field-error { color: #f87171; font-size: 0.78rem; margin-top: 0.3rem; }
+
+    /* Row for remember + forgot */
+    .check-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.4rem; }
+    .check-label { display: flex; align-items: center; gap: 0.4rem; color: rgba(255,255,255,0.65); font-size: 0.85rem; cursor: pointer; }
+    .check-label input[type="checkbox"] { accent-color: var(--gold); width: 15px; height: 15px; }
+    .forgot-link { color: var(--gold); font-size: 0.85rem; text-decoration: none; font-weight: 600; cursor: pointer; background: none; border: none; }
+    .forgot-link:hover { text-decoration: underline; }
+
+    /* Submit button */
+    .btn-signin { width: 100%; height: 52px; background: var(--gold); color: #0f172a; border: none; border-radius: 10px; font-size: 1rem; font-weight: 700; cursor: pointer; letter-spacing: 0.5px; transition: opacity 0.2s, transform 0.1s; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+    .btn-signin:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+    .btn-signin:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Alert */
+    .alert { padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.88rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+    .alert.error { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); color: #f87171; }
+    .alert.success { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.4); color: #4ade80; }
+
+    /* Role quick-pills */
+    .role-pills { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 1.2rem 0 0.8rem; }
+    .role-pill { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 20px; padding: 0.25rem 0.7rem; color: rgba(255,255,255,0.6); font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .role-pill:hover, .role-pill.active { background: rgba(0,74,173,0.4); border-color: var(--primary-light); color: #fff; }
+    .role-pills-label { color: rgba(255,255,255,0.35); font-size: 0.75rem; margin-bottom: 0.4rem; }
+
+    /* Register link */
+    .register-link { text-align: center; color: rgba(255,255,255,0.5); font-size: 0.88rem; margin-top: 1.2rem; }
+    .register-link a { color: var(--gold); text-decoration: none; font-weight: 600; }
+
+    /* Forgot view */
+    .back-btn { background: none; border: none; color: rgba(255,255,255,0.6); cursor: pointer; font-size: 0.88rem; display: flex; align-items: center; gap: 0.4rem; margin-bottom: 1.2rem; padding: 0; }
+    .back-btn:hover { color: #fff; }
+    .success-card { background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.35); border-radius: 12px; padding: 1.2rem; text-align: center; color: #4ade80; }
+    .success-card i { font-size: 2rem; margin-bottom: 0.6rem; display: block; }
+    .success-card p { color: rgba(255,255,255,0.7); font-size: 0.88rem; margin-top: 0.4rem; }
+
+    /* Spinner */
+    .spinner { width: 18px; height: 18px; border: 2px solid rgba(0,0,0,0.3); border-top-color: #0f172a; border-radius: 50%; animation: spin 0.6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* aria-live */
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+  
+    @media(max-width:480px){
+      .auth-wrap{flex-direction:column}
+      .left-panel{display:none}
+      .auth-panel{padding:2rem 1.25rem}
+      input,.btn-submit{min-height:44px}
+    }
+    @media(max-width:360px){
+      .auth-panel{padding:1.5rem 1rem}
+    }
+  </style>
+  <link rel="stylesheet" href="/static/css/eneji-branding.css"/>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(function() {
+  'use strict';
+  const { h, render } = preact;
+  const { useState, useEffect, useRef, useCallback } = preactHooks;
+  const html = htm.bind(h);
+
+    function Logo({ size }) {
+    return html`<a href="/" style=${{ textDecoration:'none', display:'inline-block', verticalAlign:'middle' }}>
+      <img src="/static/images/eneji-stats-branding.png" alt="EnejiStats" class="eneji-logo-img"/>
+    </a>`;
+  }
+
+  // --- Utilities ---
+  function getUrlParam(name) {
+    return new URLSearchParams(window.location.search).get(name);
+  }
+
+  const ROLE_LABELS = {
+    player: 'Player', club: 'Club', scout: 'Scout', agent: 'Agent',
+    dco: 'DCO', supervisor: 'Supervisor',
+    admin: 'Admin', communication_officer: 'Comm. Officer', customer_care: 'Customer Care'
+  };
+  const ROLE_ICONS = {
+    player: 'fa-futbol', club: 'fa-building', scout: 'fa-binoculars',
+    agent: 'fa-handshake', dco: 'fa-clipboard-check', supervisor: 'fa-user-tie',
+    admin: 'fa-shield',
+    communication_officer: 'fa-satellite-dish', customer_care: 'fa-headset'
+  };
+  const ROLE_DASHBOARDS = {
+    player: '/player-dashboard.html', club: '/club-dashboard.html',
+    scout: '/scout-dashboard.html', agent: '/agent-dashboard.html',
+    dco: '/dco-dashboard.html', supervisor: '/supervisor-dashboard.html',
+    admin: '/admin-dashboard.html',
+    communication_officer: '/co-dashboard.html',
+    customer_care: '/cc-dashboard.html'
+  };
+
+  function fmtError(code) {
+    const map = {
+      INVALID_CREDENTIALS: 'Incorrect email or password. Please try again.',
+      ACCOUNT_SUSPENDED: 'Your account has been suspended. Please contact support at enejistats@gmail.com.',
+      ACCOUNT_DELETED: 'No account found with this email address.',
+      EMAIL_NOT_VERIFIED: 'Your email is not verified. A 6-digit code has been sent — check your inbox.',
+      RATE_LIMITED: 'Too many attempts. Try again in a few minutes.'
+    };
+    return map[code] || 'Unable to connect. Please check your internet connection and try again.';
+  }
+
+  // --- Toast ---
+  function useToasts() {
+    const [toasts, setToasts] = useState([]);
+    const show = useCallback((msg, type = 'info') => {
+      const id = Date.now();
+      setToasts(t => [...t, { id, msg, type }]);
+      setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 4000);
+    }, []);
+    return [toasts, show];
+  }
+
+  function ToastContainer({ toasts }) {
+    return html`<div class="toast-container" aria-live="polite">
+      ${toasts.map(t => html`<div key=${t.id} class=${'toast ' + t.type}>
+        <i class=${t.type === 'success' ? 'fas fa-check-circle' : t.type === 'error' ? 'fas fa-exclamation-circle' : 'fas fa-info-circle'}></i>
+        ${t.msg}
+      </div>`)}
+    </div>`;
+  }
+
+  // --- OTP Popup (used when email is unverified) ---
+  function OtpPopup({ email, onClose, onSuccess, showToast }) {
+    const [code, setCode] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [resending, setResending] = useState(false);
+    const [error, setError] = useState('');
+    const inputRef = useRef(null);
+    useEffect(() => { if (inputRef.current) inputRef.current.focus(); }, []);
+
+    async function handleVerify() {
+      if (code.length !== 6 || loading) return;
+      setLoading(true); setError('');
+      try {
+        const res = await fetch('/api/auth/verify-login-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ email, otp: code })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Invalid code. Please try again.');
+        showToast('Email verified! Logging you in…', 'success');
+        setTimeout(() => {
+          window.location.href = data.redirect || ROLE_DASHBOARDS[data.role] || '/';
+        }, 800);
+      } catch (err) {
+        setError(err.message || 'Verification failed. Please try again.');
+        setLoading(false);
+      }
+    }
+
+    async function handleResend() {
+      setResending(true); setError('');
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ email, password: '__resend_otp_trigger__' })
+        });
+        showToast('A new code has been sent to your email.', 'info');
+        setCode('');
+      } catch (_) {
+        setError('Could not resend. Please try again shortly.');
+      } finally { setResending(false); }
+    }
+
+    const overlayStyle = 'position:fixed;inset:0;background:rgba(10,10,26,.96);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+    const boxStyle = 'background:#1e2840;border:1px solid rgba(255,255,255,.15);border-radius:20px;padding:2.5rem 2rem;max-width:420px;width:100%;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,.6)';
+
+    return html`
+      <div style=${overlayStyle}>
+        <div style=${boxStyle}>
+          <div style="font-size:2.8rem;margin-bottom:1rem;color:var(--gold)">
+            <i class="fas fa-envelope-open-text"></i>
+          </div>
+          <h2 style="color:#fff;font-size:1.2rem;font-weight:700;margin-bottom:8px">Verify Your Email</h2>
+          <p style="color:rgba(255,255,255,.55);font-size:.85rem;margin-bottom:20px">
+            We sent a 6-digit code to<br/>
+            <strong style="color:var(--gold)">${email}</strong>
+          </p>
+          <input
+            ref=${inputRef}
+            type="text"
+            inputmode="numeric"
+            maxlength="6"
+            placeholder="000000"
+            autocomplete="one-time-code"
+            value=${code}
+            onInput=${e => { setCode(e.target.value.replace(/\D/g,'').slice(0,6)); setError(''); }}
+            onKeyDown=${e => { if (e.key==='Enter') handleVerify(); }}
+            style="font-size:2rem;letter-spacing:.5rem;text-align:center;padding:.75rem 1rem;border-radius:12px;border:2px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;width:200px;font-weight:700;outline:none;font-family:monospace;display:block;margin:0 auto"
+          />
+          ${error && html`<p style="color:#f87171;font-size:.82rem;margin:10px 0 0"><i class="fas fa-exclamation-triangle"></i> ${error}</p>`}
+          <button class="btn-signin" style="margin-top:18px;max-width:260px;margin-left:auto;margin-right:auto"
+            onClick=${handleVerify}
+            disabled=${code.length!==6||loading}>
+            ${loading ? html`<div class="spinner"></div>` : html`<i class="fas fa-check-circle"></i> Verify & Sign In`}
+          </button>
+          <p style="font-size:.8rem;color:rgba(255,255,255,.35);margin-top:14px">
+            Didn’t get the code? 
+            <button type="button"
+              style="background:none;border:none;color:var(--gold);cursor:pointer;font-size:.8rem;font-weight:600;padding:0"
+              onClick=${handleResend}
+              disabled=${resending}>
+              ${resending ? 'Sending…' : 'Resend code'}
+            </button>
+          </p>
+          <button type="button"
+            style="background:none;border:none;color:rgba(255,255,255,.3);cursor:pointer;font-size:.78rem;margin-top:10px;padding:0"
+            onClick=${onClose}>
+            Cancel
+          </button>
+        </div>
+      </div>`;
+  }
+
+  // --- Login Form ---
+  function LoginForm({ onForgot, showToast }) {
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [showPw, setShowPw] = useState(false);
+    const [remember, setRemember] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [roleHint] = useState(getUrlParam('role'));
+    const [activeRole, setActiveRole] = useState(getUrlParam('role') || '');
+    const [otpEmail, setOtpEmail] = useState(null);
+    const emailRef = useRef(null);
+
+    useEffect(() => { if (emailRef.current) emailRef.current.focus(); }, []);
+
+    const isValid = email.includes('@') && password.length >= 1;
+
+    async function handleSubmit(e) {
+      e.preventDefault();
+      if (!isValid || loading) return;
+      setLoading(true);
+      setError('');
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          if (data.code === 'EMAIL_NOT_VERIFIED') {
+            setOtpEmail(data.email || email);
+            setLoading(false);
+            return;
+          }
+          setError(fmtError(data.code || data.error));
+          setLoading(false);
+          return;
+        }
+        localStorage.setItem('enejistats_token', data.access_token);
+        localStorage.setItem('enejistats_role', data.role);
+        localStorage.setItem('enejistats_user_id', data.user_id);
+        localStorage.setItem('enejistats_name', data.name);
+        if (data.avatar) localStorage.setItem('enejistats_avatar', data.avatar);
+        if (remember) localStorage.setItem('enejistats_remember', 'true');
+        showToast('Welcome back, ' + (data.name || '') + '!', 'success');
+        setTimeout(() => {
+          window.location.href = data.redirect || ROLE_DASHBOARDS[data.role] || '/';
+        }, 700);
+      } catch (err) {
+        setError(fmtError('NETWORK'));
+        setLoading(false);
+      }
+    }
+
+    function setRole(role) {
+      setActiveRole(role);
+      const url = new URL(window.location.href);
+      url.searchParams.set('role', role);
+      window.history.replaceState({}, '', url);
+    }
+
+    return html`
+      ${otpEmail ? html`<${OtpPopup}
+        email=${otpEmail}
+        onClose=${() => setOtpEmail(null)}
+        showToast=${showToast}
+      />` : null}
+      <form onSubmit=${handleSubmit} novalidate aria-label="Sign in form">
+        ${roleHint && ROLE_LABELS[roleHint] && html`
+          <div class="role-hint">
+            <i class=${'fas ' + (ROLE_ICONS[roleHint] || 'fa-user')}></i>
+            Signing in as ${ROLE_LABELS[roleHint]}
+          </div>`}
+
+        <h2>Welcome Back</h2>
+        <p class="sub">Sign in to your EnejiStats dashboard.</p>
+
+        <div aria-live="polite">
+          ${error && html`<div class="alert error" role="alert"><i class="fas fa-exclamation-circle"></i>${error}</div>`}
+        </div>
+
+        <div class="field">
+          <label for="login-email">Email Address</label>
+          <div class="input-wrap">
+            <input id="login-email" ref=${emailRef} type="email" value=${email}
+              onInput=${e => setEmail(e.target.value)}
+              placeholder="your@email.com" autocomplete="email" required />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="login-password">Password</label>
+          <div class="input-wrap">
+            <input id="login-password" type=${showPw ? 'text' : 'password'} value=${password}
+              onInput=${e => setPassword(e.target.value)}
+              placeholder="••••••••" autocomplete="current-password" required
+              style="padding-right:2.5rem" />
+            <button type="button" class="eye-btn" onClick=${() => setShowPw(!showPw)}
+              aria-label=${showPw ? 'Hide password' : 'Show password'}>
+              <i class=${'fas ' + (showPw ? 'fa-eye-slash' : 'fa-eye')}></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="check-row">
+          <label class="check-label">
+            <input type="checkbox" checked=${remember} onChange=${e => setRemember(e.target.checked)} />
+            Remember me
+          </label>
+          <button type="button" class="forgot-link" onClick=${onForgot}>Forgot password?</button>
+        </div>
+
+        <button type="submit" class="btn-signin" disabled=${!isValid || loading}>
+          ${loading ? html`<div class="spinner"></div>` : html`<span>Sign In</span>`}
+        </button>
+
+        <p class="role-pills-label" style="margin-top:1.4rem">Quick access by role:</p>
+        <div class="role-pills">
+          ${['player','club','scout','agent','dco','supervisor','admin'].map(role => html`
+            <button type="button" key=${role}
+              class=${'role-pill' + (activeRole === role ? ' active' : '')}
+              onClick=${() => setRole(role)}>
+              <i class=${'fas ' + ROLE_ICONS[role]}></i> ${ROLE_LABELS[role]}
+            </button>`)}
+        </div>
+
+        <p class="register-link">Don't have an account yet? <a href="/register.html">Register here →</a></p>
+      </form>`;
+  }
+
+  // --- Forgot Password (4-step) ---
+  function ForgotPassword({ onBack, showToast }) {
+    const [step, setStep] = useState(1);
+    // Step 1
+    const [email, setEmail] = useState('');
+    const [step1Loading, setStep1Loading] = useState(false);
+    const [step1Error, setStep1Error] = useState('');
+    // Step 2 - OTP
+    const [otpDigits, setOtpDigits] = useState(['','','','','','']);
+    const [step2Loading, setStep2Loading] = useState(false);
+    const [step2Error, setStep2Error] = useState('');
+    const [countdown, setCountdown] = useState(60);
+    const [resending, setResending] = useState(false);
+    const otpRefs = [useRef(),useRef(),useRef(),useRef(),useRef(),useRef()];
+    const countdownRef = useRef(null);
+    // Step 3 - Reset password
+    const [newPw, setNewPw] = useState('');
+    const [confirmPw, setConfirmPw] = useState('');
+    const [showNewPw, setShowNewPw] = useState(false);
+    const [showConfirmPw, setShowConfirmPw] = useState(false);
+    const [step3Loading, setStep3Loading] = useState(false);
+    const [step3Error, setStep3Error] = useState('');
+    // Step 4
+    const [redirectSecs, setRedirectSecs] = useState(4);
+
+    // Countdown timer for OTP resend
+    useEffect(() => {
+      if (step !== 2) return;
+      setCountdown(60);
+      countdownRef.current = setInterval(() => {
+        setCountdown(c => { if (c <= 1) { clearInterval(countdownRef.current); return 0; } return c - 1; });
+      }, 1000);
+      return () => clearInterval(countdownRef.current);
+    }, [step]);
+
+    // Auto-redirect on step 4
+    useEffect(() => {
+      if (step !== 4) return;
+      const t = setInterval(() => setRedirectSecs(s => {
+        if (s <= 1) { clearInterval(t); window.location.href = '/login.html'; return 0; }
+        return s - 1;
+      }), 1000);
+      return () => clearInterval(t);
+    }, [step]);
+
+    // Password strength
+    function pwStrength(pw) {
+      let score = 0;
+      if (pw.length >= 8) score++;
+      if (pw.length >= 12) score++;
+      if (/[A-Z]/.test(pw)) score++;
+      if (/[0-9]/.test(pw)) score++;
+      if (/[^A-Za-z0-9]/.test(pw)) score++;
+      return score; // 0-5
+    }
+    const strength = pwStrength(newPw);
+    const strengthLabel = ['','Weak','Fair','Good','Strong','Very Strong'][Math.min(strength,5)];
+    const strengthColor = ['','#ef4444','#f97316','#eab308','#22c55e','#16a34a'][Math.min(strength,5)];
+
+    const otp = otpDigits.join('');
+
+    function handleOtpInput(idx, val) {
+      const digit = val.replace(/\D/g,'').slice(-1);
+      const next = [...otpDigits];
+      next[idx] = digit;
+      setOtpDigits(next);
+      setStep2Error('');
+      if (digit && idx < 5) otpRefs[idx+1].current && otpRefs[idx+1].current.focus();
+    }
+    function handleOtpKey(idx, e) {
+      if (e.key === 'Backspace' && !otpDigits[idx] && idx > 0) {
+        otpRefs[idx-1].current && otpRefs[idx-1].current.focus();
+      }
+      if (e.key === 'Enter' && otp.length === 6) handleStep2();
+    }
+    function handleOtpPaste(e) {
+      e.preventDefault();
+      const pasted = e.clipboardData.getData('text').replace(/\D/g,'').slice(0,6);
+      const next = Array(6).fill('');
+      pasted.split('').forEach((d,i) => { next[i] = d; });
+      setOtpDigits(next);
+      const focusIdx = Math.min(pasted.length, 5);
+      otpRefs[focusIdx].current && otpRefs[focusIdx].current.focus();
+    }
+
+    async function handleStep1(e) {
+      e.preventDefault();
+      if (!email.includes('@') || step1Loading) return;
+      setStep1Loading(true);
+      setStep1Error('');
+      try {
+        await fetch('/api/auth/password/forgot', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        // Never reveal if email exists — always proceed to OTP step
+        setStep(2);
+        setTimeout(() => otpRefs[0].current && otpRefs[0].current.focus(), 100);
+      } catch (err) {
+        setStep1Error('Unable to connect. Please check your connection and try again.');
+      } finally { setStep1Loading(false); }
+    }
+
+    async function handleResend() {
+      if (resending || countdown > 0) return;
+      setResending(true);
+      try {
+        await fetch('/api/auth/password/forgot', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        showToast('A new code has been sent.', 'info');
+        setOtpDigits(['','','','','','']);
+        setCountdown(60);
+        clearInterval(countdownRef.current);
+        countdownRef.current = setInterval(() => {
+          setCountdown(c => { if (c <= 1) { clearInterval(countdownRef.current); return 0; } return c - 1; });
+        }, 1000);
+        setTimeout(() => otpRefs[0].current && otpRefs[0].current.focus(), 100);
+      } catch (err) {
+        showToast('Could not resend. Please try again shortly.', 'error');
+      } finally { setResending(false); }
+    }
+
+    async function handleStep2() {
+      if (otp.length !== 6 || step2Loading) return;
+      setStep2Loading(true);
+      setStep2Error('');
+      try {
+        const res = await fetch('/api/auth/password/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, otp })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setStep2Error(data.message || 'Invalid or expired code. Please try again.');
+          setStep2Loading(false);
+          return;
+        }
+        setStep(3);
+      } catch (err) {
+        setStep2Error('Unable to connect. Please check your connection.');
+      } finally { setStep2Loading(false); }
+    }
+
+    async function handleStep3(e) {
+      e.preventDefault();
+      if (step3Loading) return;
+      if (newPw.length < 8) { setStep3Error('Password must be at least 8 characters.'); return; }
+      if (newPw !== confirmPw) { setStep3Error('Passwords do not match.'); return; }
+      setStep3Loading(true);
+      setStep3Error('');
+      try {
+        const res = await fetch('/api/auth/password/reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, otp, new_password: newPw })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setStep3Error(data.message || 'Reset failed. Please start again.');
+          setStep3Loading(false);
+          return;
+        }
+        setStep(4);
+      } catch (err) {
+        setStep3Error('Unable to connect. Please check your connection.');
+      } finally { setStep3Loading(false); }
+    }
+
+    const cardStyle = 'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:1.5rem;margin-bottom:1rem';
+    const stepIndicatorStyle = (active) => ({
+      width: '28px', height: '28px', borderRadius: '50%',
+      background: active ? 'var(--gold)' : 'rgba(255,255,255,0.15)',
+      color: active ? '#0f172a' : 'rgba(255,255,255,0.4)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: '0.72rem', fontWeight: 700, flexShrink: 0,
+      border: active ? 'none' : '1px solid rgba(255,255,255,0.2)'
+    });
+
+    const StepBar = () => html`
+      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1.5rem;justify-content:center">
+        ${[1,2,3,4].map(s => html`
+          <div key=${s} style=${{display:'flex',alignItems:'center',gap:'0.5rem'}}>
+            <div style=${stepIndicatorStyle(step >= s)}>
+              ${step > s ? html`<i class="fas fa-check" style="font-size:0.65rem"/>` : s}
+            </div>
+            ${s < 4 && html`<div style=${{width:'32px',height:'2px',background:step>s?'var(--gold)':'rgba(255,255,255,0.12)',borderRadius:'2px'}}/>`}
+          </div>
+        `)}
+      </div>`;
+
+    // STEP 1 — Request
+    if (step === 1) return html`<div>
+      <button type="button" class="back-btn" onClick=${onBack}>
+        <i class="fas fa-arrow-left"></i> Back to Sign In
+      </button>
+      <h2>Reset Your Password</h2>
+      <p class="sub">Enter your registered email address. If an account exists, we'll send a 6-digit code.</p>
+      <${StepBar}/>
+      <form onSubmit=${handleStep1} novalidate>
+        <div aria-live="polite">
+          ${step1Error && html`<div class="alert error"><i class="fas fa-exclamation-circle"></i>${step1Error}</div>`}
+        </div>
+        <div class="field">
+          <label for="fp-email">Email Address</label>
+          <div class="input-wrap">
+            <input id="fp-email" type="email" value=${email}
+              onInput=${e => { setEmail(e.target.value); setStep1Error(''); }}
+              placeholder="your@email.com" autocomplete="email" required />
+          </div>
+        </div>
+        <button type="submit" class="btn-signin" disabled=${!email.includes('@') || step1Loading}>
+          ${step1Loading ? html`<div class="spinner"></div>` : html`<span><i class="fas fa-paper-plane"></i> Send Reset Code</span>`}
+        </button>
+      </form>
+    </div>`;
+
+    // STEP 2 — OTP Verify
+    if (step === 2) return html`<div>
+      <button type="button" class="back-btn" onClick=${() => setStep(1)}>
+        <i class="fas fa-arrow-left"></i> Back
+      </button>
+      <h2>Check Your Email</h2>
+      <p class="sub">We sent a 6-digit code to <strong style="color:var(--gold)">${email}</strong>. Enter it below to continue.</p>
+      <${StepBar}/>
+      <div style="text-align:center;margin-bottom:1.25rem">
+        <div style="display:flex;gap:0.5rem;justify-content:center">
+          ${otpDigits.map((d,i) => html`
+            <input key=${i}
+              ref=${otpRefs[i]}
+              type="text"
+              inputmode="numeric"
+              maxlength="1"
+              value=${d}
+              onInput=${e => handleOtpInput(i, e.target.value)}
+              onKeyDown=${e => handleOtpKey(i, e)}
+              onPaste=${i===0 ? handleOtpPaste : undefined}
+              style=${{
+                width:'44px',height:'52px',textAlign:'center',fontSize:'1.4rem',fontWeight:700,
+                borderRadius:'10px',border:d?'2px solid var(--gold)':'2px solid rgba(255,255,255,0.2)',
+                background:'rgba(255,255,255,0.07)',color:'#fff',outline:'none',fontFamily:'monospace',
+                transition:'border-color 0.15s'
+              }}
+            />
+          `)}
+        </div>
+      </div>
+      ${step2Error && html`<div class="alert error" style="text-align:center"><i class="fas fa-exclamation-triangle"></i> ${step2Error}</div>`}
+      <button class="btn-signin" onClick=${handleStep2} disabled=${otp.length!==6||step2Loading} style="margin-top:0.5rem">
+        ${step2Loading ? html`<div class="spinner"></div>` : html`<span><i class="fas fa-check-circle"></i> Verify Code</span>`}
+      </button>
+      <p style="text-align:center;font-size:0.8rem;color:rgba(255,255,255,0.4);margin-top:1rem">
+        ${countdown > 0
+          ? html`Resend available in <strong style="color:var(--gold)">${countdown}s</strong>`
+          : html`Didn't receive the code?
+              <button type="button"
+                style="background:none;border:none;color:var(--gold);cursor:pointer;font-size:0.8rem;font-weight:600;padding:0;margin-left:4px"
+                onClick=${handleResend} disabled=${resending}>
+                ${resending ? 'Sending…' : 'Resend code'}
+              </button>`}
+      </p>
+    </div>`;
+
+    // STEP 3 — New Password
+    if (step === 3) return html`<div>
+      <button type="button" class="back-btn" onClick=${() => setStep(2)}>
+        <i class="fas fa-arrow-left"></i> Back
+      </button>
+      <h2>Set New Password</h2>
+      <p class="sub">Choose a strong password for your account.</p>
+      <${StepBar}/>
+      <form onSubmit=${handleStep3} novalidate>
+        ${step3Error && html`<div class="alert error"><i class="fas fa-exclamation-circle"></i>${step3Error}</div>`}
+        <div class="field">
+          <label for="fp-newpw">New Password</label>
+          <div class="input-wrap">
+            <input id="fp-newpw" type=${showNewPw?'text':'password'} value=${newPw}
+              onInput=${e => { setNewPw(e.target.value); setStep3Error(''); }}
+              placeholder="Min. 8 characters" autocomplete="new-password"
+              style="padding-right:2.5rem" required />
+            <button type="button" class="eye-btn" onClick=${()=>setShowNewPw(!showNewPw)}>
+              <i class=${'fas '+(showNewPw?'fa-eye-slash':'fa-eye')}></i>
+            </button>
+          </div>
+          ${newPw.length > 0 && html`
+            <div style="margin-top:0.5rem">
+              <div style="display:flex;gap:3px;margin-bottom:4px">
+                ${[1,2,3,4,5].map(i => html`
+                  <div key=${i} style=${{
+                    flex:1,height:'4px',borderRadius:'2px',
+                    background:i<=strength?strengthColor:'rgba(255,255,255,0.12)',
+                    transition:'background 0.2s'
+                  }}/>`)}
+              </div>
+              <div style=${{fontSize:'0.74rem',color:strengthColor,fontWeight:600}}>${strengthLabel}</div>
+            </div>
+          `}
+        </div>
+        <div class="field">
+          <label for="fp-confirmpw">Confirm New Password</label>
+          <div class="input-wrap">
+            <input id="fp-confirmpw" type=${showConfirmPw?'text':'password'} value=${confirmPw}
+              onInput=${e => { setConfirmPw(e.target.value); setStep3Error(''); }}
+              placeholder="Re-enter your password" autocomplete="new-password"
+              style="padding-right:2.5rem" required />
+            <button type="button" class="eye-btn" onClick=${()=>setShowConfirmPw(!showConfirmPw)}>
+              <i class=${'fas '+(showConfirmPw?'fa-eye-slash':'fa-eye')}></i>
+            </button>
+          </div>
+          ${confirmPw.length > 0 && newPw !== confirmPw && html`
+            <p style="font-size:0.75rem;color:#f87171;margin-top:4px"><i class="fas fa-times-circle"></i> Passwords do not match</p>
+          `}
+          ${confirmPw.length > 0 && newPw === confirmPw && html`
+            <p style="font-size:0.75rem;color:#4ade80;margin-top:4px"><i class="fas fa-check-circle"></i> Passwords match</p>
+          `}
+        </div>
+        <button type="submit" class="btn-signin"
+          disabled=${newPw.length < 8 || newPw !== confirmPw || step3Loading}>
+          ${step3Loading ? html`<div class="spinner"></div>` : html`<span><i class="fas fa-lock"></i> Reset Password</span>`}
+        </button>
+      </form>
+    </div>`;
+
+    // STEP 4 — Success
+    return html`<div style="text-align:center;padding:1rem 0">
+      <div style="font-size:3.5rem;color:#22c55e;margin-bottom:1rem;animation:evPop .5s ease">
+        <i class="fas fa-circle-check"></i>
+      </div>
+      <h2 style="margin-bottom:0.5rem">Password Reset!</h2>
+      <p class="sub">Your password has been successfully updated. You can now sign in with your new password.</p>
+      <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:10px;padding:1rem;margin:1rem 0">
+        <p style="font-size:0.85rem;color:#4ade80;margin:0">
+          <i class="fas fa-info-circle"></i>
+          Redirecting to sign in in <strong>${redirectSecs}s</strong>…
+        </p>
+      </div>
+      <a href="/login.html" class="btn-signin" style="display:inline-flex;text-decoration:none">
+        <i class="fas fa-sign-in-alt"></i> Sign In Now
+      </a>
+    </div>`;
+  }
+
+  // --- App ---
+  function App() {
+    const [view, setView] = useState('login');
+    const [toasts, showToast] = useToasts();
+    const [checking, setChecking] = useState(true);
+
+    useEffect(() => {
+      const token = localStorage.getItem('enejistats_token');
+      if (!token) { setChecking(false); return; }
+      fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + token }, credentials: 'include' })
+        .then(res => {
+          if (res.ok) {
+            const role = localStorage.getItem('enejistats_role') || '';
+            window.location.href = ROLE_DASHBOARDS[role] || '/';
+          } else {
+            localStorage.clear();
+            setChecking(false);
+          }
+        })
+        .catch(() => setChecking(false));
+    }, []);
+
+    if (checking) return html`<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:rgba(255,255,255,0.5)">
+      <div class="spinner" style="width:32px;height:32px;border-color:rgba(255,255,255,0.2);border-top-color:var(--gold)"></div>
+    </div>`;
+
+    return html`
+      <${ToastContainer} toasts=${toasts} />
+      <div class="page">
+        <div class="left-panel">
+          <${Logo} size=${34}/>
+          <h2 class="lp-heading">Nigeria's Trusted<br/>Football Data Platform</h2>
+          <p class="lp-sub">Connecting players, clubs, scouts and agents through verified, data-driven football intelligence.</p>
+          <ul class="lp-features">
+            <li><i class="fas fa-check-circle"></i> Verified match statistics</li>
+            <li><i class="fas fa-check-circle"></i> Players, Clubs, Scouts &amp; Agents</li>
+            <li><i class="fas fa-check-circle"></i> Live leaderboards &amp; competitions</li>
+            <li><i class="fas fa-check-circle"></i> Secure, data-driven talent tracking</li>
+          </ul>
+          <blockquote class="lp-quote">"Every stat, every match, every moment — verified."</blockquote>
+          <p class="lp-cta">Don't have an account? <a href="/register.html">Register here →</a></p>
+        </div>
+
+        <div class="right-panel">
+          <div>
+            <div class="mobile-logo">
+              <${Logo} size=${24}/>
+              <p class="mobile-tagline">Nigeria's Trusted Football Data Platform</p>
+            </div>
+            <div class="form-card">
+              ${view === 'login'
+                ? html`<${LoginForm} onForgot=${() => setView('forgot')} showToast=${showToast} />`
+                : html`<${ForgotPassword} onBack=${() => setView('login')} showToast=${showToast} />`}
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  render(html`<${App} />`, document.getElementById('app'));
+})();
+</script>
+</body>
+</html>

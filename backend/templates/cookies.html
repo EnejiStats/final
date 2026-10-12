@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cookie Policy — Enejistats</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <script src="https://unpkg.com/preact@10.19.3/dist/preact.umd.js"></script>
+  <script src="https://unpkg.com/preact@10.19.3/hooks/dist/hooks.umd.js"></script>
+  <script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary:#004aad;--primary-light:#0066cc;--gold:#f5b800;
+      --dark-bg: #1e1e2f; --muted: #94a3b8; --line: #e2e8f0;
+      --radius: 12px; --shadow: 0 4px 20px rgba(0,0,0,0.08);
+      --font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--font); color: #1e293b; background: #f8fafc; }
+    .site-header { position: sticky; top: 0; z-index: 100; background: #162060; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .header-inner { max-width: 1200px; margin: 0 auto; padding: 0 1.5rem; height: 82px; display: flex; align-items: center; justify-content: space-between; }
+    .nav-links { display: none; align-items: center; gap: 0.1rem; list-style: none; }
+    @media (min-width: 769px) { .nav-links { display: flex; } }
+    .nav-links a { color: rgba(255,255,255,0.8); text-decoration: none; font-size: 0.88rem; font-weight: 500; padding: 0.4rem 0.65rem; transition: color 0.2s; }
+    .nav-links a:hover { color: #fff; background: rgba(255,255,255,0.1); border-radius: 6px; }
+    .nav-links .btn-nav { background: var(--gold); color: #0f172a !important; border-radius: 8px; padding: 0.45rem 1rem !important; font-weight: 700; }
+    .dropdown { position: relative; }
+    .dropdown-menu { display: none; position: absolute; top: calc(100% + 8px); left: 0; background: #1e1e2f; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; min-width: 150px; z-index: 200; overflow: hidden; }
+    .dropdown:hover .dropdown-menu { display: block; }
+    .dropdown-menu a { display: block; padding: 0.65rem 1rem; color: rgba(255,255,255,0.8); font-size: 0.88rem; text-decoration: none; }
+    .dropdown-menu a:hover { background: rgba(255,255,255,0.08); color: #fff; }
+    .hamburger { display: flex; flex-direction: column; gap: 5px; cursor: pointer; background: none; border: none; padding: 0.3rem; }
+    @media (min-width: 769px) { .hamburger { display: none; } }
+    .hamburger span { display: block; width: 24px; height: 2px; background: #fff; border-radius: 2px; }
+    .mobile-nav { display: none; position: fixed; inset: 0; background: #162060; z-index: 200; flex-direction: column; padding: 2rem 1.5rem; gap: 0.5rem; overflow-y: auto; }
+    .mobile-nav.open { display: flex; }
+    .mobile-nav-close { align-self: flex-end; background: none; border: none; font-size: 1.5rem; color: #fff; cursor: pointer; margin-bottom: 1rem; }
+    .mobile-nav a { color: rgba(255,255,255,0.85); text-decoration: none; font-size: 1rem; font-weight: 500; padding: 0.75rem; border-radius: 8px; display: block; }
+    .mobile-nav a:hover { background: rgba(255,255,255,0.1); color: #fff; }
+    .page-hero { background: linear-gradient(135deg, #1e1e2f 0%, #004aad 100%); color: #fff; padding: 3rem 1.5rem 2.5rem; }
+    .page-hero .inner { max-width: 900px; margin: 0 auto; }
+    .page-hero h1 { font-size: clamp(1.6rem, 3.5vw, 2.4rem); font-weight: 800; margin-bottom: 0.4rem; }
+    .page-hero .meta { color: rgba(255,255,255,0.6); font-size: 0.88rem; margin-bottom: 0.5rem; }
+    .page-hero .summary { color: rgba(255,255,255,0.8); font-size: 1rem; border-left: 3px solid var(--gold); padding-left: 1rem; }
+    .doc-layout { max-width: 1100px; margin: 2.5rem auto; padding: 0 1.5rem 3rem; display: flex; gap: 2.5rem; align-items: flex-start; }
+    .toc { display: none; }
+    @media (min-width: 992px) {
+      .toc { display: block; width: 230px; flex-shrink: 0; position: sticky; top: 80px; background: #fff; border-radius: 12px; box-shadow: var(--shadow); padding: 1.2rem; }
+    }
+    .toc h3 { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 0.8rem; }
+    .toc ol { list-style: none; display: flex; flex-direction: column; gap: 0.15rem; counter-reset: toc-counter; }
+    .toc ol li { counter-increment: toc-counter; }
+    .toc ol li a { display: flex; align-items: baseline; gap: 0.4rem; color: #475569; text-decoration: none; font-size: 0.82rem; padding: 0.35rem 0.5rem; border-radius: 6px; transition: all 0.2s; }
+    .toc ol li a::before { content: counter(toc-counter); color: var(--gold); font-weight: 700; font-size: 0.7rem; flex-shrink: 0; }
+    .toc ol li a:hover { background: #f1f5f9; color: var(--primary); }
+    .toc ol li a.active { background: #eff6ff; color: var(--primary); font-weight: 600; }
+    .doc-content { flex: 1; min-width: 0; }
+    .doc-content section { background: #fff; border-radius: var(--radius); box-shadow: var(--shadow); padding: 1.8rem 2rem; margin-bottom: 1.5rem; }
+    .doc-content h2 { font-size: 1.2rem; font-weight: 700; color: var(--primary); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; padding-bottom: 0.7rem; border-bottom: 2px solid var(--line); }
+    .doc-content h2 .num { background: var(--primary); color: #fff; border-radius: 50%; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; flex-shrink: 0; }
+    .doc-content p { color: #374151; font-size: 0.92rem; line-height: 1.75; margin-bottom: 0.85rem; }
+    .doc-content p:last-child { margin-bottom: 0; }
+    .doc-content ul { padding-left: 1.4rem; margin: 0.7rem 0; }
+    .doc-content li { color: #374151; font-size: 0.92rem; line-height: 1.7; margin-bottom: 0.35rem; }
+    .doc-content strong { color: #1e293b; }
+    .doc-content a { color: var(--primary); }
+    .anchor-link { color: var(--muted) !important; text-decoration: none; margin-left: 0.5rem; font-size: 0.8rem; opacity: 0; transition: opacity 0.2s; }
+    .doc-content h2:hover .anchor-link { opacity: 1; }
+    .cookie-type-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; margin: 1rem 0; }
+    .cookie-type-card { background: #f8fafc; border: 1px solid var(--line); border-radius: 10px; padding: 1.1rem; }
+    .cookie-type-card .ct-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 0.6rem; }
+    .cookie-type-card .ct-icon.essential { background: #eff6ff; color: var(--primary); }
+    .cookie-type-card .ct-icon.functional { background: #f0fdf4; color: #16a34a; }
+    .cookie-type-card .ct-icon.analytics { background: #fff7ed; color: #ea580c; }
+    .cookie-type-card .ct-icon.marketing { background: #fdf4ff; color: #9333ea; }
+    .cookie-type-card h4 { font-size: 0.88rem; font-weight: 700; color: #1e293b; margin-bottom: 0.3rem; }
+    .cookie-type-card p { font-size: 0.8rem; color: var(--muted); margin-bottom: 0; }
+    .cookie-type-card .required-badge { display: inline-block; background: #eff6ff; color: var(--primary); font-size: 0.68rem; font-weight: 700; padding: 0.1rem 0.5rem; border-radius: 20px; margin-top: 0.4rem; }
+    .data-table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.85rem; overflow-x: auto; display: block; }
+    .data-table th { background: #eff6ff; color: var(--primary); text-align: left; padding: 0.65rem 0.9rem; font-weight: 700; border-bottom: 2px solid var(--line); white-space: nowrap; }
+    .data-table td { padding: 0.6rem 0.9rem; border-bottom: 1px solid var(--line); color: #374151; }
+    .data-table tr:last-child td { border-bottom: none; }
+    .legal-contact { background: #eff6ff; border-left: 4px solid var(--primary); border-radius: 0 var(--radius) var(--radius) 0; padding: 1.2rem 1.5rem; margin-top: 1.5rem; font-size: 0.9rem; color: #1e293b; }
+    .legal-contact a { color: var(--primary); }
+    .manage-btn { display: inline-flex; align-items: center; gap: 0.5rem; background: var(--primary); color: #fff; border: none; border-radius: 8px; padding: 0.6rem 1.2rem; font-size: 0.9rem; font-weight: 600; cursor: pointer; margin-top: 0.8rem; transition: background 0.2s; }
+    .manage-btn:hover { background: var(--primary-light); }
+    .site-footer { background: #1e1e1e; color: rgba(255,255,255,0.75); padding: 3rem 1.5rem 1.5rem; }
+    .footer-grid { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr; gap: 2rem; }
+    @media (min-width: 600px) { .footer-grid { grid-template-columns: 1fr 1fr; } }
+    @media (min-width: 992px) { .footer-grid { grid-template-columns: 1.5fr 1fr 1fr 1fr; } }
+    .footer-col h4 { color: #fff; font-size: 0.9rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 1rem; }
+    .footer-col p { font-size: 0.85rem; line-height: 1.65; }
+    .footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+    .footer-col ul a { color: rgba(255,255,255,0.65); text-decoration: none; font-size: 0.85rem; transition: color 0.2s; }
+    .footer-col ul a:hover { color: var(--gold); }
+    .social-links { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.5rem; }
+    .social-links a { color: rgba(255,255,255,0.65); font-size: 1.1rem; transition: color 0.2s; }
+    .social-links a:hover { color: var(--gold); }
+    .footer-bottom { max-width: 1200px; margin: 2rem auto 0; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: space-between; font-size: 0.8rem; color: rgba(255,255,255,0.4); }
+    .footer-bottom a { color: rgba(255,255,255,0.45); text-decoration: none; }
+    .footer-bottom a:hover { color: var(--gold); }
+    .cookie-banner { position: fixed; bottom: 0; left: 0; right: 0; background: #1e2840; color: #fff; z-index: 999; padding: 1rem 1.5rem; box-shadow: 0 -4px 20px rgba(0,0,0,0.3); }
+    .cookie-inner { max-width: 1100px; margin: 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; justify-content: space-between; }
+    .cookie-text { font-size: 0.88rem; color: rgba(255,255,255,0.8); flex: 1; min-width: 200px; }
+    .cookie-text a { color: var(--gold); }
+    .cookie-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; flex-shrink: 0; }
+    .cookie-btn { padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; border: none; }
+    .cookie-btn.accept { background: var(--gold); color: #0a0a1a; }
+    .cookie-btn.reject { background: rgba(255,255,255,0.12); color: #fff; }
+    .cookie-btn.manage { background: transparent; color: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.25); }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1100; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+    .modal-box { background: #fff; border-radius: 16px; padding: 2rem; max-width: 500px; width: 100%; max-height: 90vh; overflow-y: auto; }
+    .modal-box h3 { font-size: 1.1rem; font-weight: 700; color: var(--dark-bg); margin-bottom: 1rem; }
+    .pref-row { display: flex; justify-content: space-between; align-items: center; padding: 0.8rem 0; border-bottom: 1px solid var(--line); gap: 1rem; }
+    .pref-row:last-of-type { border-bottom: none; }
+    .pref-row label { font-size: 0.9rem; font-weight: 600; color: #1e293b; }
+    .pref-row span { font-size: 0.8rem; color: var(--muted); display: block; margin-top: 0.2rem; }
+    .toggle-switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider { position: absolute; inset: 0; background: #cbd5e1; border-radius: 24px; cursor: pointer; transition: background 0.2s; }
+    .toggle-slider::before { content: ''; position: absolute; width: 18px; height: 18px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: transform 0.2s; }
+    .toggle-switch input:checked + .toggle-slider { background: var(--primary); }
+    .toggle-switch input:checked + .toggle-slider::before { transform: translateX(20px); }
+    .toggle-switch input:disabled + .toggle-slider { opacity: 0.6; cursor: not-allowed; }
+    .modal-actions { display: flex; gap: 0.7rem; margin-top: 1.5rem; }
+    .modal-actions button { flex: 1; padding: 0.7rem; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; border: none; }
+    .btn-save-pref { background: var(--primary); color: #fff; }
+    .btn-reject-all { background: #f1f5f9; color: var(--muted); }
+    @media print {
+      .site-header, .site-footer, .cookie-banner, .toc { display: none !important; }
+      .doc-content section { box-shadow: none; border: 1px solid var(--line); page-break-inside: avoid; }
+    }
+  
+    @media(max-width:480px){
+      .header-inner{padding:0 0.75rem}
+      .doc-layout{padding:0 0.75rem 2rem;flex-direction:column}
+      .doc-content section{padding:1.2rem 1rem}
+      .mobile-nav a{min-height:44px;display:flex;align-items:center}
+      .page-hero{padding:2rem 1rem 1.5rem}
+    }
+    @media(max-width:360px){
+      .header-inner{padding:0 0.5rem}
+      .doc-content section{padding:1rem 0.75rem}
+    }
+  </style>
+  <link rel="stylesheet" href="/static/css/eneji-branding.css"/>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(function() {
+  'use strict';
+  const { h, render } = preact;
+  const { useState, useEffect } = preactHooks;
+  const html = htm.bind(h);
+  const year = new Date().getFullYear();
+
+  function Header() {
+    const [menuOpen, setMenuOpen] = useState(false);
+    return html`<header class="site-header">
+      <div class="header-inner">
+        <a href="/"><img src="/static/images/eneji-stats-branding.png" alt="EnejiStats" class="eneji-logo-img eneji-logo-standalone"/></a>
+        <nav><ul class="nav-links">
+          <li><a href="/">Home</a></li>
+          <li><a href="/about.html">About</a></li>
+          <li class="dropdown">
+            <a class="dropdown-toggle" href="#">Stats Area <i class="fas fa-chevron-down" style="font-size:0.65rem"></i></a>
+            <div class="dropdown-menu"><a href="/player-stats.html">Player</a><a href="/browse.html">Browse</a></div>
+          </li>
+          <li><a href="/leaderboard.html">Leaderboard</a></li>
+          <li><a href="/competitions.html">Competitions &amp; Trials</a></li>
+          <li><a href="/pricing.html">Pricing</a></li>
+          <li><a href="/contact.html">Contact</a></li>
+          <li><a href="/register.html" class="btn-nav">Register / Sign In</a></li>
+        </ul></nav>
+        <button class="hamburger" onClick=${() => setMenuOpen(true)} aria-label="Open menu"><span></span><span></span><span></span></button>
+      </div>
+      <div class=${'mobile-nav' + (menuOpen ? ' open' : '')}>
+        <button class="mobile-nav-close" onClick=${() => setMenuOpen(false)}><i class="fas fa-times"></i></button>
+        <a href="/" onClick=${() => setMenuOpen(false)}>Home</a>
+        <a href="/about.html" onClick=${() => setMenuOpen(false)}>About</a>
+        <a href="/pricing.html" onClick=${() => setMenuOpen(false)}>Pricing</a>
+        <a href="/contact.html" onClick=${() => setMenuOpen(false)}>Contact</a>
+        <a href="/register.html" style="color:var(--primary);font-weight:700" onClick=${() => setMenuOpen(false)}>Register / Sign In</a>
+      </div>
+    </header>`;
+  }
+
+  function Footer() {
+    return html`<footer class="site-footer">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <h4>About Enejistats</h4>
+          <p>Leading football talent tracking in Nigeria. Connecting players, clubs, scouts, and agents through verified data.</p>
+          <p style="margin-top:0.6rem;font-style:italic;font-size:0.82rem;color:rgba(255,255,255,0.45)">Tracking talent with precision, integrity and reliability.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Quick Links</h4>
+          <ul>
+            <li><a href="/">Home</a></li><li><a href="/about.html">About</a></li>
+            <li><a href="/pricing.html">Pricing</a></li><li><a href="/leaderboard.html">Leaderboard</a></li>
+            <li><a href="/contact.html">Contact</a></li><li><a href="/register.html">Register</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>For Users</h4>
+          <ul>
+            <li><a href="/player-stats.html">Player Stats</a></li>
+            <li><a href="/club-stats.html">Club Stats</a></li>
+            <li><a href="/become-data-scout.html">Become a Data Scout</a></li>
+            <li><a href="/become-scout.html">Become a Scout</a></li>
+            <li><a href="/agent-programme.html">Agent Programme</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Connect</h4>
+          <ul><li><a href="mailto:enejistats@gmail.com"><i class="fas fa-envelope" style="width:16px"></i> enejistats@gmail.com</a></li></ul>
+          <div class="social-links">
+            <a href="#" aria-label="Twitter/X"><i class="fab fa-x-twitter"></i></a>
+            <a href="#" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
+            <a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+            <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+            <a href="#" aria-label="YouTube"><i class="fab fa-youtube"></i></a>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© ${year} Enejistats. All rights reserved.</span>
+        <span><a href="/terms.html">Terms</a> · <a href="/privacy.html">Privacy</a> · <a href="/cookies.html">Cookies</a></span>
+      </div>
+    </footer>`;
+  }
+
+  function CookieBanner({ onManage }) {
+    const [visible, setVisible] = useState(false);
+    const [modalOpen, setModalOpen] = useState(false);
+    const [prefs, setPrefs] = useState({ functional: true, analytics: false, marketing: false });
+    useEffect(() => { if (!localStorage.getItem('enejistats_cookie_consent')) setVisible(true); }, []);
+    function acceptAll() { localStorage.setItem('enejistats_cookie_consent', JSON.stringify({ essential:true,functional:true,analytics:true,marketing:true })); setVisible(false); }
+    function rejectNonEssential() { localStorage.setItem('enejistats_cookie_consent', JSON.stringify({ essential:true,functional:false,analytics:false,marketing:false })); setVisible(false); }
+    function savePrefs() { localStorage.setItem('enejistats_cookie_consent', JSON.stringify({ essential:true,...prefs })); setVisible(false); setModalOpen(false); }
+    const CATS = [
+      {key:'essential',label:'Essential Cookies',desc:'Required for site function.',locked:true},
+      {key:'functional',label:'Functional Cookies',desc:'Remember preferences.'},
+      {key:'analytics',label:'Analytics Cookies',desc:'Understand site usage.'},
+      {key:'marketing',label:'Marketing Cookies',desc:'Relevant advertisements.'}
+    ];
+    const Modal = () => html`<div class="modal-overlay" onClick=${e=>e.target===e.currentTarget&&setModalOpen(false)}>
+      <div class="modal-box" role="dialog" aria-modal="true">
+        <h3>Manage Cookie Preferences</h3>
+        ${CATS.map(c => html`<div class="pref-row" key=${c.key}>
+          <div><label for=${'ck-'+c.key}>${c.label}</label><span>${c.desc}</span></div>
+          <label class="toggle-switch">
+            <input id=${'ck-'+c.key} type="checkbox" checked=${c.locked||prefs[c.key]} disabled=${c.locked}
+              onChange=${e=>!c.locked&&setPrefs(p=>({...p,[c.key]:e.target.checked}))}/>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>`)}
+        <div class="modal-actions">
+          <button class="btn-reject-all" onClick=${rejectNonEssential}>Reject All</button>
+          <button class="btn-save-pref" onClick=${savePrefs}>Save Preferences</button>
+        </div>
+      </div>
+    </div>`;
+    return html`
+      ${modalOpen && html`<${Modal}/>`}
+      ${visible && html`<div class="cookie-banner">
+        <div class="cookie-inner">
+          <p class="cookie-text">We use cookies. See our <a href="/cookies.html">Cookie Policy</a> and <a href="/privacy.html">Privacy Policy</a>.</p>
+          <div class="cookie-actions">
+            <button class="cookie-btn manage" onClick=${()=>setModalOpen(true)}>Manage preferences</button>
+            <button class="cookie-btn reject" onClick=${rejectNonEssential}>Reject non-essential</button>
+            <button class="cookie-btn accept" onClick=${acceptAll}>Accept all</button>
+          </div>
+        </div>
+      </div>`}`;
+  }
+
+  const SECTIONS = [
+    { id: 'what-are', title: 'What Are Cookies?', num: 1 },
+    { id: 'categories', title: 'Categories of Cookies We Use', num: 2 },
+    { id: 'specific', title: 'Specific Cookies Table', num: 3 },
+    { id: 'managing', title: 'Managing Your Preferences', num: 4 },
+    { id: 'third-party', title: 'Third-Party Cookies', num: 5 },
+    { id: 'updates', title: 'Policy Updates', num: 6 },
+    { id: 'contact', title: 'Contact', num: 7 }
+  ];
+
+  const COOKIE_DETAILS = [
+    { name: 'enejistats_token', category: 'Essential', purpose: 'Stores your authentication token for the current session.', duration: 'Session / 30 days (if "Remember me" is checked)', provider: 'Enejistats' },
+    { name: 'enejistats_role', category: 'Essential', purpose: 'Stores your user role for correct dashboard routing.', duration: 'Session / 30 days', provider: 'Enejistats' },
+    { name: 'enejistats_user_id', category: 'Essential', purpose: 'Stores your user identifier for API calls.', duration: 'Session / 30 days', provider: 'Enejistats' },
+    { name: 'enejistats_name', category: 'Essential', purpose: 'Stores your display name for the dashboard header.', duration: 'Session / 30 days', provider: 'Enejistats' },
+    { name: 'enejistats_avatar', category: 'Functional', purpose: 'Stores your profile avatar URL for quick display.', duration: 'Session / 30 days', provider: 'Enejistats' },
+    { name: 'enejistats_cookie_consent', category: 'Essential', purpose: 'Stores your cookie consent preferences.', duration: '12 months', provider: 'Enejistats' },
+    { name: 'enejistats_remember', category: 'Functional', purpose: 'Indicates whether extended token persistence is enabled.', duration: '30 days', provider: 'Enejistats' },
+    { name: '_flw_*', category: 'Essential', purpose: 'Flutterwave payment session cookies used during checkout.', duration: 'Session', provider: 'Flutterwave' },
+    { name: '_ga, _gid', category: 'Analytics', purpose: 'Google Analytics cookies used to track site usage and performance (if analytics consent is granted).', duration: '2 years / 24 hours', provider: 'Google (third party)' },
+    { name: 'fbp, _fbp', category: 'Marketing', purpose: 'Facebook Pixel cookies for marketing attribution (if marketing consent is granted).', duration: '90 days', provider: 'Meta (third party)' }
+  ];
+
+  const CAT_BADGES = {
+    Essential: { bg: '#eff6ff', color: '#1d4ed8' },
+    Functional: { bg: '#f0fdf4', color: '#15803d' },
+    Analytics: { bg: '#fff7ed', color: '#c2410c' },
+    Marketing: { bg: '#fdf4ff', color: '#7e22ce' }
+  };
+
+  function Section({ id, num, title, children }) {
+    return html`<section id=${id}>
+      <h2>
+        <span class="num">${num}</span>${title}
+        <a href=${'#' + id} class="anchor-link"><i class="fas fa-link"></i></a>
+      </h2>
+      ${children}
+    </section>`;
+  }
+
+  function TOC({ activeId }) {
+    return html`<nav class="toc" aria-label="Table of contents">
+      <h3>Contents</h3>
+      <ol>
+        ${SECTIONS.map(s => html`<li key=${s.id}><a href=${'#'+s.id} class=${activeId===s.id?'active':''}>${s.title}</a></li>`)}
+      </ol>
+    </nav>`;
+  }
+
+  function App() {
+    const [activeId, setActiveId] = useState('');
+    const [manageModal, setManageModal] = useState(false);
+    useEffect(() => {
+      const observer = new IntersectionObserver(entries => {
+        entries.forEach(e => { if (e.isIntersecting) setActiveId(e.target.id); });
+      }, { rootMargin: '-60px 0px -70% 0px' });
+      SECTIONS.forEach(s => { const el = document.getElementById(s.id); if (el) observer.observe(el); });
+      return () => observer.disconnect();
+    }, []);
+
+    return html`
+      <${Header} />
+      <div class="page-hero">
+        <div class="inner">
+          <h1>Cookie Policy</h1>
+          <p class="meta">Last updated: 18 May 2025</p>
+          <p class="summary">This policy explains how Enejistats uses cookies and similar tracking technologies, and how you can manage your preferences.</p>
+        </div>
+      </div>
+      <div class="doc-layout">
+        <${TOC} activeId=${activeId} />
+        <div class="doc-content">
+
+          <${Section} id="what-are" num=${1} title="What Are Cookies?">
+            <p>Cookies are small text files placed on your device when you visit a website. They allow the website to recognise your device on subsequent visits, remember your preferences, and provide a more personalised experience.</p>
+            <p>Similar technologies include:</p>
+            <ul>
+              <li><strong>localStorage / sessionStorage:</strong> Browser-based key-value stores used by Enejistats to securely persist your authentication token and preferences within the browser tab or session.</li>
+              <li><strong>Web beacons:</strong> Tiny image files embedded in pages or emails used by analytics and marketing partners to track interactions.</li>
+              <li><strong>Pixels:</strong> Script-based tracking tools used for conversion attribution by third-party advertising platforms.</li>
+            </ul>
+            <p>Cookies can be "session" cookies (deleted when you close your browser) or "persistent" cookies (remain on your device for a set period). They can be set by Enejistats directly ("first-party") or by third-party services we use.</p>
+          <//>
+
+          <${Section} id="categories" num=${2} title="Categories of Cookies We Use">
+            <div class="cookie-type-grid">
+              <div class="cookie-type-card">
+                <div class="ct-icon essential"><i class="fas fa-shield-halved"></i></div>
+                <h4>Essential Cookies</h4>
+                <p>Strictly necessary for the platform to function. They enable login, session management, and payment processing. Cannot be disabled.</p>
+                <span class="required-badge">Always active</span>
+              </div>
+              <div class="cookie-type-card">
+                <div class="ct-icon functional"><i class="fas fa-sliders"></i></div>
+                <h4>Functional Cookies</h4>
+                <p>Remember your preferences and settings such as "Remember me" and avatar display. Improve your experience across sessions.</p>
+              </div>
+              <div class="cookie-type-card">
+                <div class="ct-icon analytics"><i class="fas fa-chart-line"></i></div>
+                <h4>Analytics Cookies</h4>
+                <p>Help us understand how visitors use the platform so we can improve features, fix issues, and measure performance.</p>
+              </div>
+              <div class="cookie-type-card">
+                <div class="ct-icon marketing"><i class="fas fa-bullhorn"></i></div>
+                <h4>Marketing Cookies</h4>
+                <p>Set by advertising partners to show relevant advertisements and measure the effectiveness of marketing campaigns.</p>
+              </div>
+            </div>
+          <//>
+
+          <${Section} id="specific" num=${3} title="Specific Cookies Table">
+            <p>The table below lists the specific cookies and local storage items used by Enejistats and its third-party partners.</p>
+            <div style="overflow-x:auto">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Purpose</th>
+                    <th>Duration</th>
+                    <th>Provider</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${COOKIE_DETAILS.map((c, i) => html`<tr key=${i}>
+                    <td><code style="font-size:0.82rem;background:#f1f5f9;padding:0.1rem 0.4rem;border-radius:4px">${c.name}</code></td>
+                    <td><span style=${'background:' + (CAT_BADGES[c.category]?.bg||'#f1f5f9') + ';color:' + (CAT_BADGES[c.category]?.color||'#475569') + ';font-size:0.72rem;font-weight:700;padding:0.15rem 0.5rem;border-radius:20px;white-space:nowrap'}>${c.category}</span></td>
+                    <td style="font-size:0.84rem">${c.purpose}</td>
+                    <td style="font-size:0.82rem;white-space:nowrap">${c.duration}</td>
+                    <td style="font-size:0.82rem">${c.provider}</td>
+                  </tr>`)}
+                </tbody>
+              </table>
+            </div>
+          <//>
+
+          <${Section} id="managing" num=${4} title="Managing Your Preferences">
+            <p>You have full control over non-essential cookies. You can manage your preferences in the following ways:</p>
+            <ul>
+              <li><strong>Cookie consent banner:</strong> When you first visit Enejistats, a banner allows you to accept all, reject non-essential, or customise your preferences.</li>
+              <li><strong>Preference manager:</strong> Click the button below at any time to review and update your cookie settings.</li>
+              <li><strong>Browser settings:</strong> Most browsers allow you to block or delete cookies. Note that blocking essential cookies will prevent you from logging in. See your browser's help documentation for instructions.</li>
+              <li><strong>Opt-out links:</strong> For Google Analytics, visit <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">tools.google.com/dlpage/gaoptout</a>. For Facebook, visit <a href="https://www.facebook.com/settings/?tab=ads" target="_blank" rel="noopener">facebook.com/settings/?tab=ads</a>.</li>
+            </ul>
+            <button class="manage-btn" onClick=${() => {
+              localStorage.removeItem('enejistats_cookie_consent');
+              window.location.reload();
+            }}>
+              <i class="fas fa-sliders"></i> Open Cookie Preferences
+            </button>
+          <//>
+
+          <${Section} id="third-party" num=${5} title="Third-Party Cookies">
+            <p>Enejistats integrates with third-party services that may place their own cookies on your device:</p>
+            <ul>
+              <li><strong>Flutterwave:</strong> Our payment processor sets essential cookies during the checkout flow to maintain session integrity and prevent fraud. These are required for payment processing and cannot be disabled.</li>
+              <li><strong>Google Analytics:</strong> If analytics consent is granted, Google Analytics collects aggregated, anonymised usage data. Google may combine this with data from other Google services. See <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's Privacy Policy</a>.</li>
+              <li><strong>Meta (Facebook) Pixel:</strong> If marketing consent is granted, the Facebook Pixel may be used for advertising attribution. See <a href="https://www.facebook.com/privacy/policy" target="_blank" rel="noopener">Meta's Privacy Policy</a>.</li>
+            </ul>
+            <p>Enejistats does not control the cookies set by these third parties. We recommend reviewing their respective privacy policies for more information.</p>
+          <//>
+
+          <${Section} id="updates" num=${6} title="Policy Updates">
+            <p>Enejistats may update this Cookie Policy from time to time to reflect changes in technology, law, or our practices. The "Last updated" date at the top of this page indicates when the policy was most recently revised.</p>
+            <p>If we make material changes, we will notify you via the cookie banner or by email where required. Continued use of the platform after the effective date constitutes acceptance of the updated policy.</p>
+          <//>
+
+          <${Section} id="contact" num=${7} title="Contact">
+            <p>If you have questions about our use of cookies or wish to exercise your rights regarding cookie-related data:</p>
+            <div class="legal-contact">
+              <strong>Enejistats Data Protection Officer</strong><br/>
+              Email: <a href="mailto:enejistats@gmail.com">enejistats@gmail.com</a><br/>
+              Subject: "Cookie Policy Enquiry"
+            </div>
+          <//>
+
+        </div>
+      </div>
+      <${Footer} />
+      <${CookieBanner} />`;
+  }
+
+  render(html`<${App} />`, document.getElementById('app'));
+})();
+</script>
+</body>
+</html>

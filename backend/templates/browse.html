@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Browse Players & Clubs — EnejiStats</title>
+  <meta name="description" content="Discover and filter football players and clubs across Africa on EnejiStats."/>
+  <script src="https://unpkg.com/preact@10.19.3/dist/preact.umd.js"></script>
+  <script src="https://unpkg.com/preact@10.19.3/hooks/dist/hooks.umd.js"></script>
+  <script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --primary:#004aad;--primary-light:#0066cc;--gold:#f5b800;--header-bg:#162060;--dark-bg:#1e1e2f;--page-bg:#0f172a;
+      --success:#22c55e;--muted:#94a3b8;--line:rgba(255,255,255,0.08);--radius:12px;
+      --shadow:0 4px 24px rgba(0,0,0,0.4);--font:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
+    }
+    html{scroll-behavior:smooth}
+    body{font-family:var(--font);background:var(--page-bg);color:#e2e8f0;line-height:1.6;overflow-x:hidden}
+    a{text-decoration:none;color:inherit}
+    ul{list-style:none}
+    .container{max-width:1200px;margin:0 auto;padding:0 1rem}
+
+    /* HEADER */
+    .site-header{position:sticky;top:0;z-index:1000;background:var(--header-bg)}
+    .header-stripe{height:4px;background:var(--gold)}
+    .header-inner{display:flex;align-items:center;justify-content:space-between;height:82px;padding:0 1rem;max-width:1200px;margin:0 auto;overflow:visible}
+    .nav-desktop{display:none;gap:0.25rem;align-items:center}
+    @media(min-width:769px){.nav-desktop{display:flex}}
+    .nav-desktop a{color:rgba(255,255,255,0.8);font-size:0.88rem;font-weight:500;padding:0.4rem 0.6rem;border-radius:6px;transition:color 0.2s}
+    .nav-desktop a:hover,.nav-desktop a.active{color:#fff;background:rgba(255,255,255,0.1)}
+    .btn-nav{background:var(--gold);color:#0f172a!important;padding:0.45rem 1rem!important;border-radius:8px;font-weight:700!important}
+    .hamburger{display:flex;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:4px}
+    @media(min-width:769px){.hamburger{display:none}}
+    .hamburger span{display:block;width:22px;height:2px;background:#fff;border-radius:2px}
+    .mobile-nav{display:none;position:fixed;inset:0;background:var(--header-bg);z-index:2000;flex-direction:column;padding:1.5rem;gap:0.25rem}
+    .mobile-nav.open{display:flex}
+    .mobile-nav-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem}
+    .mobile-nav a{color:rgba(255,255,255,0.85);font-size:1.05rem;font-weight:500;padding:0.8rem;border-radius:8px;display:block}
+    .mobile-nav a:hover{background:rgba(255,255,255,0.1);color:#fff}
+    .close-btn{background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer}
+    .dropdown{position:relative}
+    .dropdown-menu{display:none;position:absolute;top:calc(100%+6px);left:0;background:#1e1e2f;border:1px solid var(--line);border-radius:10px;min-width:160px;overflow:hidden;z-index:200}
+    .dropdown:hover .dropdown-menu{display:block}
+    .dropdown-menu a{display:block;padding:0.65rem 1rem;color:rgba(255,255,255,0.8);font-size:0.88rem}
+    .dropdown-menu a:hover{background:rgba(255,255,255,0.08);color:#fff}
+
+    /* HERO */
+    .hero-strip{background:linear-gradient(135deg,var(--header-bg),#0d1b3e);color:#fff;padding:3rem 1rem;text-align:center;border-bottom:4px solid var(--gold)}
+    .hero-strip h1{font-size:clamp(1.6rem,4vw,2.4rem);font-weight:800;margin-bottom:0.5rem}
+    .hero-strip p{color:rgba(255,255,255,0.75);font-size:1rem}
+
+    /* SEARCH */
+    .search-bar{background:var(--dark-bg);position:sticky;top:68px;z-index:900;padding:1rem;border-bottom:1px solid var(--line)}
+    .search-wrap{max-width:1200px;margin:0 auto;position:relative}
+    .search-input-row{display:flex;align-items:center;background:rgba(255,255,255,0.06);border:1px solid var(--line);border-radius:var(--radius);padding:0.4rem 1rem;transition:border-color 0.2s}
+    .search-input-row:focus-within{border-color:var(--gold)}
+    .search-input-row i{color:var(--muted);margin-right:0.75rem}
+    .search-input-row input{background:transparent;border:none;outline:none;color:#e2e8f0;font-size:1rem;width:100%;padding:0.5rem 0}
+    .search-input-row input::placeholder{color:var(--muted)}
+    .typeahead{position:absolute;top:100%;left:0;right:0;background:var(--dark-bg);border:1px solid var(--line);border-radius:0 0 var(--radius) var(--radius);margin-top:4px;max-height:360px;overflow-y:auto;display:none;z-index:100}
+    .typeahead.active{display:block}
+    .typeahead-header{padding:0.5rem 1rem;font-size:0.72rem;font-weight:700;text-transform:uppercase;color:var(--muted);letter-spacing:0.05em}
+    .typeahead-item{display:flex;align-items:center;gap:0.75rem;padding:0.65rem 1rem;cursor:pointer;transition:background 0.2s}
+    .typeahead-item:hover{background:rgba(255,255,255,0.06)}
+    .ta-avatar{width:32px;height:32px;border-radius:50%;background:var(--header-bg);border:1px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:0.8rem;font-weight:700;color:var(--gold);flex-shrink:0}
+    .ta-name{font-weight:600;font-size:0.9rem}
+    .ta-meta{font-size:0.78rem;color:var(--muted)}
+
+    /* LAYOUT */
+    .main-wrap{max-width:1200px;margin:1.5rem auto;padding:0 1rem;display:grid;grid-template-columns:1fr;gap:1.5rem}
+    @media(min-width:992px){.main-wrap{grid-template-columns:260px 1fr}}
+
+    /* SIDEBAR */
+    .sidebar{background:var(--dark-bg);border:1px solid var(--line);border-radius:var(--radius);padding:1.25rem;height:fit-content}
+    .sidebar-head{font-weight:700;font-size:1rem;margin-bottom:1.25rem;display:flex;justify-content:space-between;align-items:center}
+    .filter-group{margin-bottom:1.25rem}
+    .filter-label{font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);margin-bottom:0.5rem;display:block}
+    .filter-select{width:100%;background:rgba(255,255,255,0.06);border:1px solid var(--line);border-radius:8px;padding:0.5rem 0.75rem;color:#e2e8f0;font-size:0.9rem;outline:none;cursor:pointer}
+    .filter-select:focus{border-color:var(--gold)}
+    .filter-select option{background:var(--dark-bg);color:#e2e8f0}
+    .filter-toggle{display:block;background:var(--gold);color:#0f172a;padding:0.65rem 1rem;border-radius:8px;font-weight:700;text-align:center;cursor:pointer;margin-bottom:1rem;border:none;width:100%;font-size:0.9rem}
+    @media(min-width:992px){.filter-toggle{display:none}}
+    .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1500}
+    .sidebar-overlay.active{display:block}
+    .sidebar.mobile-active{position:fixed;top:0;left:0;height:100%;overflow-y:auto;z-index:1600;border-radius:0;width:min(300px,100%)}
+
+    /* TABS */
+    .tab-bar{display:flex;gap:0.5rem;margin-bottom:1.25rem;border-bottom:1px solid var(--line);padding-bottom:0}
+    .tab-btn{background:none;border:none;cursor:pointer;font-weight:600;font-size:0.95rem;color:var(--muted);padding:0.75rem 1rem;border-bottom:3px solid transparent;transition:all 0.2s}
+    .tab-btn:hover{color:#fff}
+    .tab-btn.active{color:var(--gold);border-bottom-color:var(--gold)}
+
+    /* RESULTS */
+    .results-grid{display:grid;grid-template-columns:1fr;gap:1rem}
+    @media(min-width:500px){.results-grid{grid-template-columns:1fr 1fr}}
+    @media(min-width:900px){.results-grid{grid-template-columns:repeat(3,1fr)}}
+
+    /* CARDS */
+    .card{background:var(--dark-bg);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;transition:transform 0.2s,border-color 0.2s;display:flex;flex-direction:column;cursor:pointer}
+    .card:hover{transform:translateY(-4px);border-color:var(--gold)}
+    .card-body{padding:1.25rem;flex:1}
+    .card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:0.75rem}
+    .card-avatar{width:45px;height:45px;border-radius:50%;background:var(--header-bg);border:2px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;color:var(--gold);overflow:hidden;flex-shrink:0}
+    .card-avatar img{width:100%;height:100%;object-fit:cover}
+     /* Player cards stay compact while preserving the leaderboard treatment.
+        180px is 60% of the previous 300px desktop image size. */
+     .player-card .card-body{padding:0.85rem}
+     .player-card .card-top{margin-bottom:0.55rem}
+     .player-photo{width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,0.08);border:4px solid var(--primary);box-shadow:0 4px 12px rgba(0,0,0,0.15);display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:700;color:var(--gold);overflow:hidden;object-fit:cover;flex-shrink:0;margin:12px auto 10px}
+     .player-photo img{width:100%;height:100%;object-fit:cover;background:rgba(255,255,255,0.05);display:block}
+     @media(max-width:768px){.player-photo{width:120px;height:120px;margin:10px auto 8px;font-size:1.5rem}}
+    .player-card .card-name{font-size:0.95rem;margin-bottom:0.15rem}
+    .verified-tick{color:var(--primary);font-size:0.85rem}
+    .card-meta{font-size:0.8rem;color:var(--muted);margin-bottom:0.25rem}
+    .card-meta .country-flag{width:16px;height:12px;object-fit:cover;border-radius:2px;vertical-align:-1px;margin-right:0.25rem}
+     .player-card .card-meta{margin-bottom:0.15rem}
+     .player-stats-preview{display:grid;grid-template-columns:1fr 1fr;gap:0.25rem;margin-top:0.55rem;padding-top:0.55rem;border-top:1px solid var(--line);font-size:0.7rem;color:var(--muted);line-height:1.25}
+    .player-stat{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .player-stat strong{color:#e2e8f0;font-weight:700}
+     .card-footer-row{padding:0.75rem 1.25rem;background:rgba(255,255,255,0.03);border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;font-size:0.82rem;color:var(--gold);font-weight:600}
+     .player-card .card-footer-row{padding:0.55rem 0.85rem;font-size:0.78rem}
+
+    /* PAGINATION */
+    .pagination{display:flex;justify-content:center;gap:0.4rem;margin:2rem 0 3rem;flex-wrap:wrap}
+    .page-btn{width:38px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:8px;border:1px solid var(--line);background:var(--dark-bg);cursor:pointer;font-weight:600;color:#e2e8f0;font-size:0.85rem;transition:all 0.2s}
+    .page-btn:hover:not(:disabled){border-color:var(--gold);color:var(--gold)}
+    .page-btn.active{background:var(--gold);color:#0f172a;border-color:var(--gold)}
+    .page-btn:disabled{opacity:0.4;cursor:not-allowed}
+
+    /* PAYWALL */
+    .paywall-hint{background:rgba(245,184,0,0.08);border:1px solid rgba(245,184,0,0.3);border-radius:var(--radius);padding:1.25rem;text-align:center;font-size:0.9rem;color:var(--muted);margin-top:1.5rem}
+    .paywall-hint a{color:var(--gold);font-weight:700}
+
+    /* EMPTY */
+    .empty-state{text-align:center;padding:4rem 1rem;background:var(--dark-bg);border:1px solid var(--line);border-radius:var(--radius)}
+    .empty-state i{font-size:3rem;color:var(--muted);margin-bottom:1rem;display:block}
+    .empty-state p{color:var(--muted)}
+
+    /* SKELETON */
+    .skeleton{background:linear-gradient(90deg,#1e1e2f 25%,#2a2a40 50%,#1e1e2f 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:6px}
+    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+    /* FOOTER */
+    .site-footer{background:#0a0a14;border-top:1px solid var(--line);padding:3.5rem 1rem 1.5rem;margin-top:2rem}
+    .footer-grid{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr;gap:2.5rem}
+    @media(min-width:600px){.footer-grid{grid-template-columns:1fr 1fr}}
+    @media(min-width:992px){.footer-grid{grid-template-columns:1.6fr 1fr 1fr 1fr}}
+    .footer-col h4{color:#fff;font-size:0.85rem;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:1rem}
+    .footer-col p,.footer-col ul a{font-size:0.85rem;color:var(--muted)}
+    .footer-col ul li{margin-bottom:0.6rem}
+    .footer-col ul a:hover{color:var(--gold)}
+    .footer-bottom{max-width:1200px;margin:2rem auto 0;padding-top:1.25rem;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:space-between;font-size:0.78rem;color:var(--muted)}
+    .footer-bottom a{color:var(--muted)}.footer-bottom a:hover{color:var(--gold)}
+  
+    @media(max-width:480px){
+      .container{padding:0 0.75rem}
+      .header-inner{height:66px;padding:0 0.75rem}
+      .hero h1{font-size:clamp(1.4rem,7vw,2.2rem)}
+      .section,.section-alt{padding:2.5rem 0}
+      .btn,.btn-nav,.btn-gold{min-height:44px}
+      .mobile-nav a{min-height:44px;display:flex;align-items:center}
+      .footer-grid{gap:1.5rem}
+      .footer-bottom{flex-direction:column;gap:0.4rem}
+    }
+    @media(max-width:360px){
+      .container{padding:0 0.5rem}
+      .header-inner{padding:0 0.5rem}
+    }
+  </style>
+  <link rel="stylesheet" href="/static/css/eneji-branding.css"/>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(function(){
+  'use strict';
+  const {h,render}=preact;
+  const {useState,useEffect,useCallback,useRef}=preactHooks;
+  const html=htm.bind(h);
+  const year=new Date().getFullYear();
+
+  function Logo(){
+    return html`<a href="/" style=${{textDecoration:'none',display:'inline-block',verticalAlign:'middle'}}>
+      <img src="/static/images/eneji-stats-branding.png" alt="EnejiStats" class="eneji-logo-img"/>
+    </a>`;
+  }
+
+  function Header(){
+    const [open,setOpen]=useState(false);
+    return html`
+      <header class="site-header">
+        <div class="header-stripe"/>
+        <div class="header-inner">
+          <${Logo}/>
+          <nav class="nav-desktop">
+            <a href="/">Home</a><a href="/about.html">About</a>
+            <div class="dropdown">
+              <a href="#" class="active">Stats Area <i class="fas fa-chevron-down" style="font-size:0.65rem"/></a>
+              <div class="dropdown-menu">
+                <a href="/browse.html">Browse</a>
+              </div>
+            </div>
+            <a href="/leaderboard.html">Leaderboard</a>
+            <a href="/competitions.html">Competitions & Trials</a>
+            <a href="/pricing.html">Pricing</a>
+            <a href="/contact.html">Contact</a>
+            <a href="/register.html" class="btn-nav">Register / Sign In</a>
+          </nav>
+          <button class="hamburger" onClick=${()=>setOpen(true)}><span/><span/><span/></button>
+        </div>
+        <div class=${'mobile-nav'+(open?' open':'')}>
+          <div class="mobile-nav-top">
+            <${Logo}/><button class="close-btn" onClick=${()=>setOpen(false)}><i class="fas fa-times"/></button>
+          </div>
+          <a href="/" onClick=${()=>setOpen(false)}>Home</a>
+          <a href="/about.html" onClick=${()=>setOpen(false)}>About</a>
+          <a href="/browse.html" class="active" onClick=${()=>setOpen(false)}>Browse</a>
+          <a href="/leaderboard.html" onClick=${()=>setOpen(false)}>Leaderboard</a>
+          <a href="/competitions.html" onClick=${()=>setOpen(false)}>Competitions & Trials</a>
+          <a href="/pricing.html" onClick=${()=>setOpen(false)}>Pricing</a>
+          <a href="/contact.html" onClick=${()=>setOpen(false)}>Contact</a>
+          <a href="/register.html" style="color:var(--gold);font-weight:700" onClick=${()=>setOpen(false)}>Register / Sign In</a>
+        </div>
+      </header>`;
+  }
+
+  function Footer(){
+    return html`<footer class="site-footer">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <${Logo}/>
+          <p style="margin-top:0.75rem">Nigeria's trusted football data platform. Tracking talent with precision, integrity and reliability.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Quick Links</h4>
+          <ul>
+            <li><a href="/">Home</a></li><li><a href="/about.html">About</a></li>
+            <li><a href="/pricing.html">Pricing</a></li><li><a href="/leaderboard.html">Leaderboard</a></li>
+            <li><a href="/contact.html">Contact</a></li><li><a href="/register.html">Register</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>For Users</h4>
+          <ul>
+            <li><a href="/browse.html">Player Stats</a></li><li><a href="/browse.html?type=clubs">Club Stats</a></li>
+            <li><a href="/register.html?role=dco">Become a Data Scout</a></li>
+            <li><a href="/register.html?role=scout">Become a Scout</a></li>
+            <li><a href="/register.html?role=agent">Agent Programme</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Connect</h4>
+          <ul>
+            <li><a href="mailto:enejistats@gmail.com"><i class="fas fa-envelope" style="width:16px"/> enejistats@gmail.com</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© ${year} EnejiStats. All rights reserved.</span>
+        <span><a href="/terms.html">Terms</a> · <a href="/privacy.html">Privacy</a> · <a href="/cookies.html">Cookies</a></span>
+      </div>
+    </footer>`;
+  }
+
+  /* PLAYER CARD */
+  const countryCodes={
+    nigeria:'ng',ghana:'gh',senegal:'sn',cameroon:'cm',kenya:'ke',egypt:'eg',
+    morocco:'ma',algeria:'dz',tunisia:'tn','south africa':'za',zambia:'zm',
+    zimbabwe:'zw',uganda:'ug',tanzania:'tz',rwanda:'rw',mali:'ml',benin:'bj',
+    togo:'tg','ivory coast':'ci',"côte d'ivoire":'ci','burkina faso':'bf',
+    guinea:'gn','sierra leone':'sl',liberia:'lr',gambia:'gm',ethiopia:'et',
+    sudan:'sd',angola:'ao',mozambique:'mz',congo:'cg',"democratic republic of the congo":'cd',
+    brazil:'br',england:'gb',france:'fr',germany:'de',spain:'es',portugal:'pt'
+  };
+
+  function getCountryCode(player){
+    const explicit=player.countryCode||player.country_code;
+    if(explicit)return String(explicit).toLowerCase();
+    const country=(player.nationality||player.country||'').toLowerCase().trim();
+    return countryCodes[country]||'';
+  }
+
+  function metric(value){
+    return value===undefined||value===null||value===''?0:value;
+  }
+
+  function getStatPreview(player){
+    const stats=player.stats||player.statistics||{};
+    const position=(player.position||'').toLowerCase();
+    const stat=(...keys)=>{
+      for(const key of keys)if(stats[key]!==undefined)return stats[key];
+      return 0;
+    };
+    let metrics;
+    if(position.includes('forward')||position.includes('attacker')||position.includes('striker')){
+      metrics=[
+        ['Goals',stat('goals')],
+        ['Assists',stat('assists')],
+        ['On target',stat('shots_on_target','shotsOnTarget')],
+        ['Off target',stat('shots_off_target','shotsOffTarget')]
+      ];
+    }else if(position.includes('midfield')){
+      metrics=[
+        ['Assists',stat('assists')],
+        ['Short pass',`${metric(stat('successful_short_passes','successfulShortPasses'))}/${metric(stat('unsuccessful_short_passes','unsuccessfulShortPasses'))}`],
+        ['Long pass',`${metric(stat('successful_long_passes','successfulLongPasses'))}/${metric(stat('unsuccessful_long_passes','unsuccessfulLongPasses'))}`],
+        ['Crosses',stat('successful_crosses','successfulCrosses')]
+      ];
+    }else if(position.includes('defend')){
+      metrics=[
+        ['Tackles',`${metric(stat('tackles_won','tacklesWon'))}/${metric(stat('tackles_lost','tacklesLost'))}`],
+        ['Interceptions',stat('interceptions')],
+        ['Clearances',stat('clearances')],
+        ['Yellow cards',stat('yellow_cards','yellowCards')]
+      ];
+    }else if(position.includes('keeper')||position.includes('goal')){
+      metrics=[
+        ['Saves',stat('saves')],
+        ['Clean sheets',stat('clean_sheets','cleanSheets')],
+        ['Conceded',stat('goals_conceded','goalsConceded')],
+        ['Penalty saves',stat('penalty_saves','penaltySaves')]
+      ];
+    }else{
+      metrics=[['Matches',stat('matches')]];
+    }
+    return html`${metrics.map(([label,value])=>html`<span class="player-stat"><strong>${label}:</strong> ${value}</span>`)}`;
+  }
+
+  function PlayerCard({player}){
+    const name=player.name||player.fullName||'Unknown Player';
+     // Public player records may expose their canonical identifier as
+     // player_id or user_id. Preserve it in the profile link so the profile
+     // page never falls through to the demo player.
+     const playerId=player.player_id||player.user_id||player.id||player._id;
+     const photo=player.photo_url||player.photo||'';
+    const club=player.club||player.current_club||player.currentClub||'Free Agent';
+    const nationality=player.nationality||player.country||'—';
+    const code=getCountryCode(player);
+    const initials=name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    return html`<a href=${'/player-profile.html?id='+playerId} class="card player-card">
+      <div class="card-body">
+        <div class="card-top">
+           <div class="card-avatar player-photo">
+            ${photo
+              ?html`<img src=${photo} alt=${name} onError=${e=>{e.target.style.display='none';}}/>`
+              :initials}
+          </div>
+        </div>
+        <div class="card-name">
+          ${name}
+          ${player.verified&&html`<i class="fas fa-circle-check verified-tick" title="Verified"/>`}
+        </div>
+        <div class="card-meta"><i class="fas fa-user-tag"/> ${player.position||'—'} · ${player.age||'—'} yrs</div>
+        <div class="card-meta"><i class="fas fa-shield-halved"/> ${club}</div>
+        <div class="card-meta">
+          ${code&&html`<img class="country-flag" src=${'https://flagcdn.com/16x12/'+code+'.png'} alt=${nationality+' flag'} onError=${e=>e.target.style.display='none'}/>`}${nationality}
+        </div>
+        <div class="player-stats-preview">${getStatPreview(player)}</div>
+      </div>
+      <div class="card-footer-row">
+        <span>View Profile</span>
+        <i class="fas fa-arrow-right"/>
+      </div>
+    </a>`;
+  }
+
+  /* CLUB CARD */
+  function ClubCard({club}){
+    const name=club.name||club.club_name||'Unknown Club';
+    const clubId=club.id||club._id;
+    const badge=club.badge_url||club.badge||club.logo_url||club.logo;
+    const country=club.country||club.nationality||'';
+    const code=getCountryCode({country});
+    const location=[club.city,club.state||club.region,club.lga||club.local_area].filter(Boolean).join(', ')||'—';
+    const squadSize=club.squad_size??club.squadSize??club.player_count??club.players_count??0;
+    const initials=name[0].toUpperCase();
+    return html`<a href=${'/club-profile.html?id='+clubId} class="card">
+      <div class="card-body">
+        <div class="card-top">
+          <div class="card-avatar" style="border-radius:8px">
+            ${badge
+              ?html`<img src=${badge} alt=${name} onError=${e=>e.target.style.display='none'}/>`
+              :initials}
+          </div>
+        </div>
+        <div class="card-name">
+          ${name}
+          ${club.verified&&html`<i class="fas fa-circle-check verified-tick"/>`}
+        </div>
+        <div class="card-meta"><i class="fas fa-location-dot"/> ${location}</div>
+        <div class="card-meta"><i class="fas fa-users"/> ${squadSize} players registered</div>
+        <div class="card-meta"><i class="fas fa-layer-group"/> ${club.category||club.league||'—'}</div>
+        ${country&&html`<div class="card-meta">
+          ${code&&html`<img class="country-flag" src=${'https://flagcdn.com/16x12/'+code+'.png'} alt=${country+' flag'} onError=${e=>e.target.style.display='none'}/>`}${country}
+        </div>`}
+      </div>
+      <div class="card-footer-row">
+        <span>View Club</span>
+        <i class="fas fa-arrow-right"/>
+      </div>
+    </a>`;
+  }
+
+  function SkeletonCard(){
+    return html`<div class="card" style="pointer-events:none">
+      <div class="card-body">
+        <div class="skeleton" style="width:45px;height:45px;border-radius:50%;margin-bottom:0.75rem"/>
+        <div class="skeleton" style="width:70%;height:18px;margin-bottom:0.5rem"/>
+        <div class="skeleton" style="width:50%;height:14px;margin-bottom:0.4rem"/>
+        <div class="skeleton" style="width:60%;height:14px;margin-bottom:0.4rem"/>
+      </div>
+    </div>`;
+  }
+
+  /* POSITIONS FOR FILTER */
+  const POSITIONS=['All','Goalkeeper','Defender','Midfielder','Forward'];
+
+  
+/* ═══════════════════════════════════════════════════════════════════════════
+   ENEJISTATS CANONICAL REGISTRATION GEO — mirrored from register.html
+   Contract: Country(ISO) → Region(dynamic label) → Subregion(dynamic label).
+   City/District, detailed address and GPS remain independent fields.
+═══════════════════════════════════════════════════════════════════════════ */
+function useCanonicalCountries(){
+  const [countries,setCountries]=useState([]);
+  useEffect(()=>{let cancelled=false; const c=new AbortController();
+    fetch('/api/public/countries',{credentials:'include',signal:c.signal})
+      .then(r=>r.ok?r.json():Promise.reject(new Error('countries request failed')))
+      .then(d=>{if(cancelled)return; const list=Array.isArray(d)?d:(d.countries||d.data||[]);
+        setCountries(list.map(x=>({code:x.code||x.v||x.value||x.id,name:x.name||x.l||x.label||x.code||x.v||x.value||x.id,regionLabel:x.region_label||'State / Region',subregionLabel:x.subregion_label||'LGA / Local Area'})).filter(x=>x.code&&x.name));
+      }).catch(e=>{if(e.name!=='AbortError')setCountries([]);});
+    return()=>{cancelled=true;c.abort();};
+  },[]); return countries;
+}
+function useCanonicalRegions(countryCode){
+  const [regions,setRegions]=useState([]),[loading,setLoading]=useState(false),[regionLabel,setRegionLabel]=useState('State / Region');
+  useEffect(()=>{if(!countryCode){setRegions([]);setRegionLabel('State / Region');return;} const c=new AbortController();setLoading(true);
+    fetch('/api/public/countries/'+encodeURIComponent(String(countryCode).toUpperCase())+'/regions',{credentials:'include',signal:c.signal})
+      .then(r=>r.ok?r.json():Promise.reject(new Error('regions request failed'))).then(d=>{const list=Array.isArray(d)?d:(d.regions||[]);setRegions(list.map(x=>typeof x==='string'?x:(x?.name||x?.state||x?.region||'')).filter(Boolean));setRegionLabel(d.region_label||'State / Region');})
+      .catch(e=>{if(e.name!=='AbortError')setRegions([]);}).finally(()=>{if(!c.signal.aborted)setLoading(false)}); return()=>c.abort();
+  },[countryCode]); return [regions,loading,regionLabel];
+}
+function useCanonicalSubregions(countryCode,region){
+  const [subregions,setSubregions]=useState([]),[loading,setLoading]=useState(false),[subregionLabel,setSubregionLabel]=useState('LGA / Local Area');
+  useEffect(()=>{if(!countryCode||!region){setSubregions([]);setSubregionLabel('LGA / Local Area');return;} const c=new AbortController();setLoading(true);
+    fetch('/api/public/countries/'+encodeURIComponent(String(countryCode).toUpperCase())+'/regions/'+encodeURIComponent(region)+'/subregions',{credentials:'include',signal:c.signal})
+      .then(r=>r.ok?r.json():Promise.reject(new Error('subregions request failed'))).then(d=>{const list=Array.isArray(d)?d:(d.subregions||[]);setSubregions(list.map(x=>typeof x==='string'?x:(x?.name||x?.lga||x?.subregion||'')).filter(Boolean));setSubregionLabel(d.subregion_label||'LGA / Local Area');})
+      .catch(e=>{if(e.name!=='AbortError')setSubregions([]);}).finally(()=>{if(!c.signal.aborted)setLoading(false)}); return()=>c.abort();
+  },[countryCode,region]); return [subregions,loading,subregionLabel];
+}
+function CanonicalGeoFields({value,onChange,required=true,showCity=true,showAddress=false,showGps=false,title='Location'}){
+  const v=value||{}; const countries=useCanonicalCountries(); const [regions,regionsLoading,regionLabel]=useCanonicalRegions(v.country); const [subregions,subregionsLoading,subregionLabel]=useCanonicalSubregions(v.country,v.state);
+  const set=(k,x)=>onChange({...v,[k]:x});
+  const resetCountry=code=>onChange({...v,country:code,state:'',lga:'',...(showCity?{city:''}:{}),...(showAddress?{detailedAddress:''}:{})});
+  const resetRegion=state=>onChange({...v,state,lga:'',...(showCity?{city:''}:{}),...(showAddress?{detailedAddress:''}:{})});
+  const selected=countries.find(c=>String(c.code).toUpperCase()===String(v.country||'').toUpperCase());
+  const [search,setSearch]=useState(''),[open,setOpen]=useState(false); const filtered=useMemo(()=>countries.filter(c=>c.name.toLowerCase().includes(search.toLowerCase())).slice(0,40),[countries,search]);
+  return html`<div class="canonical-geo" data-geo-source="register">
+    ${title&&html`<div class="section-block-title"><i class="fas fa-map-marker-alt"></i> ${title}</div>`}
+    <div class="form-row">
+      <div class="form-group"><label>Country${required&&html`<span class="req"> *</span>`}</label><div class="smart-select-wrap"><div class="input-group"><input class="form-control" value=${selected?selected.name:search} onInput=${e=>{setSearch(e.target.value);resetCountry('');setOpen(true)}} onFocus=${()=>{setOpen(true);setSearch('')}} placeholder="Search country…" autocomplete="country"/><span class="input-icon"><i class="fas fa-globe-africa"></i></span></div>${open&&filtered.length&&html`<div class="smart-select-results" role="listbox">${filtered.map(c=>html`<div key=${c.code} class="smart-select-item" onMouseDown=${e=>{e.preventDefault();resetCountry(String(c.code).toUpperCase());setSearch('');setOpen(false)}}><span>${c.name}</span><small style="color:var(--muted);margin-left:8px">${c.code}</small></div>`)}</div>`}</div></div>
+      <div class="form-group"><label>${regionLabel}${required&&html`<span class="req"> *</span>`}</label><select class="form-control" value=${v.state||''} disabled=${!v.country||regionsLoading} onChange=${e=>resetRegion(e.target.value)}><option value="">${regionsLoading?'Loading…':'Select '+regionLabel.toLowerCase()+'…'}</option>${regions.map(x=>html`<option key=${x} value=${x}>${x}</option>`)}</select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>${subregionLabel}${required&&html`<span class="req"> *</span>`}</label><select class="form-control" value=${v.lga||''} disabled=${!v.state||subregionsLoading} onChange=${e=>set('lga',e.target.value)}><option value="">${subregionsLoading?'Loading…':'Select '+subregionLabel.toLowerCase()+'…'}</option>${subregions.map(x=>html`<option key=${x} value=${x}>${x}</option>`)}</select></div>
+      ${showCity&&html`<div class="form-group"><label>City / District${required&&html`<span class="req"> *</span>`}</label><input class="form-control" value=${v.city||''} onInput=${e=>set('city',e.target.value)} placeholder="City, town or district" autocomplete="address-level2"/></div>`}
+    </div>
+    ${showAddress&&html`<div class="form-group"><label>Street / Detailed Address${required&&html`<span class="req"> *</span>`}</label><textarea class="form-control" rows="2" value=${v.detailedAddress||''} onInput=${e=>set('detailedAddress',e.target.value)} placeholder="House number, street, area, town…" autocomplete="street-address"></textarea></div>`}
+  </div>`;
+}
+
+function App(){
+    const [tab,setTab]=useState('players');
+    const [items,setItems]=useState([]);
+    const [loading,setLoading]=useState(true);
+    const [page,setPage]=useState(1);
+    const [totalPages,setTotalPages]=useState(1);
+    const [search,setSearch]=useState('');
+    const [typeaheadItems,setTypeaheadItems]=useState([]);
+    const [showTypeahead,setShowTypeahead]=useState(false);
+    const [sidebarOpen,setSidebarOpen]=useState(false);
+    const [filters,setFilters]=useState({position:'All',country:'',state:'All',lga:'All',gender:'All',verified:'All'});
+    const geoCountries=useCanonicalCountries(); const [geoRegions,geoRegionsLoading,geoRegionLabel]=useCanonicalRegions(filters.country); const [geoSubregions,geoSubregionsLoading,geoSubregionLabel]=useCanonicalSubregions(filters.country,filters.state==='All'?'':filters.state);
+    const searchRef=useRef();
+    const debounceRef=useRef();
+    const requestRef=useRef(0);
+
+    const getJson=async(url)=>{
+      const response=await fetch(url,{headers:{Accept:'application/json'}});
+      if(!response.ok)throw new Error('Request failed ('+response.status+')');
+      return response.json();
+    };
+
+    const getItems=(json,keys)=>{
+      if(Array.isArray(json))return json;
+      for(const key of keys)if(Array.isArray(json&&json[key]))return json[key];
+      return [];
+    };
+
+    // Read ?type= from URL
+    useEffect(()=>{
+      const params=new URLSearchParams(window.location.search);
+      const t=params.get('type');
+      if(t==='clubs')setTab('clubs');
+    },[]);
+
+    const fetchData=useCallback(async()=>{
+      const requestId=++requestRef.current;
+      setLoading(true);
+      try{
+        let url;
+        if(tab==='players'){
+          const params=new URLSearchParams({page,limit:12});
+          if(filters.position&&filters.position!=='All')params.set('position',filters.position);
+          if(filters.country)params.set('country',filters.country); if(filters.state&&filters.state!=='All')params.set('state',filters.state); if(filters.lga&&filters.lga!=='All')params.set('lga',filters.lga);
+          if(filters.verified==='true')params.set('verified','true');
+          if(search)params.set('q',search);
+          url='/api/public/players?'+params;
+        }else{
+          const params=new URLSearchParams({page,limit:12});
+          if(filters.country)params.set('country',filters.country); if(filters.state&&filters.state!=='All')params.set('state',filters.state); if(filters.lga&&filters.lga!=='All')params.set('lga',filters.lga);
+          if(search)params.set('q',search);
+          url='/api/public/clubs?'+params;
+        }
+        const json=await getJson(url);
+        if(requestId!==requestRef.current)return;
+        setItems(getItems(json,['data','players','clubs']));
+        const pages=Number(json.pages||json.total_pages||json.totalPages||1);
+        setTotalPages(Number.isFinite(pages)&&pages>0?pages:1);
+      }catch(err){
+        console.error(err);
+        if(requestId===requestRef.current){
+          setItems([]);
+          setTotalPages(1);
+        }
+      }finally{
+        if(requestId===requestRef.current)setLoading(false);
+      }
+    },[tab,page,filters,search]);
+
+    useEffect(()=>{setPage(1);},[tab,filters,search]);
+    useEffect(()=>{fetchData();},[fetchData]);
+
+    const handleSearchInput=e=>{
+      const val=e.target.value;
+      setSearch(val);
+      clearTimeout(debounceRef.current);
+      if(val.length<2){setTypeaheadItems([]);setShowTypeahead(false);return;}
+      debounceRef.current=setTimeout(async()=>{
+        try{
+          const [pr,cr]=await Promise.all([
+            getJson('/api/public/players?q='+encodeURIComponent(val)+'&limit=5'),
+            getJson('/api/public/clubs?q='+encodeURIComponent(val)+'&limit=3')
+          ]);
+          const players=getItems(pr,['data','players']).map(p=>({...p,_type:'player'}));
+          const clubs=getItems(cr,['data','clubs']).map(c=>({...c,_type:'club'}));
+          setTypeaheadItems([...players,...clubs]);
+          setShowTypeahead(true);
+        }catch(e){setShowTypeahead(false);}
+      },300);
+    };
+
+    const setFilter=(k,v)=>setFilters(f=>({...f,[k]:v}));
+
+    const SidebarContent=()=>html`<div>
+      <div class="sidebar-head">Filters <button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.8rem" onClick=${()=>setFilters({position:'All',country:'',state:'All',lga:'All',gender:'All',verified:'All'})}>Reset</button></div>
+      <div class="filter-group"><label class="filter-label">Country</label><select class="filter-select" value=${filters.country} onChange=${e=>setFilters(f=>({...f,country:e.target.value,state:'All',lga:'All'}))}><option value="">All Countries</option>${geoCountries.map(c=>html`<option key=${c.code} value=${String(c.code).toUpperCase()}>${c.name}</option>`)}</select></div>
+      <div class="filter-group"><label class="filter-label">${geoRegionLabel}</label><select class="filter-select" value=${filters.state} disabled=${!filters.country||geoRegionsLoading} onChange=${e=>setFilters(f=>({...f,state:e.target.value,lga:'All'}))}><option value="All">All ${geoRegionLabel}s</option>${geoRegions.map(x=>html`<option key=${x} value=${x}>${x}</option>`)}</select></div>
+      <div class="filter-group"><label class="filter-label">${geoSubregionLabel}</label><select class="filter-select" value=${filters.lga} disabled=${!filters.state||filters.state==='All'||geoSubregionsLoading} onChange=${e=>setFilter('lga',e.target.value)}><option value="All">All ${geoSubregionLabel}s</option>${geoSubregions.map(x=>html`<option key=${x} value=${x}>${x}</option>`)}</select></div>
+      ${tab==='players'&&html`<div class="filter-group">
+        <label class="filter-label">Position</label>
+        <select class="filter-select" value=${filters.position} onChange=${e=>setFilter('position',e.target.value)}>
+          ${POSITIONS.map(p=>html`<option key=${p} value=${p}>${p}</option>`)}
+        </select>
+      </div>`}
+      <div class="filter-group">
+        <label class="filter-label">Verified Only</label>
+        <select class="filter-select" value=${filters.verified} onChange=${e=>setFilter('verified',e.target.value)}>
+          <option value="All">All</option>
+          <option value="true">Verified ✓</option>
+        </select>
+      </div>
+    </div>`;
+
+    return html`<div>
+      <${Header}/>
+      <div class="hero-strip">
+        <h1><i class="fas fa-search"/> Browse Players & Clubs</h1>
+        <p>Discover verified football talent across Nigeria and Africa</p>
+      </div>
+
+      <div class="search-bar">
+        <div class="search-wrap">
+          <div class="search-input-row">
+            <i class="fas fa-search"/>
+            <input
+              ref=${searchRef}
+              type="text"
+              placeholder="Search players or clubs…"
+              value=${search}
+              onInput=${handleSearchInput}
+              onFocus=${()=>typeaheadItems.length>0&&setShowTypeahead(true)}
+              onBlur=${()=>setTimeout(()=>setShowTypeahead(false),200)}
+            />
+            ${search&&html`<button style="background:none;border:none;color:var(--muted);cursor:pointer" onClick=${()=>{setSearch('');setTypeaheadItems([]);setShowTypeahead(false);}}>
+              <i class="fas fa-times"/>
+            </button>`}
+          </div>
+          <div class=${'typeahead'+(showTypeahead?' active':'')}>
+            ${typeaheadItems.filter(i=>i._type==='player').length>0&&html`<div class="typeahead-header">Players</div>`}
+            ${typeaheadItems.filter(i=>i._type==='player').map(p=>html`<div key=${p.id||p._id} class="typeahead-item" onClick=${()=>window.location.href='/player-profile.html?id='+(p.id||p._id)}>
+              <div class="ta-avatar">${(p.name||p.fullName||'?')[0]}</div>
+              <div><div class="ta-name">${p.name||p.fullName||'Unknown Player'}</div><div class="ta-meta">${p.position||''} · ${p.club||p.currentClub||p.current_club||''}</div></div>
+            </div>`)}
+            ${typeaheadItems.filter(i=>i._type==='club').length>0&&html`<div class="typeahead-header">Clubs</div>`}
+            ${typeaheadItems.filter(i=>i._type==='club').map(c=>html`<div key=${c.id||c._id} class="typeahead-item" onClick=${()=>window.location.href='/club-profile.html?id='+(c.id||c._id)}>
+              <div class="ta-avatar" style="border-radius:4px">${(c.name||c.club_name||'?')[0]}</div>
+              <div><div class="ta-name">${c.name||c.club_name||'Unknown Club'}</div><div class="ta-meta">${c.city||c.state||c.region||''}</div></div>
+            </div>`)}
+            ${typeaheadItems.length===0&&html`<div style="padding:1rem;color:var(--muted);font-size:0.9rem">No results found</div>`}
+          </div>
+        </div>
+      </div>
+
+      <div class="main-wrap">
+        <!-- SIDEBAR desktop -->
+        <div class=${'sidebar'+(sidebarOpen?' mobile-active':'')}>
+          <${SidebarContent}/>
+        </div>
+        ${sidebarOpen&&html`<div class="sidebar-overlay active" onClick=${()=>setSidebarOpen(false)}/>`}
+
+        <div>
+          <button class="filter-toggle" onClick=${()=>setSidebarOpen(true)}>
+            <i class="fas fa-sliders"/> Filters
+          </button>
+          <div class="tab-bar">
+            <button class=${'tab-btn'+(tab==='players'?' active':'')} onClick=${()=>setTab('players')}>
+              <i class="fas fa-user"/> Players
+            </button>
+            <button class=${'tab-btn'+(tab==='clubs'?' active':'')} onClick=${()=>setTab('clubs')}>
+              <i class="fas fa-shield-halved"/> Clubs
+            </button>
+          </div>
+
+          ${loading?html`<div class="results-grid">${Array(9).fill(0).map((_,i)=>html`<${SkeletonCard} key=${i}/>`)}</div>`:
+            items.length===0?html`<div class="empty-state"><i class="fas fa-search"/><h3>No results found</h3><p>Try adjusting your filters or search term.</p></div>`:
+            html`<div class="results-grid">
+              ${tab==='players'?items.map(p=>html`<${PlayerCard} key=${p.id} player=${p}/>`):items.map(c=>html`<${ClubCard} key=${c.id} club=${c}/>`)}
+            </div>`}
+
+          ${!loading&&totalPages>1&&html`<div class="pagination">
+            <button class="page-btn" disabled=${page===1} onClick=${()=>setPage(p=>p-1)}><i class="fas fa-chevron-left"/></button>
+            ${Array.from({length:Math.min(totalPages,7)},(_,i)=>{
+              const p=i+1;
+              return html`<button key=${p} class=${'page-btn'+(p===page?' active':'')} onClick=${()=>setPage(p)}>${p}</button>`;
+            })}
+            <button class="page-btn" disabled=${page===totalPages} onClick=${()=>setPage(p=>p+1)}><i class="fas fa-chevron-right"/></button>
+          </div>`}
+
+          <div class="paywall-hint">
+            <i class="fas fa-lock"/> <strong>Full stats and contact details</strong> are visible to registered users.
+            <a href="/register.html"> Create a free account</a> or <a href="/pricing.html"> upgrade your plan</a> to unlock everything.
+          </div>
+        </div>
+      </div>
+      <${Footer}/>
+    </div>`;
+  }
+
+  render(html`<${App}/>`,document.getElementById('app'));
+})();
+</script>
+</body>
+</html>

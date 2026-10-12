@@ -1,0 +1,2999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+<title>EnejiStats — Agent Dashboard</title>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
+<script>
+window.addEventListener('pageshow',function(e){
+  if(e.persisted){
+    fetch('/api/auth/me',{credentials:'include',cache:'no-store'})
+      .then(function(r){if(!r.ok)window.location.replace('/login');})
+      .catch(function(){window.location.replace('/login');});
+  }
+});
+</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<script src="https://unpkg.com/preact@10.19.3/dist/preact.umd.js"></script>
+<script src="https://unpkg.com/preact@10.19.3/hooks/dist/hooks.umd.js"></script>
+<style>
+:root{
+  --primary:#004aad;--primary-l:#0066cc;--gold:#ffd700;
+  --dark:#1e1e2f;--dark2:#252537;--dark3:#2e2e45;
+  --success:#22c55e;--warning:#f59e0b;--danger:#ef4444;--info:#38bdf8;--orange:#fd7e14;
+  --muted:#6b7280;--text:#e2e8f0;--text2:#94a3b8;
+  --border:rgba(255,255,255,.08);--radius:10px;--sidebar:260px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--dark);color:var(--text);min-height:100vh;font-size:14px;overflow-x:hidden}
+button{cursor:pointer;font-family:inherit}
+input,select,textarea{font-family:inherit}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--dark)}
+::-webkit-scrollbar-thumb{background:var(--dark3);border-radius:3px}
+
+/* ─── AUTH GATE ─── */
+#auth-gate{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--dark);gap:16px;text-align:center;padding:20px}
+#auth-gate .brand{font-size:28px;font-weight:900;letter-spacing:2px}
+#auth-gate .brand span{color:var(--gold)}
+#auth-gate .spinner{width:32px;height:32px;border:3px solid rgba(255,255,255,.15);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite}
+#auth-gate .gate-msg{color:var(--text2);font-size:13px}
+#auth-gate .gate-err{color:var(--danger);font-size:14px;font-weight:600}
+
+/* ─── LAYOUT ─── */
+#app{display:none;min-height:100vh}
+.layout{display:flex;min-height:100vh}
+
+/* ─── SIDEBAR ─── */
+.sidebar{width:var(--sidebar);background:var(--dark2);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:200;transform:translateX(-100%);transition:transform .3s;overflow-y:auto}
+.sidebar.open{transform:translateX(0)}
+@media(min-width:900px){.sidebar{transform:translateX(0)!important}}
+#sb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:190}
+#sb-overlay.show{display:block}
+@media(min-width:900px){#sb-overlay{display:none!important}}
+
+.sb-head{padding:18px 16px 14px;border-bottom:1px solid var(--border);text-align:center}
+.sb-av{width:64px;height:64px;border-radius:50%;border:3px solid var(--gold);background:var(--dark3);display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--gold);margin:0 auto 8px;overflow:hidden}
+.sb-av img{width:100%;height:100%;object-fit:contain}
+.sb-name{font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;gap:4px}
+.vtick{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;background:#1877f2;border-radius:50%;color:#fff;font-size:7px;flex-shrink:0}
+.sb-type{font-size:10px;color:var(--gold);display:block;margin:2px 0 5px;text-transform:uppercase;letter-spacing:.5px}
+.spill{display:inline-block;padding:2px 10px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase}
+.spill.trial{background:var(--orange);color:#fff}
+.spill.active{background:var(--success);color:#fff}
+.spill.expired,.spill.trial_expired{background:var(--danger);color:#fff}
+.spill.grace_period{background:var(--warning);color:#000}
+.sb-days{font-size:10px;color:var(--text2);margin-top:4px}
+
+.sb-nav{list-style:none;padding:8px 0;flex:1}
+.ni{display:flex;align-items:center;gap:10px;padding:11px 18px;cursor:pointer;color:var(--text2);font-size:13px;transition:all .2s;border-left:3px solid transparent}
+.ni:hover{background:var(--dark3);color:var(--text)}
+.ni.active{background:rgba(0,74,173,.2);color:var(--gold);border-left-color:var(--gold)}
+.ni i{width:18px;text-align:center;font-size:14px}
+.ni-badge{background:var(--danger);color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:700;margin-left:auto;display:none}
+.ni-badge.show{display:inline-block}
+.ni.logout{color:#ff6b6b}
+.ni.logout:hover{background:rgba(220,53,69,.1)}
+
+/* ─── MAIN ─── */
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+@media(min-width:900px){.main{margin-left:var(--sidebar)}}
+
+/* ─── TOPBAR ─── */
+.topbar{position:sticky;top:0;z-index:100;background:linear-gradient(135deg,var(--dark) 0%,var(--primary) 100%);padding:0 16px;height:56px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 12px rgba(0,0,0,.4)}
+.hamburger{background:none;border:none;color:var(--text);font-size:20px;padding:6px;display:flex;align-items:center}
+@media(min-width:900px){.hamburger{display:none}}
+.tb-brand{font-weight:900;font-size:16px;color:#fff;display:flex;align-items:center;gap:6px}
+.tb-brand span{color:var(--gold)}
+.tb-title{font-size:12px;color:rgba(255,255,255,.7);border-left:1px solid rgba(255,255,255,.2);padding-left:12px;margin-left:2px;display:none}
+@media(min-width:500px){.tb-title{display:block}}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.tb-av{width:36px;height:36px;border-radius:50%;border:2px solid var(--gold);background:var(--dark3);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--gold);overflow:hidden;flex-shrink:0}
+.tb-av img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.tb-name{font-size:12px;font-weight:700;display:none;align-items:center;gap:4px;color:#fff}
+@media(min-width:600px){.tb-name{display:flex}}
+.logout-btn{background:rgba(220,53,69,.2);border:1px solid var(--danger);color:#ff6b6b;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600}
+.logout-btn:hover{background:var(--danger);color:#fff}
+
+/* ─── BANNERS ─── */
+.banner{padding:10px 16px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.banner.trial{background:linear-gradient(90deg,#fd7e14,#e06c10);color:#fff}
+.banner.grace{background:linear-gradient(90deg,#ffc107,#e0a800);color:#000}
+.banner.expired{background:linear-gradient(90deg,#dc3545,#b02a37);color:#fff}
+.banner-btn{background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.5);color:inherit;padding:4px 12px;border-radius:5px;font-size:12px;font-weight:700;cursor:pointer;margin-left:auto}
+
+/* ─── CONTENT ─── */
+.content{flex:1;padding:16px}
+@media(min-width:900px){.content{padding:20px 24px}}
+.page{display:none;max-width:900px;margin:0 auto}
+.page.active{display:block}
+
+/* ─── CARD ─── */
+.card{background:var(--dark2);border-radius:var(--radius);padding:16px;margin-bottom:16px;border:1px solid var(--border)}
+.card-title{font-size:15px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:10px}
+.card-title i{color:var(--gold)}
+
+/* ─── STATS ─── */
+.stats-row{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px}
+@media(min-width:500px){.stats-row{grid-template-columns:repeat(4,1fr)}}
+.stat-box{background:var(--dark2);border-radius:var(--radius);padding:14px;text-align:center;border:1px solid var(--border);position:relative;overflow:hidden}
+.stat-box::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.stat-box.blue::before{background:var(--primary-l)}
+.stat-box.green::before{background:var(--success)}
+.stat-box.orange::before{background:var(--orange)}
+.stat-box.gold::before{background:var(--gold)}
+.stat-num{font-size:28px;font-weight:900;line-height:1}
+.stat-lbl{font-size:11px;color:var(--text2);margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
+
+/* ─── PLAYER ROW ─── */
+.player-row{display:flex;align-items:flex-start;gap:12px;padding:14px 0;border-bottom:1px solid var(--border)}
+.player-row:last-child{border-bottom:none}
+.pav{width:46px;height:46px;border-radius:50%;background:var(--dark3);display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--text2);flex-shrink:0;overflow:hidden}
+.pav img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.pinfo{flex:1;min-width:0}
+.pname{font-weight:700;font-size:14px}
+.pmeta{font-size:12px;color:var(--text2);margin-top:2px}
+.pactions{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0}
+.pos-badge{display:inline-block;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:700;background:var(--primary);color:#fff}
+.cat-badge{display:inline-block;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:700;background:rgba(56,189,248,.15);color:#7dd3fc;border:1px solid rgba(56,189,248,.25)}
+
+/* ─── BADGES ─── */
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;text-transform:capitalize}
+.badge-active{background:rgba(34,197,94,.15);color:#4ade80}
+.badge-expiring{background:rgba(245,158,11,.15);color:#fbbf24}
+.badge-expired{background:rgba(239,68,68,.15);color:#f87171}
+.badge-none{background:rgba(100,116,139,.15);color:var(--muted)}
+
+/* ─── BUTTONS ─── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:7px;font-weight:700;font-size:13px;cursor:pointer;border:none;font-family:inherit;transition:all .18s}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-l)}
+.btn-gold{background:var(--gold);color:#000}
+.btn-gold:hover{background:#e6c200}
+.btn-danger{background:rgba(239,68,68,.12);border:1px solid var(--danger);color:#f87171}
+.btn-danger:hover{background:var(--danger);color:#fff}
+.btn-ghost{background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text2)}
+.btn-ghost:hover{background:rgba(255,255,255,.12);color:#fff}
+.btn-secondary{background:var(--dark3);border:1px solid var(--border);color:var(--text2)}
+.btn-secondary:hover{border-color:var(--primary-l);color:var(--text)}
+.btn-info{background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.3);color:#7dd3fc}
+.btn-info:hover{background:rgba(56,189,248,.22);color:#e0f7ff}
+.btn-success{background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);color:#4ade80}
+.btn-success:hover{background:rgba(34,197,94,.22);color:#bbf7d0}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-xs{padding:3px 8px;font-size:11px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-full{width:100%;justify-content:center}
+
+/* ─── FORMS ─── */
+.form-group{margin-bottom:14px}
+.form-label{display:block;font-size:11px;font-weight:700;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.3px}
+.form-input{width:100%;padding:9px 12px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:13px;outline:none}
+.form-input:focus{border-color:var(--primary)}
+.form-input::placeholder{color:#475569}
+textarea.form-input{resize:vertical;min-height:80px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:600px){.form-grid{grid-template-columns:1fr}}
+
+/* ─── TABLE ─── */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:8px 10px;color:var(--text2);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border)}
+td{padding:10px;border-bottom:1px solid rgba(255,255,255,.04);color:var(--text2);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+
+/* ─── PLANS ─── */
+.plans-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+@media(max-width:600px){.plans-grid{grid-template-columns:1fr}}
+.plan-card{background:var(--dark3);border:1px solid var(--border);border-radius:var(--radius);padding:18px;text-align:center;position:relative;transition:all .2s}
+.plan-card.featured{border-color:var(--gold);box-shadow:0 0 16px rgba(255,215,0,.08)}
+.plan-feat-badge{position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--gold);color:#000;font-size:10px;font-weight:800;padding:2px 10px;border-radius:20px;white-space:nowrap}
+.plan-name{font-size:15px;font-weight:800;margin-bottom:6px}
+.plan-price{font-size:26px;font-weight:900;color:var(--gold)}
+.plan-period{font-size:12px;color:var(--text2)}
+.plan-discount{font-size:11px;color:var(--success);margin:4px 0 12px;min-height:16px}
+.plan-monthly{font-size:11px;color:var(--text2);margin-bottom:14px}
+
+/* ─── NOTIF ─── */
+.notif-item{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
+.notif-item:last-child{border-bottom:none}
+.notif-icon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.notif-icon.sub{background:rgba(253,126,20,.15);color:var(--orange)}
+.notif-icon.contract{background:rgba(245,158,11,.15);color:#fbbf24}
+.notif-icon.player{background:rgba(56,189,248,.15);color:#7dd3fc}
+.notif-icon.admin{background:rgba(0,74,173,.15);color:var(--primary-l)}
+.notif-icon.info{background:rgba(100,116,139,.15);color:var(--text2)}
+.notif-icon.stats{background:rgba(34,197,94,.15);color:#4ade80}
+.notif-icon.token{background:rgba(255,215,0,.12);color:var(--gold)}
+.notif-content{flex:1;min-width:0}
+.notif-msg{font-size:13px}
+.notif-msg.unread{font-weight:700;color:var(--text)}
+.notif-time{font-size:11px;color:var(--text2);margin-top:2px}
+.notif-dot{width:8px;height:8px;border-radius:50%;background:var(--primary-l);margin-top:6px;flex-shrink:0}
+
+/* ─── MODAL ─── */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:9999;display:flex;align-items:flex-end;justify-content:center;padding:0;opacity:0;pointer-events:none;transition:opacity .2s}
+@media(min-width:600px){.modal{align-items:center;padding:20px}}
+.modal.open{opacity:1;pointer-events:all}
+.modal-box{background:var(--dark2);border:1px solid var(--border);border-radius:14px 14px 0 0;padding:20px;width:100%;max-height:90vh;overflow-y:auto;transform:translateY(30px);transition:transform .2s}
+@media(min-width:600px){.modal-box{border-radius:14px;max-width:520px}}
+.modal.open .modal-box{transform:none}
+.modal-box.wide{max-width:720px}
+.modal-box.fullscreen{max-width:860px;max-height:95vh}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.modal-title{font-size:15px;font-weight:800}
+.modal-close{background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer;line-height:1}
+.modal-close:hover{color:var(--text)}
+
+/* ─── PAYMENT WIZARD ─── */
+.pw-step-bar{display:flex;align-items:flex-start;gap:0;padding:0 0 16px;border-bottom:1px solid var(--border);overflow-x:auto;margin-bottom:16px}
+.pw-step-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;min-width:64px}
+.pw-step-dot{width:28px;height:28px;border-radius:50%;background:var(--dark3);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--text2);flex-shrink:0}
+.pw-step-active .pw-step-dot{background:var(--primary);border-color:var(--primary);color:#fff}
+.pw-step-done .pw-step-dot{background:var(--success);border-color:var(--success);color:#fff}
+.pw-step-label{font-size:10px;font-weight:600;color:var(--text2);text-align:center;white-space:nowrap}
+.pw-step-active .pw-step-label{color:var(--text)}
+.pw-error{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);color:#f87171;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:14px}
+.pw-plan-list{display:flex;flex-direction:column;gap:10px}
+.pw-plan-radio{display:flex;align-items:center;gap:12px;padding:14px 16px;background:rgba(255,255,255,.03);border:2px solid var(--border);border-radius:10px;cursor:pointer;transition:all .2s}
+.pw-plan-radio input{margin:0;flex-shrink:0;accent-color:var(--gold)}
+.pw-plan-selected{border-color:var(--gold);background:rgba(255,215,0,.04)}
+.pw-plan-info{flex:1}
+.pw-plan-name{font-size:14px;font-weight:700}
+.pw-plan-bonus{font-size:11px;color:var(--success);font-weight:600;margin-top:2px}
+.pw-plan-price{font-size:16px;font-weight:900;color:var(--gold);white-space:nowrap}
+.pw-bank-details{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px}
+.pw-bank-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);gap:8px;flex-wrap:wrap}
+.pw-bank-row:last-child{border-bottom:none}
+.pw-bank-label{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.3px;flex-shrink:0}
+.pw-bank-value{font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pw-reference{font-family:monospace;font-size:12px;color:var(--gold);word-break:break-all}
+.pw-notice{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);color:#fbbf24;border-radius:8px;padding:10px 14px;font-size:12px;margin-bottom:14px}
+.pw-btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.pw-drop-zone{border:2px dashed var(--border);border-radius:10px;padding:30px 20px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:10px}
+.pw-drop-zone:hover,.pw-drop-active{border-color:var(--gold);background:rgba(255,215,0,.03)}
+.pw-progress-wrap{height:6px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden;margin-top:10px}
+.pw-progress-bar{height:100%;background:var(--primary);border-radius:3px;transition:width .3s}
+.pw-success{text-align:center;padding:20px 0}
+.pw-success-icon{font-size:56px;color:var(--success);margin-bottom:12px}
+.pw-success-title{font-size:20px;font-weight:800;margin-bottom:10px}
+.pw-success-body{font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:8px}
+.pw-reference-display{display:flex;flex-direction:column;gap:4px;margin-top:12px;padding:10px;background:rgba(255,255,255,.03);border-radius:8px;border:1px solid var(--border)}
+.pw-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:9999;display:flex;align-items:flex-end;justify-content:center;padding:0}
+@media(min-width:600px){.pw-overlay{align-items:center;padding:20px}}
+.pw-modal{background:var(--dark2);border:1px solid var(--border);border-radius:14px 14px 0 0;padding:20px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto}
+@media(min-width:600px){.pw-modal{border-radius:14px}}
+.pw-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.pw-title{font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px}
+.pw-body{position:relative}
+.pw-loading{text-align:center;padding:20px;color:var(--text2)}
+.copy-btn{background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text2);border-radius:5px;padding:3px 8px;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-family:inherit}
+.copy-btn:hover{background:rgba(255,255,255,.12);color:#fff}
+
+/* ─── TOAST ─── */
+#toasts{position:fixed;bottom:20px;right:20px;z-index:99999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{background:var(--dark2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;min-width:220px;max-width:340px;font-size:13px;display:flex;align-items:center;gap:8px;box-shadow:0 8px 24px rgba(0,0,0,.4);animation:tIn .2s ease;pointer-events:all}
+.toast.success{border-left:4px solid var(--success)}
+.toast.error{border-left:4px solid var(--danger)}
+.toast.info{border-left:4px solid var(--info)}
+.toast.warning{border-left:4px solid var(--warning)}
+@keyframes tIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:none}}
+
+/* ─── EMPTY / LOADING ─── */
+.empty{text-align:center;padding:36px 20px;color:var(--text2)}
+.empty i{font-size:36px;opacity:.3;display:block;margin-bottom:10px}
+.loading{text-align:center;padding:30px;color:var(--text2)}
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ─── MISC ─── */
+.section-actions{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+.search-input{padding:7px 12px;border-radius:7px;border:1px solid var(--border);background:rgba(255,255,255,.05);color:var(--text);font-size:13px;outline:none}
+.search-input:focus{border-color:var(--primary)}
+.search-input::placeholder{color:#475569}
+.divider{height:1px;background:var(--border);margin:14px 0}
+.text-muted{color:var(--text2)}.text-gold{color:var(--gold)}.text-success{color:var(--success)}.text-danger{color:var(--danger)}.text-warning{color:var(--warning)}
+.fw7{font-weight:700}.fs12{font-size:12px}.mono{font-family:monospace;font-size:12px}
+.info-box{background:rgba(0,74,173,.08);border:1px solid rgba(0,74,173,.2);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--text2);margin-bottom:14px}
+.warn-box{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:8px;padding:10px 12px;font-size:12px;color:#fbbf24;margin-bottom:14px}
+
+/* ─── PROFILE CARD (player-dashboard style) ─── */
+.profile-hero{text-align:center;padding:20px 0 16px;border-bottom:1px solid var(--border);margin-bottom:18px}
+.profile-photo-wrap{position:relative;width:96px;height:96px;margin:0 auto 12px;border-radius:50%;border:3px solid var(--gold);overflow:hidden;background:var(--dark3);display:flex;align-items:center;justify-content:center;font-size:36px;color:var(--gold)}
+.profile-photo-wrap img{width:100%;height:100%;object-fit:cover}
+.profile-name-row{font-size:22px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:5px}
+.profile-uid{font-size:12px;color:var(--text2);font-family:monospace;margin-bottom:8px}
+.profile-badges-row{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.profile-badge-item{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;background:var(--dark3);border:1px solid var(--border);color:var(--text2)}
+.profile-badge-item i{font-size:10px;color:var(--gold)}
+.profile-detail-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px}
+@media(min-width:640px){.profile-detail-grid{grid-template-columns:repeat(3,1fr)}}
+.profile-detail-item{background:rgba(255,255,255,.03);border-radius:8px;padding:10px 12px;border:1px solid var(--border)}
+.profile-detail-lbl{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px}
+.profile-detail-val{font-size:13px;font-weight:600;color:var(--text);word-break:break-word}
+
+/* ─── PLAYER STATS MODAL ─── */
+.stats-modal-header{display:flex;align-items:center;gap:14px;margin-bottom:18px;padding:14px;background:rgba(255,255,255,.03);border-radius:10px;border:1px solid var(--border)}
+.stats-modal-av{width:52px;height:52px;border-radius:50%;border:2px solid var(--gold);background:var(--dark3);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--gold);flex-shrink:0}
+.stats-modal-av img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+@media(min-width:480px){.stats-grid{grid-template-columns:repeat(4,1fr)}}
+.stats-cell{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center}
+.stats-cell-val{font-size:20px;font-weight:900;color:var(--gold);line-height:1}
+.stats-cell-lbl{font-size:10px;color:var(--text2);margin-top:3px;text-transform:uppercase;letter-spacing:.4px}
+.stats-section-title{font-size:12px;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px;display:flex;align-items:center;gap:6px}
+.stats-section-title i{color:var(--gold);font-size:12px}
+.stats-ro-note{font-size:11px;color:var(--text2);background:rgba(56,189,248,.06);border:1px solid rgba(56,189,248,.15);border-radius:6px;padding:6px 10px;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+
+/* ─── REPORT CARD ─── */
+.report-card-wrap{background:var(--dark3);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.report-card-header{background:linear-gradient(135deg,var(--primary) 0%,#001f5e 100%);padding:20px;color:#fff}
+.report-card-brand{font-size:11px;font-weight:800;letter-spacing:2px;opacity:.7;text-transform:uppercase;margin-bottom:6px}
+.report-card-title{font-size:20px;font-weight:900;margin-bottom:4px}
+.report-card-meta{font-size:12px;opacity:.7}
+.report-card-player-row{display:flex;align-items:center;gap:14px;padding:16px;border-bottom:1px solid var(--border)}
+.report-card-player-av{width:64px;height:64px;border-radius:50%;border:3px solid var(--gold);background:var(--dark2);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--gold);flex-shrink:0}
+.report-card-player-av img{width:100%;height:100%;object-fit:cover}
+.report-card-body{padding:16px}
+.report-stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+@media(max-width:480px){.report-stats-grid{grid-template-columns:repeat(2,1fr)}}
+.report-stat-item{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;padding:10px 8px;text-align:center}
+.report-stat-val{font-size:18px;font-weight:900;color:var(--gold);line-height:1}
+.report-stat-lbl{font-size:9px;color:var(--text2);margin-top:3px;text-transform:uppercase;letter-spacing:.5px}
+.report-section{margin-bottom:16px}
+.report-section-hdr{font-size:11px;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;display:flex;align-items:center;gap:5px;padding-bottom:5px;border-bottom:1px solid var(--border)}
+.report-section-hdr i{color:var(--gold)}
+.report-match-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px}
+.report-match-row:last-child{border-bottom:none}
+.report-match-result{width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;flex-shrink:0}
+.result-W{background:rgba(34,197,94,.2);color:#4ade80}
+.result-D{background:rgba(100,116,139,.2);color:var(--text2)}
+.result-L{background:rgba(239,68,68,.2);color:#f87171}
+.report-notes-area{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:13px;outline:none;resize:vertical;min-height:100px;font-family:inherit}
+.report-notes-area:focus{border-color:var(--primary)}
+.report-notes-area::placeholder{color:#475569}
+.report-actions{display:flex;gap:10px;flex-wrap:wrap;padding:14px 16px;border-top:1px solid var(--border);background:rgba(0,0,0,.15)}
+
+/* ─── TOKEN CREDIT ─── */
+.token-credit-player-card{display:flex;align-items:center;gap:12px;padding:12px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px;margin-bottom:14px}
+.token-credit-balance{background:linear-gradient(135deg,rgba(255,215,0,.12),rgba(0,74,173,.12));border:1px solid rgba(255,215,0,.2);border-radius:10px;padding:14px;text-align:center;margin-bottom:14px}
+.token-balance-num{font-size:28px;font-weight:900;color:var(--gold)}
+.token-balance-lbl{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px}
+
+/* ─── PRINT RULES ─── */
+@media print{
+  .sidebar,.topbar,#sb-overlay,#banner-wrap,#toasts,.no-print,.modal-hdr,.report-actions,
+  #page-overview,#page-profile,#page-players,#page-reports,#page-contracts,
+  #page-find,#page-sub,#page-notif,.content,.main,#auth-gate{display:none!important}
+  .modal{position:static!important;background:none!important;opacity:1!important;pointer-events:all!important;display:block!important;padding:0!important}
+  .modal-box{transform:none!important;max-height:none!important;overflow:visible!important;border-radius:0!important;border:none!important;padding:0!important}
+  #m-report-card{display:block!important}
+  .report-card-wrap{border:none!important;background:#fff!important;color:#000!important}
+  .report-card-header{background:var(--primary)!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .report-stat-val,.stats-cell-val{color:#004aad!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{background:#fff!important}
+  #pay-wizard-root{display:none!important}
+}
+
+/* Body radial gradient */
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse at 20% 30%,rgba(0,74,173,0.05) 0%,transparent 60%),
+             radial-gradient(ellipse at 80% 70%,rgba(245,184,0,0.05) 0%,transparent 60%),
+             radial-gradient(ellipse at 50% 100%,rgba(0,74,173,0.03) 0%,transparent 50%);}
+
+/* ══════════════════════ DISCOVERY SYSTEM CSS ══════════════════════ */
+
+/* Toolbar */
+.disc-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.disc-search-wrap{flex:1;min-width:180px;position:relative}
+.disc-search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text2);font-size:12px;pointer-events:none}
+.disc-search-input{width:100%;padding:8px 34px 8px 30px;border-radius:7px;border:1px solid var(--border);background:rgba(255,255,255,.05);color:var(--text);font-size:13px;outline:none;transition:border-color .15s}
+.disc-search-input:focus{border-color:var(--primary)}
+.disc-search-input::placeholder{color:#475569}
+.disc-clear-q{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text2);font-size:11px;padding:4px;cursor:pointer;line-height:1;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.disc-clear-q:hover{color:var(--text)}
+.disc-filter-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:7px;border:1px solid var(--border);background:rgba(255,255,255,.05);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap}
+.disc-filter-btn:hover{background:rgba(255,255,255,.1);border-color:var(--primary-l)}
+.disc-filter-btn.disc-panel-open{background:rgba(0,74,173,.15);border-color:var(--primary-l);color:var(--gold)}
+.disc-filter-badge{background:var(--gold);color:#000;border-radius:999px;font-size:10px;font-weight:800;padding:1px 5px;min-width:16px;text-align:center;display:inline-block;margin-left:2px}
+
+/* Filter panel */
+.disc-filter-panel{background:var(--dark2);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden;display:none}
+.disc-filter-panel.disc-panel-open{display:block}
+.disc-filter-scroll{padding:14px;max-height:480px;overflow-y:auto}
+.disc-filter-section{border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:12px}
+.disc-filter-section:last-child{border-bottom:none;padding-bottom:0;margin-bottom:0}
+.disc-section-title{font-size:11px;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.disc-section-title i{color:var(--gold);font-size:12px}
+.disc-section-toggle{cursor:pointer;justify-content:space-between;user-select:none}
+.disc-section-toggle:hover .disc-section-label{color:var(--text)}
+.disc-chevron{font-size:10px;transition:transform .2s;color:var(--text2)}
+.disc-chevron.open{transform:rotate(180deg)}
+.disc-filter-group{margin-bottom:8px}
+.disc-filter-group:last-child{margin-bottom:0}
+.disc-filter-label{display:block;font-size:10px;font-weight:700;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.3px}
+
+/* Chips */
+.disc-chip-group{display:flex;flex-wrap:wrap;gap:5px}
+.disc-chip{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text2);cursor:pointer;transition:all .12s;font-family:inherit;line-height:1.4}
+.disc-chip:hover{border-color:var(--primary-l);color:var(--text);background:rgba(0,74,173,.1)}
+.disc-chip.disc-chip-on{background:rgba(0,74,173,.2);border-color:var(--primary-l);color:var(--gold)}
+
+/* Selects */
+.disc-select-wrap{position:relative}
+.disc-select-native{width:100%;padding:7px 10px;border-radius:7px;border:1px solid var(--border);background:rgba(255,255,255,.05);color:var(--text);font-size:12px;outline:none;cursor:pointer}
+.disc-select-native:focus{border-color:var(--primary)}
+.disc-select-native option{background:#1e1e2f;color:var(--text)}
+.disc-select-native option:disabled{color:var(--text2)}
+
+/* Country chips */
+.disc-country-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;min-height:4px}
+.disc-ctag{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;background:rgba(0,74,173,.18);border:1px solid rgba(0,102,204,.35);color:#7dd3fc}
+.disc-ctag-rm{background:none;border:none;color:#7dd3fc;cursor:pointer;font-size:10px;padding:0;line-height:1;display:inline-flex;align-items:center}
+.disc-ctag-rm:hover{color:#fff}
+
+/* Position grid */
+.disc-pos-grid{display:flex;flex-wrap:wrap;gap:4px}
+.disc-pos-sep{width:100%;font-size:9px;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;margin-top:5px;padding-top:4px;border-top:1px solid rgba(255,255,255,.05)}
+.disc-pos-sep:first-child{margin-top:0;padding-top:0;border-top:none}
+.disc-pos-item{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:700;border:1px solid var(--border);background:rgba(255,255,255,.04);color:var(--text2);cursor:pointer;transition:all .12s}
+.disc-pos-item:has(input:checked){background:rgba(0,74,173,.2);border-color:var(--primary-l);color:var(--gold)}
+.disc-pos-item input{display:none}
+
+/* Range inputs */
+.disc-range-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media(max-width:580px){.disc-range-grid{grid-template-columns:1fr 1fr}}
+.disc-range-grp{}
+.disc-range-pair{display:flex;align-items:center;gap:5px}
+.disc-range-input{width:100%;min-width:0;padding:6px 7px;border-radius:6px;border:1px solid var(--border);background:rgba(255,255,255,.05);color:var(--text);font-size:12px;outline:none;text-align:center}
+.disc-range-input:focus{border-color:var(--primary)}
+.disc-range-sep{color:var(--text2);font-size:11px;flex-shrink:0}
+
+/* Sort row */
+.disc-sort-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+/* Stats panel */
+.disc-stats-body{padding-top:8px;display:flex;flex-direction:column;gap:10px}
+
+/* Filter panel actions bar */
+.disc-panel-actions{padding:10px 14px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,.12)}
+
+/* Active filter chips row */
+.disc-active-row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;align-items:center}
+.disc-active-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;background:rgba(0,74,173,.14);border:1px solid rgba(0,102,204,.3);color:#7dd3fc}
+.disc-active-chip-rm{background:none;border:none;color:#7dd3fc;cursor:pointer;font-size:9px;padding:0;line-height:1;display:inline-flex;align-items:center}
+.disc-active-chip-rm:hover{color:#fff}
+.disc-clear-all-btn{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#f87171;cursor:pointer;font-family:inherit;transition:all .12s}
+.disc-clear-all-btn:hover{background:rgba(239,68,68,.2)}
+
+/* Results header */
+.disc-results-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-size:12px;color:var(--text2)}
+.disc-results-count{font-weight:700;color:var(--text)}
+
+/* Pagination */
+.disc-pagination{display:flex;align-items:center;justify-content:center;gap:14px;padding:14px 0;margin-top:4px}
+.disc-page-info{font-size:12px;font-weight:700;color:var(--text2)}
+
+/* Discovery player card */
+.disc-card{display:flex;align-items:flex-start;gap:12px;padding:13px 0;border-bottom:1px solid var(--border)}
+.disc-card:last-child{border-bottom:none}
+.disc-av{width:46px;height:46px;border-radius:50%;background:var(--dark3);display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--text2);flex-shrink:0;overflow:hidden}
+.disc-av img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.disc-body{flex:1;min-width:0}
+.disc-name{font-weight:700;font-size:14px;line-height:1.2}
+.disc-meta{font-size:12px;color:var(--text2);margin-top:2px}
+.disc-badges{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:4px}
+.disc-stats-pills{display:flex;gap:6px;margin-top:5px;flex-wrap:wrap}
+.disc-stat-pill{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--text2);white-space:nowrap}
+.disc-stat-pill b{color:var(--gold)}
+.disc-actions{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
+</style>
+</head>
+<body>
+
+<!-- ═══ AUTH GATE ═══ -->
+<div id="auth-gate">
+  <div class="brand" style="font-size:0;"><div style="display:inline-flex;flex-direction:column;align-items:center"><div style="display:flex;align-items:baseline;padding-top:18px"><span style="font-weight:900;font-size:26px;letter-spacing:3px;line-height:1;color:#fff">Ene</span><span style="font-weight:900;font-size:26px;letter-spacing:3px;line-height:1;position:relative;display:inline-block;color:#fff"><span style="position:absolute;top:-17px;left:50%;transform:translateX(-50%);display:inline-block;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 50% 50%, #1a4fa0 2.4px, transparent 3px), #f5b800;box-shadow:inset 0 0 0 0.6px rgba(0,0,0,0.28);pointer-events:none"></span>ȷı</span><span style="font-weight:900;font-size:26px;letter-spacing:3px;line-height:1;color:#f5b800">Stats</span></div></div></div>
+  <div class="spinner"></div>
+  <div class="gate-msg">Authenticating…</div>
+</div>
+
+<!-- ═══ APP ═══ -->
+<div id="app">
+  <div class="layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sb-head">
+        <div class="sb-av" id="sb-av"><i class="fas fa-user"></i></div>
+        <div class="sb-name" id="sb-name">—</div>
+        <span class="sb-type" id="sb-type"></span>
+        <span class="spill" id="sb-pill">—</span>
+        <div class="sb-days" id="sb-days"></div>
+      </div>
+      <ul class="sb-nav">
+        <li class="ni active" id="ni-overview"   onclick="showTab('overview',this)"><i class="fas fa-home"></i> Overview</li>
+        <li class="ni"        id="ni-profile"    onclick="showTab('profile',this)"><i class="fas fa-user"></i> My Profile</li>
+        <li class="ni"        id="ni-players"    onclick="showTab('players',this)"><i class="fas fa-layer-group"></i> My Players</li>
+        <li class="ni"        id="ni-reports"    onclick="showTab('reports',this)"><i class="fas fa-file-alt"></i> Reports</li>
+        <li class="ni"        id="ni-contracts"  onclick="showTab('contracts',this)"><i class="fas fa-file-contract"></i> Contracts</li>
+        <li class="ni"        id="ni-find"       onclick="showTab('find',this)"><i class="fas fa-search"></i> Find Players</li>
+        <li class="ni"        id="ni-sub"        onclick="showTab('sub',this)"><i class="fas fa-credit-card"></i> Subscription</li>
+        <li class="ni"        id="ni-notif"      onclick="showTab('notif',this)"><i class="fas fa-bell"></i> Notifications <span class="ni-badge" id="notif-badge"></span></li>
+        <li class="ni"        onclick="openModal('m-settings')"><i class="fas fa-cog"></i> Settings</li>
+        <li class="ni logout" onclick="doLogout()"><i class="fas fa-sign-out-alt"></i> Logout</li>
+      </ul>
+    </aside>
+
+    <div id="sb-overlay" onclick="closeSidebar()"></div>
+
+    <!-- MAIN -->
+    <main class="main">
+      <div class="topbar">
+        <button class="hamburger" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+        <div class="tb-brand" style="overflow:visible;"><div style="display:inline-flex;flex-direction:column;align-items:center"><div style="display:flex;align-items:baseline;padding-top:18px"><span style="font-weight:900;font-size:26px;letter-spacing:3px;line-height:1;color:#fff">Ene</span><span style="font-weight:900;font-size:26px;letter-spacing:3px;line-height:1;position:relative;display:inline-block;color:#fff"><span style="position:absolute;top:-17px;left:50%;transform:translateX(-50%);display:inline-block;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 50% 50%, #1a4fa0 2.4px, transparent 3px), #f5b800;box-shadow:inset 0 0 0 0.6px rgba(0,0,0,0.28);pointer-events:none"></span>ȷı</span><span style="font-weight:900;font-size:26px;letter-spacing:3px;line-height:1;color:#f5b800">Stats</span></div></div></div>
+        <div class="tb-title" id="tb-title">Agent Dashboard</div>
+        <div class="tb-right">
+          <div class="tb-av" id="tb-av"><i class="fas fa-user"></i></div>
+          <div class="tb-name" id="tb-name"></div>
+          <button class="logout-btn" onclick="doLogout()"><i class="fas fa-sign-out-alt"></i></button>
+        </div>
+      </div>
+
+      <div id="banner-wrap"></div>
+
+      <div class="content">
+
+        <!-- OVERVIEW -->
+        <div class="page active" id="page-overview">
+          <div class="stats-row">
+            <div class="stat-box blue"><div class="stat-num" id="ov-total">—</div><div class="stat-lbl">Total Players</div></div>
+            <div class="stat-box green"><div class="stat-num" id="ov-active">—</div><div class="stat-lbl">Active Contracts</div></div>
+            <div class="stat-box orange"><div class="stat-num" id="ov-exp">—</div><div class="stat-lbl">Expiring Soon</div></div>
+            <div class="stat-box gold"><div class="stat-num" id="ov-free">—</div><div class="stat-lbl">Free Agents</div></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="fas fa-exclamation-triangle"></i> Contracts Expiring Soon</div>
+            <div id="ov-exp-list"><div class="loading"><span class="spinner"></span> Loading…</div></div>
+            <div style="margin-top:12px"><button class="btn btn-ghost btn-sm" onclick="showTab('players')"><i class="fas fa-arrow-right"></i> View All Players</button></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="fas fa-bell"></i> Recent Notifications</div>
+            <div id="ov-notif-list"><div class="loading"><span class="spinner"></span> Loading…</div></div>
+          </div>
+        </div>
+
+        <!-- PROFILE -->
+        <div class="page" id="page-profile">
+          <div class="card" id="profile-content"><div class="loading"><span class="spinner"></span> Loading…</div></div>
+        </div>
+
+        <!-- PLAYERS -->
+        <div class="page" id="page-players">
+          <div class="section-actions">
+            <button class="btn btn-primary btn-sm" onclick="openModal('m-add-player')"><i class="fas fa-plus"></i> Add Player</button>
+            <button class="btn btn-info btn-sm" onclick="openCreditTokens()"><i class="fas fa-coins"></i> Credit Tokens</button>
+            <input class="search-input" id="players-q" placeholder="Search players…" oninput="filterPlayers()" style="margin-left:auto"/>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="fas fa-layer-group"></i> My Players</div>
+            <div id="players-list"><div class="loading"><span class="spinner"></span> Loading…</div></div>
+          </div>
+        </div>
+
+        <!-- REPORTS -->
+        <div class="page" id="page-reports">
+          <div class="section-actions">
+            <button class="btn btn-primary btn-sm" onclick="openGenReport()"><i class="fas fa-plus"></i> Generate Report</button>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="fas fa-file-alt"></i> My Reports</div>
+            <div id="reports-list"><div class="loading"><span class="spinner"></span> Loading…</div></div>
+          </div>
+        </div>
+
+        <!-- CONTRACTS -->
+        <div class="page" id="page-contracts">
+          <div class="card">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">
+              <div class="card-title" style="margin-bottom:0"><i class="fas fa-paper-plane"></i> Sent Proposals</div>
+            </div>
+            <p style="font-size:12px;color:var(--text2);margin:0 0 10px">All proposals you have sent to players, with their current status.</p>
+            <div id="proposals-list"><div class="loading"><span class="spinner"></span> Loading…</div></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="fas fa-file-contract"></i> Player Roster Contracts</div>
+            <p style="font-size:12px;color:var(--text2);margin:0 0 10px">Contracts on file for players in your managed roster.</p>
+            <div id="contracts-list"><div class="loading"><span class="spinner"></span> Loading…</div></div>
+          </div>
+        </div>
+
+        <!-- ═══ FIND PLAYERS — Discovery System ═══ -->
+        <div class="page" id="page-find">
+
+          <div class="info-box"><i class="fas fa-info-circle" style="color:var(--primary-l)"></i> Players with expiring or no contracts are open to representation. Use filters to narrow your search — all location data loads dynamically. Sending a proposal is a formal expression of interest; ensure compliance with applicable football regulations.</div>
+
+          <!-- Toolbar: search + filter toggle + search button -->
+          <div class="disc-toolbar">
+            <div class="disc-search-wrap">
+              <i class="fas fa-search disc-search-icon"></i>
+              <input class="disc-search-input" id="disc-q" placeholder="Search by name, club, nationality, ID…" oninput="onDiscSearchInput()"/>
+              <button class="disc-clear-q" id="disc-clear-q" onclick="clearDiscSearch()" style="display:none" title="Clear search"><i class="fas fa-times"></i></button>
+            </div>
+            <button class="disc-filter-btn" id="disc-filter-toggle" onclick="toggleDiscFilters()">
+              <i class="fas fa-sliders-h"></i> Filters
+              <span class="disc-filter-badge" id="disc-filter-badge" style="display:none">0</span>
+            </button>
+            <button class="btn btn-primary btn-sm" onclick="executeDiscSearch(true)"><i class="fas fa-search"></i> Search</button>
+          </div>
+
+          <!-- Collapsible filter panel -->
+          <div class="disc-filter-panel" id="disc-filter-panel">
+            <div class="disc-filter-scroll">
+
+              <!-- LOCATION -->
+              <div class="disc-filter-section">
+                <div class="disc-section-title"><i class="fas fa-globe-africa"></i> Location</div>
+
+                <!-- Continent -->
+                <div class="disc-filter-group">
+                  <div class="disc-filter-label">Continent</div>
+                  <div class="disc-chip-group" id="disc-continent-chips">
+                    <button class="disc-chip" data-val="Africa"        onclick="toggleDiscChip('continent','Africa',this)">Africa</button>
+                    <button class="disc-chip" data-val="Europe"        onclick="toggleDiscChip('continent','Europe',this)">Europe</button>
+                    <button class="disc-chip" data-val="Asia"          onclick="toggleDiscChip('continent','Asia',this)">Asia</button>
+                    <button class="disc-chip" data-val="North America" onclick="toggleDiscChip('continent','North America',this)">N. America</button>
+                    <button class="disc-chip" data-val="South America" onclick="toggleDiscChip('continent','South America',this)">S. America</button>
+                    <button class="disc-chip" data-val="Oceania"       onclick="toggleDiscChip('continent','Oceania',this)">Oceania</button>
+                  </div>
+                </div>
+
+                <!-- Africa sub-region -->
+                <div class="disc-filter-group" id="disc-africa-region-group">
+                  <div class="disc-filter-label">Africa Region</div>
+                  <div class="disc-chip-group" id="disc-africa-chips">
+                    <button class="disc-chip" data-val="West Africa"     onclick="toggleDiscChip('africa_region','West Africa',this)">West Africa</button>
+                    <button class="disc-chip" data-val="East Africa"     onclick="toggleDiscChip('africa_region','East Africa',this)">East Africa</button>
+                    <button class="disc-chip" data-val="North Africa"    onclick="toggleDiscChip('africa_region','North Africa',this)">North Africa</button>
+                    <button class="disc-chip" data-val="Central Africa"  onclick="toggleDiscChip('africa_region','Central Africa',this)">Central Africa</button>
+                    <button class="disc-chip" data-val="Southern Africa" onclick="toggleDiscChip('africa_region','Southern Africa',this)">Southern Africa</button>
+                  </div>
+                </div>
+
+                <!-- Countries multi-select -->
+                <div class="disc-filter-group">
+                  <div class="disc-filter-label">Countries <span style="font-weight:400;text-transform:none;font-size:9px">(add multiple)</span></div>
+                  <div class="disc-select-wrap">
+                    <select class="disc-select-native" id="disc-countries-select" onchange="addDiscCountry(this)">
+                      <option value="">Select a country to add…</option>
+                    </select>
+                  </div>
+                  <div class="disc-country-tags" id="disc-country-tags"></div>
+                </div>
+
+                <!-- State / Region (shown when ≤2 countries selected) -->
+                <div class="disc-filter-group" id="disc-state-group" style="display:none">
+                  <div class="disc-filter-label" id="disc-state-label">State / Region</div>
+                  <div class="disc-select-wrap">
+                    <select class="disc-select-native" id="disc-state-select" onchange="onDiscStateChange(this)">
+                      <option value="">All states/regions…</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- LGA / Local Area (shown when state is selected) -->
+                <div class="disc-filter-group" id="disc-lga-group" style="display:none">
+                  <div class="disc-filter-label" id="disc-lga-label">LGA / Local Area</div>
+                  <div class="disc-select-wrap">
+                    <select class="disc-select-native" id="disc-lga-select" onchange="onDiscLgaChange(this)">
+                      <option value="">All LGAs / sub-regions…</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <!-- PLAYER LEVEL -->
+              <div class="disc-filter-section">
+                <div class="disc-section-title"><i class="fas fa-layer-group"></i> Player Level</div>
+                <div class="disc-filter-group">
+                  <div class="disc-chip-group" id="disc-level-chips">
+                    <button class="disc-chip" data-val="Professional"    onclick="toggleDiscChip('level','Professional',this)">Professional</button>
+                    <button class="disc-chip" data-val="Semi-Professional" onclick="toggleDiscChip('level','Semi-Professional',this)">Semi-Pro</button>
+                    <button class="disc-chip" data-val="Academy"         onclick="toggleDiscChip('level','Academy',this)">Academy</button>
+                    <button class="disc-chip" data-val="University"      onclick="toggleDiscChip('level','University',this)">University</button>
+                    <button class="disc-chip" data-val="Amateur"         onclick="toggleDiscChip('level','Amateur',this)">Amateur</button>
+                    <button class="disc-chip" data-val="Grassroots"      onclick="toggleDiscChip('level','Grassroots',this)">Grassroots</button>
+                    <button class="disc-chip" data-val="Youth"           onclick="toggleDiscChip('level','Youth',this)">Youth</button>
+                    <button class="disc-chip" data-val="Local"           onclick="toggleDiscChip('level','Local',this)">Local</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- POSITION -->
+              <div class="disc-filter-section">
+                <div class="disc-section-title"><i class="fas fa-futbol"></i> Position</div>
+                <!-- Broad category -->
+                <div class="disc-filter-group">
+                  <div class="disc-filter-label">Category</div>
+                  <div class="disc-chip-group" id="disc-pos-cat-chips">
+                    <button class="disc-chip" data-val="Goalkeeper" onclick="toggleDiscPosCategory('Goalkeeper',this)">Goalkeeper</button>
+                    <button class="disc-chip" data-val="Defender"   onclick="toggleDiscPosCategory('Defender',this)">Defender</button>
+                    <button class="disc-chip" data-val="Midfielder" onclick="toggleDiscPosCategory('Midfielder',this)">Midfielder</button>
+                    <button class="disc-chip" data-val="Forward"    onclick="toggleDiscPosCategory('Forward',this)">Forward</button>
+                  </div>
+                </div>
+                <!-- Specific positions -->
+                <div class="disc-filter-group">
+                  <div class="disc-filter-label">Specific Position <span style="font-weight:400;text-transform:none;font-size:9px">(optional)</span></div>
+                  <div class="disc-pos-grid" id="disc-pos-grid">
+                    <span class="disc-pos-sep">Goalkeeper</span>
+                    <label class="disc-pos-item"><input type="checkbox" value="GK" onchange="onDiscPosCheck(this)"/> GK</label>
+                    <span class="disc-pos-sep">Defence</span>
+                    <label class="disc-pos-item"><input type="checkbox" value="CB"  onchange="onDiscPosCheck(this)"/> CB</label>
+                    <label class="disc-pos-item"><input type="checkbox" value="LB"  onchange="onDiscPosCheck(this)"/> LB</label>
+                    <label class="disc-pos-item"><input type="checkbox" value="RB"  onchange="onDiscPosCheck(this)"/> RB</label>
+                    <label class="disc-pos-item"><input type="checkbox" value="LWB" onchange="onDiscPosCheck(this)"/> LWB</label>
+                    <label class="disc-pos-item"><input type="checkbox" value="RWB" onchange="onDiscPosCheck(this)"/> RWB</label>
+                    <label class="disc-pos-item"><input type="checkbox" value="SW"  onchange="onDiscPosCheck(this)"/> SW</label>
+                    <span class="disc-pos-sep">Midfield</span>
+                    <label class="disc-pos-item"><input type="checkbox" value="CDM" onchange="onDiscPosCheck(this)"/> CDM</label>
+                    <label class="disc-pos-item"><input type="checkbox" value="CM"  onchange="onDiscPosCheck(this)"/> CM</label>
+                    <label class="disc-pos-item"><input type="checkbox" value="CAM" onchange="onDiscPosCheck(this)"/> CAM</label>
+                    <label class="disc-pos-item"><input type="checkbox" value="DM"  onchange="onDiscPosCheck(this)"/> DM</label>
+                    <label class="disc-pos-item"><input type="checkbox" value="LM"  onchange="onDiscPosCheck(this)"/> LM</label>
+                    <label class="disc-pos-item"><input type="checkbox" value="RM"  onchange="onDiscPosCheck(this)"/> RM</label>
+                    <span class="disc-pos-sep">Attack</span>
+                    <label class="disc-pos-item"><input type="checkbox" value="LW"  onchange="onDiscPosCheck(this)"/> LW</label>
+                    <label class="disc-pos-item"><input type="checkbox" value="RW"  onchange="onDiscPosCheck(this)"/> RW</label>
+                    <label class="disc-pos-item"><input type="checkbox" value="CF"  onchange="onDiscPosCheck(this)"/> CF</label>
+                    <label class="disc-pos-item"><input type="checkbox" value="ST"  onchange="onDiscPosCheck(this)"/> ST</label>
+                    <label class="disc-pos-item"><input type="checkbox" value="SS"  onchange="onDiscPosCheck(this)"/> SS</label>
+                    <label class="disc-pos-item"><input type="checkbox" value="IF"  onchange="onDiscPosCheck(this)"/> IF</label>
+                  </div>
+                </div>
+              </div>
+
+              <!-- AGE & PHYSICAL -->
+              <div class="disc-filter-section">
+                <div class="disc-section-title"><i class="fas fa-ruler-vertical"></i> Age &amp; Physical Attributes</div>
+                <div class="disc-range-grid">
+                  <div class="disc-range-grp">
+                    <div class="disc-filter-label">Age (years)</div>
+                    <div class="disc-range-pair">
+                      <input class="disc-range-input" type="number" id="disc-age-min" placeholder="Min" min="10" max="60" oninput="onDiscFilterChange()"/>
+                      <span class="disc-range-sep">–</span>
+                      <input class="disc-range-input" type="number" id="disc-age-max" placeholder="Max" min="10" max="60" oninput="onDiscFilterChange()"/>
+                    </div>
+                  </div>
+                  <div class="disc-range-grp">
+                    <div class="disc-filter-label">Height (cm)</div>
+                    <div class="disc-range-pair">
+                      <input class="disc-range-input" type="number" id="disc-height-min" placeholder="Min" min="140" max="220" oninput="onDiscFilterChange()"/>
+                      <span class="disc-range-sep">–</span>
+                      <input class="disc-range-input" type="number" id="disc-height-max" placeholder="Max" min="140" max="220" oninput="onDiscFilterChange()"/>
+                    </div>
+                  </div>
+                  <div class="disc-range-grp">
+                    <div class="disc-filter-label">Weight (kg)</div>
+                    <div class="disc-range-pair">
+                      <input class="disc-range-input" type="number" id="disc-weight-min" placeholder="Min" min="40" max="130" oninput="onDiscFilterChange()"/>
+                      <span class="disc-range-sep">–</span>
+                      <input class="disc-range-input" type="number" id="disc-weight-max" placeholder="Max" min="40" max="130" oninput="onDiscFilterChange()"/>
+                    </div>
+                  </div>
+                </div>
+                <div class="disc-filter-group" style="margin-top:10px">
+                  <div class="disc-filter-label">Preferred Foot</div>
+                  <div class="disc-chip-group" id="disc-foot-chips">
+                    <button class="disc-chip" data-val="Left"  onclick="toggleDiscSingle('preferred_foot','Left',this)">Left</button>
+                    <button class="disc-chip" data-val="Right" onclick="toggleDiscSingle('preferred_foot','Right',this)">Right</button>
+                    <button class="disc-chip" data-val="Both"  onclick="toggleDiscSingle('preferred_foot','Both',this)">Both</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- STATISTICS RANGES -->
+              <div class="disc-filter-section">
+                <div class="disc-section-title disc-section-toggle" onclick="toggleDiscStatsPanel()" style="cursor:pointer">
+                  <span class="disc-section-label"><i class="fas fa-chart-bar" style="color:var(--gold)"></i> Statistics Ranges</span>
+                  <i class="fas fa-chevron-down disc-chevron" id="disc-stats-chevron"></i>
+                </div>
+                <div class="disc-stats-body" id="disc-stats-body" style="display:none">
+                  <div class="disc-range-grid">
+                    <div class="disc-range-grp">
+                      <div class="disc-filter-label">Goals</div>
+                      <div class="disc-range-pair">
+                        <input class="disc-range-input" type="number" id="disc-goals-min" placeholder="Min" min="0" oninput="onDiscFilterChange()"/>
+                        <span class="disc-range-sep">–</span>
+                        <input class="disc-range-input" type="number" id="disc-goals-max" placeholder="Max" min="0" oninput="onDiscFilterChange()"/>
+                      </div>
+                    </div>
+                    <div class="disc-range-grp">
+                      <div class="disc-filter-label">Assists</div>
+                      <div class="disc-range-pair">
+                        <input class="disc-range-input" type="number" id="disc-assists-min" placeholder="Min" min="0" oninput="onDiscFilterChange()"/>
+                        <span class="disc-range-sep">–</span>
+                        <input class="disc-range-input" type="number" id="disc-assists-max" placeholder="Max" min="0" oninput="onDiscFilterChange()"/>
+                      </div>
+                    </div>
+                    <div class="disc-range-grp">
+                      <div class="disc-filter-label">Matches</div>
+                      <div class="disc-range-pair">
+                        <input class="disc-range-input" type="number" id="disc-matches-min" placeholder="Min" min="0" oninput="onDiscFilterChange()"/>
+                        <span class="disc-range-sep">–</span>
+                        <input class="disc-range-input" type="number" id="disc-matches-max" placeholder="Max" min="0" oninput="onDiscFilterChange()"/>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="disc-range-grid">
+                    <div class="disc-range-grp">
+                      <div class="disc-filter-label">Avg Rating (0–10)</div>
+                      <div class="disc-range-pair">
+                        <input class="disc-range-input" type="number" id="disc-rating-min" placeholder="Min" min="0" max="10" step="0.1" oninput="onDiscFilterChange()"/>
+                        <span class="disc-range-sep">–</span>
+                        <input class="disc-range-input" type="number" id="disc-rating-max" placeholder="Max" min="0" max="10" step="0.1" oninput="onDiscFilterChange()"/>
+                      </div>
+                    </div>
+                    <div class="disc-range-grp">
+                      <div class="disc-filter-label">Pass Accuracy %</div>
+                      <div class="disc-range-pair">
+                        <input class="disc-range-input" type="number" id="disc-pass-min" placeholder="Min" min="0" max="100" oninput="onDiscFilterChange()"/>
+                        <span class="disc-range-sep">–</span>
+                        <input class="disc-range-input" type="number" id="disc-pass-max" placeholder="Max" min="0" max="100" oninput="onDiscFilterChange()"/>
+                      </div>
+                    </div>
+                    <div class="disc-range-grp">
+                      <div class="disc-filter-label">Clean Sheets</div>
+                      <div class="disc-range-pair">
+                        <input class="disc-range-input" type="number" id="disc-cs-min" placeholder="Min" min="0" oninput="onDiscFilterChange()"/>
+                        <span class="disc-range-sep">–</span>
+                        <input class="disc-range-input" type="number" id="disc-cs-max" placeholder="Max" min="0" oninput="onDiscFilterChange()"/>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="disc-range-grid">
+                    <div class="disc-range-grp">
+                      <div class="disc-filter-label">Tackles</div>
+                      <div class="disc-range-pair">
+                        <input class="disc-range-input" type="number" id="disc-tackles-min" placeholder="Min" min="0" oninput="onDiscFilterChange()"/>
+                        <span class="disc-range-sep">–</span>
+                        <input class="disc-range-input" type="number" id="disc-tackles-max" placeholder="Max" min="0" oninput="onDiscFilterChange()"/>
+                      </div>
+                    </div>
+                    <div class="disc-range-grp">
+                      <div class="disc-filter-label">Interceptions</div>
+                      <div class="disc-range-pair">
+                        <input class="disc-range-input" type="number" id="disc-inter-min" placeholder="Min" min="0" oninput="onDiscFilterChange()"/>
+                        <span class="disc-range-sep">–</span>
+                        <input class="disc-range-input" type="number" id="disc-inter-max" placeholder="Max" min="0" oninput="onDiscFilterChange()"/>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- SORT -->
+              <div class="disc-filter-section">
+                <div class="disc-section-title"><i class="fas fa-sort-amount-down"></i> Sort Results</div>
+                <div class="disc-filter-group">
+                  <div class="disc-sort-row">
+                    <select class="disc-select-native" id="disc-sort-by" onchange="onDiscFilterChange()" style="flex:1;min-width:120px">
+                      <option value="name">Name</option>
+                      <option value="nationality">Nationality</option>
+                      <option value="position">Position</option>
+                      <option value="category">Level</option>
+                    </select>
+                    <div class="disc-chip-group">
+                      <button class="disc-chip disc-chip-on" id="disc-sort-asc" onclick="setDiscSortOrder('asc')">A–Z ↑</button>
+                      <button class="disc-chip"              id="disc-sort-desc" onclick="setDiscSortOrder('desc')">Z–A ↓</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div><!-- /disc-filter-scroll -->
+
+            <div class="disc-panel-actions">
+              <button class="disc-clear-all-btn" onclick="clearAllDiscFilters()"><i class="fas fa-times"></i> Clear All Filters</button>
+              <button class="btn btn-primary btn-sm" onclick="executeDiscSearch(true)"><i class="fas fa-search"></i> Apply &amp; Search</button>
+            </div>
+          </div><!-- /disc-filter-panel -->
+
+          <!-- Active filter chips -->
+          <div class="disc-active-row" id="disc-active-row" style="display:none"></div>
+
+          <!-- Results header -->
+          <div class="disc-results-hdr" id="disc-results-hdr" style="display:none">
+            <span class="disc-results-count" id="disc-results-count"></span>
+          </div>
+
+          <!-- Results card -->
+          <div class="card">
+            <div class="card-title"><i class="fas fa-compass"></i> Player Discovery</div>
+            <div id="fp-list">
+              <div class="loading"><span class="spinner"></span> Loading players…</div>
+            </div>
+          </div>
+
+          <!-- Pagination -->
+          <div class="disc-pagination" id="disc-pagination" style="display:none">
+            <button class="btn btn-ghost btn-sm" id="disc-prev-btn" onclick="discPrevPage()"><i class="fas fa-chevron-left"></i> Prev</button>
+            <span class="disc-page-info" id="disc-page-info"></span>
+            <button class="btn btn-ghost btn-sm" id="disc-next-btn" onclick="discNextPage()">Next <i class="fas fa-chevron-right"></i></button>
+          </div>
+
+        </div><!-- /page-find -->
+
+        <!-- SUBSCRIPTION -->
+        <div class="page" id="page-sub">
+          <div class="card" id="sub-current"><div class="loading"><span class="spinner"></span> Loading…</div></div>
+          <div class="card">
+            <div class="card-title"><i class="fas fa-credit-card"></i> Subscription Plans</div>
+            <div class="info-box"><i class="fas fa-info-circle" style="color:var(--primary-l)"></i> Plans and current pricing are loaded live. Click the button below to view plans and subscribe.</div>
+            <button class="btn btn-gold btn-full" style="margin-top:8px" onclick="openPayWizard('SUBSCRIPTION')"><i class="fas fa-university"></i> Subscribe / Renew</button>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="fas fa-coins"></i> Agent Tokens</div>
+            <div class="info-box"><i class="fas fa-info-circle" style="color:var(--primary-l)"></i> Purchase tokens to credit to your contracted players. Tokens are used by players to request professional stats analysis.</div>
+            <div id="agent-token-balance" style="margin-bottom:12px"><div class="loading"><span class="spinner"></span> Loading…</div></div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <button class="btn btn-primary btn-sm" onclick="openPayWizard('TOKEN')"><i class="fas fa-shopping-cart"></i> Buy Tokens</button>
+              <button class="btn btn-info btn-sm" onclick="openCreditTokens()"><i class="fas fa-hand-holding-usd"></i> Credit to Player</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="fas fa-history"></i> Payment History</div>
+            <div id="sub-history"><div class="loading"><span class="spinner"></span> Loading…</div></div>
+          </div>
+        </div>
+
+        <!-- NOTIFICATIONS -->
+        <div class="page" id="page-notif">
+          <div class="section-actions">
+            <button class="btn btn-ghost btn-sm" onclick="markAllRead()"><i class="fas fa-check-double"></i> Mark All Read</button>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="fas fa-bell"></i> All Notifications</div>
+            <div id="notif-list"><div class="loading"><span class="spinner"></span> Loading…</div></div>
+          </div>
+        </div>
+
+      </div><!-- /content -->
+    </main>
+  </div>
+</div><!-- /app -->
+
+<!-- ═══ MODALS ═══ -->
+
+<!-- Settings -->
+<div class="modal" id="m-settings">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <div class="modal-title"><i class="fas fa-cog" style="color:var(--gold)"></i> Settings</div>
+      <button class="modal-close" onclick="closeModal('m-settings')">&times;</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Phone</label><input class="form-input" id="s-phone" placeholder="+234…"/></div>
+      <div class="form-group"><label class="form-label">WhatsApp</label><input class="form-input" id="s-whatsapp" placeholder="+234…"/></div>
+      <div class="form-group"><label class="form-label">Website</label><input class="form-input" id="s-website" placeholder="https://…"/></div>
+      <div class="form-group"><label class="form-label">Instagram</label><input class="form-input" id="s-instagram" placeholder="@handle"/></div>
+    </div>
+    <div class="form-group"><label class="form-label">LinkedIn</label><input class="form-input" id="s-linkedin" placeholder="linkedin.com/in/…"/></div>
+    <div class="form-group"><label class="form-label">Bio</label><textarea class="form-input" id="s-bio" rows="3" placeholder="Tell us about yourself…"></textarea></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="saveSettings()"><i class="fas fa-save"></i> Save</button>
+      <button class="btn btn-ghost" onclick="closeModal('m-settings')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Player -->
+<div class="modal" id="m-add-player">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <div class="modal-title"><i class="fas fa-plus" style="color:var(--gold)"></i> Add Player</div>
+      <button class="modal-close" onclick="closeModal('m-add-player')">&times;</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Full Name *</label><input class="form-input" id="ap-name" placeholder="Player name"/></div>
+      <div class="form-group"><label class="form-label">Position *</label>
+        <select class="form-input" id="ap-pos">
+          <option value="GK">GK – Goalkeeper</option><option value="CB">CB – Centre Back</option>
+          <option value="LB">LB – Left Back</option><option value="RB">RB – Right Back</option>
+          <option value="CDM">CDM – Def. Mid</option><option value="CM">CM – Centre Mid</option>
+          <option value="AM">AM – Attack. Mid</option><option value="LW">LW – Left Wing</option>
+          <option value="RW">RW – Right Wing</option><option value="ST">ST – Striker</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Club</label><input class="form-input" id="ap-club" placeholder="Current club"/></div>
+      <div class="form-group"><label class="form-label">Nationality</label><input class="form-input" id="ap-nat" placeholder="e.g. Nigerian"/></div>
+      <div class="form-group"><label class="form-label">Date of Birth</label><input class="form-input" type="date" id="ap-dob"/></div>
+      <div class="form-group"><label class="form-label">Market Value (₦)</label><input class="form-input" type="number" id="ap-val" placeholder="0"/></div>
+      <div class="form-group"><label class="form-label">Contract Start</label><input class="form-input" type="date" id="ap-cs"/></div>
+      <div class="form-group"><label class="form-label">Contract End</label><input class="form-input" type="date" id="ap-ce"/></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="addPlayer()"><i class="fas fa-save"></i> Add Player</button>
+      <button class="btn btn-ghost" onclick="closeModal('m-add-player')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Send Proposal -->
+<div class="modal" id="m-proposal">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <div class="modal-title"><i class="fas fa-paper-plane" style="color:var(--gold)"></i> Send Proposal</div>
+      <button class="modal-close" onclick="closeModal('m-proposal')">&times;</button>
+    </div>
+    <div id="prop-player" style="background:var(--dark3);border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px"></div>
+    <div class="warn-box"><i class="fas fa-exclamation-triangle"></i> By sending this proposal you confirm you are a licensed registered agent and this approach complies with all applicable football regulations and national laws.</div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Proposed Start</label><input class="form-input" type="date" id="pr-start"/></div>
+      <div class="form-group"><label class="form-label">Proposed End</label><input class="form-input" type="date" id="pr-end"/></div>
+    </div>
+    <div class="form-group"><label class="form-label">Message (optional)</label><textarea class="form-input" id="pr-msg" rows="3" placeholder="Introduce yourself and your proposal…"></textarea></div>
+    <input type="hidden" id="pr-pid"/>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="sendProposal()"><i class="fas fa-paper-plane"></i> Send Proposal</button>
+      <button class="btn btn-ghost" onclick="closeModal('m-proposal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Generate Report (from list) -->
+<div class="modal" id="m-gen-report">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <div class="modal-title"><i class="fas fa-file-export" style="color:var(--gold)"></i> Generate Report</div>
+      <button class="modal-close" onclick="closeModal('m-gen-report')">&times;</button>
+    </div>
+    <div class="form-group"><label class="form-label">Report Type</label>
+      <select class="form-input" id="rep-type">
+        <option value="player_profile">Player Profile</option>
+        <option value="portfolio_summary">Portfolio Summary</option>
+        <option value="contract_status">Contract Status</option>
+      </select>
+    </div>
+    <div class="form-group"><label class="form-label">Player (optional)</label>
+      <select class="form-input" id="rep-player"><option value="">All Players</option></select>
+    </div>
+    <div class="form-group"><label class="form-label">Notes</label><textarea class="form-input" id="rep-notes" rows="2" placeholder="Additional notes…"></textarea></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="generateReport()"><i class="fas fa-file-export"></i> Generate</button>
+      <button class="btn btn-ghost" onclick="closeModal('m-gen-report')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── PLAYER STATS MODAL (read-only) ── -->
+<div class="modal" id="m-player-stats">
+  <div class="modal-box wide">
+    <div class="modal-hdr">
+      <div class="modal-title"><i class="fas fa-chart-bar" style="color:var(--gold)"></i> Player Statistics</div>
+      <button class="modal-close" onclick="closeModal('m-player-stats')">&times;</button>
+    </div>
+    <div class="stats-ro-note"><i class="fas fa-lock" style="color:var(--info)"></i> Read-only view. Stats are owned by the player and cannot be modified here.</div>
+    <div id="player-stats-modal-content"><div class="loading"><span class="spinner"></span> Loading…</div></div>
+  </div>
+</div>
+
+<!-- ── REPORT CARD MODAL (printable) ── -->
+<div class="modal" id="m-report-card">
+  <div class="modal-box fullscreen" style="padding:0">
+    <div class="report-actions no-print" style="padding:14px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)">
+      <span style="font-size:14px;font-weight:800;display:flex;align-items:center;gap:7px"><i class="fas fa-file-alt" style="color:var(--gold)"></i> Player Report Card</span>
+      <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="shareReport()"><i class="fas fa-share-alt"></i> Share</button>
+        <button class="btn btn-primary btn-sm" onclick="printReport()"><i class="fas fa-print"></i> Print / Save PDF</button>
+        <button class="modal-close no-print" onclick="closeModal('m-report-card')" style="margin-left:4px">&times;</button>
+      </div>
+    </div>
+    <div style="padding:16px;overflow-y:auto;max-height:calc(95vh - 60px)" id="report-card-scroll">
+      <div id="report-card-content">
+        <div class="loading"><span class="spinner"></span> Loading…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── CREDIT TOKENS MODAL ── -->
+<div class="modal" id="m-credit-tokens">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <div class="modal-title"><i class="fas fa-coins" style="color:var(--gold)"></i> Credit Tokens to Player</div>
+      <button class="modal-close" onclick="closeModal('m-credit-tokens')">&times;</button>
+    </div>
+    <div class="token-credit-balance">
+      <div class="token-balance-num" id="ct-balance">—</div>
+      <div class="token-balance-lbl">Your Available Token Balance</div>
+    </div>
+    <div class="info-box"><i class="fas fa-info-circle" style="color:var(--primary-l)"></i> Tokens credited to a player are deducted from your balance and added to the player's token ledger. Both parties receive a notification.</div>
+    <div class="form-group"><label class="form-label">Select Player *</label>
+      <select class="form-input" id="ct-player">
+        <option value="">— Choose a contracted player —</option>
+      </select>
+    </div>
+    <div class="form-group"><label class="form-label">Token Amount *</label>
+      <input class="form-input" type="number" id="ct-amount" min="1" max="500" placeholder="e.g. 5" oninput="updateCreditPreview()"/>
+    </div>
+    <div id="ct-preview" style="display:none;background:rgba(255,215,0,.06);border:1px solid rgba(255,215,0,.2);border-radius:8px;padding:10px 12px;font-size:12px;margin-bottom:12px;color:var(--text2)"></div>
+    <div class="form-group"><label class="form-label">Note to Player (optional)</label>
+      <textarea class="form-input" id="ct-desc" rows="2" placeholder="e.g. For your match registration this season…"></textarea>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-gold" style="flex:1;justify-content:center" onclick="creditTokens()"><i class="fas fa-coins"></i> Credit Tokens</button>
+      <button class="btn btn-ghost" onclick="closeModal('m-credit-tokens')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Payment Wizard Root (Preact mounts here) -->
+<div id="pay-wizard-root"></div>
+<div id="toasts"></div>
+
+<script>
+/* ══════════════════════════ STATE ══════════════════════════ */
+const S = { user:null, agent:null, agentId:null, tab:'overview', pendingProposalMap:{} };
+let _players = [], _fp = [];
+
+/* ══════════════════════════ HELPERS ══════════════════════════ */
+const $  = id => document.getElementById(id);
+const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const fmtDate = d => { if(!d) return '—'; return new Date(d).toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'}); };
+const calcAge = dob => { if(!dob) return '—'; return Math.floor((Date.now()-new Date(dob))/(365.25*86400000)); };
+const toTitleCase = s => (s||'').replace(/\w\S*/g, w => w.charAt(0).toUpperCase()+w.slice(1).toLowerCase());
+const fmtDays = d => {
+  if(!d) return '';
+  const days = Math.ceil((new Date(d)-Date.now())/86400000);
+  if(days<0) return `<span class="text-danger">${Math.abs(days)}d overdue</span>`;
+  if(days===0) return `<span class="text-danger">Expires today</span>`;
+  if(days<=30) return `<span class="text-warning">${days}d remaining</span>`;
+  return `<span class="text-success">${days}d remaining</span>`;
+};
+const emptyState = (icon,msg) => `<div class="empty"><i class="${esc(icon)}"></i><p>${esc(msg)}</p></div>`;
+const loadingHtml = () => `<div class="loading"><span class="spinner"></span> Loading…</div>`;
+const fmt = (v,dec=0) => { if(v==null||v===''||v===undefined) return '—'; const n=parseFloat(v); return isNaN(n)?'—':dec>0?n.toFixed(dec):n.toLocaleString(); };
+
+/* ══════════════════════════ TOAST ══════════════════════════ */
+function toast(msg, type='info'){
+  const icons={success:'fa-check-circle',error:'fa-times-circle',info:'fa-info-circle',warning:'fa-exclamation-triangle'};
+  const colors={success:'var(--success)',error:'var(--danger)',info:'var(--info)',warning:'var(--warning)'};
+  const el=document.createElement('div');
+  el.className=`toast ${type}`;
+  el.innerHTML=`<i class="fas ${icons[type]||icons.info}" style="color:${colors[type]||colors.info}"></i> ${esc(msg)}`;
+  $('toasts').appendChild(el);
+  setTimeout(()=>el.remove(),4000);
+}
+
+/* ══════════════════════════ API ══════════════════════════ */
+async function api(path,opts={}){
+  const _tok=localStorage.getItem('enejistats_token');
+  const res=await fetch('/api'+path,{
+    headers:{'Content-Type':'application/json',...(_tok?{Authorization:'Bearer '+_tok}:{})},
+    credentials:'include',
+    ...opts,
+    body:opts.body?JSON.stringify(opts.body):undefined,
+  });
+  if(!res.ok){
+    const err=await res.json().catch(()=>({error:`HTTP ${res.status}`}));
+    throw new Error(err.error||err.detail||'Request failed');
+  }
+  return res.json();
+}
+
+/* ══════════════════════════ MODAL ══════════════════════════ */
+function openModal(id){ const el=$(id); if(el) el.classList.add('open'); if(id==='m-settings') fillSettings(); }
+function closeModal(id){ const el=$(id); if(el) el.classList.remove('open'); }
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') document.querySelectorAll('.modal.open').forEach(m=>m.classList.remove('open')); });
+document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{ if(e.target===m) m.classList.remove('open'); }));
+
+/* ══════════════════════════ SIDEBAR ══════════════════════════ */
+function toggleSidebar(){ $('sidebar').classList.toggle('open'); $('sb-overlay').classList.toggle('show'); }
+function closeSidebar(){ $('sidebar').classList.remove('open'); $('sb-overlay').classList.remove('show'); }
+
+/* ══════════════════════════ TAB NAV ══════════════════════════ */
+const TAB_TITLES={overview:'Dashboard Overview',profile:'My Profile',players:'My Players',reports:'Reports',contracts:'Contract History',find:'Find Players',sub:'Subscription & Tokens',notif:'Notifications'};
+const TAB_LOADERS={overview:loadOverview,profile:loadProfile,players:loadPlayers,reports:loadReports,contracts:loadContracts,find:loadFP,sub:loadSub,notif:loadNotif};
+
+function showTab(id,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const page=$('page-'+id); if(page) page.classList.add('active');
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
+  if(el) el.classList.add('active');
+  else { const ni=$('ni-'+id); if(ni) ni.classList.add('active'); }
+  $('tb-title').textContent=TAB_TITLES[id]||id;
+  S.tab=id;
+  closeSidebar();
+  if(TAB_LOADERS[id]) TAB_LOADERS[id]();
+}
+
+/* ══════════════════════════ AUTH ══════════════════════════ */
+async function init(){
+  const gate=$('auth-gate');
+  try{
+    const d=await api('/auth/me');
+    if(d.role && d.role!=='agent'){
+      gate.querySelector('.gate-msg').textContent='';
+      gate.querySelector('.gate-err') || gate.insertAdjacentHTML('beforeend','<div class="gate-err"><i class="fas fa-ban"></i> This dashboard is for agents only.</div>');
+      gate.querySelector('.spinner').style.display='none';
+      gate.insertAdjacentHTML('beforeend','<a href="/" class="btn btn-primary" style="margin-top:8px">Return Home</a>');
+      return;
+    }
+    S.user = d.user || d;
+    S.agent = d.agent || d;
+    S.agentId = S.agent.agent_id || S.agent.id;
+    showApp();
+  }catch{
+    window.location.href='/login';
+  }
+}
+
+function showApp(){
+  $('auth-gate').style.display='none';
+  $('app').style.display='block';
+  refreshSidebar(); refreshTopbar(); refreshBanner();
+  loadOverview();
+}
+
+async function doLogout(){
+  try{ await fetch('/api/auth/logout',{method:'POST',credentials:'include'}); }catch(e){}
+  try{ localStorage.clear(); }catch(e){}
+  try{ sessionStorage.clear(); }catch(e){}
+  window.location.replace('/login');
+}
+
+/* ══════════════════════════ SIDEBAR / TOPBAR / BANNER ══════════════════════════ */
+function refreshSidebar(){
+  const a=S.agent; if(!a) return;
+  const tick=a.isVerified?'<span class="vtick"><i class="fas fa-check" style="font-size:7px"></i></span>':'';
+  $('sb-name').innerHTML=esc(a.name||a.full_name||'')+' '+tick;
+  $('sb-type').textContent=a.accountType==='individual'?'Individual Agent':'Organisation';
+  const pill=$('sb-pill');
+  pill.className='spill '+(a.subscriptionStatus||'trial');
+  pill.textContent=(a.subscriptionStatus||'trial').replace(/_/g,' ');
+  const dEl=$('sb-days');
+  if(a.subscriptionStatus==='trial'&&a.trialEndDate){
+    const d=Math.max(0,Math.ceil((new Date(a.trialEndDate)-Date.now())/86400000));
+    dEl.textContent=d+' days remaining';
+  }else if(a.subscriptionEndDate){
+    const d=Math.max(0,Math.ceil((new Date(a.subscriptionEndDate)-Date.now())/86400000));
+    dEl.textContent=d+' days remaining';
+  }else{ dEl.textContent=''; }
+  if(a.photoUrl) $('sb-av').innerHTML=`<img src="${esc(a.photoUrl)}" alt="av"/>`;
+}
+
+function refreshTopbar(){
+  const a=S.agent; if(!a) return;
+  const tick=a.isVerified?'<span class="vtick" style="width:13px;height:13px"><i class="fas fa-check" style="font-size:6px"></i></span>':'';
+  $('tb-name').innerHTML=esc(a.name||a.full_name||'')+' '+tick;
+  if(a.photoUrl) $('tb-av').innerHTML=`<img src="${esc(a.photoUrl)}" alt="av"/>`;
+}
+
+function refreshBanner(){
+  const a=S.agent; if(!a) return;
+  const wrap=$('banner-wrap');
+  const s=a.subscriptionStatus;
+  if(s==='trial'){
+    const d=a.trialEndDate?Math.max(0,Math.ceil((new Date(a.trialEndDate)-Date.now())/86400000)):0;
+    wrap.innerHTML=`<div class="banner trial"><i class="fas fa-clock"></i> Trial Period: <strong>${d} days remaining</strong> — Subscribe to continue access <button class="banner-btn" onclick="showTab('sub')">Subscribe</button></div>`;
+  }else if(s==='grace_period'){
+    wrap.innerHTML=`<div class="banner grace"><i class="fas fa-exclamation-circle"></i> Grace Period — Subscription expired. Renew to avoid losing access. <button class="banner-btn" onclick="showTab('sub')">Renew</button></div>`;
+  }else if(s==='expired'||s==='trial_expired'){
+    wrap.innerHTML=`<div class="banner expired"><i class="fas fa-ban"></i> Subscription expired. Renew to regain full access. <button class="banner-btn" onclick="showTab('sub')">Renew Now</button></div>`;
+  }else{ wrap.innerHTML=''; }
+}
+
+function refreshAgent(){
+  api('/auth/me').then(d=>{ S.user=d.user||d; S.agent=d.agent||d; S.agentId=S.agent.agent_id||S.agent.id; refreshSidebar(); refreshTopbar(); refreshBanner(); }).catch(()=>{});
+}
+
+/* ══════════════════════════ OVERVIEW ══════════════════════════ */
+async function loadOverview(){
+  try{
+    const [{players,summary},{notifications,unreadCount}]=await Promise.all([
+      api(`/agent/${S.agentId}/players`),
+      api(`/agent/${S.agentId}/notifications`),
+    ]);
+    $('ov-total').textContent=summary.total;
+    $('ov-active').textContent=summary.active;
+    $('ov-exp').textContent=summary.expiringSoon;
+    $('ov-free').textContent=summary.freeAgents;
+    const expiring=players.filter(p=>p.contractStatus==='expiring_soon');
+    $('ov-exp-list').innerHTML=expiring.length?expiring.map(p=>{
+      const photoSrc=p.photoUrl?esc(p.photoUrl):`https://ui-avatars.com/api/?name=${encodeURIComponent(p.name||'?')}&background=2e2e45&color=e2e8f0&size=42`;
+      const catBadge=p.category?`<span class="cat-badge">${esc(toTitleCase(p.category))}</span>`:'';
+      return `<div class="player-row">
+        <div class="pav"><img src="${photoSrc}" alt="${esc(p.name)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/></div>
+        <div class="pinfo">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><div class="pname">${esc(p.name)}</div>${catBadge}</div>
+          <div class="pmeta">${esc(p.club||'Free Agent')} · ${esc(p.nationality||'')} · ${fmtDays(p.contract?.endDate)}</div>
+        </div>
+        <span class="pos-badge">${esc(p.position||'')}</span>
+      </div>`;
+    }).join(''):emptyState('fas fa-check-circle','No contracts expiring soon');
+    const recent=notifications.slice(0,4);
+    $('ov-notif-list').innerHTML=recent.length?recent.map(n=>notifHtml(n)).join(''):emptyState('fas fa-bell-slash','No notifications yet');
+    const badge=$('notif-badge');
+    badge.textContent=unreadCount||'';
+    badge.className='ni-badge'+(unreadCount?' show':'');
+  }catch(e){
+    $('ov-exp-list').innerHTML=`<div class="empty"><p class="text-danger">${esc(e.message)}</p></div>`;
+    $('ov-notif-list').innerHTML=`<div class="empty"><p class="text-danger">${esc(e.message)}</p></div>`;
+  }
+}
+
+/* ══════════════════════════ PROFILE (redesigned) ══════════════════════════ */
+async function loadProfile(){
+  $('profile-content').innerHTML=loadingHtml();
+  try{
+    const {agent}=await api(`/agent/${S.agentId}/profile`);
+    S.agent={...S.agent,...agent};
+    const tick=agent.isVerified?'<span class="vtick" style="width:18px;height:18px;font-size:9px"><i class="fas fa-check" style="font-size:8px"></i></span>':'';
+
+    const photoHtml=agent.photoUrl
+      ?`<img src="${esc(agent.photoUrl)}" alt="${esc(agent.name||'Agent')}"/>`
+      :'<i class="fas fa-user-tie"></i>';
+
+    // Identity badges row
+    const badges=[];
+    if(agent.licenseNumber) badges.push(`<span class="profile-badge-item"><i class="fas fa-id-card"></i>${esc(agent.licenseNumber)}</span>`);
+    if(agent.yearsExperience) badges.push(`<span class="profile-badge-item"><i class="fas fa-briefcase"></i>${esc(agent.yearsExperience)} yrs exp</span>`);
+    if(agent.accountType) badges.push(`<span class="profile-badge-item"><i class="fas fa-building"></i>${esc(agent.accountType==='individual'?'Individual':'Organisation')}</span>`);
+    if(agent.nationality) badges.push(`<span class="profile-badge-item"><i class="fas fa-flag"></i>${esc(agent.nationality)}</span>`);
+    if(Array.isArray(agent.languages)&&agent.languages.length) badges.push(`<span class="profile-badge-item"><i class="fas fa-language"></i>${esc(agent.languages.join(', '))}</span>`);
+
+    // Detail grid items
+    const detailItems=[
+      ['fa-envelope','Email',agent.email],
+      ['fa-phone','Phone',agent.phone],
+      ['fa-whatsapp fab','WhatsApp',agent.whatsapp],
+      ['fa-globe','Website',agent.website],
+      ['fa-venus-mars','Gender',agent.gender],
+      ['fa-instagram fab','Instagram',agent.instagram],
+      ['fa-linkedin fab','LinkedIn',agent.linkedin],
+      ['fa-map-marker-alt','Countries',Array.isArray(agent.operatingCountries)?agent.operatingCountries.join(', '):agent.operatingCountries],
+      ['fa-users','Total Players',agent.totalPlayersRepresented],
+      ['fa-trophy','Qualifications',agent.professionalQualifications],
+    ].filter(([,, v])=>v);
+
+    $('profile-content').innerHTML=`
+      <div class="profile-hero">
+        <div class="profile-photo-wrap">${photoHtml}</div>
+        <div class="profile-name-row">${esc(agent.name||agent.full_name||'—')} ${tick}</div>
+        <div class="profile-uid">${esc(agent.agentUid||agent.agent_uid||agent.id||'')}</div>
+        <div style="margin-bottom:10px"><span class="spill ${esc(agent.subscriptionStatus||'trial')}">${esc((agent.subscriptionStatus||'trial').replace(/_/g,' '))}</span></div>
+        <div class="profile-badges-row">${badges.join('')}</div>
+      </div>
+      <div class="profile-detail-grid">
+        ${detailItems.map(([icon,lbl,val])=>`
+          <div class="profile-detail-item">
+            <div class="profile-detail-lbl"><i class="fas ${icon}" style="color:var(--gold);margin-right:4px"></i>${esc(lbl)}</div>
+            <div class="profile-detail-val">${esc(String(val))}</div>
+          </div>`).join('')}
+      </div>
+      ${agent.bio?`<div class="divider"></div><div style="margin-bottom:16px"><div class="form-label"><i class="fas fa-quote-left" style="color:var(--gold);margin-right:4px"></i>Bio</div><p style="font-size:13px;color:var(--text2);line-height:1.7;margin-top:6px">${esc(agent.bio)}</p></div>`:''}
+      <button class="btn btn-primary btn-sm" onclick="openModal('m-settings')"><i class="fas fa-edit"></i> Edit Profile</button>`;
+  }catch(e){
+    $('profile-content').innerHTML=`<div class="empty"><p class="text-danger">${esc(e.message)}</p></div>`;
+  }
+}
+
+/* ══════════════════════════ PLAYERS ══════════════════════════ */
+async function loadPlayers(){
+  $('players-list').innerHTML=loadingHtml();
+  try{
+    const {players}=await api(`/agent/${S.agentId}/players`);
+    _players=players; renderPlayers(players);
+  }catch(e){
+    $('players-list').innerHTML=`<div class="empty"><p class="text-danger">${esc(e.message)}</p></div>`;
+  }
+}
+
+function renderPlayers(list){
+  if(!list.length){ $('players-list').innerHTML=emptyState('fas fa-layer-group','No players yet. Add your first player.'); return; }
+  const sMap={active:'badge-active',expiring_soon:'badge-expiring',expired:'badge-expired',none:'badge-none'};
+  $('players-list').innerHTML=list.map(p=>{
+    const photoSrc=p.photoUrl?esc(p.photoUrl):`https://ui-avatars.com/api/?name=${encodeURIComponent(p.name||'?')}&background=2e2e45&color=e2e8f0&size=46`;
+    const catBadge=p.category?`<span class="cat-badge">${esc(toTitleCase(p.category))}</span>`:'';
+    const hasContract=p.contractStatus==='active'||p.contractStatus==='expiring_soon';
+    const playerId=p.id||p.player_id||p.uid;
+
+    return `<div class="player-row">
+      <div class="pav" style="width:46px;height:46px;cursor:pointer" onclick="openPlayerStats('${esc(playerId)}','${esc(p.name||'')}')" title="View stats">
+        <img src="${photoSrc}" alt="${esc(p.name)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/>
+      </div>
+      <div class="pinfo">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <div class="pname" style="cursor:pointer" onclick="openPlayerStats('${esc(playerId)}','${esc(p.name||'')}')">${esc(p.name)}</div>
+          <span class="pos-badge">${esc(p.position||'')}</span>
+          ${catBadge}
+          <span style="font-size:10px;color:var(--text2);font-family:monospace">${esc(playerId||'')}</span>
+        </div>
+        <div class="pmeta">${esc(p.club||'Free Agent')} · ${esc(p.nationality||'')}${p.dob?' · Age '+calcAge(p.dob):''}</div>
+        <div class="pmeta" style="margin-top:3px">${p.contract?.endDate?'Contract ends '+fmtDate(p.contract.endDate)+' · '+fmtDays(p.contract.endDate):'No active contract'}</div>
+        <div style="margin-top:5px"><span class="badge ${sMap[p.contractStatus]||'badge-none'}">${esc(toTitleCase((p.contractStatus||'unknown').replace(/_/g,' ')))}</span></div>
+      </div>
+      <div class="pactions">
+        <button class="btn btn-ghost btn-xs" onclick="openPlayerStats('${esc(playerId)}','${esc(p.name||'')}')" title="View Stats"><i class="fas fa-chart-bar"></i> Stats</button>
+        ${hasContract?`<button class="btn btn-info btn-xs" onclick="openPlayerReport('${esc(playerId)}')" title="Generate Report"><i class="fas fa-file-alt"></i> Report</button>`:''}
+        ${hasContract?`<button class="btn btn-success btn-xs" onclick="openCreditTokensForPlayer('${esc(playerId)}','${esc(p.name||'')}')" title="Credit Tokens"><i class="fas fa-coins"></i></button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterPlayers(){
+  const q=($('players-q').value||'').toLowerCase();
+  renderPlayers(_players.filter(p=>(p.name||'').toLowerCase().includes(q)||(p.club||'').toLowerCase().includes(q)||(p.nationality||'').toLowerCase().includes(q)||(p.id||p.player_id||'').toLowerCase().includes(q)||(p.category||'').toLowerCase().includes(q)));
+}
+
+/* ══════════════════════════ PLAYER STATS VIEW (read-only) ══════════════════════════ */
+async function openPlayerStats(playerId, playerName){
+  $('player-stats-modal-content').innerHTML=loadingHtml();
+  openModal('m-player-stats');
+  try{
+    const data=await api(`/player/${playerId}/stats/summary`);
+    const ss=data.season_stats||data.seasonStats||data.stats||{};
+    const summ=data.summary_stats||data.summaryStats||data.summary||{};
+    const matches=data.match_stats||data.matchStats||data.matches||[];
+
+    // find player info from _players cache or discovery cache
+    const pInfo=_players.find(x=>(x.id||x.player_id)===String(playerId))||_fp.find(x=>(x.id||x.player_id)===String(playerId))||{};
+    const photoSrc=pInfo.photoUrl?esc(pInfo.photoUrl):`https://ui-avatars.com/api/?name=${encodeURIComponent(playerName||'?')}&background=2e2e45&color=e2e8f0&size=52`;
+
+    // Key summary stats to display
+    const summaryCells=[
+      ['Matches',ss.matches_played||summ.matchesPlayed||ss.matchesPlayed||'—'],
+      ['Goals',ss.goals||summ.totalGoals||ss.totalGoals||'—'],
+      ['Assists',ss.assists||summ.totalAssists||ss.totalAssists||'—'],
+      ['Avg Rating',ss.avg_rating!=null?parseFloat(ss.avg_rating).toFixed(1):summ.avgRating!=null?parseFloat(summ.avgRating).toFixed(1):'—'],
+      ['Pass Acc %',ss.avg_pass_accuracy!=null?parseFloat(ss.avg_pass_accuracy).toFixed(0)+'%':summ.avgPassAcc!=null?parseFloat(summ.avgPassAcc).toFixed(0)+'%':'—'],
+      ['Clean Sheets',ss.clean_sheets||summ.cleanSheets||'—'],
+      ['Tackles',ss.tackles||summ.tackles||'—'],
+      ['Interceptions',ss.interceptions||summ.interceptions||'—'],
+      ['Shots on Target',ss.shots_on_target||summ.shotsOnTarget||'—'],
+      ['Yellow Cards',ss.yellow_cards||ss.yellowCards||summ.yellowCards||'—'],
+      ['Red Cards',ss.red_cards||ss.redCards||summ.redCards||'—'],
+      ['Minutes Played',ss.minutes_played||ss.minutesPlayed||summ.minutesPlayed||'—'],
+    ];
+
+    // Recent matches (up to 5)
+    const recentMatches=matches.slice(0,5);
+
+    let matchesHtml='';
+    if(recentMatches.length){
+      matchesHtml=`<div class="stats-section-title"><i class="fas fa-history"></i> Recent Matches</div>
+      ${recentMatches.map(m=>{
+        const result=m.result||m.match_result||'';
+        const score=m.score||m.match_score||m.scoreline||'';
+        const opp=m.opponent||m.opposition||m.away_team||m.home_team||'';
+        const date=fmtDate(m.date||m.match_date||m.matchDate);
+        const goals=m.goals!=null?m.goals:m.player_goals!=null?m.player_goals:null;
+        const assists=m.assists!=null?m.assists:m.player_assists!=null?m.player_assists:null;
+        const rating=m.rating!=null?m.rating:m.player_rating!=null?m.player_rating:null;
+        return `<div class="report-match-row">
+          <span class="report-match-result result-${result||'D'}">${result||'—'}</span>
+          <span style="flex:1;min-width:0;font-size:12px;color:var(--text)">${esc(opp||'Unknown')}</span>
+          <span style="font-size:11px;color:var(--text2)">${esc(score||'')}</span>
+          ${goals!=null?`<span style="font-size:11px;color:var(--success)"><i class="fas fa-futbol" style="font-size:9px"></i> ${goals}</span>`:''}
+          ${assists!=null?`<span style="font-size:11px;color:var(--info)"><i class="fas fa-hands-helping" style="font-size:9px"></i> ${assists}</span>`:''}
+          ${rating!=null?`<span style="font-size:11px;color:var(--gold)">★${parseFloat(rating).toFixed(1)}</span>`:''}
+          <span style="font-size:10px;color:var(--text2);white-space:nowrap">${date}</span>
+        </div>`;
+      }).join('')}`;
+    }
+
+    $('player-stats-modal-content').innerHTML=`
+      <div class="stats-modal-header">
+        <div class="stats-modal-av"><img src="${photoSrc}" alt="${esc(playerName||'')}"/></div>
+        <div>
+          <div style="font-size:17px;font-weight:900;margin-bottom:4px">${esc(playerName||'Player')}</div>
+          <div style="font-size:12px;color:var(--text2)">${esc(pInfo.position||'')}${pInfo.club?' · '+esc(pInfo.club):''}${pInfo.nationality?' · '+esc(pInfo.nationality):''}</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:4px;font-family:monospace">${esc(playerId)}</div>
+        </div>
+      </div>
+      <div class="stats-section-title"><i class="fas fa-table"></i> Season Statistics</div>
+      <div class="stats-grid">
+        ${summaryCells.map(([lbl,val])=>`<div class="stats-cell"><div class="stats-cell-val">${esc(String(val))}</div><div class="stats-cell-lbl">${esc(lbl)}</div></div>`).join('')}
+      </div>
+      ${matchesHtml}
+      <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-info btn-sm" onclick="openPlayerReport('${esc(playerId)}');closeModal('m-player-stats')"><i class="fas fa-file-alt"></i> Generate Report</button>
+        <a href="/player-profile.html?id=${esc(playerId)}" target="_blank" class="btn btn-ghost btn-sm"><i class="fas fa-external-link-alt"></i> Full Profile</a>
+      </div>`;
+  }catch(e){
+    $('player-stats-modal-content').innerHTML=`<div class="empty"><p class="text-danger"><i class="fas fa-exclamation-circle"></i> ${esc(e.message)}</p></div>`;
+  }
+}
+
+/* ══════════════════════════ REPORT CARD ══════════════════════════ */
+// Track report data for sharing
+let _currentReportData = null;
+
+async function openPlayerReport(playerId){
+  $('report-card-content').innerHTML=loadingHtml();
+  openModal('m-report-card');
+  _currentReportData = null;
+  try{
+    // Load player info + stats in parallel
+    const pInfo=_players.find(x=>(x.id||x.player_id)===String(playerId))||{};
+    let statsData=null;
+    try{ statsData=await api(`/player/${playerId}/stats/summary`); }catch(e){}
+
+    const ss=(statsData?.season_stats||statsData?.seasonStats||statsData?.stats||{});
+    const matches=(statsData?.match_stats||statsData?.matchStats||statsData?.matches||[]);
+    const recentMatches=matches.slice(0,5);
+
+    const photoSrc=pInfo.photoUrl?esc(pInfo.photoUrl):`https://ui-avatars.com/api/?name=${encodeURIComponent(pInfo.name||'?')}&background=004aad&color=ffd700&size=64`;
+    const agentName=S.agent?.name||S.agent?.full_name||'Agent';
+    const today=new Date().toLocaleDateString('en-NG',{day:'numeric',month:'long',year:'numeric'});
+
+    const statCells=[
+      ['Matches',ss.matches_played||ss.matchesPlayed||'—'],
+      ['Goals',ss.goals||ss.totalGoals||'—'],
+      ['Assists',ss.assists||ss.totalAssists||'—'],
+      ['Avg Rating',ss.avg_rating!=null?parseFloat(ss.avg_rating).toFixed(1):ss.avgRating!=null?parseFloat(ss.avgRating).toFixed(1):'—'],
+      ['Pass Acc',ss.avg_pass_accuracy!=null?parseFloat(ss.avg_pass_accuracy).toFixed(0)+'%':ss.avgPassAcc!=null?parseFloat(ss.avgPassAcc).toFixed(0)+'%':'—'],
+      ['Clean Sheets',ss.clean_sheets||ss.cleanSheets||'—'],
+      ['Tackles',ss.tackles||'—'],
+      ['Interceptions',ss.interceptions||'—'],
+    ];
+
+    let matchHistoryHtml='';
+    if(recentMatches.length){
+      matchHistoryHtml=`<div class="report-section">
+        <div class="report-section-hdr"><i class="fas fa-history"></i> Recent Match Performance (Last ${recentMatches.length})</div>
+        ${recentMatches.map(m=>{
+          const result=m.result||m.match_result||'';
+          const score=m.score||m.match_score||m.scoreline||'';
+          const opp=m.opponent||m.opposition||'Unknown';
+          const goals=m.goals!=null?m.goals:m.player_goals!=null?m.player_goals:null;
+          const assists=m.assists!=null?m.assists:m.player_assists!=null?m.player_assists:null;
+          const rating=m.rating!=null?m.rating:m.player_rating!=null?m.player_rating:null;
+          const date=fmtDate(m.date||m.match_date||m.matchDate);
+          return `<div class="report-match-row">
+            <span class="report-match-result result-${result||'D'}">${result||'—'}</span>
+            <span style="flex:1;min-width:0;font-size:12px;color:var(--text)">${esc(opp)}</span>
+            ${score?`<span style="font-size:11px;color:var(--text2)">${esc(score)}</span>`:''}
+            ${goals!=null?`<span style="font-size:11px;color:var(--success);display:flex;align-items:center;gap:2px"><i class="fas fa-futbol" style="font-size:9px"></i> ${goals}</span>`:''}
+            ${assists!=null?`<span style="font-size:11px;color:var(--info)">A:${assists}</span>`:''}
+            ${rating!=null?`<span style="font-size:11px;color:var(--gold)">★${parseFloat(rating).toFixed(1)}</span>`:''}
+            <span style="font-size:10px;color:var(--text2);white-space:nowrap">${date}</span>
+          </div>`;
+        }).join('')}
+      </div>`;
+    }
+
+    // Store data for sharing
+    _currentReportData = { player: pInfo, playerId, stats: ss, agentName, date: today };
+
+    $('report-card-content').innerHTML=`
+    <div class="report-card-wrap" id="printable-report">
+      <div class="report-card-header">
+        <div class="report-card-brand">EnejiStats — Official Player Report</div>
+        <div class="report-card-title">Player Performance Report</div>
+        <div class="report-card-meta">Generated by ${esc(agentName)} · ${today}</div>
+      </div>
+      <div class="report-card-player-row">
+        <div class="report-card-player-av"><img src="${photoSrc}" alt="${esc(pInfo.name||'')}"/></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:19px;font-weight:900;color:var(--text);margin-bottom:4px">${esc(pInfo.name||'—')}</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
+            ${pInfo.position?`<span class="pos-badge">${esc(pInfo.position)}</span>`:''}
+            ${pInfo.category?`<span class="cat-badge">${esc(toTitleCase(pInfo.category))}</span>`:''}
+            ${pInfo.contractStatus?`<span class="badge ${{'active':'badge-active','expiring_soon':'badge-expiring','expired':'badge-expired'}[pInfo.contractStatus]||'badge-none'}">${esc(toTitleCase((pInfo.contractStatus||'').replace(/_/g,' ')))}</span>`:''}
+          </div>
+          <div style="font-size:12px;color:var(--text2)">${[pInfo.club||'Free Agent',pInfo.nationality,pInfo.dob?'Age '+calcAge(pInfo.dob):null].filter(Boolean).join(' · ')}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:10px;color:var(--text2);font-family:monospace">${esc(playerId||'')}</div>
+          ${pInfo.contract?.endDate?`<div style="font-size:11px;margin-top:4px">${fmtDays(pInfo.contract.endDate)}</div>`:''}
+        </div>
+      </div>
+      <div class="report-card-body">
+        <div class="report-section">
+          <div class="report-section-hdr"><i class="fas fa-chart-bar"></i> Season Statistics</div>
+          <div class="report-stats-grid">
+            ${statCells.map(([lbl,val])=>`<div class="report-stat-item"><div class="report-stat-val">${esc(String(val))}</div><div class="report-stat-lbl">${esc(lbl)}</div></div>`).join('')}
+          </div>
+        </div>
+        ${matchHistoryHtml}
+        <div class="report-section">
+          <div class="report-section-hdr"><i class="fas fa-pencil-alt"></i> Agent Notes</div>
+          <textarea class="report-notes-area" id="report-agent-notes" placeholder="Add your professional assessment, scouting notes, or observations about this player…"></textarea>
+        </div>
+        <div style="margin-top:8px;font-size:10px;color:var(--text2);text-align:center;border-top:1px solid var(--border);padding-top:8px">
+          EnejiStats Player Report · ${today} · Confidential — For Agent Use Only
+        </div>
+      </div>
+    </div>`;
+  }catch(e){
+    $('report-card-content').innerHTML=`<div class="empty"><p class="text-danger"><i class="fas fa-exclamation-circle"></i> ${esc(e.message)}</p></div>`;
+  }
+}
+
+function printReport(){
+  window.print();
+}
+
+function shareReport(){
+  const notes=($('report-agent-notes')?.value||'').trim();
+  const d=_currentReportData;
+  if(!d){ toast('No report loaded.','warning'); return; }
+  const p=d.player;
+  const s=d.stats;
+  const text=[
+    `EnejiStats Player Report`,
+    `Generated: ${d.date} by ${d.agentName}`,
+    ``,
+    `Player: ${p.name||'—'} | ${p.position||''} | ${p.club||'Free Agent'} | ${p.nationality||''}`,
+    ``,
+    `Season Stats:`,
+    `  Matches: ${s.matches_played||s.matchesPlayed||'—'}  Goals: ${s.goals||s.totalGoals||'—'}  Assists: ${s.assists||s.totalAssists||'—'}`,
+    `  Avg Rating: ${s.avg_rating!=null?parseFloat(s.avg_rating).toFixed(1):'—'}  Pass Acc: ${s.avg_pass_accuracy!=null?parseFloat(s.avg_pass_accuracy).toFixed(0)+'%':'—'}`,
+    `  Clean Sheets: ${s.clean_sheets||s.cleanSheets||'—'}  Tackles: ${s.tackles||'—'}  Interceptions: ${s.interceptions||'—'}`,
+    notes?`\nAgent Notes:\n${notes}`:'',
+  ].filter(x=>x!==undefined).join('\n');
+
+  if(navigator.clipboard){ navigator.clipboard.writeText(text).then(()=>toast('Report copied to clipboard!','success')).catch(()=>toast('Copy failed. Use Print instead.','warning')); }
+  else{ toast('Use the Print button to save or share.','info'); }
+}
+
+/* ══════════════════════════ REPORTS (list) ══════════════════════════ */
+async function loadReports(){
+  $('reports-list').innerHTML=loadingHtml();
+  try{
+    const {reports}=await api(`/agent/${S.agentId}/reports`);
+    if(!reports.length){ $('reports-list').innerHTML=emptyState('fas fa-file-alt','No reports yet. Use Generate Report or open a player card to create one.'); return; }
+    $('reports-list').innerHTML=`<div class="tbl-wrap"><table>
+      <thead><tr><th>Type</th><th>Player</th><th>Date</th><th>Action</th></tr></thead>
+      <tbody>${reports.map(r=>`
+        <tr>
+          <td>${esc(toTitleCase((r.type||'').replace(/_/g,' ')))}</td>
+          <td>${esc(r.playerName||'All Players')}</td>
+          <td>${fmtDate(r.createdAt)}</td>
+          <td style="display:flex;gap:6px">
+            ${r.playerId?`<button class="btn btn-info btn-xs" onclick="openPlayerReport('${esc(r.playerId)}')"><i class="fas fa-file-alt"></i> View</button>`:''}
+            <button class="btn btn-ghost btn-xs" onclick="printReport()"><i class="fas fa-print"></i></button>
+          </td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+  }catch(e){
+    $('reports-list').innerHTML=`<div class="empty"><p class="text-danger">${esc(e.message)}</p></div>`;
+  }
+}
+
+function openGenReport(){
+  api(`/agent/${S.agentId}/players`).then(({players})=>{
+    const sel=$('rep-player');
+    sel.innerHTML='<option value="">All Players</option>'+players.map(p=>`<option value="${esc(p.id||p.player_id)}">${esc(p.name)}</option>`).join('');
+  }).catch(()=>{});
+  openModal('m-gen-report');
+}
+
+async function generateReport(){
+  const type=$('rep-type').value;
+  const playerId=$('rep-player').value||null;
+  const notes=($('rep-notes').value||'').trim();
+  try{
+    await api(`/agent/${S.agentId}/reports`,{method:'POST',body:{type,playerId,notes}});
+    toast('Report generated!','success');
+    closeModal('m-gen-report');
+    $('rep-notes').value='';
+    loadReports();
+    // If a player was selected, auto-open the report card
+    if(playerId) setTimeout(()=>openPlayerReport(playerId),300);
+  }catch(e){toast(e.message,'error');}
+}
+
+/* ══════════════════════════ CONTRACTS ══════════════════════════ */
+async function loadContracts(){
+  $('proposals-list').innerHTML=loadingHtml();
+  $('contracts-list').innerHTML=loadingHtml();
+  await Promise.all([loadProposals(), loadRosterContracts()]);
+}
+
+async function loadProposals(){
+  try{
+    const {proposals}=await api(`/agent/${S.agentId}/proposals`);
+    if(!proposals||!proposals.length){
+      $('proposals-list').innerHTML=emptyState('fas fa-paper-plane','No proposals sent yet. Use Find Players to send one.');
+      return;
+    }
+    const sMap={
+      pending:'badge-expiring',  Pending:'badge-expiring',
+      active:'badge-active',     Active:'badge-active',
+      declined:'badge-expired',  Declined:'badge-expired',
+      expired:'badge-expired',   Expired:'badge-expired',
+      cancelled:'badge-none',    Cancelled:'badge-none',
+    };
+    $('proposals-list').innerHTML=`<div class="tbl-wrap"><table>
+      <thead><tr><th>Player</th><th>Start</th><th>End</th><th>Sent</th><th>Status</th><th>Message</th><th>Action</th></tr></thead>
+      <tbody>${proposals.map(p=>{
+        const isPending=(p.status||'').toLowerCase()==='pending';
+        const cancelBtn=isPending?`<button class="btn btn-ghost btn-xs" style="color:var(--danger)" onclick="cancelProposal('${esc(p.playerId||'')}','${esc(p.id||'')}')"><i class="fas fa-times"></i> Cancel</button>`:'—';
+        return `<tr>
+          <td class="fw7">${esc(p.playerName||'—')}</td>
+          <td>${fmtDate(p.startDate)}</td><td>${fmtDate(p.endDate)}</td>
+          <td style="white-space:nowrap;font-size:11px;color:var(--text2)">${fmtDate(p.createdAt)}</td>
+          <td><span class="badge ${sMap[p.status]||'badge-none'}">${esc(toTitleCase((p.status||'pending').replace(/_/g,' ')))}</span></td>
+          <td style="font-size:12px;color:var(--text2);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(p.message||'')}">${esc(p.message||'—')}</td>
+          <td>${cancelBtn}</td>
+        </tr>`;
+      }).join('')}
+      </tbody>
+    </table></div>`;
+  }catch(e){
+    $('proposals-list').innerHTML=`<div class="empty"><p class="text-danger">${esc(e.message)}</p></div>`;
+  }
+}
+
+async function loadRosterContracts(){
+  try{
+    const {contracts}=await api(`/agent/${S.agentId}/contracts`);
+    if(!contracts||!contracts.length){ $('contracts-list').innerHTML=emptyState('fas fa-file-contract','No roster contracts found.'); return; }
+    const sMap={active:'badge-active',expiring_soon:'badge-expiring',expired:'badge-expired'};
+    $('contracts-list').innerHTML=`<div class="tbl-wrap"><table>
+      <thead><tr><th>Player</th><th>Club</th><th>Start</th><th>End</th><th>Status</th><th></th></tr></thead>
+      <tbody>${contracts.map(c=>`
+        <tr>
+          <td class="fw7">${esc(c.playerName||'—')}</td>
+          <td>${esc(c.club||'—')}</td>
+          <td>${fmtDate(c.startDate)}</td>
+          <td>${fmtDate(c.endDate)} ${c.endDate?fmtDays(c.endDate):''}</td>
+          <td><span class="badge ${sMap[c.status]||'badge-none'}">${esc(toTitleCase((c.status||'unknown').replace(/_/g,' ')))}</span></td>
+          <td>${c.playerId?`<button class="btn btn-ghost btn-xs" onclick="openPlayerReport('${esc(c.playerId)}')"><i class="fas fa-file-alt"></i></button>`:'—'}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+  }catch(e){
+    $('contracts-list').innerHTML=`<div class="empty"><p class="text-danger">${esc(e.message)}</p></div>`;
+  }
+}
+
+/* ══════════════════════════ TOKEN CREDITING ══════════════════════════ */
+async function openCreditTokens(){
+  // Reset form
+  $('ct-player').innerHTML='<option value="">— Choose a contracted player —</option>';
+  $('ct-amount').value='';
+  $('ct-desc').value='';
+  $('ct-preview').style.display='none';
+  $('ct-balance').textContent='—';
+  openModal('m-credit-tokens');
+  // Load token balance + contracted players
+  try{
+    const [playersResp, tokenResp] = await Promise.allSettled([
+      api(`/agent/${S.agentId}/players`),
+      api(`/agent/${S.agentId}/tokens`),
+    ]);
+    if(tokenResp.status==='fulfilled'){
+      const tb=tokenResp.value;
+      const bal=tb.balance||tb.token_balance||tb.tokens||0;
+      $('ct-balance').textContent=bal;
+    }
+    if(playersResp.status==='fulfilled'){
+      const {players}=playersResp.value;
+      const contracted=players.filter(p=>p.contractStatus==='active'||p.contractStatus==='expiring_soon');
+      const sel=$('ct-player');
+      sel.innerHTML='<option value="">— Choose a contracted player —</option>'+
+        contracted.map(p=>`<option value="${esc(p.id||p.player_id)}">${esc(p.name)}${p.position?' ('+esc(p.position)+')':''}</option>`).join('');
+    }
+  }catch(e){}
+}
+
+function openCreditTokensForPlayer(playerId, playerName){
+  openCreditTokens().then(()=>{
+    const sel=$('ct-player');
+    if(sel){
+      // Try to pre-select the player
+      for(let i=0;i<sel.options.length;i++){
+        if(sel.options[i].value===String(playerId)){
+          sel.selectedIndex=i; break;
+        }
+      }
+    }
+  });
+}
+
+function updateCreditPreview(){
+  const amount=parseInt($('ct-amount')?.value)||0;
+  const bal=parseInt($('ct-balance')?.textContent)||0;
+  const preview=$('ct-preview');
+  if(!preview) return;
+  if(amount>0){
+    const remaining=bal-amount;
+    preview.style.display='block';
+    if(remaining<0){
+      preview.innerHTML=`<i class="fas fa-exclamation-triangle" style="color:var(--danger)"></i> <strong style="color:var(--danger)">Insufficient balance.</strong> You have ${bal} tokens but are trying to credit ${amount}.`;
+    }else{
+      preview.innerHTML=`<i class="fas fa-coins" style="color:var(--gold)"></i> Crediting <strong style="color:var(--gold)">${amount} token${amount!==1?'s':''}</strong> · Your balance after: <strong>${remaining}</strong>`;
+    }
+  }else{
+    preview.style.display='none';
+  }
+}
+
+async function creditTokens(){
+  const playerId=($('ct-player')?.value||'').trim();
+  const amount=parseInt($('ct-amount')?.value)||0;
+  const description=($('ct-desc')?.value||'').trim();
+  if(!playerId){toast('Please select a player.','warning');return;}
+  if(amount<1){toast('Enter a valid token amount (minimum 1).','warning');return;}
+  const bal=parseInt($('ct-balance')?.textContent)||0;
+  if(amount>bal){toast('Insufficient token balance.','error');return;}
+  try{
+    await api(`/agent/${S.agentId}/tokens/credit`,{method:'POST',body:{playerId,amount,description:description||undefined}});
+    toast(`${amount} token${amount!==1?'s':''} credited successfully! Player has been notified.`,'success');
+    closeModal('m-credit-tokens');
+    // Refresh overview and token balance display
+    loadOverview();
+    if(S.tab==='sub') loadSub();
+  }catch(e){toast(e.message,'error');}
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   FIND PLAYERS — Advanced Discovery System
+   Location data loaded dynamically. Auto-loads all players on tab open.
+══════════════════════════════════════════════════════════════════ */
+
+const DS = {
+  initialized: false,
+  panelOpen: false,
+  statsOpen: false,
+  loading: false,
+  continents: new Set(),
+  africa_regions: new Set(),
+  countries: [],
+  states: [],
+  lgas: [],
+  cities: [],
+  levels: new Set(),
+  position_categories: new Set(),
+  positions: new Set(),
+  preferred_foot: null,
+  selectedState: null,
+  selectedLga: null,
+  age_min: null, age_max: null,
+  height_min: null, height_max: null,
+  weight_min: null, weight_max: null,
+  goals_min: null, goals_max: null,
+  assists_min: null, assists_max: null,
+  matches_min: null, matches_max: null,
+  rating_min: null, rating_max: null,
+  pass_accuracy_min: null, pass_accuracy_max: null,
+  tackles_min: null, tackles_max: null,
+  interceptions_min: null, interceptions_max: null,
+  clean_sheets_min: null, clean_sheets_max: null,
+  sort_by: 'name',
+  sort_order: 'asc',
+  page: 1,
+  pageSize: 20,
+  total: 0,
+  hasMore: false,
+  allCountries: [],
+  regionCache: {},
+  subregionCache: {},
+  regionLabelCache: {},
+  subregionLabelCache: {},
+  _debounceTimer: null,
+};
+
+/* ── Entry point: called when Find Players tab is activated ── */
+async function loadFP() {
+  if (!DS.initialized) {
+    await initDiscovery();
+    // Auto-load all players on first open
+    executeDiscSearch(true);
+  }
+}
+
+async function initDiscovery() {
+  DS.initialized = true;
+  await loadDiscoveryCountries();
+}
+
+/* ── Load all countries into the country dropdown ── */
+async function loadDiscoveryCountries() {
+  try {
+    const sel = $('disc-countries-select');
+    const res = await fetch('/api/public/countries', { credentials: 'include' });
+    let data = await res.json().catch(() => null);
+    let list = [];
+    if (Array.isArray(data)) list = data;
+    else if (data && Array.isArray(data.countries)) list = data.countries;
+    else if (data && Array.isArray(data.data)) list = data.data;
+    DS.allCountries = list.map(c => ({
+      code: (c.code || c.iso || c.iso_code || c.alpha2 || '').toUpperCase(),
+      name: c.name || c.country_name || c.label || c.code || '',
+    })).filter(c => c.code && c.name).sort((a,b)=>a.name.localeCompare(b.name));
+    if (sel) {
+      sel.innerHTML = '<option value="">Select a country to add…</option>' +
+        DS.allCountries.map(c => `<option value="${esc(c.code)}" data-name="${esc(c.name)}">${esc(c.name)}</option>`).join('');
+    }
+  } catch(e) {
+    console.warn('[discovery] Could not load countries:', e.message);
+  }
+}
+
+/* ── Load regions for a country code ── */
+async function loadDiscoveryRegions(countryCode) {
+  if (!countryCode) return [];
+  if (DS.regionCache[countryCode]) return DS.regionCache[countryCode];
+  try {
+    const res = await fetch(`/api/public/countries/${countryCode}/regions`, { credentials: 'include' });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const regions = Array.isArray(data) ? data :
+                    Array.isArray(data.regions) ? data.regions : [];
+    const names = regions.map(r => typeof r === 'string' ? r : (r.name || r.state || r.region || '')).filter(Boolean);
+    DS.regionCache[countryCode] = names;
+    if (!Array.isArray(data) && data.region_label) DS.regionLabelCache[countryCode] = data.region_label;
+    return names;
+  } catch(e) { return []; }
+}
+
+/* ── Load subregions for a country + region ── */
+async function loadDiscoverySubregions(countryCode, region) {
+  const key = countryCode + '|' + region;
+  if (DS.subregionCache[key]) return DS.subregionCache[key];
+  try {
+    const res = await fetch(`/api/public/countries/${countryCode}/regions/${encodeURIComponent(region)}/subregions`, { credentials: 'include' });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const subs = Array.isArray(data) ? data :
+                 Array.isArray(data.subregions) ? data.subregions : [];
+    const names = subs.map(s => typeof s === 'string' ? s : (s.name || s.lga || s.subregion || '')).filter(Boolean);
+    DS.subregionCache[key] = names;
+    if (!Array.isArray(data) && data.subregion_label) DS.subregionLabelCache[key] = data.subregion_label;
+    return names;
+  } catch(e) { return []; }
+}
+
+/* ── Toggle filter panel open/closed ── */
+function toggleDiscFilters() {
+  DS.panelOpen = !DS.panelOpen;
+  const panel = $('disc-filter-panel');
+  const btn   = $('disc-filter-toggle');
+  if (DS.panelOpen) {
+    panel.classList.add('disc-panel-open');
+    btn.classList.add('disc-panel-open');
+  } else {
+    panel.classList.remove('disc-panel-open');
+    btn.classList.remove('disc-panel-open');
+  }
+}
+
+/* ── Toggle stats section expand/collapse ── */
+function toggleDiscStatsPanel() {
+  DS.statsOpen = !DS.statsOpen;
+  const body = $('disc-stats-body');
+  const icon = $('disc-stats-chevron');
+  if (body) body.style.display = DS.statsOpen ? 'flex' : 'none';
+  if (icon) icon.classList.toggle('open', DS.statsOpen);
+  onDiscFilterChange();
+}
+
+/* ── Multi-value chip toggle ── */
+function toggleDiscChip(field, value, btn) {
+  const set = DS[field === 'africa_region' ? 'africa_regions' : field + 's'] || DS[field];
+  if (!(set instanceof Set)) return;
+  if (set.has(value)) { set.delete(value); btn.classList.remove('disc-chip-on'); }
+  else               { set.add(value);    btn.classList.add('disc-chip-on'); }
+  onDiscFilterChange();
+}
+
+/* ── Single-value chip toggle ── */
+function toggleDiscSingle(field, value, btn) {
+  const wasOn = DS[field] === value;
+  btn.closest('.disc-chip-group').querySelectorAll('.disc-chip').forEach(c => c.classList.remove('disc-chip-on'));
+  if (wasOn) { DS[field] = null; }
+  else       { DS[field] = value; btn.classList.add('disc-chip-on'); }
+  onDiscFilterChange();
+}
+
+/* ── Position category toggle ── */
+const _DISC_POS_CATS = {
+  Goalkeeper: ['GK'],
+  Defender:   ['CB','LB','RB','LWB','RWB','SW'],
+  Midfielder: ['CDM','CM','CAM','DM','LM','RM'],
+  Forward:    ['LW','RW','CF','ST','SS','IF'],
+};
+
+function toggleDiscPosCategory(cat, btn) {
+  const isOn = DS.position_categories.has(cat);
+  if (isOn) { DS.position_categories.delete(cat); btn.classList.remove('disc-chip-on'); }
+  else      { DS.position_categories.add(cat);    btn.classList.add('disc-chip-on'); }
+  onDiscFilterChange();
+}
+
+/* ── Individual position checkbox ── */
+function onDiscPosCheck(input) {
+  if (input.checked) DS.positions.add(input.value);
+  else               DS.positions.delete(input.value);
+  onDiscFilterChange();
+}
+
+/* ── Add a country chip from the dropdown ── */
+async function addDiscCountry(sel) {
+  const code = sel.value;
+  if (!code) return;
+  const opt = sel.options[sel.selectedIndex];
+  const name = opt.dataset.name || opt.textContent || code;
+  if (DS.countries.some(c => c.code === code)) {
+    sel.value = '';
+    toast('Country already selected.','info');
+    return;
+  }
+  DS.countries.push({ code, name });
+  sel.value = '';
+  renderDiscCountryTags();
+  if (DS.countries.length === 1) {
+    await refreshDiscStateDropdown();
+  } else {
+    $('disc-state-group').style.display = 'none';
+    $('disc-lga-group').style.display   = 'none';
+    DS.selectedState = null;
+    DS.selectedLga   = null;
+    DS.states = [];
+    DS.lgas   = [];
+  }
+  onDiscFilterChange();
+}
+
+/* ── Remove a country chip ── */
+async function removeDiscCountry(code) {
+  DS.countries = DS.countries.filter(c => c.code !== code);
+  renderDiscCountryTags();
+  if (DS.countries.length === 1) {
+    await refreshDiscStateDropdown();
+  } else if (DS.countries.length === 0) {
+    $('disc-state-group').style.display = 'none';
+    $('disc-lga-group').style.display   = 'none';
+    DS.selectedState = null; DS.selectedLga = null;
+    DS.states = []; DS.lgas = [];
+  }
+  onDiscFilterChange();
+}
+
+function renderDiscCountryTags() {
+  const wrap = $('disc-country-tags');
+  if (!wrap) return;
+  wrap.innerHTML = DS.countries.map(c =>
+    `<span class="disc-ctag">${esc(c.name)}<button class="disc-ctag-rm" onclick="removeDiscCountry('${esc(c.code)}')" title="Remove"><i class="fas fa-times"></i></button></span>`
+  ).join('');
+}
+
+/* ── Refresh state dropdown ── */
+async function refreshDiscStateDropdown() {
+  if (DS.countries.length !== 1) return;
+  const code = DS.countries[0].code;
+  const regions = await loadDiscoveryRegions(code);
+  const stateEl = $('disc-state-select');
+  if (!stateEl) return;
+  if (!regions.length) {
+    $('disc-state-group').style.display = 'none';
+    return;
+  }
+  const regionLabel = DS.regionLabelCache[code] || 'State / Region';
+  const stateLabelEl = $('disc-state-label');
+  if (stateLabelEl) stateLabelEl.textContent = regionLabel;
+  stateEl.innerHTML = '<option value="">All ' + regionLabel.toLowerCase() + 's…</option>' +
+    regions.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join('');
+  if (DS.selectedState && regions.includes(DS.selectedState)) {
+    stateEl.value = DS.selectedState;
+  } else {
+    DS.selectedState = null;
+    DS.states = [];
+    $('disc-lga-group').style.display = 'none';
+  }
+  $('disc-state-group').style.display = 'block';
+}
+
+/* ── Handle state/region selection ── */
+async function onDiscStateChange(sel) {
+  const state = sel.value;
+  DS.selectedState = state || null;
+  DS.states = state ? [state] : [];
+  DS.selectedLga = null; DS.lgas = [];
+  $('disc-lga-group').style.display = 'none';
+  if (state && DS.countries.length === 1) {
+    const countryCode = DS.countries[0].code;
+    const subs = await loadDiscoverySubregions(countryCode, state);
+    const lgaEl = $('disc-lga-select');
+    if (subs.length && lgaEl) {
+      const subLabel = DS.subregionLabelCache[countryCode + '|' + state] || 'LGA / Local Area';
+      const lgaLabelEl = $('disc-lga-label');
+      if (lgaLabelEl) lgaLabelEl.textContent = subLabel;
+      lgaEl.innerHTML = '<option value="">All ' + subLabel.toLowerCase() + 's…</option>' +
+        subs.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+      $('disc-lga-group').style.display = 'block';
+    }
+  }
+  onDiscFilterChange();
+}
+
+/* ── Handle LGA selection ── */
+function onDiscLgaChange(sel) {
+  const lga = sel.value;
+  DS.selectedLga = lga || null;
+  DS.lgas = lga ? [lga] : [];
+  onDiscFilterChange();
+}
+
+/* ── Sort order toggle ── */
+function setDiscSortOrder(order) {
+  DS.sort_order = order;
+  ['asc','desc'].forEach(o => {
+    const btn = $('disc-sort-' + o);
+    if (btn) btn.classList.toggle('disc-chip-on', o === order);
+  });
+  onDiscFilterChange();
+}
+
+/* ── Search text input handler ── */
+function onDiscSearchInput() {
+  const q = ($('disc-q').value || '');
+  const clearBtn = $('disc-clear-q');
+  if (clearBtn) clearBtn.style.display = q ? 'flex' : 'none';
+  onDiscFilterChange();
+}
+
+function clearDiscSearch() {
+  const inp = $('disc-q'); if (inp) inp.value = '';
+  const btn = $('disc-clear-q'); if (btn) btn.style.display = 'none';
+  onDiscFilterChange();
+}
+
+/* ── Range input change ── */
+function onDiscFilterChange() {
+  const count = _countDiscActiveFilters();
+  const badge = $('disc-filter-badge');
+  if (badge) {
+    badge.textContent = count;
+    badge.style.display = count > 0 ? 'inline-block' : 'none';
+  }
+}
+
+function _countDiscActiveFilters() {
+  let n = 0;
+  const q = ($('disc-q') ? $('disc-q').value : '') || '';
+  if (q.trim()) n++;
+  n += DS.continents.size;
+  n += DS.africa_regions.size;
+  n += DS.countries.length;
+  if (DS.selectedState) n++;
+  if (DS.selectedLga) n++;
+  n += DS.levels.size;
+  n += DS.position_categories.size;
+  n += DS.positions.size;
+  if (DS.preferred_foot) n++;
+  const rangeIds = [
+    'disc-age-min','disc-age-max','disc-height-min','disc-height-max',
+    'disc-weight-min','disc-weight-max','disc-goals-min','disc-goals-max',
+    'disc-assists-min','disc-assists-max','disc-matches-min','disc-matches-max',
+    'disc-rating-min','disc-rating-max','disc-pass-min','disc-pass-max',
+    'disc-cs-min','disc-cs-max','disc-tackles-min','disc-tackles-max',
+    'disc-inter-min','disc-inter-max',
+  ];
+  rangeIds.forEach(id => { const el=$(id); if(el && el.value) n++; });
+  return n;
+}
+
+/* ── Clear all filters — then reload all players ── */
+function clearAllDiscFilters() {
+  DS.continents.clear(); DS.africa_regions.clear();
+  DS.countries = []; DS.states = []; DS.lgas = []; DS.cities = [];
+  DS.levels.clear(); DS.position_categories.clear(); DS.positions.clear();
+  DS.preferred_foot = null;
+  DS.selectedState = null; DS.selectedLga = null;
+  DS.page = 1;
+  document.querySelectorAll('#disc-continent-chips .disc-chip, #disc-africa-chips .disc-chip, #disc-level-chips .disc-chip, #disc-pos-cat-chips .disc-chip, #disc-foot-chips .disc-chip')
+    .forEach(b => b.classList.remove('disc-chip-on'));
+  document.querySelectorAll('#disc-pos-grid input[type=checkbox]').forEach(cb => { cb.checked = false; });
+  ['disc-countries-select','disc-state-select','disc-lga-select','disc-sort-by'].forEach(id => {
+    const el = $(id); if(el) el.value = el.options[0]?.value || '';
+  });
+  $('disc-state-group').style.display = 'none';
+  $('disc-lga-group').style.display   = 'none';
+  $('disc-country-tags').innerHTML = '';
+  ['disc-age-min','disc-age-max','disc-height-min','disc-height-max',
+   'disc-weight-min','disc-weight-max','disc-goals-min','disc-goals-max',
+   'disc-assists-min','disc-assists-max','disc-matches-min','disc-matches-max',
+   'disc-rating-min','disc-rating-max','disc-pass-min','disc-pass-max',
+   'disc-cs-min','disc-cs-max','disc-tackles-min','disc-tackles-max',
+   'disc-inter-min','disc-inter-max'].forEach(id => { const el=$(id); if(el) el.value=''; });
+  const qEl=$('disc-q'); if(qEl) qEl.value='';
+  const cqBtn=$('disc-clear-q'); if(cqBtn) cqBtn.style.display='none';
+  DS.sort_by = 'name'; DS.sort_order = 'asc';
+  $('disc-sort-asc').classList.add('disc-chip-on');
+  $('disc-sort-desc').classList.remove('disc-chip-on');
+  onDiscFilterChange();
+  $('disc-active-row').style.display = 'none';
+  // Reload all players after clearing filters
+  executeDiscSearch(true);
+}
+
+/* ── Build active filter chips HTML ── */
+function renderDiscActiveChips() {
+  const chips = [];
+  DS.continents.forEach(v => chips.push({ label: v, remove: () => { DS.continents.delete(v); _syncChipBtns('disc-continent-chips', DS.continents); renderDiscActiveChips(); onDiscFilterChange(); } }));
+  DS.africa_regions.forEach(v => chips.push({ label: v, remove: () => { DS.africa_regions.delete(v); _syncChipBtns('disc-africa-chips', DS.africa_regions); renderDiscActiveChips(); onDiscFilterChange(); } }));
+  DS.countries.forEach(c => chips.push({ label: c.name, remove: () => removeDiscCountry(c.code) }));
+  if (DS.selectedState) chips.push({ label: 'State: '+DS.selectedState, remove: () => { $('disc-state-select').value=''; onDiscStateChange($('disc-state-select')); } });
+  if (DS.selectedLga)   chips.push({ label: 'LGA: '+DS.selectedLga,     remove: () => { $('disc-lga-select').value='';   onDiscLgaChange($('disc-lga-select')); } });
+  DS.levels.forEach(v => chips.push({ label: v, remove: () => { DS.levels.delete(v); _syncChipBtns('disc-level-chips', DS.levels); renderDiscActiveChips(); onDiscFilterChange(); } }));
+  DS.position_categories.forEach(v => chips.push({ label: v, remove: () => { DS.position_categories.delete(v); _syncChipBtns('disc-pos-cat-chips', DS.position_categories); renderDiscActiveChips(); onDiscFilterChange(); } }));
+  DS.positions.forEach(v => chips.push({ label: 'Pos: '+v, remove: () => { DS.positions.delete(v); const cb=document.querySelector(`#disc-pos-grid input[value="${v}"]`); if(cb) cb.checked=false; renderDiscActiveChips(); onDiscFilterChange(); } }));
+  if (DS.preferred_foot) chips.push({ label: 'Foot: '+DS.preferred_foot, remove: () => { DS.preferred_foot=null; document.querySelectorAll('#disc-foot-chips .disc-chip').forEach(b=>b.classList.remove('disc-chip-on')); renderDiscActiveChips(); onDiscFilterChange(); } });
+  const rangeChips = [
+    ['Age','disc-age-min','disc-age-max','yrs'],
+    ['Height','disc-height-min','disc-height-max','cm'],
+    ['Weight','disc-weight-min','disc-weight-max','kg'],
+    ['Goals','disc-goals-min','disc-goals-max',''],
+    ['Assists','disc-assists-min','disc-assists-max',''],
+    ['Matches','disc-matches-min','disc-matches-max',''],
+    ['Rating','disc-rating-min','disc-rating-max',''],
+    ['Pass%','disc-pass-min','disc-pass-max','%'],
+    ['Clean Sheets','disc-cs-min','disc-cs-max',''],
+    ['Tackles','disc-tackles-min','disc-tackles-max',''],
+    ['Inter','disc-inter-min','disc-inter-max',''],
+  ];
+  rangeChips.forEach(([label, minId, maxId, unit]) => {
+    const minV = $(minId)?.value; const maxV = $(maxId)?.value;
+    if (minV || maxV) {
+      const txt = (minV&&maxV) ? `${label}: ${minV}–${maxV}${unit}` : minV ? `${label}: ≥${minV}${unit}` : `${label}: ≤${maxV}${unit}`;
+      chips.push({ label: txt, remove: () => { if($(minId)) $(minId).value=''; if($(maxId)) $(maxId).value=''; renderDiscActiveChips(); onDiscFilterChange(); } });
+    }
+  });
+
+  const row = $('disc-active-row');
+  if (!row) return;
+  if (!chips.length) { row.style.display='none'; return; }
+  row.style.display='flex';
+  row.innerHTML = chips.map((c,i) =>
+    `<span class="disc-active-chip">${esc(c.label)}<button class="disc-active-chip-rm" onclick="_discChipRemove(${i})" title="Remove"><i class="fas fa-times"></i></button></span>`
+  ).join('') + `<button class="disc-clear-all-btn" onclick="clearAllDiscFilters()"><i class="fas fa-times"></i> Clear all</button>`;
+  row._chipRemovers = chips.map(c => c.remove);
+}
+
+function _discChipRemove(i) {
+  const row = $('disc-active-row');
+  if (row && row._chipRemovers && row._chipRemovers[i]) row._chipRemovers[i]();
+}
+
+function _syncChipBtns(groupId, activeSet) {
+  const group = $(groupId); if (!group) return;
+  group.querySelectorAll('.disc-chip').forEach(btn => {
+    const val = btn.dataset.val || btn.textContent.trim();
+    btn.classList.toggle('disc-chip-on', activeSet.has(val));
+  });
+}
+
+/* ── Build URLSearchParams from current DS state ── */
+function _buildDiscSearchParams() {
+  const params = new URLSearchParams();
+  const q = ($('disc-q')?.value || '').trim();
+  if (q) params.set('q', q);
+  DS.continents.forEach(c     => params.append('continents', c));
+  DS.africa_regions.forEach(r => params.append('africa_regions', r));
+  DS.countries.forEach(c      => params.append('countries', c.code));
+  if (DS.selectedState) params.append('states', DS.selectedState);
+  if (DS.selectedLga)   params.append('lgas', DS.selectedLga);
+  DS.levels.forEach(l             => params.append('levels', l));
+  DS.position_categories.forEach(c=> params.append('position_categories', c));
+  DS.positions.forEach(p          => params.append('positions', p));
+  if (DS.preferred_foot) params.set('preferred_foot', DS.preferred_foot);
+  const _r = (key, id) => { const el=$(id); if(el&&el.value) params.set(key, el.value); };
+  _r('age_min','disc-age-min');       _r('age_max','disc-age-max');
+  _r('height_min','disc-height-min'); _r('height_max','disc-height-max');
+  _r('weight_min','disc-weight-min'); _r('weight_max','disc-weight-max');
+  _r('goals_min','disc-goals-min');   _r('goals_max','disc-goals-max');
+  _r('assists_min','disc-assists-min');_r('assists_max','disc-assists-max');
+  _r('matches_min','disc-matches-min');_r('matches_max','disc-matches-max');
+  _r('rating_min','disc-rating-min'); _r('rating_max','disc-rating-max');
+  _r('pass_accuracy_min','disc-pass-min');_r('pass_accuracy_max','disc-pass-max');
+  _r('clean_sheets_min','disc-cs-min');_r('clean_sheets_max','disc-cs-max');
+  _r('tackles_min','disc-tackles-min');_r('tackles_max','disc-tackles-max');
+  _r('interceptions_min','disc-inter-min');_r('interceptions_max','disc-inter-max');
+  const sortSel = $('disc-sort-by');
+  params.set('sort_by', sortSel?.value || DS.sort_by || 'name');
+  params.set('sort_order', DS.sort_order);
+  params.set('page', DS.page);
+  params.set('page_size', DS.pageSize);
+  return params;
+}
+
+/* ── Execute search ── */
+async function executeDiscSearch(resetPage) {
+  if (resetPage) DS.page = 1;
+  if (DS.loading) return;
+  DS.loading = true;
+  $('fp-list').innerHTML = loadingHtml();
+  $('disc-pagination').style.display = 'none';
+  $('disc-results-hdr').style.display = 'none';
+  try {
+    const params = _buildDiscSearchParams();
+    const data = await api('/agent/search-players?' + params.toString());
+    const players  = data.players  || [];
+    const total    = data.total    || 0;
+    DS.total   = total;
+    DS.hasMore = data.hasMore || false;
+    _fp = players;
+    S.pendingProposalMap = {};
+    players.forEach(p => { if (p.pendingProposalId) S.pendingProposalMap[p.id] = p.pendingProposalId; });
+    renderDiscoveryResults(players, { total, page: DS.page, pageSize: DS.pageSize });
+    renderDiscActiveChips();
+    onDiscFilterChange();
+    const hdr = $('disc-results-hdr');
+    const cnt = $('disc-results-count');
+    if (hdr && cnt) {
+      hdr.style.display = 'flex';
+      cnt.textContent = total === 0 ? 'No players found' :
+        `${total.toLocaleString()} player${total===1?'':'s'} found`;
+    }
+    _renderDiscPagination(total);
+  } catch(e) {
+    $('fp-list').innerHTML = `<div class="empty"><p class="text-danger"><i class="fas fa-exclamation-circle"></i> ${esc(e.message)}</p></div>`;
+  } finally {
+    DS.loading = false;
+  }
+}
+
+function _renderDiscPagination(total) {
+  const pg   = $('disc-pagination');
+  const info = $('disc-page-info');
+  const prev = $('disc-prev-btn');
+  const next = $('disc-next-btn');
+  const totalPages = Math.ceil(total / DS.pageSize);
+  if (!pg || totalPages <= 1) { if(pg) pg.style.display='none'; return; }
+  pg.style.display = 'flex';
+  if (info) info.textContent = `Page ${DS.page} of ${totalPages}`;
+  if (prev) prev.disabled = DS.page <= 1;
+  if (next) next.disabled = DS.page >= totalPages;
+}
+
+function discPrevPage() { if (DS.page > 1) { DS.page--; executeDiscSearch(); } }
+function discNextPage() { if (DS.hasMore || DS.page < Math.ceil(DS.total/DS.pageSize)) { DS.page++; executeDiscSearch(); } }
+
+/* ── Render discovery player cards ── */
+function renderDiscoveryResults(list, meta) {
+  const el = $('fp-list');
+  if (!el) return;
+  if (!list.length) {
+    el.innerHTML = emptyState('fas fa-search', 'No players found matching your criteria.');
+    return;
+  }
+  const sMap = { active:'badge-active', expiring_soon:'badge-expiring', expired:'badge-expired', none:'badge-none' };
+  el.innerHTML = list.map(p => {
+    const photoSrc = p.photoUrl
+      ? esc(p.photoUrl)
+      : `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name||'?')}&background=2e2e45&color=e2e8f0&size=46`;
+    const age = p.age || (p.dob ? calcAge(p.dob) : null);
+    const isFree = p.contractStatus==='none' || p.contractStatus==='expired';
+    const catBadge = p.category ? `<span class="cat-badge">${esc(toTitleCase(p.category))}</span>` : '';
+    const locationParts = [p.city||p.lga, p.state, p.nationality||p.country].filter(Boolean);
+    const location = locationParts.join(', ');
+    let statsPills = '';
+    if (p.stats) {
+      const s = p.stats;
+      const pills = [];
+      if (s.matchesPlayed)  pills.push(`<span class="disc-stat-pill">⚽ <b>${s.matchesPlayed}</b> games</span>`);
+      if (s.totalGoals)     pills.push(`<span class="disc-stat-pill">Goals <b>${s.totalGoals}</b></span>`);
+      if (s.totalAssists)   pills.push(`<span class="disc-stat-pill">Ast <b>${s.totalAssists}</b></span>`);
+      if (s.avgRating)      pills.push(`<span class="disc-stat-pill">⭐ <b>${s.avgRating.toFixed(1)}</b></span>`);
+      if (s.avgPassAcc)     pills.push(`<span class="disc-stat-pill">Pass <b>${s.avgPassAcc.toFixed(0)}%</b></span>`);
+      if (pills.length) statsPills = `<div class="disc-stats-pills">${pills.join('')}</div>`;
+    }
+    const physMeta = [
+      p.preferredFoot ? p.preferredFoot+' foot' : null,
+      p.height ? p.height+'cm' : null,
+      p.weight ? p.weight+'kg' : null,
+    ].filter(Boolean).join(' · ');
+
+    const pendingId = S.pendingProposalMap[p.id];
+    const actionBtns = pendingId
+      ? `<span style="font-size:10px;font-weight:700;color:var(--warning);background:rgba(245,158,11,.15);padding:2px 7px;border-radius:4px;display:inline-block;margin-bottom:2px;white-space:nowrap"><i class="fas fa-clock"></i> Proposal Sent</span>
+         <button class="btn btn-sm" style="border:1.5px solid var(--danger);color:var(--danger);background:rgba(239,68,68,.08)" onclick="cancelProposal('${esc(p.id)}','${esc(pendingId)}')"><i class="fas fa-times"></i> Cancel</button>`
+      : `<button class="btn btn-primary btn-sm" onclick="openProposal('${esc(p.id)}')"><i class="fas fa-paper-plane"></i> Propose</button>`;
+
+    return `<div class="disc-card">
+      <div class="disc-av"><img src="${photoSrc}" alt="${esc(p.name)}" loading="lazy"/></div>
+      <div class="disc-body">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span class="disc-name">${esc(p.name)}</span>
+          ${p.position ? `<span class="pos-badge">${esc(p.position)}</span>` : ''}
+          ${catBadge}
+          <span style="font-size:10px;color:var(--text2);font-family:monospace">${esc(p.id||'')}</span>
+        </div>
+        <div class="disc-meta">${esc(p.club||'Free Agent')}${age?' · Age '+age:''}${location?' · '+esc(location):''}</div>
+        <div class="disc-badges" style="margin-top:3px">
+          <span class="badge ${sMap[p.contractStatus]||'badge-none'}">${esc(toTitleCase((p.contractStatus||'unknown').replace(/_/g,' ')))}</span>
+          ${isFree?'<span style="font-size:10px;font-weight:700;color:var(--warning);background:rgba(245,158,11,.08);padding:2px 6px;border-radius:4px">Free Agent</span>':''}
+          ${p.contract?.endDate?`<span style="font-size:11px;color:var(--text2)">${fmtDays(p.contract.endDate)}</span>`:''}
+          ${physMeta?`<span style="font-size:11px;color:var(--text2)">${esc(physMeta)}</span>`:''}
+        </div>
+        ${statsPills}
+      </div>
+      <div class="disc-actions">
+        <button class="btn btn-ghost btn-xs" onclick="openPlayerStats('${esc(p.id)}','${esc(p.name||'')}')" title="View stats"><i class="fas fa-chart-bar"></i></button>
+        <a href="/player-profile.html?id=${esc(p.id)}" target="_blank" class="btn btn-ghost btn-xs"><i class="fas fa-external-link-alt"></i></a>
+        ${actionBtns}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ── renderFP: backward-compat wrapper ── */
+function renderFP(list) {
+  renderDiscoveryResults(list, { total: DS.total, page: DS.page, pageSize: DS.pageSize });
+}
+function filterFP() { /* replaced by executeDiscSearch */ }
+
+
+/* ══════════════════════════ PROPOSAL FLOW ══════════════════════════ */
+function openProposal(id){
+  $('pr-pid').value=id;
+  const p = _fp.find(x=>String(x.id)===String(id));
+  if(p){
+    const sMap={active:'badge-active',expiring_soon:'badge-expiring',expired:'badge-expired',none:'badge-none'};
+    const photoSrc=p.photoUrl?esc(p.photoUrl):`https://ui-avatars.com/api/?name=${encodeURIComponent(p.name||'?')}&background=2e2e45&color=e2e8f0&size=48`;
+    const age=p.dob?calcAge(p.dob):(p.age||null);
+    const catBadge=p.category?`<span class="cat-badge">${esc(toTitleCase(p.category))}</span>`:'';
+    $('prop-player').innerHTML=`
+      <div style="display:flex;align-items:center;gap:10px">
+        <img src="${photoSrc}" alt="${esc(p.name)}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;flex-shrink:0;border:2px solid var(--border)"/>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <strong style="font-size:14px">${esc(p.name)}</strong>
+            ${p.position?`<span class="pos-badge">${esc(p.position)}</span>`:''}
+            ${catBadge}
+            <span style="font-size:10px;color:var(--text2);font-family:monospace">${esc(p.id||'')}</span>
+          </div>
+          <div style="font-size:12px;color:var(--text2);margin-top:3px">${esc(p.nationality||'')}${age?' · Age '+age:''} · ${esc(p.club||'Free Agent')}</div>
+          <div style="margin-top:4px"><span class="badge ${sMap[p.contractStatus]||'badge-none'}">${esc(toTitleCase((p.contractStatus||'unknown').replace(/_/g,' ')))}</span></div>
+        </div>
+      </div>`;
+  }else{
+    $('prop-player').innerHTML=`<span class="text-muted">Player ${esc(id)}</span>`;
+  }
+  $('pr-start').value=''; $('pr-end').value=''; $('pr-msg').value='';
+  openModal('m-proposal');
+}
+
+async function sendProposal(){
+  const pid=$('pr-pid').value;
+  const start=$('pr-start').value;
+  const end=$('pr-end').value;
+  const msg=($('pr-msg').value||'').trim();
+  if(!start||!end){toast('Please set proposed contract dates.','warning');return;}
+  const startDt=new Date(start);
+  const endDt=new Date(end);
+  if(endDt<=startDt){toast('End date must be after start date.','warning');return;}
+  const maxEnd=new Date(startDt);
+  maxEnd.setFullYear(maxEnd.getFullYear()+1);
+  if(endDt>maxEnd){toast('Contract duration cannot exceed 1 year.','warning');return;}
+  try{
+    await api(`/agent/${S.agentId}/proposals`,{method:'POST',body:{playerId:pid,proposedStartDate:start,proposedEndDate:end,message:msg}});
+    toast('Proposal sent successfully!','success');
+    closeModal('m-proposal');
+    if(S.tab==='find') executeDiscSearch();
+    if(S.tab==='contracts'){ const el=$('proposals-list'); if(el) loadProposals(); }
+    loadOverview();
+  }catch(e){toast(e.message,'error');}
+}
+
+async function cancelProposal(playerId, requestId){
+  if(!confirm('Cancel this proposal? The player will be notified.')) return;
+  try{
+    await api(`/agent/${S.agentId}/proposals/${requestId}`,{method:'DELETE'});
+    toast('Proposal cancelled.','info');
+    delete S.pendingProposalMap[playerId];
+    const player = _fp.find(p=>String(p.id)===String(playerId));
+    if(player) player.pendingProposalId=null;
+    if(S.tab==='find') renderFP(_fp);
+    if(S.tab==='contracts') loadProposals();
+    loadOverview();
+    loadNotif();
+  }catch(e){toast(e.message,'error');}
+}
+
+/* ══════════════════════════ SUBSCRIPTION & TOKENS ══════════════════════════ */
+async function loadSub(){
+  $('sub-current').innerHTML=loadingHtml();
+  $('agent-token-balance').innerHTML=loadingHtml();
+  try{
+    const {subscription}=await api(`/agent/${S.agentId}/subscription`);
+    const s=subscription;
+    $('sub-current').innerHTML=`
+      <div class="card-title"><i class="fas fa-crown"></i> Current Subscription</div>
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div><div class="form-label">Status</div><span class="spill ${esc(s.status||'trial')}">${esc((s.status||'trial').replace(/_/g,' '))}</span></div>
+        ${s.plan?`<div><div class="form-label">Plan</div><div style="font-size:14px;font-weight:700;text-transform:capitalize">${esc(s.plan.replace(/_/g,' '))}</div></div>`:''}
+        ${s.endDate?`<div><div class="form-label">Expires</div><div style="font-size:14px;font-weight:700">${fmtDate(s.endDate)}</div></div>`:''}
+      </div>`;
+  }catch(e){
+    $('sub-current').innerHTML=`<div class="empty"><p class="text-danger">${esc(e.message)}</p></div>`;
+  }
+  // Load token balance
+  try{
+    const tb=await api(`/agent/${S.agentId}/tokens`);
+    const bal=tb.balance||tb.token_balance||tb.tokens||0;
+    const locked=tb.locked||tb.locked_tokens||0;
+    $('agent-token-balance').innerHTML=`
+      <div class="token-credit-balance" style="margin-bottom:0">
+        <div class="token-balance-num">${bal}</div>
+        <div class="token-balance-lbl">Available Tokens${locked>0?` · ${locked} locked`:''}</div>
+      </div>`;
+  }catch(e){
+    $('agent-token-balance').innerHTML=`<div style="font-size:12px;color:var(--text2)">Token balance unavailable</div>`;
+  }
+  loadSubHistory();
+}
+
+async function loadSubHistory(){
+  $('sub-history').innerHTML=loadingHtml();
+  try{
+    const {payments}=await api(`/agent/${S.agentId}/subscription/history`);
+    if(!payments.length){ $('sub-history').innerHTML=emptyState('fas fa-receipt','No payment history yet.'); return; }
+    $('sub-history').innerHTML=`<div class="tbl-wrap"><table>
+      <thead><tr><th>Plan</th><th>Amount</th><th>Reference</th><th>Date</th><th>Status</th></tr></thead>
+      <tbody>${payments.map(p=>`
+        <tr>
+          <td style="text-transform:capitalize">${esc((p.plan||'—').replace(/_/g,' '))}</td>
+          <td>₦${(p.amount||0).toLocaleString()}</td>
+          <td class="mono">${esc(p.reference||'—')}</td>
+          <td>${fmtDate(p.createdAt||p.date)}</td>
+          <td><span class="badge ${p.status==='confirmed'||p.status==='active'?'badge-active':p.status==='pending'?'badge-expiring':'badge-expired'}">${esc(p.status||'—')}</span></td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+  }catch(e){
+    $('sub-history').innerHTML=`<div class="empty"><p class="text-danger">${esc(e.message)}</p></div>`;
+  }
+}
+
+/* ══════════════════════════ ADD PLAYER ══════════════════════════ */
+async function addPlayer(){
+  const name=($('ap-name').value||'').trim();
+  const position=$('ap-pos').value;
+  if(!name){toast('Player name is required.','warning');return;}
+  try{
+    await api(`/agent/${S.agentId}/players`,{method:'POST',body:{
+      name,position,
+      club:($('ap-club').value||'').trim()||null,
+      nationality:($('ap-nat').value||'').trim()||null,
+      dob:$('ap-dob').value||null,
+      marketValue:$('ap-val').value?parseInt($('ap-val').value):null,
+      contractStartDate:$('ap-cs').value||null,
+      contractEndDate:$('ap-ce').value||null,
+    }});
+    toast('Player added!','success');
+    closeModal('m-add-player');
+    ['ap-name','ap-club','ap-nat','ap-dob','ap-val','ap-cs','ap-ce'].forEach(id=>{const el=$(id);if(el)el.value='';});
+    loadPlayers(); loadOverview();
+  }catch(e){toast(e.message,'error');}
+}
+
+/* ══════════════════════════ SETTINGS ══════════════════════════ */
+function fillSettings(){
+  const a=S.agent; if(!a) return;
+  ['phone','whatsapp','website','instagram','linkedin'].forEach(k=>{const el=$('s-'+k);if(el)el.value=a[k]||'';});
+  const b=$('s-bio'); if(b) b.value=a.bio||'';
+}
+
+async function saveSettings(){
+  const u={};
+  ['phone','whatsapp','website','instagram','linkedin'].forEach(k=>{const el=$('s-'+k);if(el)u[k]=(el.value||'').trim();});
+  const b=$('s-bio'); if(b) u.bio=(b.value||'').trim();
+  try{
+    await api(`/agent/${S.agentId}/settings`,{method:'PATCH',body:u});
+    toast('Settings saved!','success'); closeModal('m-settings'); refreshAgent();
+    if(S.tab==='profile') loadProfile();
+  }catch(e){toast(e.message,'error');}
+}
+
+/* ══════════════════════════ PAYMENT WIZARD (PREACT) ══════════════════════════ */
+(function () {
+  var h           = preact.h;
+  var useState    = preactHooks.useState;
+  var useEffect   = preactHooks.useEffect;
+  var useCallback = preactHooks.useCallback;
+  var useRef      = preactHooks.useRef;
+
+  function usePaymentWizard(type, role) {
+    var _s0  = useState('PLAN_SELECT'),  step         = _s0[0],  setStep         = _s0[1];
+    var _s1  = useState(false),          loading      = _s1[0],  setLoading      = _s1[1];
+    var _s2  = useState(''),             error        = _s2[0],  setError        = _s2[1];
+    var _s3  = useState([]),             plans        = _s3[0],  setPlans        = _s3[1];
+    var _s4  = useState(null),           selectedPlan = _s4[0],  setSelectedPlan = _s4[1];
+    var _s5  = useState(''),             intentId     = _s5[0],  setIntentId     = _s5[1];
+    var _s6  = useState(''),             reference    = _s6[0],  setReference    = _s6[1];
+    var _s7  = useState(null),           bankDetails  = _s7[0],  setBankDetails  = _s7[1];
+    var _s8  = useState(null),           receiptFile  = _s8[0],  setReceiptFile  = _s8[1];
+    var _s9  = useState(0),              uploadPct    = _s9[0],  setUploadPct    = _s9[1];
+    var _s10 = useState(false),          dragOver     = _s10[0], setDragOver     = _s10[1];
+
+    useEffect(function () {
+      setLoading(true); setError('');
+      var url = type === 'SUBSCRIPTION' ? '/api/subscription/pricing' : '/api/token/pricing';
+      fetch(url, { credentials: 'include' })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
+        .then(function (data) {
+          var raw  = type === 'SUBSCRIPTION' ? (data.plans || []) : (data.packages || []);
+          var list = raw.map(function (p) {
+            var amt = p.amount || p.price || 0;
+            return Object.assign({}, p, {
+              label:  type === 'SUBSCRIPTION'
+                ? (p.name || ((p.durationMonths || p.months || 1) + ' Month' + ((p.durationMonths || p.months || 1) > 1 ? 's' : '')))
+                : (p.label || (p.tokens + ' Token' + (p.tokens !== 1 ? 's' : ''))),
+              key:    type === 'SUBSCRIPTION'
+                ? (p.key || ((p.durationMonths || p.months || 1) + '_MONTH'))
+                : (p.key || ('tokens_' + p.tokens)),
+              price: amt, amount: amt,
+            });
+          });
+          setPlans(list);
+          if (list.length > 0) setSelectedPlan(list[0]);
+          setLoading(false);
+        })
+        .catch(function () { setError('Unable to load pricing. Please try again.'); setLoading(false); });
+    }, [type]);
+
+    var createIntent = useCallback(function () {
+      if (!selectedPlan) return;
+      setLoading(true); setError('');
+      var body = type === 'SUBSCRIPTION'
+        ? { paymentType: 'SUBSCRIPTION',   selectedPlan: selectedPlan.key, role: role, level: selectedPlan.level || undefined }
+        : { paymentType: 'TOKEN_PURCHASE', selectedPlan: selectedPlan.key, role: role, tokens: selectedPlan.tokens };
+      fetch('/api/payment/bank-transfer/intent', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', body: JSON.stringify(body),
+      })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
+        .then(function (data) {
+          setIntentId(data.intentId || data.intent_id || '');
+          setReference(data.reference || data.ref || '');
+          return fetch('/api/bank-details/active', { credentials: 'include' });
+        })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
+        .then(function (bd) { setBankDetails(bd); setLoading(false); setStep('TRANSFER_DETAILS'); })
+        .catch(function () { setError('Unable to create payment intent. Please try again.'); setLoading(false); });
+    }, [selectedPlan, type, role]);
+
+    var goToUpload  = useCallback(function () { setStep('RECEIPT_UPLOAD'); }, []);
+    var handleFile  = useCallback(function (file) {
+      if (!file) return;
+      var ext = (file.name.split('.').pop() || '').toLowerCase();
+      if (!['pdf', 'png', 'jpg', 'jpeg'].includes(ext)) { setError('Only PDF, PNG, JPG, JPEG files are allowed.'); return; }
+      if (file.size > 10 * 1024 * 1024) { setError('File must be under 10 MB.'); return; }
+      setError(''); setReceiptFile(file);
+    }, []);
+
+    var uploadReceipt = useCallback(function () {
+      if (!receiptFile || !intentId) return;
+      setLoading(true); setError(''); setUploadPct(0);
+      var fd = new FormData();
+      fd.append('intentId', intentId); fd.append('receiptFile', receiptFile);
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/payment/bank-transfer/receipt');
+      xhr.withCredentials = true;
+      xhr.upload.onprogress = function (e) { if (e.lengthComputable) setUploadPct(Math.round(e.loaded / e.total * 100)); };
+      xhr.onload  = function () { if (xhr.status >= 200 && xhr.status < 300) { setUploadPct(100); setLoading(false); setStep('SUBMITTED'); } else { setError('Unable to upload receipt. Please try again.'); setLoading(false); } };
+      xhr.onerror = function () { setError('Upload failed. Please try again.'); setLoading(false); };
+      xhr.send(fd);
+    }, [receiptFile, intentId]);
+
+    return {
+      step: step, setStep: setStep, loading: loading, error: error, setError: setError,
+      plans: plans, selectedPlan: selectedPlan, setSelectedPlan: setSelectedPlan,
+      intentId: intentId, reference: reference, bankDetails: bankDetails,
+      receiptFile: receiptFile, uploadPct: uploadPct, dragOver: dragOver, setDragOver: setDragOver,
+      createIntent: createIntent, goToUpload: goToUpload, handleFile: handleFile, uploadReceipt: uploadReceipt,
+    };
+  }
+
+  function PaymentWizard(props) {
+    var type = props.type, role = props.role, onClose = props.onClose, onComplete = props.onComplete;
+    var wiz = usePaymentWizard(type, role);
+    var fileRef = useRef(null);
+    var STEP_LABELS = ['Select Plan', 'Bank Transfer', 'Upload Receipt', 'Done'];
+    var STEP_KEYS   = ['PLAN_SELECT', 'TRANSFER_DETAILS', 'RECEIPT_UPLOAD', 'SUBMITTED'];
+    var curIdx = STEP_KEYS.indexOf(wiz.step);
+
+    var pwCopy = useCallback(function (text) {
+      if (navigator.clipboard) { navigator.clipboard.writeText(text).catch(function () {}); }
+      else { var ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
+      toast('Copied!', 'info');
+    }, []);
+
+    var onDrop     = useCallback(function (e) { e.preventDefault(); wiz.setDragOver(false); var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (f) wiz.handleFile(f); }, [wiz.handleFile]);
+    var onDragOver = useCallback(function (e) { e.preventDefault(); wiz.setDragOver(true);  }, []);
+    var onDragLeave= useCallback(function ()  { wiz.setDragOver(false); }, []);
+
+    var stepBar = h('div', { className: 'pw-step-bar' },
+      STEP_LABELS.map(function (label, i) {
+        var cls = 'pw-step-item' + (i === curIdx ? ' pw-step-active' : i < curIdx ? ' pw-step-done' : '');
+        return h('div', { key: i, className: cls },
+          h('div', { className: 'pw-step-dot' }, i < curIdx ? h('i', { className: 'fas fa-check' }) : (i + 1)),
+          h('div', { className: 'pw-step-label' }, label));
+      })
+    );
+
+    var errDiv = wiz.error ? h('div', { className: 'pw-error' }, h('i', { className: 'fas fa-exclamation-triangle' }), ' ', wiz.error) : null;
+
+    var stepPlanSelect = null;
+    if (wiz.step === 'PLAN_SELECT') {
+      var planListContent;
+      if (wiz.loading) { planListContent = h('div', { className: 'pw-loading' }, h('i', { className: 'fas fa-spinner fa-spin' }), ' Loading pricing\u2026'); }
+      else if (!wiz.plans.length) { planListContent = h('div', { className: 'pw-error' }, 'No plans available. Please refresh.'); }
+      else {
+        planListContent = h('div', null,
+          h('div', { className: 'pw-plan-list' },
+            wiz.plans.map(function (plan) {
+              var isSel = wiz.selectedPlan && wiz.selectedPlan.key === plan.key;
+              return h('label', { key: plan.key, className: 'pw-plan-radio' + (isSel ? ' pw-plan-selected' : '') },
+                h('input', { type: 'radio', name: 'pw_plan', value: plan.key, checked: !!isSel, onChange: function () { wiz.setSelectedPlan(plan); } }),
+                h('div', { className: 'pw-plan-info' },
+                  h('div', { className: 'pw-plan-name' }, plan.label),
+                  plan.bonus ? h('div', { className: 'pw-plan-bonus' }, h('i', { className: 'fas fa-tag' }), ' ', plan.bonus) : null),
+                h('div', { className: 'pw-plan-price' }, '\u20a6' + (plan.price || plan.amount || 0).toLocaleString())
+              );
+            })
+          ),
+          h('div', { className: 'pw-btn-row', style: 'margin-top:1rem;' },
+            h('button', { className: 'btn btn-ghost', disabled: wiz.loading, onClick: onClose }, h('i', { className: 'fas fa-times' }), ' Cancel'),
+            h('button', { className: 'btn btn-primary', disabled: !wiz.selectedPlan || wiz.loading, onClick: wiz.createIntent },
+              wiz.loading ? [h('i', { className: 'fas fa-spinner fa-spin' }), ' Creating intent\u2026'] : [h('i', { className: 'fas fa-university' }), ' Bank Transfer'])
+          )
+        );
+      }
+      stepPlanSelect = planListContent;
+    }
+
+    var stepTransfer = null;
+    if (wiz.step === 'TRANSFER_DETAILS') {
+      if (wiz.loading) { stepTransfer = h('div', { className: 'pw-loading' }, h('i', { className: 'fas fa-spinner fa-spin' }), ' Loading bank details\u2026'); }
+      else {
+        var bd       = wiz.bankDetails || {};
+        var acctNum  = bd.accountNumber || bd.account_number || '\u2014';
+        var bankName = bd.bankName || bd.bank_name || bd.bank || '\u2014';
+        var acctName = bd.accountName || bd.account_name || '\u2014';
+        var amount   = (wiz.selectedPlan && (wiz.selectedPlan.price || wiz.selectedPlan.amount)) || 0;
+        stepTransfer = h('div', null,
+          h('div', { className: 'pw-bank-details' },
+            [
+              ['Reference Number', h('span', null,
+                h('span', { className: 'pw-reference' }, wiz.reference),
+                h('button', { className: 'copy-btn', onClick: function () { pwCopy(wiz.reference); } },
+                  h('i', { className: 'fas fa-copy' }), ' Copy'))],
+              ['Bank Name',        bankName],
+              ['Account Name',     acctName],
+              ['Account Number',   h('span', null,
+                h('span', null, acctNum),
+                h('button', { className: 'copy-btn', onClick: function () { pwCopy(acctNum); } },
+                  h('i', { className: 'fas fa-copy' }), ' Copy'))],
+              ['Amount',           h('span', { style: 'color:var(--gold);font-weight:800;' },
+                '\u20a6' + amount.toLocaleString())],
+            ].map(function (row) {
+              return h('div', { key: row[0], className: 'pw-bank-row' },
+                h('span', { className: 'pw-bank-label' }, row[0]),
+                h('span', { className: 'pw-bank-value-wrap' }, row[1]));
+            })
+          ),
+          h('div', { className: 'pw-notice' },
+            h('i', { className: 'fas fa-exclamation-triangle' }),
+            ' Use reference ', h('strong', null, wiz.reference), ' in your transfer narration.'),
+          h('div', { className: 'pw-btn-row' },
+            h('button', {
+              className: 'btn btn-ghost',
+              onClick: function () { wiz.setStep('PLAN_SELECT'); },
+            }, h('i', { className: 'fas fa-arrow-left' }), ' Back'),
+            h('button', { className: 'btn btn-primary', onClick: wiz.goToUpload },
+              h('i', { className: 'fas fa-check' }), ' I Have Made Payment')
+          )
+        );
+      }
+    }
+
+    var stepUpload = null;
+    if (wiz.step === 'RECEIPT_UPLOAD') {
+      var dropCls  = 'pw-drop-zone' + (wiz.dragOver ? ' pw-drop-active' : '');
+      var dropInner = wiz.receiptFile
+        ? h('div', null,
+            h('i', { className: 'fas fa-file-alt',
+              style: 'font-size:2rem;color:var(--gold);display:block;margin-bottom:.4rem;' }),
+            h('div', { style: 'font-weight:700;font-size:.9rem;' }, wiz.receiptFile.name),
+            h('div', { style: 'font-size:.78rem;color:var(--text2);' },
+              (wiz.receiptFile.size / 1024).toFixed(1) + ' KB'))
+        : h('div', null,
+            h('i', { className: 'fas fa-cloud-upload-alt',
+              style: 'font-size:2.5rem;color:var(--text2);display:block;margin-bottom:.4rem;' }),
+            h('div', { style: 'font-weight:600;color:var(--text2);' }, 'Drag & drop or click to select'),
+            h('div', { style: 'font-size:.78rem;color:var(--text2);margin-top:.25rem;' },
+              'PDF, PNG, JPG, JPEG \u2014 max 10 MB'));
+      var progressBar = (wiz.uploadPct > 0 && wiz.uploadPct < 100)
+        ? h('div', null,
+            h('div', { className: 'pw-progress-wrap' },
+              h('div', { className: 'pw-progress-bar', style: 'width:' + wiz.uploadPct + '%;' })),
+            h('div', { style: 'font-size:.78rem;color:var(--text2);text-align:center;margin-top:.25rem;' },
+              wiz.uploadPct + '% uploaded'))
+        : null;
+      stepUpload = h('div', null,
+        h('div', { style: 'font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:.75rem;' },
+          'Upload your payment receipt (PDF, PNG, JPG \u2014 max 10 MB)'),
+        h('div', {
+          className: dropCls,
+          onDragOver: onDragOver, onDragLeave: onDragLeave, onDrop: onDrop,
+          onClick: function () { fileRef.current && fileRef.current.click(); },
+        }, dropInner),
+        h('input', {
+          ref: fileRef, type: 'file', accept: '.pdf,.png,.jpg,.jpeg',
+          style: 'display:none;',
+          onChange: function (e) { wiz.handleFile(e.target.files && e.target.files[0]); },
+        }),
+        progressBar,
+        errDiv,
+        h('div', { className: 'pw-btn-row' },
+          h('button', {
+            className: 'btn btn-ghost',
+            disabled: wiz.loading,
+            onClick: function () { wiz.setStep('TRANSFER_DETAILS'); },
+          }, h('i', { className: 'fas fa-arrow-left' }), ' Back'),
+          h('button', {
+            className: 'btn btn-primary',
+            disabled: !wiz.receiptFile || wiz.loading,
+            onClick: wiz.uploadReceipt,
+          },
+            wiz.loading
+              ? [h('i', { className: 'fas fa-spinner fa-spin' }), ' Uploading ' + wiz.uploadPct + '%\u2026']
+              : [h('i', { className: 'fas fa-upload' }), ' Submit Receipt'])
+        )
+      );
+    }
+
+    var stepDone = null;
+    if (wiz.step === 'SUBMITTED') {
+      stepDone = h('div', { style: 'text-align:center;padding:1.5rem 0;' },
+        h('i', { className: 'fas fa-check-circle',
+          style: 'font-size:3.5rem;color:var(--success);display:block;margin-bottom:1rem;' }),
+        h('div', { style: 'font-size:1.25rem;font-weight:800;margin-bottom:.5rem;' },
+          'Receipt Submitted!'),
+        h('div', { style: 'font-size:.85rem;color:var(--text2);margin-bottom:.5rem;' },
+          'Reference: ', h('strong', { style: 'color:var(--gold);' }, wiz.reference || '\u2014')),
+        h('p', { style: 'font-size:.82rem;color:var(--text2);margin-bottom:1.5rem;' },
+          'Your payment will be reviewed within 24\u201348 hours and your account updated.'),
+        h('button', {
+          className: 'btn btn-primary',
+          style: 'max-width:200px;margin:0 auto;',
+          onClick: function () { if (onComplete) onComplete(); if (onClose) onClose(); },
+        }, h('i', { className: 'fas fa-check' }), ' Done')
+      );
+    }
+
+    var title = type === 'SUBSCRIPTION' ? 'Subscribe' : 'Buy Tokens';
+    return h('div', { className: 'pw-overlay' },
+      h('div', { className: 'pw-modal' },
+        h('div', { className: 'pw-header' },
+          h('div', { className: 'pw-title' },
+            h('i', { className: type === 'SUBSCRIPTION'
+              ? 'fas fa-credit-card' : 'fas fa-coins' }), ' ', title),
+          h('button', { className: 'modal-close', onClick: onClose }, '\u00d7')
+        ),
+        h('div', { className: 'pw-body' },
+          stepBar,
+          wiz.step !== 'RECEIPT_UPLOAD' ? errDiv : null,
+          stepPlanSelect,
+          stepTransfer,
+          stepUpload,
+          stepDone
+        )
+      )
+    );
+  }
+
+  window.openPayWizard = function (type) {
+    // Accepts 'SUBSCRIPTION', 'TOKEN', or 'TOKEN_PURCHASE' — all non-subscription → token wizard
+    var wizType = (typeof type === 'string' && type.toUpperCase() === 'SUBSCRIPTION') ? 'SUBSCRIPTION' : 'TOKEN_PURCHASE';
+    var root = document.getElementById('pay-wizard-root');
+    if (!root) return;
+    preact.render(h(PaymentWizard, {
+      type: wizType,
+      role: 'agent',
+      onClose: function () { preact.render(null, root); },
+      onComplete: function () { loadSub(); loadOverview(); }
+    }), root);
+  };
+})();
+
+/* ══════════════════════════ NOTIFICATIONS ══════════════════════════ */
+async function loadNotif(){
+  $('notif-list').innerHTML=loadingHtml();
+  try{
+    const {notifications,unreadCount}=await api(`/agent/${S.agentId}/notifications`);
+    const badge=$('notif-badge');
+    badge.textContent=unreadCount||'';
+    badge.className='ni-badge'+(unreadCount?' show':'');
+    $('notif-list').innerHTML=notifications.length?notifications.map(n=>notifHtml(n)).join(''):emptyState('fas fa-bell-slash','No notifications yet.');
+  }catch(e){
+    $('notif-list').innerHTML=`<div class="empty"><p class="text-danger">${esc(e.message)}</p></div>`;
+  }
+}
+
+function notifHtml(n){
+  const map={
+    subscription_expiring:          ['sub','fa-clock'],
+    player_contract_expiring:       ['contract','fa-file-contract'],
+    new_player_available:           ['player','fa-user-plus'],
+    admin_message:                  ['admin','fa-bullhorn'],
+    proposal_received:              ['player','fa-paper-plane'],
+    proposal_cancelled:             ['sub','fa-ban'],
+    contract_accepted:              ['contract','fa-check-circle'],
+    contract_declined:              ['sub','fa-times-circle'],
+    proposal_auto_declined:         ['sub','fa-robot'],
+    player_signed_elsewhere:        ['sub','fa-user-slash'],
+    agent_assigned:                 ['player','fa-handshake'],
+    contract_activated:             ['contract','fa-file-signature'],
+    // Stats notification types
+    stats_request_submitted:        ['stats','fa-chart-bar'],
+    stats_request_completed:        ['stats','fa-check-circle'],
+    stats_request_approved:         ['stats','fa-clipboard-check'],
+    stats_updated:                  ['stats','fa-sync'],
+    player_stats_update:            ['stats','fa-chart-line'],
+    // Token notification types
+    token_credited:                 ['token','fa-coins'],
+    token_deducted:                 ['token','fa-coins'],
+    token_purchase_confirmed:       ['token','fa-shopping-cart'],
+  };
+  const [cls,icon]=map[n.type]||['info','fa-info-circle'];
+  return `<div class="notif-item">
+    <div class="notif-icon ${cls}"><i class="fas ${icon}"></i></div>
+    <div class="notif-content">
+      <div class="notif-msg ${n.isRead?'':'unread'}">${esc(n.message)}</div>
+      <div class="notif-time">${fmtDate(n.createdAt||n.created_at)}</div>
+    </div>
+    ${!n.isRead?'<div class="notif-dot"></div>':''}
+  </div>`;
+}
+
+async function markAllRead(){
+  try{
+    await api(`/agent/${S.agentId}/notifications/read-all`,{method:'PATCH'});
+    toast('All notifications marked as read.','success'); loadNotif();
+  }catch(e){toast(e.message,'error');}
+}
+
+/* ══════════════════════════ SMART POLLING ══════════════════════════ */
+let _pollInterval = null;
+
+function _startPolling(){
+  if(_pollInterval) return;
+  _pollInterval = setInterval(async()=>{
+    if(document.hidden) return;
+    try{ await loadNotif(); }catch(e){}
+    if(S.agentId){
+      try{ loadOverview(); }catch(e){}
+      if(S.tab==='contracts'){
+        try{ loadProposals(); }catch(e){}
+        try{ loadRosterContracts(); }catch(e){}
+      }
+    }
+  }, 20000);
+}
+
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden && S.agentId) {
+    Promise.all([loadNotif(), loadOverview()]).catch(()=>{});
+  }
+});
+
+/* ══════════════════════════ START ══════════════════════════ */
+init().then(()=>{ _startPolling(); }).catch(()=>{});
+</script>
+</body>
+</html>

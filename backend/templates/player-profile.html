@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Player Profile — EnejiStats</title>
+  <meta name="description" content="View verified football player statistics and match history on EnejiStats."/>
+  <meta name="keywords" content="football player stats, Nigerian football players, player profile, EnejiStats"/>
+  <meta name="author" content="EnejiStats"/>
+  <meta name="robots" content="index,follow"/>
+  <link rel="canonical" href="https://enejistats.com/player-profile.html"/>
+  <meta property="og:site_name" content="EnejiStats"/>
+  <meta property="og:title" content="Football Player Profile | EnejiStats"/>
+  <meta property="og:description" content="View verified football player statistics, biography, achievements, and match history on EnejiStats."/>
+  <meta property="og:type" content="profile"/>
+  <meta property="og:url" content="https://enejistats.com/player-profile.html"/>
+  <meta property="og:image" content="https://images.unsplash.com/photo-1553778263-73a83bab9b0c?w=800&amp;h=800&amp;fit=crop&amp;crop=face"/>
+  <meta name="twitter:card" content="summary_large_image"/>
+  <meta name="twitter:title" content="Football Player Profile | EnejiStats"/>
+  <meta name="twitter:description" content="View verified football player statistics and match history on EnejiStats."/>
+  <meta name="twitter:image" content="https://images.unsplash.com/photo-1553778263-73a83bab9b0c?w=800&amp;h=800&amp;fit=crop&amp;crop=face"/>
+   <!-- SEO stays in the document head; no player metadata is rendered into
+        the visible profile or appended after the footer. -->
+   <script id="player-schema" type="application/ld+json">{}</script>
+  <script src="https://unpkg.com/preact@10.19.3/dist/preact.umd.js"></script>
+  <script src="https://unpkg.com/preact@10.19.3/hooks/dist/hooks.umd.js"></script>
+  <script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <link rel="stylesheet" href="/static/css/eneji-branding.css"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --primary:#004aad;--gold:#f5b800;--header-bg:#162060;--dark-bg:#1e1e2f;--page-bg:#0f172a;
+      --success:#22c55e;--danger:#ef4444;--muted:#94a3b8;--line:rgba(255,255,255,0.08);
+      --radius:12px;--font:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
+    }
+    html{scroll-behavior:smooth}
+    html.preact-mounted #seo-player-profile{display:none!important}
+    body{font-family:var(--font);background:var(--page-bg);color:#e2e8f0;line-height:1.6;overflow-x:hidden}
+    a{text-decoration:none;color:inherit}
+    ul{list-style:none}
+    .container{max-width:1100px;margin:0 auto;padding:0 1rem}
+
+    /* HEADER */
+    .site-header{position:sticky;top:0;z-index:1000;background:var(--header-bg)}
+    .header-stripe{height:4px;background:var(--gold)}
+    .header-inner{display:flex;align-items:center;justify-content:space-between;height:76px;padding:0 1rem;max-width:1200px;margin:0 auto;overflow:visible}
+    .logo{font-size:1.5rem;font-weight:900;letter-spacing:2px;display:flex;gap:1px}
+    .logo-e{color:#fff}.logo-s{color:var(--gold)}
+    .nav-desktop{display:none;gap:0.25rem;align-items:center}
+    @media(min-width:769px){.nav-desktop{display:flex}}
+    .nav-desktop a{color:rgba(255,255,255,0.8);font-size:0.88rem;font-weight:500;padding:0.4rem 0.6rem;border-radius:6px;transition:color 0.2s}
+    .nav-desktop a:hover,.nav-desktop a.active{color:#fff;background:rgba(255,255,255,0.1)}
+    .btn-nav{background:var(--gold);color:#0f172a!important;padding:0.45rem 1rem!important;border-radius:8px;font-weight:700!important}
+    .hamburger{display:flex;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:4px}
+    @media(min-width:769px){.hamburger{display:none}}
+    .hamburger span{display:block;width:22px;height:2px;background:#fff;border-radius:2px}
+    .mobile-nav{display:none;position:fixed;inset:0;background:var(--header-bg);z-index:2000;flex-direction:column;padding:1.5rem;gap:0.25rem}
+    .mobile-nav.open{display:flex}
+    .mobile-nav-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem}
+    .mobile-nav a{color:rgba(255,255,255,0.85);font-size:1.05rem;font-weight:500;padding:0.8rem;border-radius:8px;display:block}
+    .mobile-nav a:hover{background:rgba(255,255,255,0.1);color:#fff}
+    .close-btn{background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer}
+    .dropdown{position:relative}
+    .dropdown-menu{display:none;position:absolute;top:calc(100%+6px);left:0;background:#1e1e2f;border:1px solid var(--line);border-radius:10px;min-width:160px;overflow:hidden;z-index:200}
+    .dropdown:hover .dropdown-menu{display:block}
+    .dropdown-menu a{display:block;padding:0.65rem 1rem;color:rgba(255,255,255,0.8);font-size:0.88rem}
+    .dropdown-menu a:hover{background:rgba(255,255,255,0.08);color:#fff}
+
+    /* HERO BANNER */
+    .profile-hero{background:linear-gradient(135deg,var(--header-bg),#0d1b3e);border-bottom:4px solid var(--gold);padding:2rem 0}
+    .hero-grid{display:grid;grid-template-columns:1fr;gap:1.5rem;align-items:center}
+    @media(min-width:700px){.hero-grid{grid-template-columns:auto 1fr}}
+     .player-photo{width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,0.08);border:4px solid var(--primary);box-shadow:none;display:flex;align-items:center;justify-content:center;font-size:2.5rem;font-weight:700;color:var(--gold);overflow:hidden;object-fit:cover;flex-shrink:0;margin:24px auto 12px}
+     @media(min-width:700px){.player-photo{margin:24px 0 12px}}
+     @media(max-width:768px){.player-photo{width:200px;height:200px;margin:24px auto 12px}}
+      .player-photo img{width:100%;height:100%;object-fit:cover;background:rgba(255,255,255,0.05);display:block}
+    .player-info h1{font-size:clamp(1.3rem,3.5vw,2rem);font-weight:800;color:#fff;margin-bottom:0.4rem;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap}
+    .verified-badge{background:rgba(0,74,173,0.3);color:#93c5fd;padding:0.2rem 0.65rem;border-radius:20px;font-size:0.72rem;font-weight:700;border:1px solid rgba(0,74,173,0.5);display:flex;align-items:center;gap:0.3rem}
+    .hero-meta-row{display:flex;flex-wrap:wrap;gap:1rem;margin:0.5rem 0 1rem;font-size:0.85rem;color:rgba(255,255,255,0.7)}
+    .hero-meta-row span{display:flex;align-items:center;gap:0.4rem}
+    .hero-stats{display:flex;gap:1.5rem;flex-wrap:wrap}
+    .hs{text-align:center;background:rgba(255,255,255,0.06);border-radius:8px;padding:0.75rem 1.25rem;min-width:70px}
+    .hs-val{font-size:1.5rem;font-weight:900;color:var(--gold);line-height:1}
+    .hs-label{font-size:0.68rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-top:0.3rem}
+    .hero-actions{display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:1rem}
+    .btn-sm-gold{background:var(--gold);color:#0f172a;padding:0.5rem 1rem;border-radius:7px;font-weight:700;font-size:0.85rem;transition:opacity 0.2s}
+    .btn-sm-gold:hover{opacity:0.9}
+    .btn-sm-outline{background:transparent;border:1px solid rgba(255,255,255,0.25);color:#fff;padding:0.5rem 1rem;border-radius:7px;font-weight:600;font-size:0.85rem;transition:all 0.2s}
+    .btn-sm-outline:hover{border-color:#fff;background:rgba(255,255,255,0.05)}
+
+    /* CONTENT LAYOUT */
+    .content-wrap{padding:2rem 0 3rem}
+    .content-grid{display:grid;grid-template-columns:1fr;gap:1.5rem}
+    @media(min-width:900px){.content-grid{grid-template-columns:300px 1fr}}
+
+    /* SIDEBAR */
+    .info-card{background:var(--dark-bg);border:1px solid rgba(255,255,255,0.11);border-radius:var(--radius);overflow:hidden;margin-bottom:1.5rem;box-shadow:none}
+    .card-head{background:rgba(0,0,0,0.2);padding:0.85rem 1.25rem;font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:0.5rem}
+    .card-head i{color:var(--gold)}
+    .info-rows .info-row{display:flex;justify-content:space-between;padding:0.7rem 1.25rem;border-bottom:1px solid var(--line);font-size:0.85rem;align-items:center}
+    .info-rows .info-row:last-child{border-bottom:none}
+    .info-row-label{color:var(--muted)}
+    .info-row-val{font-weight:600;text-align:right}
+
+    /* STAT CARDS */
+    .stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;margin-bottom:1.5rem}
+    @media(min-width:500px){.stat-grid{grid-template-columns:repeat(4,1fr)}}
+    .stat-card{background:var(--dark-bg);border:1px solid rgba(255,255,255,0.11);border-radius:var(--radius);padding:1.25rem;text-align:center;box-shadow:none}
+    .stat-val{font-size:2rem;font-weight:900;color:var(--gold)}
+    .stat-label{font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-top:0.3rem}
+
+    /* TABS */
+    .tabs-bar{display:flex;gap:0.25rem;border-bottom:1px solid var(--line);margin-bottom:1.5rem;overflow-x:auto}
+    .tab-btn{background:none;border:none;cursor:pointer;font-weight:600;font-size:0.9rem;color:var(--muted);padding:0.7rem 1rem;border-bottom:3px solid transparent;transition:all 0.2s;white-space:nowrap}
+    .tab-btn.active{color:var(--gold);border-bottom-color:var(--gold)}
+
+    /* MATCH HISTORY */
+    .match-table-wrap{background:var(--dark-bg);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;overflow-x:auto}
+    .match-table{width:100%;border-collapse:collapse;min-width:500px}
+    .match-table th{padding:0.7rem 1rem;font-size:0.72rem;text-transform:uppercase;color:var(--muted);text-align:left;background:rgba(0,0,0,0.2);border-bottom:1px solid var(--line)}
+    .match-table td{padding:0.7rem 1rem;border-bottom:1px solid var(--line);font-size:0.85rem;vertical-align:middle}
+    .match-table tr:last-child td{border-bottom:none}
+    .result-badge{display:inline-block;width:24px;height:24px;border-radius:50%;text-align:center;line-height:24px;font-size:0.72rem;font-weight:700}
+    .result-w{background:rgba(34,197,94,0.2);color:#22c55e;border:1px solid rgba(34,197,94,0.4)}
+    .result-d{background:rgba(245,158,11,0.2);color:#f59e0b;border:1px solid rgba(245,158,11,0.4)}
+    .result-l{background:rgba(239,68,68,0.2);color:#ef4444;border:1px solid rgba(239,68,68,0.4)}
+
+
+    /* PAGINATION */
+    .pagination{display:flex;justify-content:center;gap:0.4rem;margin-top:1.5rem;flex-wrap:wrap}
+    .page-btn{width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:7px;border:1px solid var(--line);background:var(--dark-bg);cursor:pointer;font-weight:600;color:#e2e8f0;font-size:0.85rem;transition:all 0.2s}
+    .page-btn:hover:not(:disabled){border-color:var(--gold);color:var(--gold)}
+    .page-btn.active{background:var(--gold);color:#0f172a;border-color:var(--gold)}
+    .page-btn:disabled{opacity:0.4;cursor:not-allowed}
+
+    /* PAYWALL */
+    .paywall-card{background:rgba(245,184,0,0.08);border:1px solid rgba(245,184,0,0.3);border-radius:var(--radius);padding:2rem;text-align:center;margin-top:1.5rem}
+    .paywall-card h3{font-size:1.1rem;margin-bottom:0.5rem}
+    .paywall-card p{color:var(--muted);font-size:0.9rem;margin-bottom:1.25rem}
+
+    /* SKELETON */
+    .skeleton{background:linear-gradient(90deg,#1e1e2f 25%,#2a2a40 50%,#1e1e2f 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:6px}
+    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+    /* NOT FOUND */
+    .not-found{text-align:center;padding:6rem 1rem}
+    .not-found i{font-size:4rem;color:var(--muted);margin-bottom:1.5rem;display:block}
+
+    /* FOOTER */
+    .site-footer{background:#0a0a14;border-top:1px solid var(--line);padding:3.5rem 1rem 1.5rem}
+    .footer-grid{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr;gap:2.5rem}
+    @media(min-width:600px){.footer-grid{grid-template-columns:1fr 1fr}}
+    @media(min-width:992px){.footer-grid{grid-template-columns:1.6fr 1fr 1fr 1fr}}
+    .footer-col h4{color:#fff;font-size:0.85rem;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:1rem}
+    .footer-col p,.footer-col ul a{font-size:0.85rem;color:var(--muted)}
+    .footer-col ul li{margin-bottom:0.6rem}
+    .footer-col ul a:hover{color:var(--gold)}
+    .footer-bottom{max-width:1200px;margin:2rem auto 0;padding-top:1.25rem;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:space-between;font-size:0.78rem;color:var(--muted)}
+    .footer-bottom a{color:var(--muted)}.footer-bottom a:hover{color:var(--gold)}
+  
+/* EnejiStats faded palette background */
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse at 20% 30%,rgba(0,74,173,0.05) 0%,transparent 60%),
+             radial-gradient(ellipse at 80% 70%,rgba(245,184,0,0.05) 0%,transparent 60%),
+             radial-gradient(ellipse at 50% 100%,rgba(0,74,173,0.03) 0%,transparent 50%);}
+
+/* Share Card Modal */
+.share-modal-overlay{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.72);display:flex;align-items:center;justify-content:center;padding:1rem}
+.share-modal{background:#162060;border:2px solid #f5b800;border-radius:16px;width:100%;max-width:480px;padding:1.5rem;position:relative;box-shadow:none}
+.share-modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem}
+.share-modal-title{color:#fff;font-weight:800;font-size:1.05rem;letter-spacing:0.5px}
+.share-modal-close{background:rgba(255,255,255,0.1);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center}
+.share-modal-close:hover{background:rgba(255,255,255,0.2)}
+#shareCanvas{width:100%;border-radius:10px;display:block}
+.share-btns{display:flex;gap:0.75rem;margin-top:1.1rem;flex-wrap:wrap}
+.share-btn{flex:1;min-width:120px;padding:0.65rem 1rem;border-radius:8px;border:none;cursor:pointer;font-weight:700;font-size:0.88rem;display:flex;align-items:center;justify-content:center;gap:0.4rem;transition:opacity 0.15s}
+.share-btn:hover{opacity:0.88}
+.share-btn-gold{background:#f5b800;color:#0f172a}
+.share-btn-outline{background:transparent;border:1.5px solid #f5b800;color:#f5b800}
+.share-btn-native{background:#004aad;color:#fff}
+.share-link-row{margin-top:0.9rem;display:flex;gap:0.5rem}
+.share-link-input{flex:1;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);color:#fff;border-radius:7px;padding:0.5rem 0.75rem;font-size:0.82rem;outline:none}
+.share-copied{color:#f5b800;font-size:0.8rem;font-weight:700;margin-top:0.4rem;min-height:1.2rem}
+     .breadcrumb{max-width:1100px;margin:1rem auto 0;padding:0 1rem;color:var(--muted);font-size:.82rem}
+     .breadcrumb a{color:#93c5fd}.breadcrumb a:hover{color:var(--gold)}
+     .bio-copy{color:#cbd5e1;font-size:.92rem;line-height:1.75;padding:1.1rem 1.25rem}
+     .role-note{color:var(--muted);font-size:.82rem;margin:-.75rem 0 1.5rem}
+     @media(max-width:520px){.breadcrumb{padding:0 .75rem}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(function(){
+  'use strict';
+  const {h,render}=preact;
+  const {useState,useEffect}=preactHooks;
+  const html=htm.bind(h);
+  const year=new Date().getFullYear();
+   const value=(obj,keys,fallback=0)=>{
+     for(const key of keys){if(obj&&obj[key]!==undefined&&obj[key]!==null&&obj[key]!=='')return obj[key]}
+     return fallback;
+   };
+   const idOf=p=>p&&(p.player_id||p.user_id||p.id||p._id);
+   const nameOf=p=>[p&& (p.first_name||p.firstName),p&&(p.middle_name||p.middleName),p&&(p.last_name||p.lastName)].filter(Boolean).join(' ')||(p&&p.name)||'Player';
+    /*
+     * API responses are not always shaped identically.  Unwrap only known
+     * response envelopes so the page never mistakes an envelope for a player.
+     */
+    const unwrap=x=>{
+      let current=x;
+      for(let i=0;i<4&&current&&typeof current==='object';i++){
+        const next=current.player||current.profile||current.data||current.result;
+        if(!next||next===current)break;
+        current=next;
+      }
+      return current;
+    };
+    const normalizeProfile=x=>{
+      const profile=unwrap(x);
+      return profile&&typeof profile==='object'&&!Array.isArray(profile)?profile:null;
+    };
+    const normalizeStats=x=>{
+      const stats=unwrap(x)||{};
+      return {
+        season:stats.season_stats||stats.seasonStats||stats.season||stats.stats||{},
+        summary:stats.summary_stats||stats.summaryStats||stats.summary||{},
+        matches:stats.match_stats||stats.matchStats||stats.match_data||stats.matchData||stats.matches||[]
+      };
+    };
+   const normalizePlayerFields=p=>{
+      const x=normalizeProfile(p)||{};
+      const dob=x.dob||x.date_of_birth||x.dateOfBirth||'';
+      let age=x.age;
+      if(age==null && dob){
+        const d=new Date(dob);
+        if(!Number.isNaN(d.getTime())){
+          age=Math.max(0,Math.floor((Date.now()-d.getTime())/(365.25*24*60*60*1000)));
+        }
+      }
+      return {
+        ...x,
+        player_id:x.player_id||x.user_id||x.id||x._id||'',
+        user_id:x.user_id||x.player_id||x.id||x._id||'',
+        preferred_position:x.preferred_position||x.preferredPosition||x.position||'',
+        current_club:x.current_club||x.club||x.club_name||x.clubName||'Free Agent',
+        playing_category:x.playing_category||x.playingCategory||x.player_category||x.playerCategory||x.category||'',
+        player_level:x.player_level||x.playerLevel||x.playing_level||x.playingLevel||x.level||'',
+        preferred_foot:x.preferred_foot||x.preferredFoot||'',
+        jersey_number:x.jersey_number||x.jerseyNumber||'',
+        secondary_positions:x.secondary_positions||x.secondaryPositions||[],
+        age
+      };
+    };
+    const roleOf=pos=>{
+     const p=String(pos||'').toUpperCase().replace(/[_-]+/g,' ');
+     if(p.includes('KEEPER')||['GK','G','GOALIE'].includes(p))return 'Goalkeeper';
+     if(p.includes('FORWARD')||p.includes('WINGER')||['ST','CF','SS','LW','RW','CAM','F','FW'].includes(p))return 'Attacker';
+     if(p.includes('MIDFIELD')||['CM','CDM','LM','RM','AM','MID'].includes(p))return 'Midfielder';
+     if(p.includes('DEFEN')||p.includes('BACK')||['CB','LB','RB','LWB','RWB','D'].includes(p))return 'Defender';
+     return 'Outfield';
+   };
+   const pct=(a,b)=>b?(Number(a)/Number(b)*100).toFixed(1)+'%':'—';
+   function metricsFor(role,s,summary){
+     const minutes=value(s,['minutes_played_total','minutes_played'],0);
+     const matches=value(summary,['matchesPlayed','matches_played','matches'],value(s,['matches','matches_played'],0));
+     const base=[['fa-calendar-check','Matches Played',matches],['fa-clock','Minutes Played',minutes+"'"]];
+     if(role==='Goalkeeper')return base.concat([['fa-hands','Saves',value(s,['saves','shots_saved'],0)],['fa-list-check','Clean Sheets',value(s,['clean_sheets','cleanSheets'],0)],['fa-shield-halved','Goals Conceded',value(s,['goals_conceded','conceded'],0)],['fa-hand-paper','Penalty Saves',value(s,['penalty_saves','penalties_saved'],0)]]);
+     if(role==='Defender')return base.concat([['fa-shield','Tackles Won',value(s,['tackles_won','successful_tackles'],0)],['fa-shield','Tackles Lost',value(s,['tackles_lost','unsuccessful_tackles'],0)],['fa-ban','Interceptions',value(s,['interceptions'],0)],['fa-arrow-up','Clearances',value(s,['clearances'],0)],['fa-square','Yellow Cards',value(s,['yellow_cards'],0)]]);
+     if(role==='Midfielder')return base.concat([['fa-handshake','Assists',value(s,['assists','assists_total'],0)],['fa-right-left','Short Passes',value(s,['successful_short_passes','completed_short_passes'],0)+'/'+value(s,['unsuccessful_short_passes','incomplete_short_passes'],0)],['fa-arrows-up-down','Long Passes',value(s,['successful_long_passes','completed_long_passes'],0)+'/'+value(s,['unsuccessful_long_passes','incomplete_long_passes'],0)],['fa-crosshairs','Crosses',value(s,['successful_crosses','completed_crosses'],0)]]);
+     return base.concat([['fa-futbol','Goals',value(s,['goals','goals_scored'],0)],['fa-handshake','Assists',value(s,['assists','assists_total'],0)],['fa-bullseye','Shots On Target',value(s,['shots_on_target','on_target_shots'],0)],['fa-bullseye','Shots Off Target',value(s,['shots_off_target','off_target_shots'],0)]]);
+   }
+
+  function Logo(){
+    return html`<a href="/" style=${{textDecoration:'none',display:'inline-block',verticalAlign:'middle'}}>
+       <img src="/static/images/eneji-stats-branding.png" alt="EnejiStats" class="eneji-logo-img"/>
+    </a>`;
+  }
+
+  function Header(){
+    const [open,setOpen]=useState(false);
+    return html`<header class="site-header">
+      <div class="header-stripe"/>
+      <div class="header-inner">
+        <${Logo}/>
+        <nav class="nav-desktop">
+          <a href="/">Home</a><a href="/about.html">About</a>
+          <div class="dropdown">
+            <a href="#" class="active">Stats Area <i class="fas fa-chevron-down" style="font-size:0.65rem"/></a>
+            <div class="dropdown-menu"><a href="/browse.html">Browse</a></div>
+          </div>
+          <a href="/leaderboard.html">Leaderboard</a>
+          <a href="/competitions.html">Competitions &amp; Trials</a>
+          <a href="/pricing.html">Pricing</a><a href="/contact.html">Contact</a>
+          <a href="/register.html" class="btn-nav">Register / Sign In</a>
+        </nav>
+        <button class="hamburger" onClick=${()=>setOpen(true)}><span/><span/><span/></button>
+      </div>
+      <div class=${'mobile-nav'+(open?' open':'')}>
+        <div class="mobile-nav-top"><${Logo}/><button class="close-btn" onClick=${()=>setOpen(false)}><i class="fas fa-times"/></button></div>
+        <a href="/" onClick=${()=>setOpen(false)}>Home</a>
+        <a href="/about.html" onClick=${()=>setOpen(false)}>About</a>
+        <a href="/browse.html" onClick=${()=>setOpen(false)}>Browse</a>
+        <a href="/leaderboard.html" onClick=${()=>setOpen(false)}>Leaderboard</a>
+        <a href="/competitions.html" onClick=${()=>setOpen(false)}>Competitions &amp; Trials</a>
+        <a href="/pricing.html" onClick=${()=>setOpen(false)}>Pricing</a>
+        <a href="/contact.html" onClick=${()=>setOpen(false)}>Contact</a>
+        <a href="/register.html" style="color:var(--gold);font-weight:700" onClick=${()=>setOpen(false)}>Register / Sign In</a>
+      </div>
+    </header>`;
+  }
+
+  function Footer(){
+    return html`<footer class="site-footer">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <${Logo}/>
+          <p style="margin-top:0.75rem">Nigeria's trusted football data platform.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Quick Links</h4>
+          <ul>
+            <li><a href="/">Home</a></li><li><a href="/browse.html">Browse Players</a></li>
+            <li><a href="/leaderboard.html">Leaderboard</a></li><li><a href="/pricing.html">Pricing</a></li>
+            <li><a href="/contact.html">Contact</a></li><li><a href="/register.html">Register</a></li>
+          </ul>
+        </div>
+        <div class="footer-col"><h4>For Users</h4><ul>
+          <li><a href="/browse.html?type=clubs">Club Stats</a></li>
+          <li><a href="/register.html?role=dco">Become a Data Scout</a></li>
+          <li><a href="/register.html?role=scout">Become a Scout</a></li>
+        </ul></div>
+        <div class="footer-col"><h4>Connect</h4><ul>
+          <li><a href="mailto:enejistats@gmail.com"><i class="fas fa-envelope" style="width:16px"/> enejistats@gmail.com</a></li>
+          <li><span style="color:var(--muted)"><i class="fas fa-location-dot" style="width:16px"/> Lagos, Nigeria</span></li>
+        </ul></div>
+      </div>
+      <div class="footer-bottom">
+        <span>© ${year} EnejiStats. All rights reserved.</span>
+        <span><a href="/terms.html">Terms</a> · <a href="/privacy.html">Privacy</a></span>
+      </div>
+    </footer>`;
+  }
+
+  function App(){
+    const [player,setPlayer]=useState(null);
+     const [apiStats,setApiStats]=useState({season:{},summary:{},matches:[]});
+    const [loading,setLoading]=useState(true);
+     const [error,setError]=useState(false);
+     const [isLoggedIn,setIsLoggedIn]=useState(false);
+    const [activeTab,setActiveTab]=useState('season');
+    const [matchPage,setMatchPage]=useState(1);
+    const [matches,setMatches]=useState([]);
+    const [matchLoading,setMatchLoading]=useState(false);
+     const [matchPages,setMatchPages]=useState(1);
+    const MATCH_LIMIT=6;
+
+    useEffect(()=>{
+      const params=new URLSearchParams(window.location.search);
+       const pathParts=window.location.pathname.split('/').filter(Boolean);
+       let id=params.get('id')||
+         (pathParts[0]==='players'&&pathParts[1]?decodeURIComponent(pathParts[1]):null);
+       const load=async()=>{
+        setLoading(true);
+        try{
+           if(!id){
+             try{
+               const meRes=await fetch('/api/auth/me',{credentials:'include',cache:'no-store',headers:{Accept:'application/json'}});
+                if(meRes.ok){const me=await meRes.json();const user=me?.user||me?.data||me;if(user&&idOf(user)){setIsLoggedIn(true);id=idOf(user);}}
+             }catch(e){}
+           }
+            // A profile page without a player id must not render demo data.
+             // This prevents an invalid browse link from showing demo data.
+            if(!id){setError(true);return;}
+            const publicRes=await fetch(
+              '/api/public/players/'+encodeURIComponent(id),
+              {credentials:'include',cache:'no-store',headers:{Accept:'application/json'}}
+            );
+            if(!publicRes.ok)throw new Error('Public player profile request failed');
+            const profileJson=await publicRes.json();
+            const profile=normalizePlayerFields(profileJson);
+            if(!profile)throw new Error('Invalid player profile response');
+            setPlayer(profile);
+            setApiStats(normalizeStats(profileJson));
+
+            // Prefer the same tracker-backed aggregation used by the Player
+            // Dashboard/Stats tab when the viewer is authenticated.
+            try{
+              const authRes=await fetch('/api/auth/me',{credentials:'include',cache:'no-store',headers:{Accept:'application/json'}});
+              if(authRes.ok){
+                setIsLoggedIn(true);
+                const summaryRes=await fetch(
+                  '/api/player/'+encodeURIComponent(id)+'/stats/summary',
+                  {credentials:'include',cache:'no-store',headers:{Accept:'application/json'}}
+                );
+                if(summaryRes.ok){
+                  const live=normalizeStats(await summaryRes.json());
+                  setApiStats(prev=>({
+                    season:Object.keys(live.season).length?live.season:prev.season,
+                    summary:Object.keys(live.summary).length?live.summary:prev.summary,
+                    matches:Array.isArray(live.matches)&&live.matches.length?live.matches:prev.matches
+                  }));
+                }
+              }
+            }catch(_){}
+            fetchMatches(id,1);
+         }catch(e){
+           /*
+            * Never substitute demo content for a failed live request.  A
+            * failed request must produce the normal not-found state instead.
+            */
+           setError(true);
+         }finally{setLoading(false);}
+      };
+      load();
+    },[]);
+
+     useEffect(()=>{
+       if(!player)return;
+       const p=player,n=nameOf(p),photo=p.photo_url||p.photo||p.profile_image||p.profileImage;
+       const canonical=window.location.href;
+       document.title=n+' - Player Profile | EnejiStats';
+        const setMeta=(selector,content)=>{
+         let el=document.querySelector(selector);
+         if(!el){el=document.createElement('meta');document.head.appendChild(el)}
+         el.setAttribute('content',content||'');
+       };
+        const canonicalLink=document.querySelector('link[rel="canonical"]');
+        if(canonicalLink)canonicalLink.setAttribute('href',canonical);
+        // Remove legacy SEO nodes if an older page version injected visible
+        // player copy into the body. SEO is represented only by head metadata.
+        document.querySelectorAll('body [data-player-seo],body .player-seo-copy').forEach(el=>el.remove());
+       const description=n+' - '+(p.preferred_position||p.position||'Football player')+' at '+(p.current_club||p.club||'Free Agent')+'. View stats, bio, and achievements on EnejiStats.';
+       setMeta('meta[name="description"]',description);setMeta('meta[name="keywords"]',n+', '+(p.club||'football')+', football player, stats, EnejiStats');
+       setMeta('meta[property="og:title"]',n+' - Player Profile | EnejiStats');setMeta('meta[property="og:description"]',description);setMeta('meta[property="og:url"]',canonical);if(photo)setMeta('meta[property="og:image"]',photo);
+       setMeta('meta[name="twitter:title"]',n+' - Player Profile | EnejiStats');setMeta('meta[name="twitter:description"]',description);if(photo)setMeta('meta[name="twitter:image"]',photo);
+       const schema={"@context":"https://schema.org","@type":"Person","name":n,"image":photo||undefined,"description":p.bio||'Professional football player',"jobTitle":p.preferred_position||p.position||undefined,"nationality":p.nationality||p.country||undefined,"birthDate":p.dob||p.date_of_birth||undefined,"url":canonical,"identifier":idOf(p)||undefined,"worksFor":{"@type":"SportsTeam","name":p.current_club||p.club||'Free Agent'}};
+       document.getElementById('player-schema').textContent=JSON.stringify(schema);
+     },[player]);
+
+    const fetchMatches=async(id,p)=>{
+      setMatchLoading(true);
+      try{
+         const res=await fetch('/api/public/players/'+encodeURIComponent(id)+'/matches?page='+p+'&limit='+MATCH_LIMIT,{credentials:'include',cache:'no-store',headers:{Accept:'application/json'}});
+         if(!res.ok)throw new Error();
+         const json=await res.json();
+          const matchPayload=json&&typeof json==='object'?json:{};
+          const nested=matchPayload.data&&typeof matchPayload.data==='object'
+            ?matchPayload.data:null;
+          const matchList=Array.isArray(json)?json:
+            (Array.isArray(matchPayload.data)?matchPayload.data:
+              (Array.isArray(matchPayload.matches)?matchPayload.matches:
+                (nested&&Array.isArray(nested.matches)?nested.matches:[])));
+         setMatches(matchList);
+           setMatchPages(matchPayload.pages||matchPayload.total_pages||matchPayload.totalPages||
+             (nested&& (nested.pages||nested.total_pages||nested.totalPages))||1);
+        setMatchPage(p);
+       }catch(e){if(p===1)setMatches([]);}
+      finally{setMatchLoading(false);}
+    };
+
+    const fmtDate=d=>{try{return new Date(d).toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'});}catch(e){return d;}};
+
+    if(loading)return html`<div>
+      <${Header}/>
+      <div class="profile-hero"><div class="container hero-grid">
+        <div class="skeleton" style="width:110px;height:110px;border-radius:50%"/>
+        <div>
+          <div class="skeleton" style="width:200px;height:28px;margin-bottom:0.75rem"/>
+          <div class="skeleton" style="width:300px;height:16px;margin-bottom:0.5rem"/>
+          <div class="skeleton" style="width:250px;height:16px"/>
+        </div>
+      </div></div>
+      <${Footer}/>
+    </div>`;
+
+    if(error)return html`<div>
+      <${Header}/>
+      <div class="not-found container">
+        <i class="fas fa-user-slash"/>
+        <h2>Player not found</h2>
+        <p style="color:var(--muted);margin:0.75rem 0 1.5rem">This player profile does not exist or has been removed.</p>
+        <a href="/browse.html" class="btn-sm-gold">Browse Players</a>
+      </div>
+      <${Footer}/>
+    </div>`;
+
+     const p=player;
+     const statSeason=apiStats.season||{};
+     const statSummary=apiStats.summary||{};
+     const displayName=nameOf(p);
+      const photoUrl=p.photo_url||p.photo||'';
+     const position=p.preferred_position||p.preferredPosition||p.position||'Outfield';
+     const role=roleOf(position);
+     const season=Object.keys(statSeason).length?{...(p.season||{}),...statSeason}:(p.season||p.career||{});
+     const roleMetrics=metricsFor(role,season,statSummary);
+     const careerMetrics=metricsFor(role,p.career||{},p.career||{});
+      const dobVisible=p.dob_visible!==false && (p.dob||p.date_of_birth||p.dateOfBirth);
+      const secondaryPositions=Array.isArray(p.secondary_positions)?p.secondary_positions:(Array.isArray(p.secondaryPositions)?p.secondaryPositions:[]);
+      const profileRows=[
+       ['Player ID',idOf(p)||'—'],
+       ['Position',position],
+       ['Secondary Positions',secondaryPositions.join(', ')],
+       ['Height',p.height?String(p.height).replace(/cm$/i,'')+'cm':'—'],
+       ['Weight',p.weight?String(p.weight).replace(/kg$/i,'')+'kg':'—'],
+       ['Preferred Foot',p.preferred_foot||p.preferredFoot||'—'],
+       ['Jersey No.',p.jersey_number||p.jerseyNumber||'—'],
+       ['State',p.state||p.home_state||'—'],
+       ['Club',p.current_club||p.club||'—'],
+       ['Nationality',p.nationality||p.country||'—'],
+       ['Playing Category',p.playing_category||p.player_category||p.category||'—'],
+       ['Playing Level',p.player_level||p.playing_level||p.level||'—'],
+       ['Date of Birth',dobVisible?(p.dob||p.date_of_birth||p.dateOfBirth):'—']
+     ].filter(([,v])=>v&&v!=='—');
+      const bio=p.bio||p.biography||'';
+      const achievements=Array.isArray(p.achievements)?p.achievements:Array.isArray(p.awards)?p.awards:Array.isArray(p.badges)?p.badges:[];
+
+    return html`<div>
+      <${Header}/>
+       <div class="breadcrumb"><a href="/">Home</a> <span>›</span> <a href="/browse.html">Browse Players</a> <span>›</span> ${nameOf(p)}</div>
+
+      <!-- HERO BANNER -->
+      <div class="profile-hero">
+        <div class="container hero-grid">
+          <div class="player-photo">
+             ${photoUrl
+                ?html`<img src=${photoUrl} alt=${displayName} onError=${e=>e.currentTarget.src='https://enejistats.onrender.com/default-player.jpg'}/>`
+               :html`<img src="https://enejistats.onrender.com/default-player.jpg" alt=${displayName}/>`}
+          </div>
+          <div class="player-info">
+            <h1>
+               ${displayName}
+               ${(p.verified||p.is_verified)&&html`<span class="verified-badge"><i class="fas fa-circle-check"/> Verified</span>`}
+            </h1>
+            <div class="hero-meta-row">
+               <span><i class="fas fa-user-tag"/> ${position}</span>
+               <span><i class="fas fa-shield-halved"/> ${p.current_club||p.club||'Free Agent'}</span>
+               ${(p.nationality||p.country)&&html`<span><i class="fas fa-flag"/> ${p.nationality||p.country}</span>`}
+              ${p.age!=null&&html`<span><i class="fas fa-birthday-cake"/> ${p.age} yrs</span>`}
+            </div>
+            <div class="hero-stats">
+              <div class="hs"><div class="hs-val">${season.goals??p.career?.goals??0}</div><div class="hs-label">Goals</div></div>
+              <div class="hs"><div class="hs-val">${season.assists??p.career?.assists??0}</div><div class="hs-label">Assists</div></div>
+              <div class="hs"><div class="hs-val">${season.matches??p.career?.matches??0}</div><div class="hs-label">Matches</div></div>
+            </div>
+            <div class="hero-actions">
+                <a href=${'/player-dashboard?player='+encodeURIComponent(idOf(p)||p.id||'')} class="btn-sm-gold"><i class="fas fa-chart-line"/> Full Dashboard</a>
+              <a href="/browse.html" class="btn-sm-outline"><i class="fas fa-arrow-left"/> Back to Browse</a>
+                 <button class="btn-sm-gold" style="cursor:pointer;border:none;padding:0.45rem 1rem;border-radius:6px;font-weight:700;font-size:0.82rem;display:inline-flex;align-items:center;gap:0.4rem" onClick=${()=>window.openShareModal({type:"player",name:displayName,sub:position+" · "+(p.current_club||p.club||"Free Agent"),photo:photoUrl||null,verified:!!(p.verified||p.is_verified),initials:displayName[0].toUpperCase(),stats:[{val:season.goals??p.career?.goals??0,label:"Goals"},{val:season.assists??p.career?.assists??0,label:"Assists"},{val:season.matches??p.career?.matches??0,label:"Matches"}]})}><i class="fas fa-share-nodes"/> Share Profile</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="content-wrap">
+        <div class="container content-grid">
+          <!-- SIDEBAR -->
+          <div>
+            <!-- BIO -->
+            <div class="info-card">
+              <div class="card-head"><i class="fas fa-address-card"/> Profile Information</div>
+              <div class="info-rows">
+                 ${profileRows.map(([l,v])=>html`<div class="info-row">
+                  <span class="info-row-label">${l}</span>
+                  <span class="info-row-val">${v}</span>
+                </div>`)}
+              </div>
+            </div>
+              ${bio&&html`<div class="info-card">
+               <div class="card-head"><i class="fas fa-user-tag"/> Player Bio</div>
+               <p class="bio-copy">${bio}</p>
+              </div>`}
+
+            <!-- BADGES -->
+             ${achievements.length>0&&html`<div class="info-card">
+              <div class="card-head"><i class="fas fa-medal"/> Achievements</div>
+              <div style="padding:1rem;display:flex;flex-direction:column;gap:0.5rem">
+                 ${achievements.map((b,i)=>html`<div key=${i} style="display:flex;align-items:center;gap:0.65rem;font-size:0.88rem">
+                   <i class=${'fas '+(b.icon||'fa-star')} style="color:var(--gold)"/> ${b.label||b}
+                </div>`)}
+              </div>
+            </div>`}
+          </div>
+
+          <!-- MAIN CONTENT -->
+          <div>
+            <!-- TABS -->
+            <div class="tabs-bar">
+              ${[['season','This Season','fa-calendar'],['career','Career','fa-chart-line'],['matches','Match History','fa-futbol']].map(([id,label,icon])=>html`
+                <button key=${id} class=${'tab-btn'+(activeTab===id?' active':'')} onClick=${()=>setActiveTab(id)}>
+                  <i class=${'fas '+icon}/> ${label}
+                </button>`)}
+            </div>
+
+            ${activeTab==='season'&&html`<div>
+                <h2 class="section-title">${role} Season Metrics</h2>
+               <div class="stat-grid">
+                 ${roleMetrics.map(([icon,label,val])=>html`<div class="stat-card">
+                   <i class=${'fas '+icon} style="color:var(--gold)"></i>
+                   <div class="stat-val" style="font-size:1.45rem">${val}</div>
+                   <div class="stat-label">${label}</div>
+                 </div>`)}
+               </div>
+               <p class="role-note">Showing role-specific ${role.toLowerCase()} metrics from the live player statistics service.</p>
+              ${(season.yellow_cards!==undefined||season.red_cards!==undefined)&&html`<div class="info-card">
+                <div class="card-head"><i class="fas fa-rectangle-xmark"/> Disciplinary</div>
+                <div class="info-rows">
+                  <div class="info-row"><span class="info-row-label">Yellow Cards</span><span class="info-row-val" style="color:#f59e0b">${season.yellow_cards||0} <i class="fas fa-square"/></span></div>
+                  <div class="info-row"><span class="info-row-label">Red Cards</span><span class="info-row-val" style="color:#ef4444">${season.red_cards||0} <i class="fas fa-square"/></span></div>
+                </div>
+              </div>`}
+            </div>`}
+
+             ${activeTab==='career'&&html`<div>
+               <h2 class="section-title">${role} Career Metrics</h2>
+               <div class="stat-grid">
+                 ${careerMetrics.map(([icon,label,val])=>html`<div class="stat-card">
+                   <i class=${'fas '+icon} style="color:var(--gold)"></i>
+                   <div class="stat-val" style="font-size:1.45rem">${val}</div>
+                   <div class="stat-label">${label}</div>
+                 </div>`)}
+               </div>
+            </div>`}
+
+            ${activeTab==='matches'&&html`<div>
+              <div class="match-table-wrap">
+                <table class="match-table">
+                   <thead><tr><th>Date</th><th>Opponent</th><th>Competition</th><th>Result</th><th>Goals</th><th>Ast</th><th>Mins</th></tr></thead>
+                  <tbody>
+                     ${matchLoading?Array(5).fill(0).map((_,i)=>html`<tr key=${i}><td colspan="7"><div class="skeleton" style="height:24px;margin:4px 0"/></td></tr>`):
+                     matches.length===0?html`<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:2rem">No match history available.</td></tr>`:
+                    matches.map(m=>{
+                       const homeScore=m.home_score??m.score?.home;
+                       const awayScore=m.away_score??m.score?.away;
+                       const result=m.result||(
+                         Number(homeScore)>Number(awayScore)?'W':
+                         Number(homeScore)<Number(awayScore)?'L':
+                         (homeScore!==undefined&&awayScore!==undefined?'D':'?')
+                       );
+                       const opponent=m.opponent||m.opponent_club||
+                         (m.home_team_name&&m.away_team_name
+                           ?m.home_team_name+' vs '+m.away_team_name:'—');
+                       const score=typeof m.score==='object'
+                         ?(homeScore!==undefined&&awayScore!==undefined?homeScore+'-'+awayScore:'')
+                         :(m.score||'');
+                       const matchStats=m.stats||{};
+                       const goals=m.goals??matchStats.goals??'—';
+                       const assists=m.assists??matchStats.assists??'—';
+                       const minutes=m.minutes??m.minutes_played;
+                      return html`<tr key=${m.id}>
+                        <td style="white-space:nowrap;color:var(--muted)">${fmtDate(m.date)}</td>
+                         <td><strong>${opponent}</strong></td>
+                        <td style="color:var(--muted);font-size:0.8rem">${m.competition||'—'}</td>
+                        <td>
+                           <span class=${'result-badge '+(result==='W'?'result-w':result==='L'?'result-l':'result-d')}>${result}</span>
+                           <span style="color:var(--muted);margin-left:0.4rem;font-size:0.78rem">${score}</span>
+                        </td>
+                         <td>${goals}</td>
+                         <td>${assists}</td>
+                         <td style="color:var(--muted)">${minutes??'—'}${minutes!==undefined?"'":''}</td>
+                      </tr>`;
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              ${matchPages>1&&html`<div class="pagination">
+                 <button class="page-btn" disabled=${matchPage===1} onClick=${()=>fetchMatches(idOf(p),matchPage-1)}><i class="fas fa-chevron-left"/></button>
+                 ${Array.from({length:matchPages},(_,i)=>html`<button key=${i+1} class=${'page-btn'+(matchPage===i+1?' active':'')} onClick=${()=>fetchMatches(idOf(p),i+1)}>${i+1}</button>`)}
+                 <button class="page-btn" disabled=${matchPage===matchPages} onClick=${()=>fetchMatches(idOf(p),matchPage+1)}><i class="fas fa-chevron-right"/></button>
+              </div>`}
+              ${!isLoggedIn&&html`<div class="paywall-card">
+                <h3><i class="fas fa-lock" style="color:var(--gold)"/> Full Match History Locked</h3>
+                <p>Register or sign in to view the complete match history, detailed stats, and scout-grade reports.</p>
+                <a href="/register.html" class="btn-sm-gold">Get Started Free</a>
+              </div>`}
+            </div>`}
+          </div>
+        </div>
+      </div>
+      <${Footer}/>
+    </div>`;
+  }
+
+  /*
+   * This document has one rendering owner: Preact.  Clear any server/static
+   * profile markup that may have been appended beside or inside #app before
+   * mounting, otherwise the old demo card can remain above the live tree and
+   * a second unbranded profile can remain below the footer.
+   */
+  const appRoot=document.getElementById('app');
+  if(appRoot){
+    document.documentElement.classList.add('preact-mounted');
+    appRoot.replaceChildren();
+    Array.from(document.body.children).forEach(child=>{
+      if(child!==appRoot&&child.tagName!=='SCRIPT')child.remove();
+    });
+    render(html`<${App}/>`,appRoot);
+  }
+})();
+
+/* EnejiStats Share Card */
+(function(){
+  var _overlay=null;
+  function closeShare(){if(_overlay){_overlay.remove();_overlay=null;}}
+
+  function roundRect(c,x,y,w,h,r){
+    c.beginPath();c.moveTo(x+r,y);c.lineTo(x+w-r,y);c.quadraticCurveTo(x+w,y,x+w,y+r);
+    c.lineTo(x+w,y+h-r);c.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+    c.lineTo(x+r,y+h);c.quadraticCurveTo(x,y+h,x,y+h-r);
+    c.lineTo(x,y+r);c.quadraticCurveTo(x,y,x+r,y);c.closePath();
+  }
+
+   function drawCard(canvas,data,imgEl,logoEl){
+    var dpr=Math.min(window.devicePixelRatio||1,2);
+    var W=480,H=270;
+    canvas.width=W*dpr;canvas.height=H*dpr;
+    canvas.style.width=W+'px';canvas.style.height=H+'px';
+    var c=canvas.getContext('2d');
+    c.scale(dpr,dpr);
+
+    /* Background */
+    var bg=c.createLinearGradient(0,0,W,H);
+    bg.addColorStop(0,'#0a1535');bg.addColorStop(1,'#162060');
+    c.fillStyle=bg;c.fillRect(0,0,W,H);
+
+    /* Subtle gold glow */
+    var glow=c.createRadialGradient(W*0.8,H*0.8,10,W*0.8,H*0.8,200);
+    glow.addColorStop(0,'rgba(245,184,0,0.09)');glow.addColorStop(1,'rgba(0,0,0,0)');
+    c.fillStyle=glow;c.fillRect(0,0,W,H);
+
+    /* Gold top stripe */
+    c.fillStyle='#f5b800';c.fillRect(0,0,W,5);
+
+    /* Photo circle */
+    var cx=75,cy=125,r=54;
+    c.save();
+    c.beginPath();c.arc(cx,cy,r,0,Math.PI*2);
+    c.fillStyle='#1e2d60';c.fill();
+    c.strokeStyle='#f5b800';c.lineWidth=3;c.stroke();
+    if(imgEl&&imgEl.naturalWidth>0){
+      try{
+        c.clip();
+        var s=Math.min(imgEl.naturalWidth,imgEl.naturalHeight);
+        var sx=(imgEl.naturalWidth-s)/2,sy=(imgEl.naturalHeight-s)/2;
+        c.drawImage(imgEl,sx,sy,s,s,cx-r,cy-r,r*2,r*2);
+      }catch(e){}
+    } else {
+      c.fillStyle='#f5b800';c.font='bold 34px Arial';
+      c.textAlign='center';c.textBaseline='middle';
+      c.fillText(data.initials||'?',cx,cy+2);
+    }
+    c.restore();
+
+    /* Verified badge */
+    if(data.verified){
+      c.save();
+      c.fillStyle='#f5b800';c.beginPath();c.arc(cx+r-4,cy-r+5,9,0,Math.PI*2);c.fill();
+      c.fillStyle='#0d1b3e';c.font='bold 11px Arial';c.textAlign='center';c.textBaseline='middle';
+      c.fillText('✓',cx+r-4,cy-r+5);
+      c.restore();
+    }
+
+     /* Dynamic EnejiStats branding, loaded from the shared static asset */
+     if(logoEl&&logoEl.naturalWidth>0){
+       var logoW=82,logoH=24;
+       var logoRatio=logoEl.naturalWidth/logoEl.naturalHeight;
+       if(logoRatio>logoW/logoH)logoH=logoW/logoRatio;
+       else logoW=logoH*logoRatio;
+       c.drawImage(logoEl,W-logoW-10,8,logoW,logoH);
+     }
+
+    /* Name */
+    var rx=146;
+    c.fillStyle='#ffffff';
+    var fsize=22;
+    c.font='bold '+fsize+'px Arial';
+    while(c.measureText(data.name||'').width>W-rx-16&&fsize>14){
+      fsize--;c.font='bold '+fsize+'px Arial';
+    }
+    c.textAlign='left';c.textBaseline='alphabetic';
+    c.fillText(data.name||'',rx,55);
+
+    /* Subtitle */
+    c.font='12px Arial';c.fillStyle='rgba(255,255,255,0.7)';
+    var sub=data.sub||'';
+    if(c.measureText(sub).width>W-rx-16)sub=sub.slice(0,Math.floor(sub.length*(W-rx-16)/c.measureText(sub).width)-3)+'...';
+    c.fillText(sub,rx,76);
+
+    /* Stats boxes */
+    var stats=data.stats||[];
+    var bw=62,bh=46,gap=8,sy2=100;
+    stats.forEach(function(st,i){
+      var bxs=rx+i*(bw+gap);
+      c.fillStyle='rgba(245,184,0,0.13)';
+      roundRect(c,bxs,sy2,bw,bh,7);c.fill();
+      c.strokeStyle='rgba(245,184,0,0.3)';c.lineWidth=1;
+      roundRect(c,bxs,sy2,bw,bh,7);c.stroke();
+      c.fillStyle='#f5b800';c.font='bold 19px Arial';
+      c.textAlign='center';c.textBaseline='alphabetic';
+      c.fillText(String(st.val),bxs+bw/2,sy2+28);
+      c.fillStyle='rgba(255,255,255,0.6)';c.font='9px Arial';
+      c.fillText(st.label,bxs+bw/2,sy2+41);
+    });
+
+    /* Bottom URL bar */
+    c.fillStyle='rgba(0,0,0,0.42)';c.fillRect(0,H-32,W,32);
+    c.font='11px Arial';c.fillStyle='rgba(245,184,0,0.85)';
+    c.textAlign='left';c.textBaseline='middle';
+    c.fillText('enejistats.com',12,H-16);
+    c.fillStyle='rgba(255,255,255,0.55)';c.textAlign='right';
+    var url=window.location.href;if(url.length>58)url=url.slice(0,55)+'...';
+    c.fillText(url,W-12,H-16);
+  }
+
+  window.openShareModal=function(data){
+    closeShare();
+    var label=data.type==='club'?'Club':'Player';
+    var hasNative=!!navigator.share;
+    _overlay=document.createElement('div');
+    _overlay.className='share-modal-overlay';
+    _overlay.innerHTML='<div class="share-modal">'
+      +'<div class="share-modal-head">'
+        +'<span class="share-modal-title"><i class="fas fa-share-nodes"></i>&nbsp;Share '+label+' Profile</span>'
+        +'<button class="share-modal-close" id="shareClose">&times;</button>'
+      +'</div>'
+      +'<canvas id="shareCanvas"></canvas>'
+      +'<div class="share-btns">'
+        +'<button class="share-btn share-btn-gold" id="shareDlBtn"><i class="fas fa-download"></i>&nbsp;Download Card</button>'
+        +(hasNative?'<button class="share-btn share-btn-native" id="shareNativeBtn"><i class="fas fa-share"></i>&nbsp;Share</button>':'')
+        +'<button class="share-btn share-btn-outline" id="shareCopyBtn"><i class="fas fa-link"></i>&nbsp;Copy Link</button>'
+      +'</div>'
+      +'<div class="share-link-row">'
+        +'<input class="share-link-input" id="shareLinkIn" readonly/>'
+      +'</div>'
+      +'<div class="share-copied" id="shareCopiedMsg"></div>'
+    +'</div>';
+    _overlay.addEventListener('click',function(e){if(e.target===_overlay)closeShare();});
+    document.body.appendChild(_overlay);
+
+    var canvas=document.getElementById('shareCanvas');
+    var linkIn=document.getElementById('shareLinkIn');
+    var copiedMsg=document.getElementById('shareCopiedMsg');
+    linkIn.value=window.location.href;
+
+    document.getElementById('shareClose').onclick=closeShare;
+
+     /* Draw card using the same dynamic branding asset as the index page */
+     var logo=new Image();
+     var drawWithAssets=function(photo){
+       if(logo.complete&&logo.naturalWidth>0)drawCard(canvas,data,photo,logo);
+       else{
+         logo.onload=function(){drawCard(canvas,data,photo,logo);};
+         logo.onerror=function(){drawCard(canvas,data,photo,null);};
+       }
+     };
+     logo.src='/static/images/eneji-stats-branding.png';
+    if(data.photo){
+      var img=new Image();img.crossOrigin='anonymous';
+       img.onload=function(){drawWithAssets(img);};
+       img.onerror=function(){drawWithAssets(null);};
+      img.src=data.photo;
+     } else {drawWithAssets(null);}
+
+    /* Download */
+    document.getElementById('shareDlBtn').onclick=function(){
+      var a=document.createElement('a');
+      a.download='enejistats-'+data.type+'-profile.png';
+      a.href=canvas.toDataURL('image/png');a.click();
+    };
+
+    /* Native share */
+    if(hasNative){
+      document.getElementById('shareNativeBtn').onclick=function(){
+        canvas.toBlob(function(blob){
+          var file=new File([blob],'enejistats-profile.png',{type:'image/png'});
+          navigator.share({title:'EnejiStats Profile',url:window.location.href,files:[file]})
+            .catch(function(){navigator.share({title:'EnejiStats Profile',url:window.location.href}).catch(function(){});});
+        });
+      };
+    }
+
+    /* Copy link */
+    document.getElementById('shareCopyBtn').onclick=function(){
+      if(navigator.clipboard){
+        navigator.clipboard.writeText(window.location.href).then(function(){
+          copiedMsg.textContent='✓ Link copied to clipboard!';
+          setTimeout(function(){copiedMsg.textContent='';},2500);
+        });
+      } else {
+        linkIn.select();document.execCommand('copy');
+        copiedMsg.textContent='✓ Copied!';
+        setTimeout(function(){copiedMsg.textContent='';},2500);
+      }
+    };
+  };
+})();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,2262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EnejiStats — Supervisor Dashboard</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <script src="https://unpkg.com/preact@10.19.3/dist/preact.umd.js"></script>
+  <script src="https://unpkg.com/preact@10.19.3/hooks/dist/hooks.umd.js"></script>
+  <script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js"></script>
+  <style>
+    @media print {
+      .sidebar, .dashboard-header, .sidebar-overlay, .no-print { display:none !important; }
+      .main-content { margin-left:0 !important; }
+      .page-content { max-width:100% !important; padding:0.5rem !important; }
+      .card { box-shadow:none !important; border:1px solid #ccc !important; break-inside:avoid; }
+      body { background:#fff !important; color:#000 !important; }
+    }
+    :root {
+      --primary: #004aad;
+      --secondary: #0066cc;
+      --success: #28a745;
+      --danger: #dc3545;
+      --warning: #ffc107;
+      --info: #17a2b8;
+      --dark: #1e1e2f;
+      --light: #f8f9fa;
+      --gray: #6c757d;
+      --border: #dee2e6;
+      --gold: #ffd700;
+      --card-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      --transition: all 0.2s ease;
+      --sidebar-width: 260px;
+    }
+    *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; background:#f0f2f5; color:#333; min-height:100vh; }
+    a { color:var(--primary); text-decoration:none; }
+    a:hover { text-decoration:underline; }
+    button:focus,input:focus,select:focus,textarea:focus { outline:none; }
+    select { appearance:auto; }
+
+    .app-layout { display:flex; min-height:100vh; }
+    .sidebar {
+      width:var(--sidebar-width); background:var(--dark); color:white;
+      display:flex; flex-direction:column; position:fixed; left:0; top:0; bottom:0;
+      z-index:1000; overflow-y:auto; overflow-x:hidden;
+    }
+    .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:999; }
+    .sidebar-overlay.active { display:block; }
+    .sidebar-header {
+      padding:1.2rem 1rem; background:linear-gradient(135deg,#1e1e2f,#004aad);
+      border-bottom:1px solid rgba(255,255,255,0.1); flex-shrink:0;
+    }
+    .sidebar-brand { display:flex; align-items:center; gap:8px; margin-bottom:1rem; }
+    .sidebar-user { display:flex; align-items:center; gap:10px; }
+    .sidebar-avatar {
+      width:52px; height:52px; border-radius:50%; border:2px solid var(--gold);
+      background:var(--primary); display:flex; align-items:center; justify-content:center;
+      font-weight:700; font-size:1.1rem; color:white; flex-shrink:0; overflow:hidden;
+    }
+    .sidebar-avatar img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+    .sidebar-user-info { flex:1; min-width:0; }
+    .sidebar-user-name { font-weight:700; font-size:0.9rem; color:white; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .sidebar-role-badge {
+      display:inline-block; padding:2px 8px; border-radius:10px; font-size:0.66rem;
+      font-weight:700; margin-top:3px; background:rgba(255,215,0,0.2); color:var(--gold); border:1px solid rgba(255,215,0,0.35);
+    }
+    .sidebar-tier-section { padding:0.6rem 1rem; border-bottom:1px solid rgba(255,255,255,0.08); }
+    .tier-badge-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:5px; }
+    .tier-badge { padding:2px 10px; border-radius:10px; font-size:0.68rem; font-weight:700; background:linear-gradient(135deg,var(--gold),#f0a500); color:#1a1a1a; }
+    .tier-progress-bar { height:5px; background:rgba(255,255,255,0.15); border-radius:3px; overflow:hidden; margin-top:3px; }
+    .tier-progress-fill { height:100%; background:var(--gold); border-radius:3px; transition:width 0.4s ease; }
+    .tier-progress-label { font-size:0.62rem; color:rgba(255,255,255,0.5); margin-top:3px; }
+    .sidebar-meta { padding:0.5rem 1rem 0; font-size:0.7rem; color:rgba(255,255,255,0.55); }
+    .sidebar-meta-item { display:flex; align-items:center; gap:6px; margin-bottom:4px; }
+    .sidebar-meta-item i { width:14px; text-align:center; color:var(--gold); flex-shrink:0; }
+    .sidebar-meta-val { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .toggle-switch { position:relative; width:40px; height:22px; flex-shrink:0; }
+    .toggle-switch input { opacity:0; width:0; height:0; }
+    .toggle-slider { position:absolute; inset:0; background:#555; border-radius:22px; cursor:pointer; transition:0.3s; }
+    .toggle-slider::before { content:''; position:absolute; width:16px; height:16px; border-radius:50%; background:white; left:3px; bottom:3px; transition:0.3s; }
+    .toggle-switch input:checked + .toggle-slider { background:var(--success); }
+    .toggle-switch input:checked + .toggle-slider::before { transform:translateX(18px); }
+    .sidebar-nav { flex:1; padding:0.6rem 0; }
+    .nav-item {
+      display:flex; align-items:center; gap:10px; padding:0.7rem 1rem; cursor:pointer;
+      transition:var(--transition); color:rgba(255,255,255,0.72); font-size:0.84rem;
+      position:relative; border-left:3px solid transparent;
+    }
+    .nav-item:hover { background:rgba(255,255,255,0.07); color:white; }
+    .nav-item.active { background:rgba(0,74,173,0.35); color:white; border-left-color:var(--gold); }
+    .nav-item i { width:18px; text-align:center; font-size:0.92rem; flex-shrink:0; }
+    .nav-item-label { flex:1; }
+    .nav-badge { background:var(--danger); color:white; border-radius:10px; font-size:0.65rem; font-weight:700; padding:1px 6px; min-width:18px; text-align:center; }
+    .nav-separator { height:1px; background:rgba(255,255,255,0.07); margin:0.5rem 0; }
+
+    .main-content { flex:1; display:flex; flex-direction:column; min-height:100vh; margin-left:var(--sidebar-width); }
+    .dashboard-header {
+      background:linear-gradient(135deg,var(--dark),var(--primary));
+      color:white; padding:0.85rem 1.5rem;
+      display:flex; align-items:center; justify-content:space-between;
+      position:sticky; top:0; z-index:900; box-shadow:0 2px 8px rgba(0,0,0,0.25);
+    }
+    .header-left { display:flex; align-items:center; gap:10px; }
+    .hamburger-btn { background:transparent; border:none; color:white; font-size:1.2rem; cursor:pointer; padding:4px 8px; border-radius:5px; transition:var(--transition); display:none; }
+    .hamburger-btn:hover { background:rgba(255,255,255,0.12); }
+    .header-logo { font-weight:800; font-size:1.2rem; color:white; }
+    .header-subtitle { font-size:0.8rem; opacity:0.75; margin-left:4px; }
+    .header-right { display:flex; align-items:center; gap:0.75rem; }
+    .header-logout-btn { background:rgba(220,53,69,0.18); border:1px solid rgba(220,53,69,0.4); color:white; padding:5px 10px; border-radius:5px; cursor:pointer; font-size:0.78rem; transition:var(--transition); display:flex; align-items:center; gap:5px; }
+    .header-logout-btn:hover { background:rgba(220,53,69,0.35); }
+    .page-content { flex:1; max-width:1200px; margin:0 auto; width:100%; box-sizing:border-box; }
+
+    .section-title { font-size:1.2rem; font-weight:700; color:var(--primary); margin-bottom:1.2rem; display:flex; align-items:center; gap:8px; padding-bottom:0.5rem; border-bottom:2px solid rgba(0,74,173,0.15); }
+    .card { background:white; border-radius:10px; box-shadow:var(--card-shadow); padding:1.5rem; margin-bottom:1.5rem; }
+    .card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1.2rem; padding-bottom:0.75rem; border-bottom:1px solid var(--border); }
+    .card-title { font-size:1rem; font-weight:700; color:var(--primary); display:flex; align-items:center; gap:8px; }
+    .metrics-grid { display:grid; gap:1rem; margin-bottom:1.5rem; grid-template-columns:repeat(2,1fr); }
+    .metric-card { background:white; border-radius:10px; box-shadow:var(--card-shadow); padding:1.2rem; text-align:center; transition:var(--transition); }
+    .metric-card:hover { transform:translateY(-2px); box-shadow:0 6px 16px rgba(0,0,0,0.12); }
+    .metric-icon { font-size:1.4rem; margin-bottom:6px; }
+    .metric-value { font-size:1.8rem; font-weight:700; margin:6px 0; color:var(--primary); }
+    .metric-label { font-size:0.8rem; color:var(--gray); }
+
+    .profile-hero { display:flex; align-items:flex-start; gap:1.5rem; padding:1.5rem; background:linear-gradient(135deg,var(--dark),var(--primary)); border-radius:12px; color:white; margin-bottom:1.5rem; flex-wrap:wrap; }
+    .profile-photo-wrap { position:relative; flex-shrink:0; }
+    .profile-photo { width:100px; height:100px; border-radius:50%; border:3px solid var(--gold); background:rgba(255,255,255,0.15); display:flex; align-items:center; justify-content:center; font-size:2.2rem; font-weight:700; color:white; }
+    .profile-photo-change { position:absolute; bottom:0; right:0; width:28px; height:28px; background:var(--gold); border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:0.7rem; color:#1a1a1a; border:2px solid white; }
+    .profile-photo-change input { display:none; }
+    .profile-info { flex:1; min-width:200px; }
+    .profile-name { font-size:1.5rem; font-weight:800; margin-bottom:4px; }
+    .profile-id-badge { display:inline-block; padding:3px 10px; background:rgba(255,215,0,0.2); border:1px solid rgba(255,215,0,0.4); border-radius:10px; font-size:0.72rem; color:var(--gold); font-weight:700; margin-bottom:8px; }
+    .profile-badges { display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; }
+    .profile-badge { padding:3px 10px; border-radius:10px; font-size:0.72rem; font-weight:600; background:rgba(255,255,255,0.15); color:rgba(255,255,255,0.9); }
+    .profile-badge.gold { background:rgba(255,215,0,0.2); color:var(--gold); }
+    .profile-fields-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+    .profile-field { margin-bottom:0; }
+    .profile-field-label { font-size:0.75rem; color:var(--gray); font-weight:600; margin-bottom:3px; text-transform:uppercase; letter-spacing:0.03em; }
+    .profile-field-value { font-size:0.92rem; font-weight:600; color:var(--dark); }
+    .profile-field-input { width:100%; padding:8px 10px; border:1.5px solid var(--border); border-radius:6px; font-size:0.88rem; transition:var(--transition); }
+    .profile-field-input:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(0,74,173,0.1); }
+    .withdrawal-card { border:2px solid var(--primary); border-radius:10px; padding:1.2rem; margin-top:1.2rem; }
+    .withdrawal-card-title { font-size:0.92rem; font-weight:700; color:var(--primary); margin-bottom:1rem; display:flex; align-items:center; gap:7px; }
+    .accuracy-bar-wrap { margin-top:6px; }
+    .accuracy-bar { height:8px; background:#e9ecef; border-radius:4px; overflow:hidden; }
+    .accuracy-fill { height:100%; border-radius:4px; transition:width 0.4s; }
+
+    .registration-label { display:block; font-weight:600; color:var(--dark); margin-bottom:5px; font-size:0.88rem; }
+    .registration-input { width:100%; padding:10px 12px; border:1.5px solid var(--border); border-radius:7px; font-size:0.9rem; transition:var(--transition); }
+    .registration-input:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(0,74,173,0.1); }
+    .registration-select { width:100%; padding:10px 12px; border:1.5px solid var(--border); border-radius:7px; font-size:0.9rem; background:white; transition:var(--transition); cursor:pointer; }
+    .field-wrapper { margin-bottom:1rem; }
+
+    .btn { padding:0.38rem 0.85rem; border:none; border-radius:5px; font-weight:600; cursor:pointer; transition:var(--transition); display:inline-flex; align-items:center; gap:4px; font-size:0.78rem; }
+    .btn-primary { background:var(--primary); color:white; }
+    .btn-success { background:var(--success); color:white; }
+    .btn-danger { background:var(--danger); color:white; }
+    .btn-warning { background:var(--warning); color:#333; }
+    .btn-info { background:var(--info); color:white; }
+    .btn-secondary { background:#6c757d; color:white; }
+    .btn-sm { padding:0.28rem 0.65rem; font-size:0.72rem; }
+    .btn-primary:hover { background:var(--secondary); }
+    .btn-success:hover { background:#1e7e34; }
+    .btn-danger:hover { background:#bd2130; }
+    .btn:disabled { opacity:0.5; cursor:not-allowed; }
+
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:5000; align-items:center; justify-content:center; padding:1rem; }
+    .modal-overlay.active { display:flex; }
+    .modal { background:white; border-radius:12px; width:92%; max-width:560px; max-height:90vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.35); }
+    .modal-header { background:linear-gradient(135deg,var(--dark),var(--primary)); color:white; padding:1rem 1.5rem; border-radius:12px 12px 0 0; display:flex; align-items:center; justify-content:space-between; }
+    .modal-header h3 { font-size:1rem; font-weight:700; margin:0; display:flex; align-items:center; gap:8px; }
+    .modal-close { background:transparent; border:none; color:rgba(255,255,255,0.8); cursor:pointer; font-size:1.4rem; line-height:1; }
+    .modal-close:hover { color:white; }
+    .modal-body { padding:1.5rem; }
+    .modal-footer { padding:1rem 1.5rem; border-top:1px solid var(--border); display:flex; gap:0.75rem; justify-content:flex-end; }
+    .modal-btn { padding:9px 18px; border:none; border-radius:7px; cursor:pointer; font-weight:600; font-size:0.88rem; transition:var(--transition); display:flex; align-items:center; gap:6px; }
+    .modal-btn.primary { background:var(--primary); color:white; }
+    .modal-btn.primary:hover { background:var(--secondary); }
+    .modal-btn.secondary { background:#e9ecef; color:#333; }
+    .modal-btn.success { background:var(--success); color:white; }
+    .modal-btn.danger { background:var(--danger); color:white; }
+    .modal-btn:disabled { opacity:0.5; cursor:not-allowed; }
+
+    .loading-spinner { width:20px; height:20px; border:3px solid rgba(255,255,255,0.3); border-top-color:white; border-radius:50%; animation:spin 0.8s linear infinite; display:inline-block; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .empty-state { text-align:center; padding:3rem 2rem; color:var(--gray); }
+    .empty-state i { font-size:3rem; margin-bottom:1rem; opacity:0.4; display:block; }
+    .empty-state p { font-size:0.95rem; }
+
+    .widget-notification { position:fixed; top:70px; left:50%; transform:translateX(-50%); padding:12px 20px; border-radius:8px; color:white; font-weight:600; font-size:0.85rem; z-index:9990; display:flex; align-items:center; box-shadow:0 4px 15px rgba(0,0,0,0.2); animation:slideIn 0.3s ease; max-width:420px; min-width:260px; }
+    .widget-notification.success { background:var(--success); }
+    .widget-notification.error { background:var(--danger); }
+    .widget-notification.warning { background:var(--warning); color:#333; }
+    .widget-notification.info { background:var(--info); }
+    @keyframes slideIn { from { opacity:0; top:60px; } to { opacity:1; top:70px; } }
+
+    .status-badge { display:inline-block; padding:3px 9px; border-radius:10px; font-size:0.72rem; font-weight:700; }
+    .badge-success { background:#edf7ed; color:var(--success); }
+    .badge-danger { background:#fdf0f0; color:var(--danger); }
+    .badge-warning { background:#fff8e1; color:#856404; }
+    .badge-info { background:#e8f4f8; color:var(--info); }
+    .badge-primary { background:#e8edf8; color:var(--primary); }
+    .badge-gray { background:#f1f3f5; color:var(--gray); }
+
+    .data-table { width:100%; border-collapse:collapse; }
+    .data-table th { background:var(--primary); color:white; padding:0.75rem 1rem; text-align:left; font-size:0.82rem; font-weight:600; }
+    .data-table td { padding:0.75rem 1rem; border-bottom:1px solid var(--border); font-size:0.85rem; vertical-align:middle; }
+    .data-table tr:hover { background:#f8f9fa; }
+    .table-scroll { overflow-x:auto; }
+    .filter-bar { display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center; margin-bottom:1.2rem; }
+    .filter-input { padding:7px 12px; border:1.5px solid var(--border); border-radius:7px; font-size:0.85rem; flex:1; min-width:180px; transition:var(--transition); }
+    .filter-input:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(0,74,173,0.1); }
+    .filter-select { padding:7px 12px; border:1.5px solid var(--border); border-radius:7px; font-size:0.85rem; background:white; cursor:pointer; }
+
+    .dco-card { background:white; border-radius:10px; box-shadow:var(--card-shadow); padding:1.2rem; margin-bottom:1rem; border-left:4px solid var(--primary); display:flex; align-items:center; gap:1rem; flex-wrap:wrap; }
+    .dco-card-avatar { width:50px; height:50px; border-radius:50%; background:var(--primary); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:1.1rem; color:white; flex-shrink:0; overflow:hidden; }
+    .dco-card-avatar img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+    .dco-card-info { flex:1; min-width:120px; }
+    .dco-card-name { font-weight:700; font-size:0.95rem; color:var(--dark); }
+    .dco-card-meta { font-size:0.78rem; color:var(--gray); margin-top:3px; display:flex; gap:8px; flex-wrap:wrap; }
+    .online-dot { width:10px; height:10px; border-radius:50%; display:inline-block; flex-shrink:0; }
+    .online-dot.online { background:var(--success); box-shadow:0 0 0 2px rgba(40,167,69,0.3); }
+    .online-dot.offline { background:var(--gray); }
+
+    .assignment-card { background:white; border-radius:10px; box-shadow:var(--card-shadow); padding:1.2rem; margin-bottom:1rem; border-left:4px solid var(--primary); }
+    .assignment-card.pending { border-left-color:var(--warning); }
+    .assignment-card.assigned { border-left-color:var(--info); }
+    .assignment-card.completed { border-left-color:var(--success); }
+
+    .live-monitor-card { background:white; border-radius:10px; box-shadow:var(--card-shadow); padding:1.2rem; margin-bottom:1rem; border:2px solid var(--success); position:relative; }
+    .live-pulse { width:10px; height:10px; border-radius:50%; background:var(--success); position:absolute; top:12px; right:12px; animation:pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100%{ opacity:1; transform:scale(1); } 50%{ opacity:0.5; transform:scale(1.3); } }
+
+    .submission-review-card { background:white; border-radius:10px; box-shadow:var(--card-shadow); padding:1.2rem; margin-bottom:1rem; }
+    .stat-review-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:0.75rem; }
+    .stat-review-item { background:#f8f9fa; border-radius:8px; padding:0.75rem; }
+    .stat-review-label { font-size:0.75rem; font-weight:600; color:var(--gray); margin-bottom:4px; }
+    .stat-review-value { font-size:1.1rem; font-weight:700; color:var(--primary); }
+    .stat-review-input { width:100%; padding:4px 6px; border:1px solid var(--border); border-radius:4px; font-size:0.88rem; font-weight:700; color:var(--primary); text-align:center; }
+
+    .earnings-summary { background:linear-gradient(135deg,var(--dark),var(--primary)); border-radius:12px; padding:1.5rem; color:white; margin-bottom:1.5rem; }
+    .earnings-label { font-size:0.82rem; opacity:0.75; margin-bottom:4px; }
+    .earnings-total { font-size:2.2rem; font-weight:800; color:var(--gold); margin-bottom:1rem; }
+    .earnings-breakdown { display:grid; grid-template-columns:repeat(2,1fr); gap:0.75rem; }
+    .earnings-item { background:rgba(255,255,255,0.1); border-radius:8px; padding:0.7rem; text-align:center; }
+    .earnings-item-val { font-weight:700; font-size:0.95rem; color:var(--gold); }
+    .earnings-item-lbl { font-size:0.72rem; opacity:0.8; margin-top:2px; }
+
+    .notif-item { display:flex; align-items:flex-start; gap:0.75rem; padding:1rem 1.2rem; border-bottom:1px solid var(--border); cursor:pointer; transition:var(--transition); }
+    .notif-item:hover { background:#f8f9fa; }
+    .notif-item.unread { background:#f0f4ff; }
+    .notif-icon { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.9rem; flex-shrink:0; }
+    .notif-icon.blue { background:#e8edf8; color:var(--primary); }
+    .notif-icon.green { background:#edf7ed; color:var(--success); }
+    .notif-icon.red { background:#fdf0f0; color:var(--danger); }
+    .notif-icon.yellow { background:#fff8e1; color:#856404; }
+    .notif-icon.purple { background:#f3f0ff; color:#6f42c1; }
+    .notif-body { flex:1; min-width:0; }
+    .notif-title { font-weight:700; font-size:0.88rem; margin-bottom:3px; }
+    .notif-msg { font-size:0.82rem; color:var(--gray); }
+    .notif-time { font-size:0.72rem; color:var(--gray); flex-shrink:0; }
+
+    .chat-container { border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+    .chat-header { background:var(--primary); color:white; padding:0.75rem 1rem; font-weight:700; font-size:0.88rem; }
+    .chat-messages { height:350px; overflow-y:auto; padding:1rem; display:flex; flex-direction:column; gap:0.5rem; }
+    .chat-bubble { max-width:75%; padding:0.6rem 0.85rem; border-radius:12px; font-size:0.85rem; }
+    .chat-bubble.sent { background:var(--primary); color:white; align-self:flex-end; border-radius:12px 12px 2px 12px; }
+    .chat-bubble.received { background:#f1f3f5; color:#333; align-self:flex-start; border-radius:12px 12px 12px 2px; }
+    .chat-bubble-time { font-size:0.65rem; opacity:0.7; margin-top:3px; }
+    .chat-input-row { display:flex; gap:0.5rem; padding:0.75rem; border-top:1px solid var(--border); background:#f8f9fa; }
+    .chat-input { flex:1; padding:8px 12px; border:1.5px solid var(--border); border-radius:20px; font-size:0.88rem; }
+    .chat-send-btn { background:var(--primary); color:white; border:none; border-radius:20px; padding:8px 16px; cursor:pointer; font-weight:600; font-size:0.82rem; }
+    .chat-send-btn:disabled { opacity:0.5; cursor:not-allowed; }
+
+    .plans-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:.75rem; margin-bottom:1.25rem; }
+    .plan-card { border:2px solid #e2e8f0; border-radius:12px; padding:1rem .75rem; text-align:center; cursor:pointer; transition:all .2s; position:relative; background:white; }
+    .plan-card:hover { border-color:var(--primary); transform:translateY(-2px); }
+    .plan-card.selected { border-color:var(--primary); background:#eef5ff; box-shadow:0 0 0 3px rgba(0,74,173,.12); }
+    .plan-card.popular { border-color:#f59e0b; }
+    .plan-popular-badge { position:absolute; top:-10px; left:50%; transform:translateX(-50%); background:#f59e0b; color:white; font-size:.65rem; font-weight:700; padding:2px 8px; border-radius:10px; white-space:nowrap; }
+    .plan-name { font-size:.82rem; font-weight:700; color:#374151; margin-bottom:.35rem; }
+    .plan-price { font-size:1.35rem; font-weight:900; color:var(--primary); }
+    .plan-price-sub { font-size:.72rem; color:#64748b; margin-bottom:.35rem; }
+    .plan-discount { font-size:.72rem; color:#16a34a; font-weight:600; margin-top:.25rem; }
+    .subscribe-btn { background:var(--primary); color:white; border:none; padding:.75rem 1.5rem; border-radius:10px; font-size:.9rem; font-weight:700; cursor:pointer; width:100%; display:flex; align-items:center; justify-content:center; gap:.5rem; transition:opacity .2s; }
+    .subscribe-btn:hover { opacity:.88; }
+    .subscribe-btn:disabled { opacity:.5; cursor:not-allowed; }
+    .billing-row { display:flex; justify-content:space-between; align-items:center; padding:.75rem 0; border-bottom:1px solid #e2e8f0; }
+    .billing-row:last-child { border-bottom:none; }
+    .sub-status-card { border-left:4px solid var(--primary); background:white; border-radius:10px; padding:1rem; margin-bottom:1rem; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+
+    @media (max-width:768px) {
+      .main-content { margin-left:0; }
+      .sidebar { transform:translateX(-100%); transition:transform 0.3s ease; }
+      .sidebar.open { transform:translateX(0); }
+      .hamburger-btn { display:block; }
+      .metrics-grid { grid-template-columns:repeat(2,1fr); }
+      .profile-fields-grid { grid-template-columns:1fr; }
+      .modal { width:95%; }
+    }
+    @media (min-width:769px) {
+      .sidebar { transform:none; }
+    }
+
+    /* Overlay-only sidebar on ALL screen sizes (forced mobile-first behaviour) */
+    .sidebar { transform:translateX(-100%) !important; transition:transform 0.3s ease !important; }
+    .sidebar.open { transform:translateX(0) !important; }
+    .main-content { margin-left:0 !important; }
+    .hamburger-btn { display:flex !important; }
+
+    html { font-size: clamp(13px, 1.05vw, 16px); }
+    .page-content { padding: clamp(0.85rem, 2vw, 1.75rem); max-width: 1200px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+    .dashboard-header { padding: clamp(0.6rem, 1.2vw, 1rem) clamp(0.85rem, 2vw, 1.5rem); }
+    .section-title { font-size: clamp(1rem, 2vw, 1.3rem); }
+    .card { padding: clamp(1rem, 2vw, 1.75rem); margin-bottom: clamp(1rem, 1.8vw, 1.75rem); }
+    .nav-item { padding: clamp(0.55rem, 0.9vw, 0.75rem) clamp(0.85rem, 1.5vw, 1.2rem); font-size: clamp(0.78rem, 0.9vw, 0.88rem); }
+    img, video { max-width: 100%; height: auto; }
+    .table-wrap { overflow-x: auto; }
+
+    /* ── Integrated Supervisor Matchday Control ── */
+    .smc-shell { color:var(--dark); }
+    .smc-shell .smc-top { background:linear-gradient(135deg,#071426 0%,#102846 100%);color:#fff;padding:1.1rem 1.35rem;display:flex;justify-content:space-between;gap:1rem;align-items:center;border-radius:12px;margin-bottom:1rem;box-shadow:0 8px 28px rgba(7,20,38,.1); }
+    .smc-shell .smc-eyebrow { font-size:.62rem;text-transform:uppercase;letter-spacing:.12em;color:#aebdd0;font-weight:900;margin-bottom:.25rem; }
+    .smc-shell .smc-top-title { font-size:1.2rem;font-weight:900;letter-spacing:-.025em; }
+    .smc-shell .smc-top small { display:block;color:#aebdd0;margin-top:.25rem;font-size:.72rem; }
+    .smc-shell .smc-selection { background:#f7f9fc;border:1px solid var(--border);border-radius:10px;padding:.8rem;margin-bottom:1rem; }
+    .smc-shell .smc-row { display:flex;gap:.6rem;align-items:center;flex-wrap:wrap; }
+    .smc-shell .smc-between { justify-content:space-between; }
+    .smc-shell .smc-field { display:block;min-width:0; }
+    .smc-shell .smc-field span,.smc-shell .smc-filter-label { display:block;font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--gray);margin-bottom:.28rem; }
+    .smc-shell .smc-field select,.smc-shell .smc-filter-input { width:100%;padding:.55rem .65rem;border:1px solid #cfd8e5;border-radius:7px;background:#fff;color:var(--dark);outline:none; }
+    .smc-shell .smc-field select:focus,.smc-shell .smc-filter-input:focus { border-color:#6da5eb;box-shadow:0 0 0 3px rgba(11,97,216,.08); }
+    .smc-shell .smc-stats { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.6rem;margin-bottom:1rem; }
+    .smc-shell .smc-stat { padding:.75rem;border:1px solid var(--border);border-radius:9px;background:#fbfcfe; }
+    .smc-shell .smc-stat-label { font-size:.58rem;text-transform:uppercase;letter-spacing:.08em;color:var(--gray);font-weight:900; }
+    .smc-shell .smc-stat-value { font-size:1.35rem;font-weight:900;color:var(--dark);margin-top:.2rem; }
+    .smc-shell .smc-tabs { display:flex;gap:.3rem;flex-wrap:wrap;margin:0 0 1rem;padding:.3rem;background:#e8edf4;border-radius:9px; }
+    .smc-shell .smc-tab { padding:.55rem .8rem;border:0;border-radius:6px;background:transparent;color:#556276;font-weight:800;font-size:.72rem;cursor:pointer; }
+    .smc-shell .smc-tab.active { background:#fff;color:var(--primary);box-shadow:0 2px 7px rgba(21,43,72,.06); }
+    .smc-shell .smc-grid { display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,.85fr);gap:1rem; }
+    .smc-shell .smc-card { background:#fff;border:1px solid var(--border);border-radius:11px;padding:1rem;margin-bottom:1rem; }
+    .smc-shell .smc-card h3 { margin:0;font-size:.9rem; }
+    .smc-shell .smc-section-head { display:flex;align-items:flex-start;justify-content:space-between;gap:.7rem;margin-bottom:.8rem; }
+    .smc-shell .smc-kicker { font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:var(--gray);font-weight:900;margin-bottom:.2rem; }
+    .smc-shell .smc-sub { font-size:.68rem;color:var(--gray);margin-top:.25rem;line-height:1.45; }
+    .smc-shell .smc-filters { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.55rem;margin-bottom:.8rem; }
+    .smc-shell .smc-scroll { max-height:440px;overflow:auto;padding-right:2px; }
+    .smc-shell .smc-dco,.smc-shell .smc-player,.smc-shell .smc-monitor { border:1px solid #e0e6ee;border-radius:9px;padding:.7rem;margin:.5rem 0;background:#fbfcfe; }
+    .smc-shell .smc-dco:hover,.smc-shell .smc-player:hover,.smc-shell .smc-monitor:hover { border-color:#c7d6e8;box-shadow:0 4px 14px rgba(23,43,73,.04); }
+    .smc-shell .smc-muted,.smc-shell .smc-helper { color:var(--gray);font-size:.68rem;line-height:1.5; }
+    .smc-shell .smc-meta { display:flex;gap:.7rem;flex-wrap:wrap;color:#657286;font-size:.68rem; }
+    .smc-shell .smc-action-row { display:flex;align-items:center;justify-content:space-between;gap:.6rem;margin-top:.6rem;padding-top:.55rem;border-top:1px solid #edf1f5; }
+    .smc-shell .smc-empty { padding:1.5rem;text-align:center;border:1px dashed #cbd5e1;border-radius:9px;color:var(--gray);background:#fafbfd;font-size:.75rem; }
+    .smc-shell .smc-badge { display:inline-flex;align-items:center;gap:.25rem;border-radius:999px;padding:.28rem .5rem;background:#edf1f6;color:#435065;font-size:.56rem;font-weight:900;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap; }
+    .smc-shell .smc-badge.ok { background:#e4f7ec;color:#08743d; }
+    .smc-shell .smc-badge.warn { background:#fff3dc;color:#8a5a00; }
+    .smc-shell .smc-badge.info { background:#eaf3ff;color:#1459a6; }
+    .smc-shell .smc-live-dot { width:6px;height:6px;border-radius:50%;display:inline-block;background:#24c77a; }
+    .smc-shell .smc-match-title { font-size:.95rem;font-weight:900; }
+    .smc-shell .smc-match-venue { text-align:right;min-width:170px; }
+    .smc-shell .smc-form-actions { display:flex;align-items:center;justify-content:space-between;gap:.6rem;margin-top:.8rem;padding-top:.7rem;border-top:1px solid #edf1f5; }
+    .smc-shell .smc-check { display:flex;align-items:center;font-size:.72rem;font-weight:700; }
+    .smc-shell .smc-check input { width:auto;margin-right:.45rem; }
+    @media(max-width:900px){.smc-shell .smc-grid{grid-template-columns:1fr}.smc-shell .smc-stats{grid-template-columns:repeat(2,minmax(0,1fr));}}
+    @media(max-width:600px){.smc-shell .smc-top{align-items:flex-start;flex-direction:column}.smc-shell .smc-filters{grid-template-columns:1fr}.smc-shell .smc-match-venue{text-align:left;min-width:0}.smc-shell .smc-form-actions{align-items:stretch;flex-direction:column}.smc-shell .smc-form-actions .btn{width:100%;}}
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+'use strict';
+const { h, render, Fragment } = preact;
+const { useState, useEffect, useRef, useCallback } = preactHooks;
+const html = htm.bind(h);
+
+/* ════════ API CONFIG — Supervisor (all role-specific calls use /api/supervisor/ prefix) ════════ */
+const API_CONFIG = {
+  authMe:                  '/api/auth/me',
+  supProfile:              (id) => `/api/supervisor/${id}/profile`,
+  supPhoto:                (id) => `/api/supervisor/${id}/photo`,
+  supWithdrawal:           (id) => `/api/supervisor/${id}/withdrawal-account`,
+  supDCOs:                 (id) => `/api/supervisor/${id}/dcos`,
+  supLiveMonitor:          (id) => `/api/supervisor/${id}/live-monitoring`,
+  supAssignments:          (id) => `/api/supervisor/${id}/assignments`,
+  supPendingApprovals:     (id) => `/api/supervisor/${id}/pending-approvals`,
+  supHistory:              (id) => `/api/supervisor/${id}/submissions-history`,
+  supEarnings:             (id) => `/api/supervisor/${id}/earnings`,
+  supPayout:               (id) => `/api/supervisor/${id}/payout-requests`,
+  supNotifications:        (id) => `/api/supervisor/${id}/notifications`,
+  supApprove:              (id, sid) => `/api/supervisor/${id}/submissions/${sid}/approve`,
+  supReject:               (id, sid) => `/api/supervisor/${id}/submissions/${sid}/reject`,
+  supAddDCO:               (id) => `/api/supervisor/${id}/dcos/add`,
+  supRemoveDCO:            (id, dcoid) => `/api/supervisor/${id}/dcos/${dcoid}/remove`,
+  supCreateAssignment:     (id) => `/api/supervisor/${id}/assignments/create`,
+  supUpdateAssignment:     (id, aid) => `/api/supervisor/${id}/assignments/${aid}`,
+  supDeleteAssignment:     (id, aid) => `/api/supervisor/${id}/assignments/${aid}/delete`,
+  supChatThreads:          (id) => `/api/supervisor/${id}/chat/threads`,
+  supChatMessages:         (id, tid) => `/api/supervisor/${id}/chat/threads/${tid}/messages`,
+  supChatSend:             (id, tid) => `/api/supervisor/${id}/chat/threads/${tid}/send`,
+  support:                 '/api/support/tickets',
+  supportChat:             (tid) => `/api/support/chat/${tid}`,
+};
+
+/* ════════ TIER RATES (Supervisor) ════════ */
+const TIER_RATES_SUP = {
+  1:{ Professional:200, 'Semi-professional':150, Other:100, Club:400 },
+  2:{ Professional:350, 'Semi-professional':250, Other:150, Club:700 },
+  3:{ Professional:500, 'Semi-professional':350, Other:250, Club:1000 }
+};
+
+/* ════════ API HELPERS ════════ */
+async function apiFetch(endpoint, options = {}) {
+  try {
+    const storedToken = localStorage.getItem('enejistats_token') || localStorage.getItem('supervisor_token') || localStorage.getItem('token');
+    const authHeaders = storedToken ? { 'Authorization': 'Bearer ' + storedToken } : {};
+    const response = await fetch(endpoint, { credentials:'include', headers: { ...authHeaders, ...(options.headers || {}) }, ...options });
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        localStorage.clear(); sessionStorage.clear();
+        window.location.replace('/login');
+        const e = new Error('Session expired'); e.status = response.status; throw e;
+      }
+      const errorText = await response.text();
+      const e = new Error(`HTTP ${response.status}: ${errorText}`); e.status = response.status; throw e;
+    }
+    if (response.status === 204) return {};
+    const responseText = await response.text();
+    if (!responseText) return {};
+    try { return JSON.parse(responseText); }
+    catch { return { raw: responseText }; }
+  } catch (error) { if (!error.status) console.error(`API error (${endpoint}):`, error); throw error; }
+}
+async function apiFetchFormData(endpoint, formData) {
+  try {
+    const storedToken = localStorage.getItem('enejistats_token') || localStorage.getItem('supervisor_token') || localStorage.getItem('token');
+    const authHeaders = storedToken ? { 'Authorization': 'Bearer ' + storedToken } : {};
+    const response = await fetch(endpoint, { method:'POST', credentials:'include', headers: authHeaders, body:formData });
+    if (!response.ok) { const t = await response.text(); throw new Error(`HTTP ${response.status}: ${t}`); }
+    if (response.status === 204) return {};
+    const responseText = await response.text();
+    if (!responseText) return {};
+    try { return JSON.parse(responseText); }
+    catch { return { raw: responseText }; }
+  } catch (error) { console.error(`API error (${endpoint}):`, error); throw error; }
+}
+
+/* ════════ TITLE CASE ════════ */
+function toTitleCase(str) {
+  if (!str) return '';
+  return String(str).replace(/\w\S*/g, txt => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+}
+
+/* ════════ NOTIFICATIONS ════════ */
+function showScoutNotification(message, type = 'info', duration = 5000) {
+  document.querySelectorAll('.widget-notification').forEach(el => el.remove());
+  const n = document.createElement('div');
+  n.className = `widget-notification ${type}`;
+  const icons = { error:'exclamation-circle', success:'check-circle', warning:'exclamation-triangle', info:'info-circle' };
+  n.innerHTML = `<i class="fas fa-${icons[type]||'info-circle'}"></i><span style="margin-left:10px;flex:1">${message}</span><button onclick="this.parentElement.remove()" style="background:none;border:none;color:white;cursor:pointer;margin-left:10px"><i class="fas fa-times"></i></button>`;
+  document.body.appendChild(n);
+  setTimeout(() => { if (n.parentElement) n.remove(); }, duration);
+}
+
+/* ════════ SUPERVISOR: Overview ════════ */
+function SupervisorOverview({ currentUser, setActiveNav }) {
+  const [stats, setStats] = useState({dcosCount:0,pendingApprovals:0,totalSubmissions:0,approvalRate:0,activeMatches:0});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const p = await apiFetch(API_CONFIG.supPendingApprovals(currentUser.id));
+        const d = await apiFetch(API_CONFIG.supDCOs(currentUser.id));
+        const hist = await apiFetch(API_CONFIG.supHistory(currentUser.id));
+        const dcos = Array.isArray(d)?d:(d.dcos||[]);
+        const approvals = Array.isArray(p)?p:(p.submissions||[]);
+        const history = Array.isArray(hist)?hist:(hist.submissions||[]);
+        const approved = history.filter(s=>s.status==='approved').length;
+        setStats({dcosCount:dcos.length,pendingApprovals:approvals.length,totalSubmissions:history.length,approvalRate:history.length?Math.round((approved/history.length)*100):0,activeMatches:dcos.filter(d=>d.status==='online').length});
+      } catch { }
+      finally { setLoading(false); }
+    };
+    if(currentUser.id) load();
+  },[currentUser.id]);
+
+  const initials = (currentUser.name||'SV').split(' ').map(n=>n[0]).join('').toUpperCase();
+
+  return h('div',null,
+    h('div',{className:'section-title'},h('i',{className:'fas fa-home'}),' Supervisor Overview'),
+    h('div',{className:'profile-hero'},
+      h('div',{className:'profile-photo-wrap'},
+        h('div',{className:'profile-photo',style:{width:'80px',height:'80px',backgroundImage:currentUser.photo?`url('${currentUser.photo}')`:undefined,backgroundSize:'cover',backgroundPosition:'center',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'2rem',fontWeight:700,color:'white'}},!currentUser.photo&&initials)
+      ),
+      h('div',{className:'profile-info'},
+        h('div',{className:'profile-name'},currentUser.name||'Supervisor'),
+        h('div',{className:'profile-id-badge'},currentUser.supervisor_id||currentUser.scout_id||currentUser.id||'ENJ-SVR-000000'),
+        h('div',{className:'profile-badges'},
+          h('span',{className:'profile-badge'},'Supervisor'),
+          h('span',{className:'profile-badge gold'},`Tier ${currentUser.tier||1}`)
+        )
+      )
+    ),
+    h('div',{className:'metrics-grid'},
+      h('div',{className:'metric-card'},h('div',{className:'metric-icon',style:{color:'var(--primary)'}},h('i',{className:'fas fa-users'})),h('div',{className:'metric-value'},loading?'…':stats.dcosCount),h('div',{className:'metric-label'},'My DCOs (max 11)')),
+      h('div',{className:'metric-card'},h('div',{className:'metric-icon',style:{color:'var(--warning)'}},h('i',{className:'fas fa-hourglass-half'})),h('div',{className:'metric-value'},loading?'…':stats.pendingApprovals),h('div',{className:'metric-label'},'Pending Approvals')),
+      h('div',{className:'metric-card'},h('div',{className:'metric-icon',style:{color:'var(--success)'}},h('i',{className:'fas fa-check-double'})),h('div',{className:'metric-value'},loading?'…':stats.approvalRate+'%'),h('div',{className:'metric-label'},'Approval Rate')),
+      h('div',{className:'metric-card'},h('div',{className:'metric-icon',style:{color:'var(--info)'}},h('i',{className:'fas fa-broadcast-tower'})),h('div',{className:'metric-value'},loading?'…':stats.activeMatches),h('div',{className:'metric-label'},'Active DCOs')),
+      h('div',{className:'metric-card'},h('div',{className:'metric-icon',style:{color:'var(--secondary)'}},h('i',{className:'fas fa-file-alt'})),h('div',{className:'metric-value'},loading?'…':stats.totalSubmissions),h('div',{className:'metric-label'},'Total Submissions'))
+    ),
+    h('div',{className:'card'},
+      h('div',{className:'card-title',style:{marginBottom:'1rem'}},h('i',{className:'fas fa-bolt'}),' Quick Actions'),
+      h('div',{style:{display:'flex',gap:'0.75rem',flexWrap:'wrap'}},
+        [['fa-users','My DCOs','my-dcos'],['fa-broadcast-tower','Live Monitoring','live-monitoring'],['fa-check-circle','Pending Approvals','pending-approvals'],['fa-history','Submissions History','submissions-history']].map(([icon,label,nav])=>
+          h('button',{key:nav,className:'btn btn-primary',style:{padding:'0.65rem 1rem'},onClick:()=>setActiveNav(nav)},h('i',{className:`fas ${icon}`}),` ${label}`)
+        )
+      )
+    )
+  );
+}
+
+/* ════════ SUPERVISOR: My Profile ════════ */
+function SupervisorProfile({ currentUser, setCurrentUser }) {
+  const [editMode, setEditMode] = useState(false);
+  const [form, setForm] = useState({fullName:currentUser.name||'',phone:currentUser.phone||'',languages:currentUser.languages||''});
+  const [saving, setSaving] = useState(false);
+  const [bankName, setBankName] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [savingBank, setSavingBank] = useState(false);
+
+  useEffect(() => {
+    if (currentUser.id) {
+      apiFetch(API_CONFIG.supWithdrawal(currentUser.id)).then(d=>{if(d){setBankName(d.bank_name||'');setAccountNumber(d.account_number||'');}}).catch(()=>{});
+    }
+  }, [currentUser.id]);
+
+  const saveProfile = async () => {
+    setSaving(true);
+    try {
+      await apiFetch(API_CONFIG.supProfile(currentUser.id),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({full_name:form.fullName,phone:form.phone,languages:form.languages})});
+      setCurrentUser(prev=>({...prev,name:form.fullName,phone:form.phone,languages:form.languages}));
+      showScoutNotification('Profile updated!','success'); setEditMode(false);
+    } catch(e){showScoutNotification('Update failed: '+e.message,'error');}
+    finally{setSaving(false);}
+  };
+
+  const saveWithdrawal = async () => {
+    setSavingBank(true);
+    try {
+      await apiFetch(API_CONFIG.supWithdrawal(currentUser.id),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({bank_name:bankName,account_number:accountNumber,account_name:currentUser.name})});
+      showScoutNotification('Withdrawal account saved!','success');
+    } catch(e){showScoutNotification('Save failed: '+e.message,'error');}
+    finally{setSavingBank(false);}
+  };
+
+  const initials = (currentUser.name||'SV').split(' ').map(n=>n[0]).join('').toUpperCase();
+  const tierPct = ((currentUser.tierProgress||0)/100)*100;
+
+  return h('div',null,
+    h('div',{className:'section-title'},h('i',{className:'fas fa-user'}),' My Profile'),
+    h('div',{className:'profile-hero'},
+      h('div',{className:'profile-photo-wrap'},
+        h('div',{className:'profile-photo',style:{width:'100px',height:'100px',backgroundImage:currentUser.photo?`url('${currentUser.photo}')`:undefined,backgroundSize:'cover',backgroundPosition:'center',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'2rem',fontWeight:700,color:'white'}},!currentUser.photo&&initials),
+        h('label',{className:'profile-photo-change',title:'Change photo'},
+          h('input',{type:'file',accept:'image/*',style:{display:'none'},onChange:async e=>{const f=e.target.files[0];if(!f)return;const fd=new FormData();fd.append('photo',f);try{const r=await apiFetchFormData(API_CONFIG.supPhoto(currentUser.id),fd);setCurrentUser(prev=>({...prev,photo:r.photo_url||r.profileImage||''}));showScoutNotification('Photo updated!','success');}catch(err){showScoutNotification('Photo upload failed','error');}}}),
+          h('i',{className:'fas fa-camera'})
+        )
+      ),
+      h('div',{className:'profile-info'},
+        h('div',{className:'profile-name'},currentUser.name||'Supervisor'),
+        h('div',{className:'profile-id-badge'},currentUser.supervisor_id||currentUser.scout_id||currentUser.id||'ENJ-SVR-000000'),
+        h('div',{className:'profile-badges'},
+          h('span',{className:'profile-badge'},'Supervisor'),
+          h('span',{className:'profile-badge gold'},`Tier ${currentUser.tier||1}`)
+        ),
+        h('div',{className:'accuracy-bar-wrap'},
+          h('div',{style:{fontSize:'0.75rem',color:'rgba(255,255,255,0.7)',marginBottom:'4px'}},'Progress to next tier'),
+          h('div',{className:'accuracy-bar'},h('div',{className:'accuracy-fill',style:{width:tierPct+'%',background:'var(--gold)'}})),
+          h('div',{style:{fontSize:'0.72rem',color:'rgba(255,255,255,0.6)',marginTop:'3px'}},`${currentUser.tierProgress||0}% to Tier ${(currentUser.tier||1)+1}`)
+        )
+      )
+    ),
+    h('div',{className:'card'},
+      h('div',{className:'card-header'},
+        h('div',{className:'card-title'},h('i',{className:'fas fa-id-card'}),' Profile Details'),
+        editMode
+          ?h('div',{style:{display:'flex',gap:'0.5rem'}},
+              h('button',{className:'btn btn-primary btn-sm',onClick:saveProfile,disabled:saving},saving?'Saving...':'Save'),
+              h('button',{className:'btn btn-secondary btn-sm',onClick:()=>setEditMode(false)},'Cancel')
+            )
+          :h('button',{className:'btn btn-primary btn-sm',onClick:()=>setEditMode(true)},h('i',{className:'fas fa-edit'}),' Edit')
+      ),
+      h('div',{className:'profile-fields-grid'},
+        [
+          ['Full Name',editMode?h('input',{className:'profile-field-input',value:form.fullName,onInput:e=>setForm(p=>({...p,fullName:e.target.value}))}):currentUser.name||'—'],
+          ['Supervisor ID',currentUser.scout_id||currentUser.id||'—'],
+          ['Email',currentUser.email||'—'],
+          ['Phone',editMode?h('input',{className:'profile-field-input',value:form.phone,onInput:e=>setForm(p=>({...p,phone:e.target.value}))}):currentUser.phone||'—'],
+          ['State',currentUser.state||'—'],
+          ['Active Since',currentUser.created_at?new Date(currentUser.created_at).toLocaleDateString():'—'],
+          ['Total DCOs Supervised',currentUser.dcosCount||0],
+          ['Total Matches Supervised',currentUser.totalMatchesSupervised||0],
+          ['Total Approvals',currentUser.totalApprovals||0],
+          ['Languages',editMode?h('input',{className:'profile-field-input',value:form.languages,onInput:e=>setForm(p=>({...p,languages:e.target.value}))}):currentUser.languages||'—']
+        ].map(([label,val])=>h('div',{key:label,className:'profile-field'},h('div',{className:'profile-field-label'},label),h('div',{className:'profile-field-value'},val)))
+      )
+    ),
+    h('div',{className:'card'},
+      h('div',{className:'withdrawal-card'},
+        h('div',{className:'withdrawal-card-title'},h('i',{className:'fas fa-university'}),' Withdrawal Account'),
+        h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem',marginBottom:'1rem'}},
+          h('div',null,h('label',{className:'registration-label'},'Bank Name'),h('input',{className:'registration-input',value:bankName,onInput:e=>setBankName(e.target.value),placeholder:'e.g. Access Bank'})),
+          h('div',null,h('label',{className:'registration-label'},'Account Number'),h('input',{className:'registration-input',value:accountNumber,onInput:e=>setAccountNumber(e.target.value),placeholder:'10-digit account number'}))
+        ),
+        h('div',{className:'field-wrapper'},
+          h('label',{className:'registration-label'},'Account Name (Read only)'),
+          h('input',{className:'registration-input',value:currentUser.name||'',readOnly:true,style:{background:'#f8f9fa',cursor:'not-allowed'}})
+        ),
+        h('button',{className:'btn btn-primary',onClick:saveWithdrawal,disabled:savingBank||!bankName||!accountNumber},
+          savingBank?'Saving...':h(Fragment,null,h('i',{className:'fas fa-save'}),' Save Withdrawal Account')
+        )
+      )
+    )
+  );
+}
+
+/* ════════ SUPERVISOR: My DCOs ════════ */
+function SupervisorDCOs({ currentUser, onViewLiveMonitoring }) {
+  const [dcos, setDcos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [addEmail, setAddEmail] = useState('');
+  const [adding, setAdding] = useState(false);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const d = await apiFetch(API_CONFIG.supDCOs(currentUser.id));
+        setDcos(Array.isArray(d)?d:(d.dcos||[]));
+      } catch { }
+      finally { setLoading(false); }
+    };
+    if(currentUser.id) load();
+  },[currentUser.id]);
+
+  const addDCO = async () => {
+    if(!addEmail.trim()){showScoutNotification('Enter DCO email','warning');return;}
+    if(dcos.length>=11){showScoutNotification('Maximum 11 DCOs allowed','error');return;}
+    setAdding(true);
+    try {
+      const resp = await apiFetch(API_CONFIG.supAddDCO(currentUser.id),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:addEmail.trim()})});
+      setDcos(prev=>[...prev,resp.dco||resp]);
+      setAddEmail('');
+      showScoutNotification('DCO added successfully!','success');
+    } catch(e) { showScoutNotification('Failed: '+e.message,'error'); }
+    finally { setAdding(false); }
+  };
+
+  const removeDCO = async (dco) => {
+    const dcoId = dco.dco_id||dco.user_id||dco._id||dco.id;
+    const name  = dco.name||dco.full_name||'this DCO';
+    if(!confirm(`Remove ${name} from your team?`)) return;
+    try {
+      await apiFetch(API_CONFIG.supRemoveDCO(currentUser.id, dcoId),{method:'DELETE'});
+      setDcos(prev=>prev.filter(d=>(d.dco_id||d.user_id||d._id||d.id)!==dcoId));
+      showScoutNotification('DCO removed','success');
+    } catch(e) { showScoutNotification('Failed: '+e.message,'error'); }
+  };
+
+  if(loading) return h('div',{className:'empty-state'},h('div',{className:'loading-spinner',style:{width:'40px',height:'40px',margin:'0 auto 1rem',border:'3px solid rgba(0,74,173,0.3)',borderTopColor:'var(--primary)'}}),h('div',null,'Loading DCOs...'));
+
+  return h('div',null,
+    h('div',{className:'section-title'},h('i',{className:'fas fa-users'}),' My DCOs (',dcos.length,' / 11)'),
+    h('div',{className:'card',style:{marginBottom:'1.5rem'}},
+      h('div',{className:'card-title',style:{marginBottom:'1rem'}},h('i',{className:'fas fa-user-plus'}),' Add DCO by Email'),
+      h('div',{style:{display:'flex',gap:'0.75rem',flexWrap:'wrap'}},
+        h('input',{className:'filter-input',type:'email',placeholder:'Enter DCO email address...',value:addEmail,onInput:e=>setAddEmail(e.target.value),onKeyDown:e=>e.key==='Enter'&&addDCO(),style:{flex:'1',minWidth:'200px'}}),
+        h('button',{className:'btn btn-primary',onClick:addDCO,disabled:adding||!addEmail.trim()||dcos.length>=11},
+          adding?'Adding...':h(Fragment,null,h('i',{className:'fas fa-plus'}),' Add DCO')
+        )
+      ),
+      dcos.length>=11&&h('div',{style:{fontSize:'0.82rem',color:'var(--warning)',marginTop:'0.5rem'}},h('i',{className:'fas fa-exclamation-triangle'}),' Maximum 11 DCOs reached.')
+    ),
+    dcos.length===0
+      ?h('div',{className:'empty-state'},h('i',{className:'fas fa-users'}),h('p',null,'No DCOs in your team yet.'))
+      :dcos.map(dco=>{
+          const id=dco._id||dco.id;
+          const initials=(dco.name||dco.full_name||'DC').split(' ').map(n=>n[0]).join('').toUpperCase();
+          const isOnline=dco.status==='online'||dco.is_online;
+          return h('div',{key:id,className:'dco-card'},
+            h('div',{className:'dco-card-avatar'},
+              dco.photo?h('img',{src:dco.photo,alt:dco.name}):initials
+            ),
+            h('div',{className:'dco-card-info'},
+              h('div',{className:'dco-card-name'},
+                h('span',{className:'online-dot '+(isOnline?'online':'offline'),style:{marginRight:'6px'}}),
+                dco.name||dco.full_name||'DCO'
+              ),
+              h('div',{className:'dco-card-meta'},
+                h('span',null,dco.dco_id||dco.scout_id||dco.user_id||id.slice(-6)),
+                h('span',null,'Tier '+(dco.tier||1)),
+                h('span',null,'Accuracy: '+(dco.accuracyScore||dco.accuracy_score||0)+'%'),
+                h('span',null,isOnline?'Online':'Offline')
+              )
+            ),
+            h('div',{style:{display:'flex',gap:'0.5rem',flexWrap:'wrap',marginLeft:'auto'}},
+              h('button',{className:'btn btn-info btn-sm',onClick:onViewLiveMonitoring},h('i',{className:'fas fa-broadcast-tower'}),' Monitor'),
+              h('button',{className:'btn btn-danger btn-sm',onClick:()=>removeDCO(dco)},h('i',{className:'fas fa-user-minus'}),' Remove')
+            )
+          );
+        })
+  );
+}
+
+/* ════════ SUPERVISOR: Live Monitoring ════════ */
+function LiveMonitoring({ currentUser }) {
+  const [liveData, setLiveData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState(null);
+
+  const fetchLive = useCallback(async () => {
+    try {
+      const d = await apiFetch(API_CONFIG.supLiveMonitor(currentUser.id));
+      setLiveData(Array.isArray(d)?d:(d.live||[]));
+      setLastUpdated(new Date());
+    } catch { }
+    finally { setLoading(false); }
+  }, [currentUser.id]);
+
+  useEffect(() => {
+    if(!currentUser.id) return;
+    fetchLive();
+    const iv = setInterval(fetchLive, 30000);
+    return () => clearInterval(iv);
+  }, [fetchLive]);
+
+  if(loading) return h('div',{className:'empty-state'},h('div',{className:'loading-spinner',style:{width:'40px',height:'40px',margin:'0 auto 1rem',border:'3px solid rgba(0,74,173,0.3)',borderTopColor:'var(--primary)'}}),h('div',null,'Loading live data...'));
+
+  return h('div',null,
+    h('div',{className:'section-title'},
+      h('i',{className:'fas fa-broadcast-tower',style:{color:'var(--success)'}}),
+      ' Live Monitoring',
+      h('span',{style:{fontSize:'0.72rem',color:'var(--gray)',marginLeft:'auto'}},
+        lastUpdated?'Updated '+lastUpdated.toLocaleTimeString():'',
+        ' ',
+        h('button',{className:'btn btn-primary btn-sm',onClick:fetchLive},h('i',{className:'fas fa-sync'}),' Refresh')
+      )
+    ),
+    liveData.length===0
+      ?h('div',{className:'empty-state'},h('i',{className:'fas fa-satellite-dish'}),h('p',null,'No DCOs currently active.'))
+      :liveData.map((item,i)=>{
+          const isOnline=item.isOnline!==false;
+          const matchStr=item.matchTitle||[item.homeTeam,item.awayTeam].filter(Boolean).join(' vs ')||'No match data';
+          const lastSeen=item.lastSeen||item.last_seen||item.updatedAt||item.updated_at||null;
+          const statsCount=item.statsCount!==undefined?item.statsCount:null;
+          return h('div',{key:i,className:'live-monitor-card'},
+            h('div',{className:'live-pulse'}),
+            h('div',{style:{display:'flex',alignItems:'flex-start',gap:'1rem',flexWrap:'wrap'}},
+              h('div',{style:{flex:1}},
+                h('div',{style:{fontWeight:700,fontSize:'1rem',marginBottom:'4px',display:'flex',alignItems:'center',gap:'6px'}},
+                  h('span',{style:{display:'inline-block',width:'10px',height:'10px',borderRadius:'50%',background:isOnline?'#22c55e':'#ef4444',flexShrink:0,boxShadow:isOnline?'0 0 0 3px rgba(34,197,94,0.25)':'none'}}),
+                  item.dcoName||item.name||'DCO',
+                  item.dcoId&&h('span',{style:{fontSize:'0.72rem',color:'var(--gray)',fontWeight:400,marginLeft:'4px'}},'ID: ',item.dcoId)
+                ),
+                h('div',{style:{fontSize:'0.84rem',fontWeight:600,color:'var(--dark)',marginBottom:'6px'}},
+                  h('i',{className:'fas fa-futbol',style:{marginRight:'5px',color:'var(--primary)',fontSize:'0.75rem'}}),
+                  matchStr
+                ),
+                h('div',{style:{display:'flex',gap:'0.4rem',flexWrap:'wrap',marginBottom:'6px'}},
+                  h('span',{className:'status-badge '+(isOnline?'badge-success':'badge-gray')},
+                    h('i',{className:'fas fa-circle',style:{fontSize:'0.45rem',marginRight:'3px'}}),
+                    isOnline?' Live':' Offline'
+                  ),
+                  item.half&&h('span',{className:'status-badge badge-info'},'⏱ '+(item.half===1?'1st Half':'2nd Half')),
+                  statsCount!==null&&h('span',{className:'status-badge badge-primary'},h('i',{className:'fas fa-database',style:{marginRight:'3px'}}),statsCount,' stats'),
+                  item.venue&&h('span',{className:'status-badge badge-gray'},h('i',{className:'fas fa-map-marker-alt',style:{marginRight:'3px'}}),item.venue)
+                ),
+                lastSeen&&h('div',{style:{fontSize:'0.74rem',color:'var(--gray)',display:'flex',alignItems:'center',gap:'4px'}},
+                  h('i',{className:'fas fa-clock'}),
+                  'Last activity: ',new Date(lastSeen).toLocaleTimeString()
+                )
+              )
+            )
+          );
+        })
+  );
+}
+
+/* ════════ SUPERVISOR: Assignments ════════ */
+function SupervisorAssignments({ currentUser }) {
+  const [assignments, setAssignments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [dcos, setDcos] = useState([]);
+  const [form, setForm] = useState({dcoId:'',homeTeam:'',awayTeam:'',matchDate:'',matchTime:'',venue:'',trackingScope:'Player Stats Only',notes:''});
+  const [creating, setCreating] = useState(false);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const [a, d] = await Promise.allSettled([
+          apiFetch(API_CONFIG.supAssignments(currentUser.id)),
+          apiFetch(API_CONFIG.supDCOs(currentUser.id))
+        ]);
+        if(a.status==='fulfilled') setAssignments(Array.isArray(a.value)?a.value:(a.value.assignments||[]));
+        if(d.status==='fulfilled') setDcos(Array.isArray(d.value)?d.value:(d.value.dcos||[]));
+      } catch { }
+      finally { setLoading(false); }
+    };
+    if(currentUser.id) load();
+  },[currentUser.id]);
+
+  const createAssignment = async () => {
+    if(!form.dcoId||!form.homeTeam||!form.awayTeam||!form.matchDate){showScoutNotification('Please fill required fields','warning');return;}
+    setCreating(true);
+    try {
+      const resp = await apiFetch(API_CONFIG.supCreateAssignment(currentUser.id),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(form)});
+      setAssignments(prev=>[resp,...prev]);
+      setShowCreateForm(false);
+      setForm({dcoId:'',homeTeam:'',awayTeam:'',matchDate:'',matchTime:'',venue:'',trackingScope:'Player Stats Only',notes:''});
+      showScoutNotification('Assignment created!','success');
+    } catch(e) { showScoutNotification('Failed: '+e.message,'error'); }
+    finally { setCreating(false); }
+  };
+
+  const deleteAssignment = async (aid) => {
+    if(!confirm('Delete this assignment?')) return;
+    try {
+      await apiFetch(API_CONFIG.supDeleteAssignment(currentUser.id, aid),{method:'DELETE'});
+      setAssignments(prev=>prev.filter(a=>(a._id||a.id)!==aid));
+      showScoutNotification('Assignment deleted','success');
+    } catch(e) { showScoutNotification('Failed: '+e.message,'error'); }
+  };
+
+  if(loading) return h('div',{className:'empty-state'},h('div',{className:'loading-spinner',style:{width:'40px',height:'40px',margin:'0 auto 1rem',border:'3px solid rgba(0,74,173,0.3)',borderTopColor:'var(--primary)'}}),h('div',null,'Loading assignments...'));
+
+  return h('div',null,
+    h('div',{className:'section-title'},h('i',{className:'fas fa-clipboard-list'}),' Assignments'),
+    h('div',{style:{marginBottom:'1rem'}},
+      h('button',{className:'btn btn-primary',onClick:()=>setShowCreateForm(!showCreateForm)},h('i',{className:'fas fa-plus'}),' Create Assignment')
+    ),
+    showCreateForm&&h('div',{className:'card',style:{marginBottom:'1.5rem'}},
+      h('div',{className:'card-title',style:{marginBottom:'1rem'}},h('i',{className:'fas fa-plus-circle'}),' New Assignment'),
+      h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.75rem'}},
+        h('div',{className:'field-wrapper'},h('label',{className:'registration-label'},'Assign To (DCO) *'),
+          h('select',{className:'registration-select',value:form.dcoId,onChange:e=>setForm(p=>({...p,dcoId:e.target.value}))},
+            h('option',{value:''},'Select DCO'),
+            dcos.map(d=>h('option',{key:d._id||d.id,value:d.dco_id||d.user_id||d._id||d.id},d.name||d.full_name||d.scout_id||d.dco_id))
+          )
+        ),
+        h('div',{className:'field-wrapper'},h('label',{className:'registration-label'},'Tracking Scope'),
+          h('select',{className:'registration-select',value:form.trackingScope,onChange:e=>setForm(p=>({...p,trackingScope:e.target.value}))},
+            h('option',{value:'Player Stats Only'},'Player Stats Only'),
+            h('option',{value:'Club Stats Only'},'Club Stats Only'),
+            h('option',{value:'Player & Club Stats'},'Player & Club Stats')
+          )
+        ),
+        h('div',{className:'field-wrapper'},h('label',{className:'registration-label'},'Home Team *'),h('input',{className:'registration-input',required:true,value:form.homeTeam,onInput:e=>setForm(p=>({...p,homeTeam:e.target.value}))})),
+        h('div',{className:'field-wrapper'},h('label',{className:'registration-label'},'Away Team *'),h('input',{className:'registration-input',required:true,value:form.awayTeam,onInput:e=>setForm(p=>({...p,awayTeam:e.target.value}))})),
+        h('div',{className:'field-wrapper'},h('label',{className:'registration-label'},'Match Date *'),h('input',{className:'registration-input',type:'date',required:true,value:form.matchDate,onInput:e=>setForm(p=>({...p,matchDate:e.target.value}))})),
+        h('div',{className:'field-wrapper'},h('label',{className:'registration-label'},'Match Time'),h('input',{className:'registration-input',type:'time',value:form.matchTime,onInput:e=>setForm(p=>({...p,matchTime:e.target.value}))})),
+        h('div',{className:'field-wrapper',style:{gridColumn:'1/-1'}},h('label',{className:'registration-label'},'Venue'),h('input',{className:'registration-input',value:form.venue,onInput:e=>setForm(p=>({...p,venue:e.target.value}))})),
+        h('div',{className:'field-wrapper',style:{gridColumn:'1/-1'}},h('label',{className:'registration-label'},'Notes'),h('textarea',{className:'registration-input',style:{resize:'vertical',minHeight:'70px'},value:form.notes,onInput:e=>setForm(p=>({...p,notes:e.target.value}))}))
+      ),
+      h('div',{style:{display:'flex',gap:'0.5rem'}},
+        h('button',{className:'btn btn-primary',onClick:createAssignment,disabled:creating},creating?'Creating...':h(Fragment,null,h('i',{className:'fas fa-check'}),' Create Assignment')),
+        h('button',{className:'btn btn-secondary',onClick:()=>setShowCreateForm(false)},'Cancel')
+      )
+    ),
+    assignments.length===0
+      ?h('div',{className:'empty-state'},h('i',{className:'fas fa-clipboard'}),h('p',null,'No assignments created yet.'))
+      :assignments.map(a=>{
+          const id=a._id||a.id;
+          const matchStr=[a.homeTeam||a.home_team,a.awayTeam||a.away_team].filter(Boolean).join(' vs ')||'Unspecified Match';
+          const dcoName=toTitleCase(a.dcoName||a.dco_name||dcos.find(d=>(d.dco_id||d.user_id||d._id||d.id)===(a.dcoId||a.dco_id||a.assigned_dco_id))?.name||'');
+          const playerName=toTitleCase(a.playerName||a.player_name||'');
+          const position=toTitleCase(a.position||'');
+          const club=toTitleCase(a.club||a.club_name||'');
+          const playerLevel=toTitleCase(a.playerLevel||a.player_level||a.matchCategory||a.category||'');
+          const competition=toTitleCase(a.competition||'');
+          const matchType=toTitleCase(a.matchType||a.match_type||'');
+          const venue=toTitleCase(a.venue||'');
+          const venueAddress=a.venueAddress||a.venue_address||'';
+          const contactPhone=a.contactPhone||a.contact_phone||'';
+          const jerseyNum=a.jerseyNumber||a.jersey_number||'';
+          const reqType=(a.requestType||a.request_type||'').toLowerCase();
+          const isClub=reqType==='club'||reqType==='cs'||reqType==='club_stats';
+          const typeBadge=isClub?'CS':'PS';
+          const typeBadgeColor=isClub?'#6c5ce7':'#00b894';
+          const heatmap=a.heatmap;
+          const statusColor=a.status==='completed'?'var(--success)':a.status==='accepted'?'var(--success)':a.status==='assigned'?'var(--info)':a.status==='declined'?'var(--danger)':'var(--warning)';
+          const statusBg=a.status==='completed'?'badge-success':a.status==='accepted'?'badge-success':a.status==='assigned'?'badge-info':a.status==='declined'?'badge-danger':'badge-warning';
+          const matchDateFmt=(a.matchDate||a.match_date)?new Date(a.matchDate||a.match_date).toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short',year:'numeric'}):'—';
+
+          return h('div',{key:id,className:`assignment-card ${a.status==='assigned'?'assigned':a.status==='completed'?'completed':'pending'}`,style:{position:'relative'}},
+            // ── Header row ─────────────────────────────────────────────────
+            h('div',{style:{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:'0.5rem',flexWrap:'wrap',marginBottom:'0.6rem'}},
+              h('div',{style:{flex:1}},
+                h('div',{style:{display:'flex',alignItems:'center',gap:'6px',flexWrap:'wrap',marginBottom:'4px'}},
+                  h('span',{style:{background:typeBadgeColor,color:'white',fontSize:'0.6rem',fontWeight:800,padding:'2px 6px',borderRadius:'8px',letterSpacing:'0.04em'}},typeBadge),
+                  h('span',{style:{fontWeight:700,fontSize:'0.97rem'}},matchStr),
+                  a._assignmentSource==='admin'&&h('span',{className:'status-badge',style:{background:'#e0e7ff',color:'#3730a3',fontSize:'0.65rem'}},'Admin'),
+                  heatmap===true&&h('span',{className:'status-badge badge-warning',title:'Heatmap required'},h('i',{className:'fas fa-map'}),' Heatmap'),
+                ),
+                h('div',{style:{fontSize:'0.8rem',color:'var(--gray)'}},
+                  h('i',{className:'fas fa-calendar-alt',style:{marginRight:'4px',color:'var(--primary)'}}),matchDateFmt,
+                  (a.matchTime||a.match_time)&&h('span',null,' · '+(a.matchTime||a.match_time)),
+                  venue&&h('span',null,' · ',h('i',{className:'fas fa-map-marker-alt',style:{marginRight:'3px',color:'var(--danger)'}}),venue)
+                )
+              ),
+              h('div',{style:{display:'flex',gap:'0.35rem',alignItems:'flex-start'}},
+                h('span',{className:`status-badge ${statusBg}`},(a.status||'pending').toUpperCase()),
+                h('button',{className:'btn btn-danger btn-sm',onClick:()=>deleteAssignment(id)},h('i',{className:'fas fa-trash'}))
+              )
+            ),
+            // ── Info grid ──────────────────────────────────────────────────
+            h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))',gap:'0.35rem 0.75rem',background:'#f8f9fa',borderRadius:'7px',padding:'0.6rem 0.75rem',fontSize:'0.8rem',marginBottom:'0.6rem'}},
+              dcoName&&h('div',null,h('span',{style:{color:'var(--gray)',fontWeight:600}},'DCO: '),h('strong',null,dcoName)),
+              playerName&&h('div',null,h('span',{style:{color:'var(--gray)',fontWeight:600}},'Player: '),h('strong',null,playerName)),
+              position&&h('div',null,h('span',{style:{color:'var(--gray)',fontWeight:600}},'Position: '),position),
+              club&&h('div',null,h('span',{style:{color:'var(--gray)',fontWeight:600}},'Club: '),club),
+              playerLevel&&h('div',null,h('span',{style:{color:'var(--gray)',fontWeight:600}},'Level: '),playerLevel),
+              jerseyNum&&h('div',null,h('span',{style:{color:'var(--gray)',fontWeight:600}},'Jersey: '),h('strong',null,'#'+jerseyNum)),
+              competition&&h('div',null,h('span',{style:{color:'var(--gray)',fontWeight:600}},'Competition: '),competition),
+              matchType&&h('div',null,h('span',{style:{color:'var(--gray)',fontWeight:600}},'Type: '),matchType),
+              venueAddress&&h('div',{style:{gridColumn:'1/-1'}},h('span',{style:{color:'var(--gray)',fontWeight:600}},'Address: '),venueAddress),
+              contactPhone&&h('div',null,h('span',{style:{color:'var(--gray)',fontWeight:600}},'Contact: '),contactPhone),
+              a.trackingScope&&h('div',null,h('span',{style:{color:'var(--gray)',fontWeight:600}},'Scope: '),a.trackingScope),
+              a.notes&&h('div',{style:{gridColumn:'1/-1',fontStyle:'italic',color:'var(--gray)'}},h('i',{className:'fas fa-sticky-note',style:{marginRight:'4px'}}),a.notes)
+            )
+          );
+        })
+  );
+}
+
+/* ════════ SUPERVISOR: Pending Approvals ════════ */
+function PendingApprovals({ currentUser }) {
+  const [submissions, setSubmissions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [viewModal, setViewModal] = useState(null);
+  const [editedStats, setEditedStats] = useState({});
+  const [notes, setNotes] = useState('');
+  const [processing, setProcessing] = useState(null);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const d = await apiFetch(API_CONFIG.supPendingApprovals(currentUser.id));
+        setSubmissions(Array.isArray(d)?d:(d.submissions||[]));
+      } catch { }
+      finally { setLoading(false); }
+    };
+    if(currentUser.id) load();
+  },[currentUser.id]);
+
+  const handleApprove = async (sub) => {
+    const sid=sub._id||sub.id;
+    if(!confirm('Approve this submission?')) return;
+    setProcessing(sid+'_approve');
+    try {
+      await apiFetch(API_CONFIG.supApprove(currentUser.id, sid),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({notes,editedStats:Object.keys(editedStats).length>0?editedStats:undefined})});
+      setSubmissions(prev=>prev.filter(s=>(s._id||s.id)!==sid));
+      setViewModal(null);
+      showScoutNotification('Submission approved!','success');
+    } catch(e) { showScoutNotification('Failed: '+e.message,'error'); }
+    finally { setProcessing(null); }
+  };
+
+  const handleReject = async (sub) => {
+    const sid=sub._id||sub.id;
+    if(!notes.trim()){showScoutNotification('Please add notes explaining the rejection','warning');return;}
+    if(!confirm('Reject this submission?')) return;
+    setProcessing(sid+'_reject');
+    try {
+      await apiFetch(API_CONFIG.supReject(currentUser.id, sid),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({notes})});
+      setSubmissions(prev=>prev.filter(s=>(s._id||s.id)!==sid));
+      setViewModal(null);
+      showScoutNotification('Submission rejected.','info');
+    } catch(e) { showScoutNotification('Failed: '+e.message,'error'); }
+    finally { setProcessing(null); }
+  };
+
+  const openModal = (sub) => { setViewModal(sub); setNotes(''); setEditedStats({}); };
+
+  if(loading) return h('div',{className:'empty-state'},h('div',{className:'loading-spinner',style:{width:'40px',height:'40px',margin:'0 auto 1rem',border:'3px solid rgba(0,74,173,0.3)',borderTopColor:'var(--primary)'}}),h('div',null,'Loading pending approvals...'));
+
+  return h('div',null,
+    h('div',{className:'section-title'},h('i',{className:'fas fa-check-circle'}),' Pending Approvals ',submissions.length>0&&h('span',{className:'nav-badge',style:{background:'var(--warning)',color:'#333',fontSize:'0.78rem',padding:'2px 8px'}},submissions.length)),
+    submissions.length===0
+      ?h('div',{className:'empty-state'},h('i',{className:'fas fa-check-circle',style:{color:'var(--success)'}}),h('p',null,'No pending approvals. All caught up!'))
+      :submissions.map(sub=>{
+          const id=sub._id||sub.id;
+          const matchStr=[sub.homeTeam||sub.home_team,sub.awayTeam||sub.away_team].filter(Boolean).join(' vs ');
+          const playerName=sub.playerName||sub.player_name||'';
+          const dcoName=sub.dcoName||sub.dco_name||'';
+          const matchDate=sub.matchDate||sub.match_date||sub.submitted_at||'';
+          const tier=currentUser.tier||1;
+          const rates=TIER_RATES_SUP[tier]||TIER_RATES_SUP[1];
+          const rawCat=(sub.playerLevel||sub.player_level||sub.category||'').toString();
+          const catKey=rawCat.toLowerCase().includes('semi')?'Semi-professional':rawCat.toLowerCase().includes('professional')?'Professional':rawCat.toLowerCase().includes('club')?'Club':'Other';
+          const payout=rates[catKey]||rates.Other||100;
+          const subPosition=toTitleCase(sub.position||'');
+          const subClub=toTitleCase(sub.club||sub.club_name||'');
+          const subCompetition=toTitleCase(sub.competition||'');
+          const subMatchType=toTitleCase(sub.matchType||sub.match_type||'');
+          const subVenue=toTitleCase(sub.venue||'');
+          const subJersey=sub.jerseyNumber||sub.jersey_number||'';
+          const subLevel=toTitleCase(sub.playerLevel||sub.player_level||sub.category||'');
+          return h('div',{key:id,className:'submission-review-card'},
+            h('div',{style:{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:'0.5rem',flexWrap:'wrap'}},
+              h('div',{style:{flex:1}},
+                h('div',{style:{fontWeight:700,marginBottom:'4px',fontSize:'1rem'}},matchStr||'Unspecified Match'),
+                h('div',{style:{fontSize:'0.82rem',color:'var(--gray)',marginBottom:'6px'}},
+                  h('i',{className:'fas fa-calendar-alt',style:{marginRight:'4px'}}),
+                  matchDate?new Date(matchDate).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):'—',
+                  dcoName?h('span',null,' · ',h('i',{className:'fas fa-user',style:{marginRight:'3px'}}),h('strong',null,dcoName)):'',
+                  playerName?h('span',null,' · ',playerName):''
+                ),
+                h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))',gap:'0.25rem 0.6rem',background:'#f8f9fa',borderRadius:'6px',padding:'0.5rem 0.65rem',fontSize:'0.78rem',marginBottom:'8px'}},
+                  subPosition&&h('div',null,h('span',{style:{color:'var(--gray)',fontWeight:600}},'Position: '),subPosition),
+                  subClub&&h('div',null,h('span',{style:{color:'var(--gray)',fontWeight:600}},'Club: '),subClub),
+                  (subLevel||catKey!=='Other')&&h('div',null,h('span',{style:{color:'var(--gray)',fontWeight:600}},'Level: '),subLevel||catKey),
+                  subJersey&&h('div',null,h('span',{style:{color:'var(--gray)',fontWeight:600}},'Jersey: '),'#'+subJersey),
+                  subCompetition&&h('div',null,h('span',{style:{color:'var(--gray)',fontWeight:600}},'Competition: '),subCompetition),
+                  subMatchType&&h('div',null,h('span',{style:{color:'var(--gray)',fontWeight:600}},'Match Type: '),subMatchType),
+                  subVenue&&h('div',null,h('span',{style:{color:'var(--gray)',fontWeight:600}},'Venue: '),subVenue)
+                ),
+                h('div',{style:{display:'flex',gap:'0.4rem',flexWrap:'wrap',alignItems:'center'}},
+                  h('span',{className:'status-badge badge-warning'},'⏳ Pending Approval'),
+                  h('span',{className:'status-badge badge-success',title:'Your expected earnings for approving this submission'},h('i',{className:'fas fa-coins',style:{marginRight:'3px'}}),'₦'+payout.toLocaleString()),
+                  catKey!=='Other'&&h('span',{className:'status-badge badge-gray'},catKey)
+                )
+              ),
+              h('button',{className:'btn btn-primary',onClick:()=>openModal(sub)},h('i',{className:'fas fa-eye'}),' Review')
+            )
+          );
+        }),
+    viewModal&&h('div',{className:'modal-overlay active'},
+      h('div',{className:'modal',style:{maxWidth:'700px'}},
+        h('div',{className:'modal-header'},h('h3',null,h('i',{className:'fas fa-eye'}),' Review Submission'),h('button',{className:'modal-close',onClick:()=>setViewModal(null)},'×')),
+        h('div',{className:'modal-body'},
+          // ── Match & Player info block ──────────────────────────────────
+          h('div',{style:{marginBottom:'1rem',padding:'0.85rem',background:'#f8f9fa',borderRadius:'8px',fontSize:'0.85rem'}},
+            h('div',{style:{fontWeight:700,fontSize:'0.92rem',marginBottom:'8px',color:'var(--primary)'}},
+              h('i',{className:'fas fa-futbol',style:{marginRight:'6px'}}),
+              [viewModal.homeTeam||viewModal.home_team,viewModal.awayTeam||viewModal.away_team].filter(Boolean).join(' vs ')||'Match'
+            ),
+            h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.4rem 0.85rem'}},
+              h('div',null,h('strong',null,'Player: '),toTitleCase(viewModal.playerName||viewModal.player_name||viewModal.clubName||viewModal.club_name||'—')),
+              h('div',null,h('strong',null,'DCO: '),toTitleCase(viewModal.dcoName||viewModal.dco_name||'—')),
+              viewModal.position&&h('div',null,h('strong',null,'Position: '),toTitleCase(viewModal.position)),
+              (viewModal.club||viewModal.club_name)&&h('div',null,h('strong',null,'Club: '),toTitleCase(viewModal.club||viewModal.club_name)),
+              (viewModal.playerLevel||viewModal.player_level||viewModal.category)&&h('div',null,h('strong',null,'Level: '),toTitleCase(viewModal.playerLevel||viewModal.player_level||viewModal.category)),
+              (viewModal.jerseyNumber||viewModal.jersey_number)&&h('div',null,h('strong',null,'Jersey: '),'#'+(viewModal.jerseyNumber||viewModal.jersey_number)),
+              h('div',null,h('strong',null,'Date: '),(viewModal.matchDate||viewModal.match_date)?new Date(viewModal.matchDate||viewModal.match_date).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):'—'),
+              (viewModal.matchTime||viewModal.match_time)&&h('div',null,h('strong',null,'Time: '),viewModal.matchTime||viewModal.match_time),
+              (viewModal.competition)&&h('div',null,h('strong',null,'Competition: '),toTitleCase(viewModal.competition)),
+              (viewModal.matchType||viewModal.match_type)&&h('div',null,h('strong',null,'Type: '),toTitleCase(viewModal.matchType||viewModal.match_type)),
+              (viewModal.venue)&&h('div',null,h('strong',null,'Venue: '),toTitleCase(viewModal.venue)),
+              (viewModal.venueAddress||viewModal.venue_address)&&h('div',{style:{gridColumn:'1/-1'}},h('strong',null,'Address: '),viewModal.venueAddress||viewModal.venue_address),
+              viewModal.geoStatus&&h('div',null,h('strong',null,'GPS: '),viewModal.geoStatus),
+              viewModal.heatmap===true&&h('div',null,h('strong',null,'Heatmap: '),h('span',{className:'status-badge badge-warning'},h('i',{className:'fas fa-map'}),' Required'))
+            ),
+            (()=>{
+              const _tier=currentUser.tier||1;
+              const _rates=TIER_RATES_SUP[_tier]||TIER_RATES_SUP[1];
+              const _rawCat=(viewModal.playerLevel||viewModal.player_level||viewModal.category||'').toString();
+              const _catKey=_rawCat.toLowerCase().includes('semi')?'Semi-professional':_rawCat.toLowerCase().includes('professional')?'Professional':_rawCat.toLowerCase().includes('club')?'Club':'Other';
+              const _payout=_rates[_catKey]||_rates.Other||100;
+              return h('div',{style:{marginTop:'0.65rem',padding:'0.5rem 0.75rem',background:'#d1fae5',borderRadius:'6px',color:'#065f46',fontWeight:700,fontSize:'0.88rem'}},h('i',{className:'fas fa-coins',style:{marginRight:'5px'}}),'Your payout: ₦',_payout.toLocaleString(),' (',_catKey,' · Tier ',_tier,')');
+            })()
+          ),
+          // ── Stats grid (editable) ─────────────────────────────────────
+          Object.keys(viewModal.stats||{}).length>0&&h('div',{style:{marginBottom:'1rem'}},
+            h('div',{style:{fontWeight:700,marginBottom:'0.5rem',fontSize:'0.88rem',color:'var(--dark)'}},h('i',{className:'fas fa-chart-bar',style:{marginRight:'6px',color:'var(--primary)'}}), 'Stats (click values to edit):'),
+            h('div',{className:'stat-review-grid'},
+              Object.entries(viewModal.stats||{}).filter(([,v])=>v!==0&&v!==undefined&&v!==null).map(([k,v])=>h('div',{key:k,className:'stat-review-item'},
+                h('div',{className:'stat-review-label'},k.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())),
+                h('input',{className:'stat-review-input',type:'number',value:editedStats[k]!==undefined?editedStats[k]:v,onChange:e=>setEditedStats(prev=>({...prev,[k]:Number(e.target.value)})),min:0})
+              ))
+            )
+          ),
+          // ── Supervisor notes ──────────────────────────────────────────
+          h('div',{className:'field-wrapper'},
+            h('label',{className:'registration-label'},'Supervisor Notes (required for rejection):'),
+            h('textarea',{className:'registration-input',style:{resize:'vertical',minHeight:'80px'},placeholder:'Add notes...',value:notes,onInput:e=>setNotes(e.target.value)})
+          )
+        ),
+        h('div',{className:'modal-footer'},
+          h('button',{className:'modal-btn secondary',onClick:()=>setViewModal(null)},'Close'),
+          h('button',{className:'modal-btn danger',onClick:()=>handleReject(viewModal),disabled:!!processing},processing===((viewModal._id||viewModal.id)+'_reject')?'Rejecting...':h(Fragment,null,h('i',{className:'fas fa-times'}),' Reject')),
+          h('button',{className:'modal-btn success',onClick:()=>handleApprove(viewModal),disabled:!!processing},processing===((viewModal._id||viewModal.id)+'_approve')?'Approving...':h(Fragment,null,h('i',{className:'fas fa-check'}),' Approve'))
+        )
+      )
+    )
+  );
+}
+
+/* ════════ SUPERVISOR: Submissions History ════════ */
+function SubmissionsHistory({ currentUser }) {
+  const [submissions, setSubmissions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const d = await apiFetch(API_CONFIG.supHistory(currentUser.id));
+        setSubmissions(Array.isArray(d)?d:(d.submissions||[]));
+      } catch { }
+      finally { setLoading(false); }
+    };
+    if(currentUser.id) load();
+  },[currentUser.id]);
+
+  const filtered = submissions.filter(s=>{
+    const statusOk = filter==='all'||s.status===filter;
+    const searchOk = !searchTerm||[s.homeTeam||s.home_team,s.awayTeam||s.away_team,s.playerName||s.player_name,s.dcoName||s.dco_name,s.clubName||s.club_name].some(f=>(f||'').toLowerCase().includes(searchTerm.toLowerCase()));
+    return statusOk&&searchOk;
+  });
+
+  const statusBadge = (status) => {
+    const map = {approved:'badge-success',rejected:'badge-danger',resubmit_required:'badge-warning',pending_approval:'badge-warning',saved_directly:'badge-info'};
+    return h('span',{className:`status-badge ${map[status]||'badge-gray'}`},status?.replace(/_/g,' ')||'unknown');
+  };
+
+  if(loading) return h('div',{className:'empty-state'},h('div',{className:'loading-spinner',style:{width:'40px',height:'40px',margin:'0 auto 1rem',border:'3px solid rgba(0,74,173,0.3)',borderTopColor:'var(--primary)'}}),h('div',null,'Loading history...'));
+
+  return h('div',null,
+    h('div',{className:'section-title'},h('i',{className:'fas fa-history'}),' Submissions History (',submissions.length,')'),
+    h('div',{className:'filter-bar'},
+      h('input',{className:'filter-input',placeholder:'Search by match, player, DCO...',value:searchTerm,onInput:e=>setSearchTerm(e.target.value)}),
+      h('select',{className:'filter-select',value:filter,onChange:e=>setFilter(e.target.value)},
+        h('option',{value:'all'},'All Statuses'),
+        h('option',{value:'approved'},'Approved'),
+        h('option',{value:'rejected'},'Rejected'),
+        h('option',{value:'pending_approval'},'Pending'),
+        h('option',{value:'resubmit_required'},'Resubmit Required')
+      )
+    ),
+    filtered.length===0
+      ?h('div',{className:'empty-state'},h('i',{className:'fas fa-search'}),h('p',null,'No submissions found.'))
+      :h('div',{className:'table-scroll'},
+          h('table',{className:'data-table'},
+            h('thead',null,h('tr',null,['Match','Date','Player/Club','Position','Level','Competition','DCO','Status'].map(t=>h('th',{key:t},t)))),
+            h('tbody',null,
+              filtered.map(sub=>{
+                const id=sub._id||sub.id;
+                const matchStr=[sub.homeTeam||sub.home_team,sub.awayTeam||sub.away_team].filter(Boolean).join(' vs ');
+                const playerName=toTitleCase(sub.playerName||sub.player_name||sub.clubName||sub.club_name||'');
+                const subPos=toTitleCase(sub.position||'');
+                const subLvl=toTitleCase(sub.playerLevel||sub.player_level||sub.category||'');
+                const subComp=toTitleCase(sub.competition||sub.matchType||sub.match_type||'');
+                const subDco=toTitleCase(sub.dcoName||sub.dco_name||'');
+                return h('tr',{key:id},
+                  h('td',{style:{fontWeight:600}},matchStr||'—'),
+                  h('td',null,(sub.matchDate||sub.match_date||sub.submitted_at)?new Date(sub.matchDate||sub.match_date||sub.submitted_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):'—'),
+                  h('td',null,playerName||'—'),
+                  h('td',null,subPos||'—'),
+                  h('td',null,subLvl||'—'),
+                  h('td',null,subComp||'—'),
+                  h('td',null,subDco||'—'),
+                  h('td',null,statusBadge(sub.status))
+                );
+              })
+            )
+          )
+        )
+  );
+}
+
+/* ════════ SUPERVISOR: Payout & Earnings ════════ */
+function SupervisorPayout({ currentUser }) {
+  const [earnings, setEarnings] = useState(null);
+  const [payoutHistory, setPayoutHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [requesting, setRequesting] = useState(false);
+  const [withdrawal, setWithdrawal] = useState(null);
+
+  useEffect(()=>{
+    const load=async()=>{
+      setLoading(true);
+      try{
+        const[e,p,w]=await Promise.allSettled([apiFetch(API_CONFIG.supEarnings(currentUser.id)),apiFetch(API_CONFIG.supPayout(currentUser.id)),apiFetch(API_CONFIG.supWithdrawal(currentUser.id))]);
+        if(e.status==='fulfilled') setEarnings(e.value);
+        if(p.status==='fulfilled') setPayoutHistory(Array.isArray(p.value)?p.value:(p.value?.requests||[]));
+        if(w.status==='fulfilled') setWithdrawal(w.value);
+      }catch{}
+      finally{setLoading(false);}
+    };
+    if(currentUser.id) load();
+  },[currentUser.id]);
+
+  const requestPayout=async()=>{
+    if(!earnings?.pending_amount||earnings.pending_amount===0){showScoutNotification('No pending earnings','warning');return;}
+    if(!withdrawal?.account_number){showScoutNotification('Please save withdrawal account first','warning');return;}
+    if(!confirm(`Request payout of ₦${earnings.pending_amount?.toLocaleString()}?`)) return;
+    setRequesting(true);
+    try{
+      await apiFetch(API_CONFIG.supPayout(currentUser.id),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({amount:earnings.pending_amount})});
+      showScoutNotification('Payout request submitted!','success');
+    }catch(e){showScoutNotification('Failed: '+e.message,'error');}
+    finally{setRequesting(false);}
+  };
+
+  if(loading) return h('div',{className:'empty-state'},h('div',{className:'loading-spinner',style:{width:'40px',height:'40px',margin:'0 auto 1rem',border:'3px solid rgba(0,74,173,0.3)',borderTopColor:'var(--primary)'}}),h('div',null,'Loading earnings...'));
+  const tier=currentUser.tier||1;
+  const rates=TIER_RATES_SUP[tier]||TIER_RATES_SUP[1];
+
+  return h('div',null,
+    h('div',{className:'section-title'},h('i',{className:'fas fa-wallet'}),' Payout & Earnings'),
+    h('div',{className:'earnings-summary'},
+      h('div',{className:'earnings-label'},'Total Pending Payout (Supervisor)'),
+      h('div',{className:'earnings-total'},'₦'+(earnings?.pending_amount||0).toLocaleString()),
+      h('div',{className:'earnings-breakdown'},
+        [['Pro DCO Player','₦'+rates.Professional+'/player'],['Semi-Pro DCO','₦'+rates['Semi-professional']+'/player'],['Other DCO','₦'+rates.Other+'/player'],['Club Match','₦'+rates.Club+'/match']].map(([l,r])=>
+          h('div',{key:l,className:'earnings-item'},h('div',{className:'earnings-item-val'},r),h('div',{className:'earnings-item-lbl'},l+' (Tier '+tier+')'))
+        )
+      )
+    ),
+    withdrawal&&h('div',{className:'card',style:{marginBottom:'1.5rem'}},
+      h('div',{className:'card-title',style:{marginBottom:'0.75rem'}},h('i',{className:'fas fa-university'}),' Withdrawal Account'),
+      h('div',{style:{fontSize:'0.88rem'}},
+        h('div',null,h('strong',null,'Bank: '),withdrawal.bank_name||'—'),
+        h('div',null,h('strong',null,'Account Number: '),withdrawal.account_number||'—'),
+        h('div',null,h('strong',null,'Account Name: '),currentUser.name||'—')
+      )
+    ),
+    h('div',{style:{marginBottom:'1.5rem'}},
+      h('button',{className:'btn btn-success',style:{padding:'0.75rem 1.5rem'},onClick:requestPayout,disabled:requesting||!earnings?.pending_amount},
+        requesting?'Processing...':h(Fragment,null,h('i',{className:'fas fa-paper-plane'}),' Request Payout')
+      )
+    ),
+    (earnings?.activities||[]).length>0&&h('div',{className:'card',style:{marginBottom:'1.5rem'}},
+      h('div',{className:'card-title',style:{marginBottom:'0.75rem'}},h('i',{className:'fas fa-list'}),' Earnings Breakdown'),
+      h('div',{className:'table-scroll'},
+        h('table',{className:'data-table'},
+          h('thead',null,h('tr',null,['Match','DCO','Category','Amount','Status'].map(t=>h('th',{key:t},t)))),
+          h('tbody',null,
+            (earnings.activities||[]).map((act,i)=>h('tr',{key:i},
+              h('td',null,act.match||'—'),h('td',null,act.dcoName||'—'),h('td',null,act.category||'—'),
+              h('td',null,'₦'+(act.amount||0).toLocaleString()),
+              h('td',null,h('span',{className:`status-badge ${act.status==='paid'?'badge-success':'badge-warning'}`},act.status||'pending'))
+            ))
+          )
+        )
+      )
+    ),
+    payoutHistory.length>0&&h('div',{className:'card'},
+      h('div',{className:'card-title',style:{marginBottom:'0.75rem'}},h('i',{className:'fas fa-history'}),' Payout History'),
+      h('div',{className:'table-scroll'},
+        h('table',{className:'data-table'},
+          h('thead',null,h('tr',null,['Date','Amount','Status'].map(t=>h('th',{key:t},t)))),
+          h('tbody',null,
+            payoutHistory.map((p,i)=>h('tr',{key:i},
+              h('td',null,(p.createdAt||p.created_at)?new Date(p.createdAt||p.created_at).toLocaleDateString():'—'),
+              h('td',null,'₦'+(p.amount||0).toLocaleString()),
+              h('td',null,h('span',{className:`status-badge ${p.status==='paid'?'badge-success':p.status==='rejected'?'badge-danger':'badge-warning'}`},p.status||'pending'))
+            ))
+          )
+        )
+      )
+    )
+  );
+}
+
+/* ════════ Notifications ════════ */
+function NotificationsTab({ currentUser }) {
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(()=>{
+    const load=async()=>{
+      setLoading(true);
+      try{
+        const d=await apiFetch(API_CONFIG.supNotifications(currentUser.id));
+        setNotifications(Array.isArray(d)?d:(d.notifications||[]));
+      }catch{}
+      finally{setLoading(false);}
+    };
+    if(currentUser.id) load();
+  },[currentUser.id]);
+
+  const markRead=async(nid)=>{
+    try{
+      await apiFetch(`/api/supervisor/${currentUser.id}/notifications/${nid}/read`,{method:'PATCH'});
+      setNotifications(prev=>prev.map(n=>(n._id||n.id)===nid?{...n,read:true}:n));
+    }catch{}
+  };
+
+  const iconMap=(type)=>{
+    if(type?.includes('assignment')) return {cls:'blue',icon:'fas fa-tasks'};
+    if(type?.includes('approved')) return {cls:'green',icon:'fas fa-check-circle'};
+    if(type?.includes('rejected')) return {cls:'red',icon:'fas fa-times-circle'};
+    if(type?.includes('payout')) return {cls:'yellow',icon:'fas fa-coins'};
+    if(type?.includes('tier')) return {cls:'purple',icon:'fas fa-star'};
+    return {cls:'blue',icon:'fas fa-bell'};
+  };
+
+  if(loading) return h('div',{className:'empty-state'},h('div',{className:'loading-spinner',style:{width:'40px',height:'40px',margin:'0 auto 1rem',border:'3px solid rgba(0,74,173,0.3)',borderTopColor:'var(--primary)'}}),h('div',null,'Loading notifications...'));
+
+  return h('div',null,
+    h('div',{className:'section-title'},h('i',{className:'fas fa-bell'}),' Notifications ',notifications.filter(n=>!n.read).length>0&&h('span',{className:'nav-badge',style:{fontSize:'0.78rem',padding:'2px 8px'}},notifications.filter(n=>!n.read).length,' new')),
+    h('div',{className:'card',style:{padding:0}},
+      notifications.length===0
+        ?h('div',{className:'empty-state',style:{padding:'3rem'}},h('i',{className:'fas fa-bell-slash'}),h('p',null,'No notifications yet.'))
+        :notifications.map(n=>{
+            const id=n._id||n.id;
+            const {cls,icon}=iconMap(n.type);
+            return h('div',{key:id,className:`notif-item ${!n.read?'unread':''}`,onClick:()=>!n.read&&markRead(id)},
+              h('div',{className:`notif-icon ${cls}`},h('i',{className:icon})),
+              h('div',{className:'notif-body'},
+                h('div',{className:'notif-title'},n.title||n.type||'Notification'),
+                h('div',{className:'notif-msg'},n.message||n.body||'—')
+              ),
+              h('div',{className:'notif-time'},(n.createdAt||n.created_at)?new Date(n.createdAt||n.created_at).toLocaleString():'—')
+            );
+          })
+    )
+  );
+}
+
+/* ════════ Support ════════ */
+function SupportTab({ currentUser }) {
+  const [tickets, setTickets] = useState([]);
+  const [activeTicket, setActiveTicket] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [newMsg, setNewMsg] = useState('');
+  const [reason, setReason] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [showNewForm, setShowNewForm] = useState(false);
+  const messagesEndRef = useRef(null);
+
+  useEffect(()=>{
+    apiFetch(API_CONFIG.support+'?userId='+currentUser.id).then(d=>setTickets(Array.isArray(d)?d:(d.tickets||[]))).catch(()=>{});
+  },[currentUser.id]);
+
+  useEffect(()=>{
+    if(activeTicket) {
+      const tid=activeTicket._id||activeTicket.id;
+      apiFetch(API_CONFIG.supportChat(tid)).then(d=>setMessages(Array.isArray(d)?d:(d.messages||[]))).catch(()=>{});
+      const iv=setInterval(()=>apiFetch(API_CONFIG.supportChat(tid)).then(d=>setMessages(Array.isArray(d)?d:(d.messages||[]))).catch(()=>{}),10000);
+      return()=>clearInterval(iv);
+    }
+  },[activeTicket]);
+
+  useEffect(()=>{ messagesEndRef.current?.scrollIntoView({behavior:'smooth'}); },[messages]);
+
+  const createTicket=async()=>{
+    if(!reason){showScoutNotification('Please select a reason','warning');return;}
+    setCreating(true);
+    try{
+      const d=await apiFetch(API_CONFIG.support,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:currentUser.id,user_name:currentUser.name,reason,role:'supervisor'})});
+      setTickets(prev=>[d,...prev]);setActiveTicket(d);setShowNewForm(false);showScoutNotification('Ticket created!','success');
+    }catch(e){showScoutNotification('Failed: '+e.message,'error');}
+    finally{setCreating(false);}
+  };
+
+  const sendMessage=async()=>{
+    if(!newMsg.trim()||!activeTicket) return;
+    const tid=activeTicket._id||activeTicket.id;
+    setSending(true);
+    try{
+      const m=await apiFetch(API_CONFIG.supportChat(tid),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sender:'user',text:newMsg.trim()})});
+      setMessages(prev=>[...prev,m]);setNewMsg('');
+    }catch(e){showScoutNotification('Send failed: '+e.message,'error');}
+    finally{setSending(false);}
+  };
+
+  const REASONS=['Assignment Issue','Approval Issue','Payout Issue','DCO Management Issue','App Issue','Other'];
+
+  return h('div',null,
+    h('div',{className:'section-title'},h('i',{className:'fas fa-headset'}),' Support / Customer Care'),
+    !activeTicket&&h('div',null,
+      h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem',flexWrap:'wrap',gap:'0.5rem'}},
+        h('span',{style:{color:'var(--gray)',fontSize:'0.88rem'}},'Your support tickets'),
+        h('button',{className:'btn btn-primary',onClick:()=>setShowNewForm(!showNewForm)},h('i',{className:'fas fa-plus'}),' New Ticket')
+      ),
+      showNewForm&&h('div',{className:'card',style:{marginBottom:'1rem'}},
+        h('div',{style:{fontWeight:700,marginBottom:'0.75rem'}},h('i',{className:'fas fa-ticket-alt'}),' New Support Ticket'),
+        h('select',{className:'registration-select',style:{marginBottom:'0.75rem'},value:reason,onChange:e=>setReason(e.target.value)},
+          h('option',{value:''},'Select reason...'),
+          REASONS.map(r=>h('option',{key:r,value:r},r))
+        ),
+        h('button',{className:'btn btn-primary',onClick:createTicket,disabled:creating||!reason},creating?'Creating...':h(Fragment,null,h('i',{className:'fas fa-paper-plane'}),' Create Ticket'))
+      ),
+      tickets.length===0
+        ?h('div',{className:'empty-state'},h('i',{className:'fas fa-ticket-alt'}),h('p',null,'No support tickets yet.'))
+        :tickets.map(t=>h('div',{key:t._id||t.id,style:{padding:'1rem',border:'1px solid var(--border)',borderRadius:'8px',marginBottom:'0.75rem',cursor:'pointer'},onClick:()=>setActiveTicket(t)},
+            h('div',{style:{display:'flex',justifyContent:'space-between'}},
+              h('strong',null,'#',t.ticketNumber||t._id?.slice(-6)||'—',' — ',t.reason||'—'),
+              h('span',{className:`status-badge ${t.status==='open'?'badge-warning':t.status==='resolved'?'badge-success':'badge-gray'}`},t.status||'open')
+            ),
+            h('div',{style:{fontSize:'0.78rem',color:'var(--gray)',marginTop:'3px'}},t.createdAt?new Date(t.createdAt).toLocaleString():'—')
+          ))
+    ),
+    activeTicket&&h('div',null,
+      h('button',{className:'btn btn-secondary btn-sm',style:{marginBottom:'1rem'},onClick:()=>setActiveTicket(null)},h('i',{className:'fas fa-arrow-left'}),' Back to tickets'),
+      h('div',{className:'chat-container'},
+        h('div',{className:'chat-header'},h('i',{className:'fas fa-ticket-alt'}),' Ticket #',(activeTicket.ticketNumber||activeTicket._id?.slice(-6)||'—'),' — ',activeTicket.reason||'—'),
+        h('div',{className:'chat-messages'},
+          messages.map((m,i)=>h('div',{key:i,className:`chat-bubble ${m.sender==='user'?'sent':'received'}`},
+            m.message,h('div',{className:'chat-bubble-time'},m.createdAt?new Date(m.createdAt).toLocaleTimeString():'—')
+          )),
+          h('div',{ref:messagesEndRef})
+        ),
+        h('div',{className:'chat-input-row'},
+          h('input',{className:'chat-input',placeholder:'Type a message...',value:newMsg,onInput:e=>setNewMsg(e.target.value),onKeyDown:e=>e.key==='Enter'&&!e.shiftKey&&sendMessage()}),
+          h('button',{className:'chat-send-btn',onClick:sendMessage,disabled:sending||!newMsg.trim()},sending?'…':'Send')
+        )
+      )
+    )
+  );
+}
+
+/* ════════ Settings ════════ */
+function SettingsTab({ currentUser, setCurrentUser }) {
+  const [notifPrefs, setNotifPrefs] = useState({assignments:true,approvals:true,payouts:true,tier:true});
+  const [changePwdMode, setChangePwdMode] = useState(false);
+  const [currentPwd, setCurrentPwd] = useState('');
+  const [newPwd, setNewPwd] = useState('');
+  const [confirmPwd, setConfirmPwd] = useState('');
+  const [pwdSaving, setPwdSaving] = useState(false);
+
+  const changePassword=async()=>{
+    if(newPwd!==confirmPwd){showScoutNotification('Passwords do not match','error');return;}
+    if(newPwd.length<8){showScoutNotification('Password must be at least 8 characters','error');return;}
+    setPwdSaving(true);
+    try{
+      await apiFetch('/api/auth/change-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({current_password:currentPwd,new_password:newPwd})});
+      showScoutNotification('Password changed successfully!','success');
+      setChangePwdMode(false);setCurrentPwd('');setNewPwd('');setConfirmPwd('');
+    }catch(e){showScoutNotification('Failed: '+e.message,'error');}
+    finally{setPwdSaving(false);}
+  };
+
+  return h('div',null,
+    h('div',{className:'section-title'},h('i',{className:'fas fa-cog'}),' Settings'),
+    h('div',{className:'card',style:{marginBottom:'1.5rem'}},
+      h('div',{className:'card-title',style:{marginBottom:'1rem'}},h('i',{className:'fas fa-bell'}),' Notification Preferences'),
+      [['assignments','New Assignment Notifications'],['approvals','Approval/Rejection Notifications'],['payouts','Payout Notifications'],['tier','Tier Change Notifications']].map(([key,label])=>
+        h('label',{key,style:{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0.6rem 0',borderBottom:'1px solid #f0f0f0',cursor:'pointer'}},
+          h('span',null,label),
+          h('label',{className:'toggle-switch'},
+            h('input',{type:'checkbox',checked:notifPrefs[key],onChange:e=>setNotifPrefs(prev=>({...prev,[key]:e.target.checked}))}),
+            h('span',{className:'toggle-slider'})
+          )
+        )
+      )
+    ),
+    h('div',{className:'card'},
+      h('div',{className:'card-title',style:{marginBottom:'1rem'}},h('i',{className:'fas fa-lock'}),' Change Password'),
+      !changePwdMode
+        ?h('button',{className:'btn btn-primary',onClick:()=>setChangePwdMode(true)},h('i',{className:'fas fa-key'}),' Change Password')
+        :h('div',null,
+            h('div',{className:'field-wrapper'},h('label',{className:'registration-label'},'Current Password'),h('input',{className:'registration-input',type:'password',value:currentPwd,onInput:e=>setCurrentPwd(e.target.value)})),
+            h('div',{className:'field-wrapper'},h('label',{className:'registration-label'},'New Password (min 8 chars)'),h('input',{className:'registration-input',type:'password',value:newPwd,onInput:e=>setNewPwd(e.target.value)})),
+            h('div',{className:'field-wrapper'},h('label',{className:'registration-label'},'Confirm New Password'),h('input',{className:'registration-input',type:'password',value:confirmPwd,onInput:e=>setConfirmPwd(e.target.value)})),
+            h('div',{style:{display:'flex',gap:'0.5rem'}},
+              h('button',{className:'btn btn-primary',onClick:changePassword,disabled:pwdSaving||!currentPwd||!newPwd||!confirmPwd},pwdSaving?'Saving...':h(Fragment,null,h('i',{className:'fas fa-save'}),' Save Password')),
+              h('button',{className:'btn btn-secondary',onClick:()=>setChangePwdMode(false)},'Cancel')
+            )
+          )
+    )
+  );
+}
+
+/* ════════ SubscriptionTab ════════ */
+function SubscriptionTab({userId, userRole, user, apiBase, showNotification}) {
+  const [sub, setSub] = useState(null);
+  const [plans, setPlans] = useState([]);
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedPlan, setSelectedPlan] = useState(null);
+  const [step, setStep] = useState('PLAN_SELECT');
+  const [bankDetails, setBankDetails] = useState(null);
+  const [intentId, setIntentId] = useState('');
+  const [reference, setReference] = useState('');
+  const [receiptFile, setReceiptFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [paying, setPaying] = useState(false);
+  const [err, setErr] = useState('');
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileRef = useRef(null);
+  const toast = (msg, t='info') => showNotification&&showNotification(msg, t);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [subR, histR, plansR] = await Promise.allSettled([
+        fetch(apiBase+'/subscription',{credentials:'include'}).then(r=>r.ok?r.json():null),
+        fetch(apiBase+'/subscription/history',{credentials:'include'}).then(r=>r.ok?r.json():[]),
+        fetch('/api/subscription/pricing',{credentials:'include'}).then(r=>r.ok?r.json():{}),
+      ]);
+      if(subR.status==='fulfilled'&&subR.value) setSub(subR.value);
+      if(histR.status==='fulfilled') setHistory(Array.isArray(histR.value)?histR.value:(histR.value?.history||[]));
+      if(plansR.status==='fulfilled'){const pl=plansR.value?.plans||[];setPlans(pl);if(pl.length)setSelectedPlan(pl.find(x=>x.popular)||pl[0]);}
+    } catch(e){}
+    finally{setLoading(false);}
+  };
+  useEffect(()=>{if(userId)load();},[userId]);
+
+  const handleInitiateTransfer = async () => {
+    if(!selectedPlan){setErr('Select a plan');return;}
+    setPaying(true);setErr('');
+    try {
+      const r=await fetch('/api/payment/bank-transfer/intent',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        paymentType:'SUBSCRIPTION',
+        selectedPlan:selectedPlan.durationMonths===6?'6_MONTH':selectedPlan.durationMonths===12?'12_MONTH':(selectedPlan.key||selectedPlan.plan_id||''),
+        role:(userRole||'').toUpperCase(),
+        level:user?.tier||user?.level||''
+      })});
+      const d=await r.json();
+      if(!r.ok) throw new Error(d.detail||d.message||'Unable to create payment intent.');
+      setIntentId(d.intentId||d.intent_id||'');
+      setReference(d.reference||'');
+      const bankR=await fetch('/api/bank-details/active',{credentials:'include'});
+      if(bankR.ok) setBankDetails(await bankR.json());
+      setStep('TRANSFER_DETAILS');
+    } catch(e){setErr(e.message);toast(e.message,'error');}
+    finally{setPaying(false);}
+  };
+
+  const handleFileSelect = (file) => {
+    if(!file) return;
+    if(!['application/pdf','image/png','image/jpeg','image/jpg'].includes(file.type)&&!file.name.match(/\.(pdf|png|jpe?g)$/i)){setErr('Only PDF, PNG, JPG allowed.');return;}
+    if(file.size>10*1024*1024){setErr('Max 10MB.');return;}
+    setReceiptFile(file);setErr('');
+  };
+
+  const handleReceiptSubmit = async () => {
+    if(!receiptFile){setErr('Select receipt file');return;}
+    setUploading(true);setErr('');setUploadProgress(0);
+    try {
+      const fd=new FormData();
+      fd.append('intentId',intentId);
+      fd.append('receiptFile',receiptFile);
+      await new Promise((resolve,reject)=>{
+        const xhr=new XMLHttpRequest();
+        xhr.upload.onprogress=e=>{if(e.lengthComputable)setUploadProgress(Math.round((e.loaded/e.total)*100));};
+        xhr.onload=()=>{if(xhr.status>=200&&xhr.status<300){resolve();}else{try{const d=JSON.parse(xhr.responseText);reject(new Error(d.detail||'Upload failed.'));}catch{reject(new Error('Upload failed.'));}}};
+        xhr.onerror=()=>reject(new Error('Network error.'));
+        xhr.open('POST','/api/payment/bank-transfer/receipt');
+        xhr.withCredentials=true;
+        xhr.send(fd);
+      });
+      setStep('SUBMITTED');
+      toast('Receipt submitted! Admin will verify within 24 hours.','success');
+    } catch(e){setErr(e.message);toast(e.message,'error');}
+    finally{setUploading(false);}
+  };
+
+  const copy=(t)=>{navigator.clipboard.writeText(t).then(()=>toast('Copied!','success')).catch(()=>{});};
+  const fmtDate=(d)=>{if(!d)return'—';try{return new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});}catch{return d;}};
+  const SC={TRIAL_ACTIVE:'#f59e0b',TRIAL_ENDING:'#f97316',TRIAL_EXPIRED:'#ef4444',PAYMENT_PENDING:'#3b82f6',ACTIVE:'#22c55e',EXPIRING:'#f97316',EXPIRED:'#ef4444'};
+  const cs=sub?.subscription_status||sub?.status||'TRIAL_ACTIVE';
+  const sc=SC[cs]||'#64748b';
+  const expired=cs==='TRIAL_EXPIRED'||cs==='EXPIRED';
+  const WIZ=[{key:'PLAN_SELECT',label:'Select Plan',icon:'fa-tags'},{key:'TRANSFER_DETAILS',label:'Bank Transfer',icon:'fa-university'},{key:'RECEIPT_UPLOAD',label:'Upload Receipt',icon:'fa-upload'},{key:'SUBMITTED',label:'Submitted',icon:'fa-check-circle'}];
+  const si=WIZ.findIndex(s=>s.key===step);
+
+  const stepBar=h('div',{style:{display:'flex',alignItems:'center',marginBottom:'1.5rem'}},
+    WIZ.map((s,i)=>h('div',{key:s.key,style:{display:'flex',alignItems:'center',flex:i<WIZ.length-1?'1':undefined}},
+      h('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:'.2rem'}},
+        h('div',{style:{width:30,height:30,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'.75rem',fontWeight:700,background:i<si?'#22c55e':i===si?'var(--primary)':'#e2e8f0',color:i<=si?'white':'#94a3b8'}},
+          i<si?h('i',{className:'fas fa-check'}):h('i',{className:'fas '+s.icon})
+        ),
+        h('span',{style:{fontSize:'.6rem',fontWeight:600,whiteSpace:'nowrap',color:i<=si?'var(--primary)':'#94a3b8'}},s.label)
+      ),
+      i<WIZ.length-1&&h('div',{style:{flex:1,height:2,margin:'0 3px',marginBottom:14,background:i<si?'#22c55e':'#e2e8f0'}})
+    ))
+  );
+
+  if(loading) return h('div',{style:{padding:'2rem',textAlign:'center',color:'var(--gray)'}},h('i',{className:'fas fa-spinner fa-spin',style:{fontSize:'1.5rem'}}),h('div',{style:{marginTop:'.5rem',fontSize:'.85rem'}},'Loading...'));
+
+  if(step==='SUBMITTED') return h('div',{className:'card',style:{textAlign:'center',padding:'2.5rem 1rem'}},
+    stepBar,
+    h('i',{className:'fas fa-check-circle',style:{fontSize:'3.5rem',color:'#22c55e',display:'block',marginBottom:'1rem'}}),
+    h('div',{style:{fontSize:'1.3rem',fontWeight:800,marginBottom:'.5rem'}},'Receipt Submitted!'),
+    h('div',{style:{fontSize:'.85rem',color:'var(--gray)',maxWidth:380,margin:'0 auto .75rem'}},'Reference: ',h('strong',{style:{color:'var(--primary)'}},reference)),
+    h('p',{style:{fontSize:'.82rem',color:'var(--gray)',marginBottom:'1.5rem'}},'Admin will verify within 24 hours.'),
+    h('button',{className:'subscribe-btn',style:{maxWidth:200,margin:'0 auto'},onClick:()=>{setStep('PLAN_SELECT');setReceiptFile(null);setReference('');setIntentId('');load();}},h('i',{className:'fas fa-crown'}),' View Subscription')
+  );
+
+  if(step==='RECEIPT_UPLOAD') return h('div',{className:'card'},
+    stepBar,
+    h('div',{className:'card-title'},h('i',{className:'fas fa-upload'}),' Upload Transfer Receipt'),
+    h('div',{
+      onDragOver:e=>{e.preventDefault();setIsDragOver(true);},onDragLeave:()=>setIsDragOver(false),
+      onDrop:e=>{e.preventDefault();setIsDragOver(false);handleFileSelect(e.dataTransfer.files[0]);},
+      onClick:()=>fileRef.current&&fileRef.current.click(),
+      style:{border:'2px dashed '+(isDragOver?'#22c55e':'var(--primary)'),borderRadius:12,padding:'1.75rem',textAlign:'center',cursor:'pointer',background:isDragOver?'#f0fdf4':'#f8faff',marginBottom:'.75rem'}
+    },
+      h('i',{className:'fas fa-cloud-upload-alt',style:{fontSize:'1.75rem',color:'#94a3b8',display:'block',marginBottom:'.4rem'}}),
+      receiptFile
+        ? h('div',null,h('div',{style:{fontSize:'.88rem',fontWeight:700}},receiptFile.name))
+        : h('div',null,h('div',{style:{fontSize:'.85rem',fontWeight:600}},'Drag & drop or click to upload'),h('div',{style:{fontSize:'.75rem',color:'#94a3b8'}},'PDF, PNG, JPG — max 10MB')),
+      h('input',{ref:fileRef,type:'file',accept:'.pdf,.png,.jpg,.jpeg',style:{display:'none'},onChange:e=>handleFileSelect(e.target.files[0])})
+    ),
+    uploading&&h('div',{style:{marginBottom:'.75rem'}},
+      h('div',{style:{background:'#e2e8f0',borderRadius:99,height:5,overflow:'hidden'}},h('div',{style:{background:'var(--primary)',height:'100%',borderRadius:99,width:uploadProgress+'%',transition:'width .3s'}}))
+    ),
+    err&&h('p',{style:{color:'#ef4444',fontSize:'.83rem',marginBottom:'.75rem'}},err),
+    h('div',{style:{display:'flex',gap:'.5rem'}},
+      h('button',{className:'subscribe-btn',onClick:handleReceiptSubmit,disabled:uploading||!receiptFile,style:{flex:1}},uploading?'Uploading '+uploadProgress+'%...':'Submit Receipt'),
+      h('button',{onClick:()=>setStep('TRANSFER_DETAILS'),style:{background:'white',border:'1.5px solid #e2e8f0',color:'#64748b',padding:'.65rem 1rem',borderRadius:8,cursor:'pointer',fontSize:'.85rem',fontWeight:600}},'← Back')
+    )
+  );
+
+  if(step==='TRANSFER_DETAILS') return h('div',{className:'card'},
+    stepBar,
+    h('div',{className:'card-title'},h('i',{className:'fas fa-university'}),' Bank Transfer Details'),
+    h('div',{style:{background:'#fff3cd',border:'1px solid #ffc107',borderRadius:8,padding:'.85rem',marginBottom:'1rem',fontSize:'.82rem',color:'#856404'}},h('i',{className:'fas fa-exclamation-triangle'}),' ',h('strong',null,'IMPORTANT:'),' Use the reference below as your narration.'),
+    h('div',{style:{border:'2px solid #e2e8f0',borderRadius:12,padding:'1rem',marginBottom:'1rem'}},
+      [['Bank',bankDetails?.bankName||bankDetails?.bank_name||'—'],['Account Name',bankDetails?.accountName||bankDetails?.account_name||'EnejiStats'],['Account Number',bankDetails?.accountNumber||bankDetails?.account_number||'—'],['Amount','₦'+(selectedPlan?.amount||0).toLocaleString()]].map(([l,v])=>
+        h('div',{key:l,style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'.5rem 0',borderBottom:'1px solid #e2e8f0'}},
+          h('span',{style:{fontSize:'.78rem',color:'var(--gray)',fontWeight:600}},l),
+          h('div',{style:{display:'flex',alignItems:'center',gap:'.5rem'}},
+            h('span',{style:{fontSize:'.88rem',fontWeight:700}},v),
+            l==='Account Number'&&h('button',{onClick:()=>copy(bankDetails?.accountNumber||bankDetails?.account_number||''),style:{background:'var(--primary)',color:'white',border:'none',padding:'2px 8px',borderRadius:4,fontSize:'.72rem',cursor:'pointer'}},'Copy')
+          )
+        )
+      )
+    ),
+    h('div',{style:{background:'#eef5ff',borderRadius:10,padding:'1rem',marginBottom:'1.25rem',textAlign:'center'}},
+      h('div',{style:{fontSize:'.72rem',fontWeight:700,color:'var(--gray)',marginBottom:'.35rem',textTransform:'uppercase'}},'Your Payment Reference (use as narration)'),
+      h('div',{style:{fontSize:'1.15rem',fontWeight:900,color:'var(--primary)',letterSpacing:'1.5px',cursor:'pointer',marginBottom:'.5rem'},onClick:()=>copy(reference)},reference,' ',h('i',{className:'fas fa-copy',style:{fontSize:'.75rem',opacity:.6}})),
+      h('button',{onClick:()=>copy(reference),style:{background:'var(--primary)',color:'white',border:'none',padding:'.3rem 1rem',borderRadius:5,fontSize:'.78rem',fontWeight:600,cursor:'pointer'}},h('i',{className:'fas fa-copy'}),' Copy Reference')
+    ),
+    h('button',{className:'subscribe-btn',onClick:()=>setStep('RECEIPT_UPLOAD'),style:{width:'100%',marginBottom:'.5rem'}},h('i',{className:'fas fa-upload'})," I've Transferred — Upload Receipt"),
+    h('button',{onClick:()=>setStep('PLAN_SELECT'),style:{background:'white',border:'1.5px solid #e2e8f0',color:'#64748b',padding:'.65rem 1rem',borderRadius:8,cursor:'pointer',fontSize:'.85rem',fontWeight:600,width:'100%'}},'← Back to Plans')
+  );
+
+  return h('div',null,
+    sub&&h('div',{className:'sub-status-card',style:{borderLeftColor:sc}},
+      h('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:'.5rem',marginBottom:'.75rem'}},
+        h('div',{style:{fontWeight:800,fontSize:'.95rem'}},h('i',{className:'fas fa-crown',style:{color:sc}}),' Subscription Status'),
+        h('span',{style:{background:sc,color:'white',padding:'.15rem .65rem',borderRadius:20,fontSize:'.72rem',fontWeight:700}},cs.replace(/_/g,' '))
+      ),
+      expired&&h('div',{style:{background:'#fee2e2',borderRadius:8,padding:'.65rem',fontSize:'.82rem',color:'#991b1b'}},h('i',{className:'fas fa-lock'}),' Access restricted. Subscribe to restore full features.')
+    ),
+    h('div',{className:'card'},
+      stepBar,
+      h('div',{className:'card-title'},h('i',{className:'fas fa-tags'}),' Available Plans'),
+      plans.length===0
+        ? h('div',{className:'empty-state'},h('i',{className:'fas fa-tag'}),h('p',null,'No plans available. Contact admin.'))
+        : h('div',null,
+            h('div',{className:'plans-grid'},
+              plans.map(p=>h('div',{key:p.key||p.plan_id,className:'plan-card'+(selectedPlan&&(selectedPlan.key||selectedPlan.plan_id)===(p.key||p.plan_id)?' selected':'')+(p.popular?' popular':''),onClick:()=>setSelectedPlan(p)},
+                p.popular&&h('span',{className:'plan-popular-badge'},'⭐ BEST VALUE'),
+                h('div',{className:'plan-name'},p.name||p.plan_name||'Plan'),
+                h('div',{className:'plan-price'},'₦'+(p.amount||0).toLocaleString()),
+                h('div',{className:'plan-price-sub'},p.durationMonths===1||p.months===1?'Monthly':(p.durationMonths||p.months||'')+' Months'),
+                p.discount&&h('div',{className:'plan-discount'},'✓ ',p.discount)
+              ))
+            ),
+            err&&h('p',{style:{color:'#ef4444',fontSize:'.83rem',marginBottom:'.75rem'}},err),
+            h('button',{className:'subscribe-btn',onClick:handleInitiateTransfer,disabled:paying||!selectedPlan},
+              paying?h('span',null,h('i',{className:'fas fa-spinner fa-spin'}),' Please wait...'):h('span',null,h('i',{className:'fas fa-university'}),' Pay via Bank Transfer')
+            )
+          )
+    ),
+    history.length>0&&h('div',{className:'card'},
+      h('div',{className:'card-title'},h('i',{className:'fas fa-receipt'}),' Payment History'),
+      history.map((item,i)=>h('div',{key:item._id||i,className:'billing-row'},
+        h('div',null,
+          h('div',{style:{fontWeight:600,fontSize:'.85rem'}},(item.plan||item.subscription_plan||item.paymentType||'Payment').replace(/_/g,' ')),
+          h('div',{style:{fontSize:'.75rem',color:'var(--gray)'}},fmtDate(item.created_at||item.date||item.createdAt))
+        ),
+        h('div',{style:{textAlign:'right'}},
+          h('div',{style:{fontWeight:700}},'₦'+(item.amount||0).toLocaleString()),
+          h('span',{className:'status-badge badge-'+(item.status==='active'||item.status==='approved'||item.status==='APPROVED'?'success':'warning')},(item.status||'—').replace(/_/g,' '))
+        )
+      ))
+    )
+  );
+}
+
+/* ════════ INTEGRATED SUPERVISOR MATCHDAY CONTROL ════════ */
+const SMC_LOCAL_KEY = 'eneji-supervisor-matchday-v5';
+const SMC_SHARED_KEY = 'eneji-matchday-shared-v1';
+const SMC_SYNC_NAME = 'eneji-matchday-sync-v1';
+const SMC_API = {
+  matches:'/api/supervisor/matches',
+  dcos:'/api/supervisor/available-dcos',
+  recruit:'/api/supervisor/dcos/recruit',
+  players:id=>'/api/supervisor/matches/'+encodeURIComponent(id)+'/players',
+  playerAssignments:id=>'/api/supervisor/matches/'+encodeURIComponent(id)+'/player-dco-assignments',
+  assign:id=>'/api/supervisor/matches/'+encodeURIComponent(id)+'/assign-dco'
+};
+const SMC_SEED = {
+  matches:[{id:'M1001',home:'Abuja City FC',away:'Lagos United',date:'2026-09-26',time:'16:00',venue:'Abuja Stadium',country:'Nigeria',state:'FCT',city:'Abuja',supervisorIds:['S1'],players:[
+    {id:'P1',name:'Daniel Musa',club:'Abuja City FC',position:'CM'},
+    {id:'P2',name:'Ibrahim Sani',club:'Abuja City FC',position:'ST'},
+    {id:'P3',name:'Victor Okoro',club:'Lagos United',position:'CB'},
+    {id:'P4',name:'Samuel Ade',club:'Lagos United',position:'GK'}
+  ]}],
+  dcos:[
+    {id:'D1',name:'Emeka James',country:'Nigeria',state:'FCT',city:'Abuja',available:true,activeMatchIds:[]},
+    {id:'D2',name:'Hauwa Yusuf',country:'Nigeria',state:'FCT',city:'Abuja',available:true,activeMatchIds:[]},
+    {id:'D3',name:'David Paul',country:'Nigeria',state:'FCT',city:'Abuja',available:true,activeMatchIds:[]},
+    {id:'D4',name:'Mary John',country:'Nigeria',state:'FCT',city:'Abuja',available:true,activeMatchIds:[]},
+    {id:'D5',name:'Peter Ojo',country:'Nigeria',state:'FCT',city:'Abuja',available:true,activeMatchIds:[]}
+  ],
+  recruitments:[],assignments:[],stats:[]
+};
+function smcClone(x){return JSON.parse(JSON.stringify(x));}
+function smcRowKey(x){return String(x&& (x.id||x._id||x.assignment_id||x.submission_id||x.match_id||x.matchId) || JSON.stringify(x));}
+function smcMergeRows(a,b){
+  const map=new Map((a||[]).map(x=>[smcRowKey(x),x]));
+  (b||[]).forEach(x=>{
+    const k=smcRowKey(x),old=map.get(k),next=Object.assign({},old||{},x);
+    ['players','supervisorIds','activeMatchIds'].forEach(p=>{
+      if(Array.isArray(old&&old[p])&&Array.isArray(x&&x[p])&&!x[p].length&&old[p].length)next[p]=old[p];
+    });
+    map.set(k,next);
+  });
+  return Array.from(map.values());
+}
+function smcReadLocal(){
+  try{const x=JSON.parse(localStorage.getItem(SMC_LOCAL_KEY)||'{}');return x&&typeof x==='object'?x:{};}catch(e){return {};}
+}
+function smcReadShared(){
+  try{const x=JSON.parse(localStorage.getItem(SMC_SHARED_KEY)||'{}');return x&&typeof x==='object'?x:{};}catch(e){return {};}
+}
+function smcNormalizeLocation(x){
+  return {
+    country:x&& (x.country||x.country_name) || '',
+    countryCode:x&& (x.countryCode||x.country_code) || '',
+    state:x&& (x.state||x.region||x.province||x.county) || '',
+    region:x&& (x.region||x.state) || '',
+    province:x&&x.province || '',
+    county:x&&x.county || '',
+    city:x&& (x.city||x.city_name||x.town) || '',
+    lga:x&& (x.lga||x.local_area) || '',
+     subregion:x&& (x.subregion||x.subregion_name) || ''
+  };
+}
+function smcNormalizePlayer(x){
+  return Object.assign({},x,{
+    id:String(x&& (x.id||x._id||x.player_id) || ''),
+    name:x&& (x.name||x.full_name||x.player_name) || '',
+    club:x&& (x.club||x.club_name||x.team_name||x.team) || '',
+    position:x&& (x.position||x.position_name) || ''
+  });
+}
+function smcNormalizeMatch(x){
+  const l=smcNormalizeLocation(x),sup=x&& (x.supervisorIds||x.supervisor_ids) || [];
+  return Object.assign({},x,l,{
+    id:String(x&& (x.id||x._id||x.match_id) || ''),
+    home:x&& (x.home||x.home_team||x.homeTeam||x.home_team_name) || '',
+    away:x&& (x.away||x.away_team||x.awayTeam||x.away_team_name) || '',
+    date:x&& (x.date||x.match_date) || '',
+    time:x&& (x.time||x.match_time) || '',
+    venue:x&& (x.venue||x.venue_name) || '',
+    supervisorIds:Array.isArray(sup)?sup.map(v=>String(typeof v==='object'?(v.id||v._id||v.supervisor_id||''):v)).filter(Boolean):[],
+    players:Array.isArray(x&&x.players)?x.players.map(smcNormalizePlayer):[]
+  });
+}
+function smcNormalizeDco(x){
+  const l=smcNormalizeLocation(x),active=x&& (x.activeMatchIds||x.active_match_ids) || [];
+  return Object.assign({},x,l,{
+    id:String(x&& (x.id||x._id||x.dco_id||x.user_id) || ''),
+    name:x&& (x.name||x.full_name||x.dco_name) || 'Unnamed DCO',
+    available:!(x&&x.available===false),
+    activeMatchIds:Array.isArray(active)?active.map(String):[]
+  });
+}
+function smcNormalizeAssignment(x){
+  return Object.assign({},x,{
+    id:String(x&& (x.id||x._id||x.assignment_id) || ''),
+    matchId:String(x&& (x.matchId||x.match_id||x.match&&x.match.id) || ''),
+    dcoId:String(x&& (x.dcoId||x.dco_id||x.dco&&x.dco.id) || ''),
+    playerId:String(x&& (x.playerId||x.player_id||x.player&&x.player.id) || ''),
+    status:x&& (x.status||x.assignment_status) || 'assigned'
+  });
+}
+function smcList(d,keys){
+  if(Array.isArray(d))return d;
+  for(let i=0;i<keys.length;i++)if(Array.isArray(d&&d[keys[i]]))return d[keys[i]];
+  return [];
+}
+function smcLoadState(){
+  const local=smcReadLocal(),shared=smcReadShared();
+  const base={
+    matches:Array.isArray(local.matches)?local.matches:smcClone(SMC_SEED.matches),
+    dcos:Array.isArray(local.dcos)?local.dcos:smcClone(SMC_SEED.dcos),
+    recruitments:Array.isArray(local.recruitments)?local.recruitments:[],
+    assignments:Array.isArray(local.assignments)?local.assignments:[],
+    stats:Array.isArray(local.stats)?local.stats:[]
+  };
+  ['matches','dcos','assignments','stats','recruitments'].forEach(k=>{
+    if(Array.isArray(shared[k]))base[k]=smcMergeRows(base[k],shared[k]);
+  });
+  base.matches=base.matches.map(smcNormalizeMatch);
+  base.dcos=base.dcos.map(smcNormalizeDco);
+  base.assignments=base.assignments.map(smcNormalizeAssignment);
+  return base;
+}
+function smcPushShared(patch){
+  const cur=smcReadShared(),next=Object.assign({},cur);
+  Object.keys(patch||{}).forEach(k=>{next[k]=Array.isArray(patch[k])?smcMergeRows(next[k]||[],patch[k]):patch[k];});
+  next.updatedAt=Date.now();
+  try{localStorage.setItem(SMC_SHARED_KEY,JSON.stringify(next));}catch(e){}
+  return String(next.updatedAt);
+}
+function smcMinutes(t){
+  const p=String(t||'').split(':');
+  return p.length===2?Number(p[0])*60+Number(p[1]):null;
+}
+function smcHasConflict(d,m,matches){
+  return (d.activeMatchIds||[]).some(id=>{
+    const other=(matches||[]).find(x=>String(x.id)===String(id));
+    if(!other||other.date!==m.date)return false;
+    const a=smcMinutes(other.time),b=smcMinutes(m.time);
+    return a===null||b===null||Math.abs(a-b)<120;
+  });
+}
+function smcMatchesLocation(x,filter){
+  return (!filter.country||[x.country,x.countryCode,x.country_name].some(v=>String(v||'').toLowerCase().includes(filter.country.toLowerCase())))&&
+    (!filter.state||[x.state,x.region,x.province,x.county].some(v=>String(v||'').toLowerCase().includes(filter.state.toLowerCase())))&&
+    (!filter.lga||[x.lga,x.subregion].some(v=>String(v||'').toLowerCase().includes(filter.lga.toLowerCase())))&&
+    (!filter.city||[x.city].some(v=>String(v||'').toLowerCase().includes(filter.city.toLowerCase())));
+}
+
+function SupervisorMatchdayControl({ currentUser }) {
+  const [data,setData]=useState(()=>smcLoadState());
+  const [matchId,setMatchId]=useState('');
+  const [tab,setTab]=useState('recruit');
+  const [filter,setFilter]=useState({country:'',state:'',lga:'',city:''});
+  const [selected,setSelected]=useState([]);
+  const [selectedDco,setSelectedDco]=useState('');
+  const [live,setLive]=useState(false);
+  const [loading,setLoading]=useState(true);
+  const dataRef=useRef(data),matchIdRef=useRef(''),liveRef=useRef(false);
+  const syncRef=useRef({channel:null,stamp:'',lastPublished:''});
+  useEffect(()=>{dataRef.current=data;},[data]);
+
+  const notify=(message,type='info')=>showScoutNotification(message,type);
+  const saveData=(next)=>{
+    dataRef.current=next;setData(next);
+    try{localStorage.setItem(SMC_LOCAL_KEY,JSON.stringify(next));}catch(e){}
+    syncRef.current.stamp=smcPushShared({matches:next.matches,dcos:next.dcos,assignments:next.assignments,recruitments:next.recruitments,stats:next.stats});
+    try{syncRef.current.channel&&syncRef.current.channel.postMessage({updatedAt:syncRef.current.stamp});}catch(e){}
+  };
+
+  useEffect(()=>{
+    const pull=()=>{
+      const shared=smcReadShared(),stamp=String(shared.updatedAt||'');
+      if(stamp&&stamp===syncRef.current.stamp)return;
+      let next=dataRef.current,changed=false;
+      ['matches','dcos','assignments','stats','recruitments'].forEach(k=>{
+        if(!Array.isArray(shared[k]))return;
+        const merged=smcMergeRows(next[k]||[],shared[k]);
+        if(JSON.stringify(merged)!==JSON.stringify(next[k]||[])){next=Object.assign({},next,{[k]:merged});changed=true;}
+      });
+      syncRef.current.stamp=stamp;
+      if(changed){dataRef.current=next;setData(next);}
+    };
+    const onStorage=e=>{if(e.key===SMC_SHARED_KEY)pull();};
+    window.addEventListener('storage',onStorage);
+    if('BroadcastChannel' in window){
+      syncRef.current.channel=new BroadcastChannel(SMC_SYNC_NAME);
+      syncRef.current.channel.onmessage=pull;
+    }
+    const iv=setInterval(()=>{
+      pull();
+      if(!liveRef.current)return;
+      const current=dataRef.current,payload={matches:current.matches,dcos:current.dcos,assignments:current.assignments,recruitments:current.recruitments};
+      const fp=JSON.stringify(payload);
+      if(fp!==syncRef.current.lastPublished){syncRef.current.lastPublished=fp;syncRef.current.stamp=smcPushShared(payload);try{syncRef.current.channel&&syncRef.current.channel.postMessage({updatedAt:syncRef.current.stamp});}catch(e){}}
+    },2000);
+    return()=>{window.removeEventListener('storage',onStorage);clearInterval(iv);try{syncRef.current.channel&&syncRef.current.channel.close();}catch(e){}};
+  },[]);
+
+  const refresh=useCallback(async()=>{
+    setLoading(true);
+    try{
+      const [mx,dx]=await Promise.all([apiFetch(SMC_API.matches),apiFetch(SMC_API.dcos)]);
+      const current=dataRef.current;
+      const matches=smcList(mx,['matches','results','data']).map(smcNormalizeMatch);
+      const dcos=smcList(dx,['dcos','users','results','data']).map(smcNormalizeDco);
+      let next=Object.assign({},current,{matches:matches.length?matches:current.matches,dcos:dcos.length?dcos:current.dcos});
+      const active=next.matches.find(x=>String(x.id)===String(matchIdRef.current))||next.matches[0];
+      if(active){
+        const [pl,pa]=await Promise.all([apiFetch(SMC_API.players(active.id)),apiFetch(SMC_API.playerAssignments(active.id))]);
+        const players=smcList(pl,['players','results','data']).map(smcNormalizePlayer);
+        const assignments=smcList(pa,['assignments','results','data']).map(smcNormalizeAssignment);
+        next=Object.assign({},next,{
+          matches:next.matches.map(m=>String(m.id)===String(active.id)?Object.assign({},m,{players:players.length?players:m.players}):m),
+          assignments:assignments
+        });
+        matchIdRef.current=String(active.id);setMatchId(String(active.id));
+      }
+      dataRef.current=next;setData(next);
+      try{localStorage.setItem(SMC_LOCAL_KEY,JSON.stringify(next));}catch(e){}
+      liveRef.current=true;setLive(true);
+    }catch(e){
+      liveRef.current=false;setLive(false);
+      notify('Live API unavailable — retained current data','warning');
+    }finally{setLoading(false);}
+  },[]);
+
+  useEffect(()=>{refresh();const iv=setInterval(refresh,15000);return()=>clearInterval(iv);},[refresh]);
+
+  const active=data.matches.find(x=>String(x.id)===String(matchId))||data.matches[0];
+  const recruitments=active?data.recruitments.filter(x=>String(x.matchId)===String(active.id)&&x.status==='active'):[];
+  const activeCount=recruitments.filter(x=>!x.standby).length;
+  const candidates=active?data.dcos.filter(d=>d.available&&!smcHasConflict(d,active,data.matches)&&smcMatchesLocation(d,filter)):[];
+  const groups={};
+  (active&&active.players||[]).forEach(p=>{(groups[p.club||'Unassigned']||(groups[p.club||'Unassigned']=[])).push(p);});
+  const assignedForMatch=active?data.assignments.filter(x=>String(x.matchId)===String(active.id)):[];
+
+  const recruit=async(id,standby)=>{
+    if(!active)return;
+    const d=data.dcos.find(x=>String(x.id)===String(id));if(!d)return;
+    if(!standby&&activeCount>=8){notify('Maximum 8 active DCO reached','warning');return;}
+    if(smcHasConflict(d,active,data.matches)){notify('DCO unavailable because of an overlapping match','warning');return;}
+    if(recruitments.some(x=>String(x.dcoId)===String(id)&&x.status==='active')){notify('DCO already recruited for this match','warning');return;}
+    const supervisorId=String(active.supervisorIds&&active.supervisorIds[0]||currentUser.supervisor_id||currentUser.id||localStorage.getItem('supervisor_id')||'');
+    const next=Object.assign({},data,{
+      recruitments:data.recruitments.concat([{id:'R'+Date.now()+id,matchId:active.id,dcoId:id,supervisorId,status:'active',standby}]),
+      dcos:data.dcos.map(x=>String(x.id)===String(id)?Object.assign({},x,{available:false,activeMatchIds:(x.activeMatchIds||[]).concat([active.id])}):x)
+    });
+    saveData(next);
+    try{
+      await apiFetch(SMC_API.recruit,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({match_id:active.id,dco_id:id,supervisor_id:supervisorId,standby})});
+      liveRef.current=true;setLive(true);notify(standby?'Emergency DCO placed on standby':'DCO recruited','success');
+    }catch(e){notify((standby?'Emergency DCO placed on standby':'DCO recruited')+' · demo fallback retained','warning');}
+  };
+
+  const assignPlayers=async()=>{
+    if(!active)return;
+    if(!selectedDco){notify('Select a recruited DCO','warning');return;}
+    if(selected.length<1){notify('Select at least one player','warning');return;}
+    if(selected.length>3){notify('Maximum 3 players per DCO per match','warning');return;}
+    const existing=assignedForMatch.filter(x=>String(x.dcoId)===String(selectedDco));
+    if(existing.length+selected.length>3){notify('This DCO already has players assigned for this match','warning');return;}
+    if(selected.some(pid=>existing.some(x=>String(x.playerId)===String(pid)))){notify('One or more selected players are already assigned to this DCO','warning');return;}
+    const next=Object.assign({},data,{assignments:data.assignments.concat(selected.map(pid=>({id:'A'+Date.now()+pid,matchId:active.id,dcoId:selectedDco,playerId:pid,status:'assigned'})))});
+    saveData(next);
+    const supervisorId=String(active.supervisorIds&&active.supervisorIds[0]||currentUser.supervisor_id||currentUser.id||localStorage.getItem('supervisor_id')||'');
+    try{await apiFetch(SMC_API.assign(active.id),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({match_id:active.id,supervisor_id:supervisorId,dco_id:selectedDco,player_ids:selected})});}
+    catch(e){notify('Players assigned · demo fallback retained','warning');}
+    setSelected([]);notify('Players assigned','success');
+  };
+
+  if(!active)return h('div',{className:'smc-shell'},h('div',{className:'smc-empty'},loading?'Loading assigned matches…':'No assigned matches available.'));
+  return h('div',{className:'smc-shell'},
+    h('div',{className:'smc-top'},
+      h('div',null,h('div',{className:'smc-eyebrow'},'EnejiStats · Match Operations'),h('div',{className:'smc-top-title'},'Supervisor Matchday Control'),h('small',null,'Recruit DCOs, assign players and monitor live match coverage')),
+      h('span',{className:'smc-badge '+(live?'ok':'warn')},h('span',{className:'smc-live-dot'}),live?'LIVE API SYNCHRONIZED':'DEMO FALLBACK ACTIVE')
+    ),
+    h('section',{className:'smc-selection'},
+      h('div',{className:'smc-row smc-between'},
+        h('label',{className:'smc-field',style:{flex:1,minWidth:'220px'}},h('span',null,'Active Match'),h('select',{value:active.id,onChange:e=>{matchIdRef.current=e.target.value;setMatchId(e.target.value);setSelected([]);setSelectedDco('');}},data.matches.map(x=>h('option',{key:x.id,value:x.id},x.home+' vs '+x.away+' · '+x.date+' '+x.time)))),
+        h('div',{className:'smc-match-venue'},h('div',{className:'smc-filter-label'},'Venue'),h('strong',null,active.venue||'—'),h('div',{className:'smc-muted'},[active.city,active.state,active.country].filter(Boolean).join(', ')||'—'))
+      )
+    ),
+    h('section',{className:'smc-stats'},
+      h('div',{className:'smc-stat'},h('div',{className:'smc-stat-label'},'Active DCOs'),h('div',{className:'smc-stat-value'},activeCount,h('small',{style:{fontSize:'.65rem',color:'var(--gray)'}},' / 8'))),
+      h('div',{className:'smc-stat'},h('div',{className:'smc-stat-label'},'Standby DCOs'),h('div',{className:'smc-stat-value'},recruitments.filter(x=>x.standby).length)),
+      h('div',{className:'smc-stat'},h('div',{className:'smc-stat-label'},'Players assigned'),h('div',{className:'smc-stat-value'},assignedForMatch.length)),
+      h('div',{className:'smc-stat'},h('div',{className:'smc-stat-label'},'Available pool'),h('div',{className:'smc-stat-value'},candidates.length))
+    ),
+    h('div',{className:'smc-tabs'},
+      [['recruit','Recruit DCO'],['assign','Assign Players'],['monitor','Realtime Monitor']].map(([key,label])=>h('button',{key,className:'smc-tab '+(tab===key?'active':''),onClick:()=>setTab(key)},label))
+    ),
+    tab==='recruit'&&h('div',{className:'smc-grid'},
+      h('section',{className:'smc-card'},
+        h('div',{className:'smc-section-head'},h('div',null,h('div',{className:'smc-kicker'},'Coverage pool'),h('h3',null,'Available DCOs'),h('div',{className:'smc-sub'},'Location and schedule filters are applied before recruitment.')),h('span',{className:'smc-badge info'},candidates.length+' ELIGIBLE')),
+        h('div',{className:'smc-filters'},['country','state','lga','city'].map(k=>h('label',{key:k},h('div',{className:'smc-filter-label'},k),h('input',{className:'smc-filter-input',placeholder:'Any '+k,value:filter[k],onInput:e=>setFilter(Object.assign({},filter,{[k]:e.target.value}))}))),
+        h('div',{className:'smc-scroll'},candidates.map(d=>h('div',{key:d.id,className:'smc-dco'},
+          h('div',{className:'smc-row smc-between'},h('strong',null,d.name),h('span',{className:'smc-badge ok'},'AVAILABLE')),
+          h('div',{className:'smc-muted'},[d.city,d.state,d.country].filter(Boolean).join(', ')),
+          h('div',{className:'smc-action-row'},h('span',{className:'smc-helper'},'Schedule clear for this fixture'),h('span',{className:'smc-row'},h('button',{className:'btn btn-primary btn-sm',onClick:()=>recruit(d.id,false)},'Recruit'),h('button',{className:'btn btn-secondary btn-sm',onClick:()=>recruit(d.id,true)},'Standby')))
+        )),candidates.length?null:h('div',{className:'smc-empty'},'No available DCOs match this location or schedule.'))
+      ),
+      h('section',{className:'smc-card'},
+        h('div',{className:'smc-section-head'},h('div',null,h('div',{className:'smc-kicker'},'Current coverage'),h('h3',null,'Recruited / Standby')),h('span',{className:'smc-badge'},activeCount+'/8 ACTIVE')),
+        recruitments.length?recruitments.map(r=>{const d=data.dcos.find(x=>String(x.id)===String(r.dcoId)),pc=assignedForMatch.filter(a=>String(a.dcoId)===String(r.dcoId)).length;return h('div',{key:r.id,className:'smc-dco'},h('div',{className:'smc-row smc-between'},h('strong',null,d&&d.name||r.dcoId),h('span',{className:'smc-badge '+(r.standby?'warn':'ok')},r.standby?'EMERGENCY STANDBY':'ACTIVE')),h('div',{className:'smc-meta'},h('span',null,d&&d.city||''),h('span',null,pc+'/3 players')));}):h('div',{className:'smc-empty'},'No DCOs recruited yet.')
+      )
+    ),
+    tab==='assign'&&h('div',{className:'smc-grid'},
+      h('section',{className:'smc-card'},
+        h('div',{className:'smc-section-head'},h('div',null,h('div',{className:'smc-kicker'},'Player coverage'),h('h3',null,'Match Players'),h('div',{className:'smc-sub'},'Select up to three players for the selected DCO.')),h('span',{className:'smc-badge '+(selected.length===3?'ok':'info')},selected.length+'/3 SELECTED')),
+        Object.keys(groups).length?Object.keys(groups).map(club=>h('div',{key:club,className:'smc-card',style:{padding:'.7rem',marginBottom:'.6rem'}},h('div',{className:'smc-kicker'},club),groups[club].map(p=>h('label',{key:p.id,className:'smc-player'},h('div',{className:'smc-row'},h('input',{type:'checkbox',checked:selected.includes(p.id),onChange:e=>{if(e.target.checked&&selected.length>=3){notify('Maximum 3 players per DCO per match','warning');return;}setSelected(e.target.checked?selected.concat([p.id]):selected.filter(x=>x!==p.id));}}),h('strong',null,p.name),h('span',{className:'smc-badge'},p.position||'—')))))):h('div',{className:'smc-empty'},'No players are attached to this match.')
+      ),
+      h('section',{className:'smc-card'},
+        h('div',{className:'smc-section-head'},h('div',null,h('div',{className:'smc-kicker'},'Assignment'),h('h3',null,'Assign Players to DCO')),
+        h('label',{className:'smc-field'},h('span',null,'Recruited DCO'),h('select',{value:selectedDco,onChange:e=>setSelectedDco(e.target.value)},h('option',{value:''},'Select recruited DCO'),recruitments.filter(r=>!r.standby).map(r=>{const d=data.dcos.find(x=>String(x.id)===String(r.dcoId)),pc=assignedForMatch.filter(a=>String(a.dcoId)===String(r.dcoId)).length;return h('option',{key:r.id,value:r.dcoId},(d&&d.name||r.dcoId)+' · '+pc+'/3 players');}))))),
+        h('div',{className:'smc-helper',style:{marginTop:'.6rem'}},'A DCO can cover a maximum of three players for this match.'),
+        h('div',{className:'smc-form-actions'},h('button',{className:'btn btn-primary',onClick:assignPlayers},'Assign Selected Players'))
+      )
+    ),
+    tab==='monitor'&&h('section',{className:'smc-card'},
+      h('div',{className:'smc-section-head'},h('div',null,h('div',{className:'smc-kicker'},'Live operations'),h('h3',null,'Realtime DCO Monitor'),h('div',{className:'smc-sub'},'Current assignments and coverage status for this fixture.')),h('span',{className:'smc-badge ok'},'MONITORING')),
+      recruitments.length?recruitments.map(r=>{
+        const d=data.dcos.find(x=>String(x.id)===String(r.dcoId)),a=assignedForMatch.filter(x=>String(x.dcoId)===String(r.dcoId));
+        return h('div',{key:r.id,className:'smc-monitor'},
+          h('div',{className:'smc-row smc-between'},
+            h('div',null,h('strong',null,d&&d.name||r.dcoId),h('div',{className:'smc-muted'},a.length+'/3 assigned players')),
+            h('span',{className:'smc-badge '+(r.standby?'warn':'ok')},r.standby?'STANDBY':'LIVE')
+          ),
+          h('div',{className:'smc-meta'},h('span',null,'Last activity '+new Date().toLocaleTimeString()),h('span',null,[d&&d.city,d&&d.state].filter(Boolean).join(' · ')))
+        );
+      }):h('div',{className:'smc-empty'},'No DCO activity has been recorded for this match.')
+    ),
+    h('div',{style:{display:'flex',justifyContent:'flex-end',marginTop:'.2rem'}},h('button',{className:'btn btn-secondary btn-sm',onClick:refresh,disabled:loading},h('i',{className:'fas fa-sync'}),' ',loading?'Refreshing…':'Refresh matchday data'))
+  );
+}
+
+/* ════════ SUPERVISOR APP — Role-enforced, no login overlay ════════ */
+
+/* ENEJISTATS REGISTER GEO CONTRACT — exact endpoint/reset semantics mirrored from register(5).html. */
+function useRegisterGeoCountries(){const [countries,setCountries]=useState([]);useEffect(()=>{let cancelled=false;const c=new AbortController();fetch('/api/public/countries',{credentials:'include',signal:c.signal}).then(r=>r.ok?r.json():Promise.reject(new Error('countries request failed'))).then(d=>{if(cancelled)return;const list=Array.isArray(d)?d:(d.countries||d.data||[]);setCountries(list.map(c=>({code:c.code||c.v||c.value||c.id,name:c.name||c.l||c.label||c.code||c.v||c.value||c.id,regionLabel:c.region_label||'State / Region',subregionLabel:c.subregion_label||'LGA / Local Area'})).filter(c=>c.code&&c.name));}).catch(e=>{if(e.name!=='AbortError')setCountries([])});return()=>{cancelled=true;c.abort()};},[]);return countries}
+function useRegisterGeoRegions(countryCode){const [items,setItems]=useState([]),[loading,setLoading]=useState(false),[label,setLabel]=useState('State / Region');useEffect(()=>{if(!countryCode){setItems([]);setLabel('State / Region');return}const c=new AbortController();setLoading(true);fetch('/api/public/countries/'+encodeURIComponent(String(countryCode).toUpperCase())+'/regions',{credentials:'include',signal:c.signal}).then(r=>r.ok?r.json():Promise.reject(new Error('regions request failed'))).then(d=>{const a=Array.isArray(d)?d:(d.regions||[]);setItems(a.map(x=>typeof x==='string'?x:(x?.name||x?.state||x?.region||'')).filter(Boolean));setLabel(d.region_label||'State / Region')}).catch(e=>{if(e.name!=='AbortError')setItems([])}).finally(()=>{if(!c.signal.aborted)setLoading(false)});return()=>c.abort()},[countryCode]);return [items,loading,label]}
+function useRegisterGeoSubregions(countryCode,region){const [items,setItems]=useState([]),[loading,setLoading]=useState(false),[label,setLabel]=useState('LGA / Local Area');useEffect(()=>{if(!countryCode||!region){setItems([]);setLabel('LGA / Local Area');return}const c=new AbortController();setLoading(true);fetch('/api/public/countries/'+encodeURIComponent(String(countryCode).toUpperCase())+'/regions/'+encodeURIComponent(region)+'/subregions',{credentials:'include',signal:c.signal}).then(r=>r.ok?r.json():Promise.reject(new Error('subregions request failed'))).then(d=>{const a=Array.isArray(d)?d:(d.subregions||[]);setItems(a.map(x=>typeof x==='string'?x:(x?.name||x?.lga||x?.subregion||'')).filter(Boolean));setLabel(d.subregion_label||'LGA / Local Area')}).catch(e=>{if(e.name!=='AbortError')setItems([])}).finally(()=>{if(!c.signal.aborted)setLoading(false)});return()=>c.abort()},[countryCode,region]);return [items,loading,label]}
+
+function App() {
+  const [authReady, setAuthReady] = useState(false);
+  const [authError, setAuthError] = useState(null);
+  const [activeNav, setActiveNav] = useState('overview');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState({name:'',id:'',scout_id:'',photo:'',state:'',email:'',phone:'',created_at:'',tier:1,tierProgress:0,subRole:'supervisor',dcosCount:0,totalMatchesSupervised:0,totalApprovals:0});
+  const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
+  const [notifCount, setNotifCount] = useState(0);
+
+  useEffect(() => {
+    async function init() {
+      try {
+        const me = await apiFetch(API_CONFIG.authMe);
+        const role = me.sub_role || me.role || '';
+        if (role !== 'supervisor') {
+          setAuthError('Access denied. This dashboard is for Supervisors only.');
+          return;
+        }
+        setCurrentUser({
+          id: me.supervisor_id||me.user_id||me._id||'',
+          name: me.name||me.full_name||'Supervisor',
+          email: me.email||'',
+          scout_id: me.supervisor_id||me.scout_id||me.user_id||'',
+          photo: me.photo||me.profileImage||'',
+          state: me.state||'',
+          lga: me.lga||'',
+          phone: me.phone||'',
+          created_at: me.created_at||'',
+          tier: me.tier||1,
+          tierProgress: me.tierProgress||me.tier_progress||0,
+          subRole: 'supervisor',
+          dcosCount: me.dcosCount||0,
+          totalMatchesSupervised: me.totalMatchesSupervised||0,
+          totalApprovals: me.totalApprovals||0,
+          languages: me.languages||''
+        });
+        setAuthReady(true);
+      } catch(e) {
+        if (e.status === 401 || e.status === 403) {
+          localStorage.clear(); sessionStorage.clear();
+          window.location.replace('/login');
+        } else {
+          setAuthError('Unable to load dashboard. Please check your connection and try again.');
+        }
+      }
+    }
+    init();
+  }, []);
+
+  useEffect(() => {
+    if (!authReady || !currentUser.id) return;
+    const loadData = async () => {
+      try {
+        const [pa, notifs] = await Promise.allSettled([
+          apiFetch(API_CONFIG.supPendingApprovals(currentUser.id)),
+          apiFetch(API_CONFIG.supNotifications(currentUser.id))
+        ]);
+        if(pa.status==='fulfilled') {
+          const list = Array.isArray(pa.value)?pa.value:(pa.value?.submissions||[]);
+          setPendingApprovalsCount(list.length);
+        }
+        if(notifs.status==='fulfilled') {
+          const n=Array.isArray(notifs.value)?notifs.value:(notifs.value.notifications||[]);
+          setNotifCount(n.filter(x=>!x.read).length);
+        }
+      } catch {}
+    };
+    loadData();
+    const iv = setInterval(loadData, 30000);
+    return ()=>clearInterval(iv);
+  }, [authReady, currentUser.id]);
+
+  useEffect(() => {
+    if (!authReady || !currentUser.id) return;
+    let timer;
+    const INACTIVITY_MS = 10 * 60 * 1000;
+    const reset = () => { clearTimeout(timer); timer = setTimeout(() => { handleLogout(); }, INACTIVITY_MS); };
+    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+    events.forEach(ev => window.addEventListener(ev, reset, { passive: true }));
+    reset();
+    return () => { clearTimeout(timer); events.forEach(ev => window.removeEventListener(ev, reset)); };
+  }, [authReady, currentUser.id]);
+
+  const handleLogout = async () => {
+    try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); } catch(e) {}
+    localStorage.clear();
+    sessionStorage.clear();
+    window.location.replace('/login');
+  };
+
+  const handleSetActiveNav = (nav) => {
+    setActiveNav(nav);
+    setSidebarOpen(false);
+  };
+
+  if (authError) return h('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',flexDirection:'column',gap:'1rem',padding:'2rem',background:'#f0f2f5'}},
+    h('div',{style:{fontSize:'1.5rem',fontWeight:700,color:'var(--danger)'}},h('i',{className:'fas fa-exclamation-circle'}),' Access Denied'),
+    h('div',{style:{color:'var(--gray)',textAlign:'center',maxWidth:'400px'}},authError),
+    h('a',{href:'/login',className:'btn btn-primary',style:{marginTop:'1rem'}},h('i',{className:'fas fa-sign-in-alt'}),' Go to Login')
+  );
+
+  const navItems = [
+    {key:'overview',icon:'fa-home',label:'Overview'},
+    {key:'profile',icon:'fa-user',label:'My Profile'},
+    {key:'my-dcos',icon:'fa-users',label:'My DCOs'},
+    {key:'live-monitoring',icon:'fa-broadcast-tower',label:'Live Monitoring'},
+     {key:'matchday-control',icon:'fa-satellite-dish',label:'Matchday Control'},
+    {key:'sup-assignments',icon:'fa-clipboard-list',label:'Assignments'},
+    {key:'pending-approvals',icon:'fa-check-circle',label:'Pending Approvals',badge:pendingApprovalsCount||null},
+    {key:'submissions-history',icon:'fa-history',label:'Submissions History'},
+    {key:'sup-payout',icon:'fa-wallet',label:'Payout & Earnings'},
+    {key:'subscription',icon:'fa-crown',label:'Subscription'},
+    {key:'notifications',icon:'fa-bell',label:'Notifications',badge:notifCount||null},
+    {key:'support',icon:'fa-headset',label:'Support / Customer Care'},
+    {key:'settings',icon:'fa-cog',label:'Settings'},
+  ];
+
+  const initials = (currentUser.name||'SV').split(' ').map(n=>n[0]).join('').toUpperCase();
+  const tierPct = ((currentUser.tierProgress||0)/100)*100;
+
+  const renderContent = () => {
+    if (!authReady) return h('div',{className:'empty-state',style:{paddingTop:'4rem'}},
+      h('div',{className:'loading-spinner',style:{width:'48px',height:'48px',border:'4px solid rgba(0,74,173,0.2)',borderTopColor:'var(--primary)',margin:'0 auto 1rem'}}),
+      h('p',null,'Loading your dashboard...')
+    );
+    switch(activeNav) {
+      case 'overview': return h(SupervisorOverview,{currentUser,setActiveNav:handleSetActiveNav});
+      case 'profile': return h(SupervisorProfile,{currentUser,setCurrentUser});
+      case 'my-dcos': return h(SupervisorDCOs,{currentUser,onViewLiveMonitoring:()=>setActiveNav('live-monitoring')});
+      case 'live-monitoring': return h(LiveMonitoring,{currentUser});
+       case 'matchday-control': return h(SupervisorMatchdayControl,{currentUser});
+      case 'sup-assignments': return h(SupervisorAssignments,{currentUser});
+      case 'pending-approvals': return h(PendingApprovals,{currentUser});
+      case 'submissions-history': return h(SubmissionsHistory,{currentUser});
+      case 'sup-payout': return h(SupervisorPayout,{currentUser});
+      case 'subscription': return h(SubscriptionTab,{userId:currentUser.id,userRole:'supervisor',user:currentUser,apiBase:`/api/supervisor/${currentUser.id}`,showNotification:showScoutNotification});
+      case 'notifications': return h(NotificationsTab,{currentUser});
+      case 'support': return h(SupportTab,{currentUser});
+      case 'settings': return h(SettingsTab,{currentUser,setCurrentUser});
+      default: return h(SupervisorOverview,{currentUser,setActiveNav:handleSetActiveNav});
+    }
+  };
+
+  return h('div',{className:'app-layout'},
+    h('div',{className:`sidebar-overlay ${sidebarOpen?'active':''}`,onClick:()=>setSidebarOpen(false)}),
+    h('nav',{className:`sidebar ${sidebarOpen?'open':''}`},
+      h('div',{className:'sidebar-header'},
+        h('div',{className:'sidebar-brand'},
+          h('span',{style:{fontWeight:'900',letterSpacing:'1px',color:'white',fontSize:'1.1rem'}},'EnejiStats'),
+          h('button',{style:{marginLeft:'auto',background:'transparent',border:'none',color:'rgba(255,255,255,0.6)',cursor:'pointer',fontSize:'1.1rem'},onClick:()=>setSidebarOpen(false)},'✕')
+        ),
+        h('div',{style:{fontSize:'0.62rem',color:'rgba(255,255,255,0.6)',marginBottom:'0.5rem',fontStyle:'italic'}},'Tracking talent with precision, integrity and reliability'),
+        h('div',{className:'sidebar-user'},
+          h('div',{className:'sidebar-avatar'},currentUser.photo?h('img',{src:currentUser.photo,alt:currentUser.name}):initials),
+          h('div',{className:'sidebar-user-info'},
+            h('div',{className:'sidebar-user-name'},currentUser.name||'Supervisor'),
+            h('div',{className:'sidebar-role-badge'},'Supervisor')
+          )
+        )
+      ),
+      h('div',{className:'sidebar-tier-section'},
+        h('div',{className:'tier-badge-row'},
+          h('span',{className:'tier-badge'},`Tier ${currentUser.tier||1}`),
+          pendingApprovalsCount>0&&h('span',{style:{fontSize:'0.7rem',color:'rgba(255,255,255,0.7)'}},pendingApprovalsCount,' pending')
+        ),
+        h('div',{className:'tier-progress-bar'},h('div',{className:'tier-progress-fill',style:{width:tierPct+'%'}})),
+        h('div',{className:'tier-progress-label'},`${currentUser.tierProgress||0}% to Tier ${(currentUser.tier||1)+1}`)
+      ),
+      h('div',{className:'sidebar-meta'},
+        h('div',{className:'sidebar-meta-item'},h('i',{className:'fas fa-users'}),h('span',{className:'sidebar-meta-val'},'DCOs: '+(currentUser.dcosCount||0)+' / 11'))
+      ),
+      h('div',{className:'sidebar-nav'},
+        navItems.map(item=>h('div',{key:item.key,className:`nav-item ${activeNav===item.key?'active':''}`,onClick:()=>handleSetActiveNav(item.key)},
+          h('i',{className:`fas ${item.icon}`}),
+          h('span',{className:'nav-item-label'},item.label),
+          item.badge&&h('span',{className:'nav-badge'},item.badge)
+        )),
+        h('div',{className:'nav-separator'}),
+        h('div',{className:'nav-item',onClick:handleLogout},h('i',{className:'fas fa-sign-out-alt'}),h('span',{className:'nav-item-label'},'Logout'))
+      )
+    ),
+
+    h('div',{className:'main-content'},
+      h('header',{className:'dashboard-header'},
+        h('div',{className:'header-left'},
+          h('button',{className:'hamburger-btn',onClick:()=>setSidebarOpen(!sidebarOpen)},h('i',{className:'fas fa-bars'})),
+          h('div',{className:'header-logo'},'EnejiStats'),
+          h('span',{className:'header-subtitle'},'Supervisor Dashboard')
+        ),
+        h('div',{className:'header-right'},
+          notifCount>0&&h('div',{style:{position:'relative',cursor:'pointer'},onClick:()=>handleSetActiveNav('notifications')},
+            h('i',{className:'fas fa-bell',style:{fontSize:'1.2rem',color:'rgba(255,255,255,0.85)'}}),
+            h('span',{style:{position:'absolute',top:'-5px',right:'-5px',background:'var(--danger)',color:'white',borderRadius:'50%',width:'16px',height:'16px',fontSize:'0.6rem',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700}},notifCount)
+          ),
+          pendingApprovalsCount>0&&h('div',{style:{cursor:'pointer',background:'rgba(255,193,7,0.2)',border:'1px solid rgba(255,193,7,0.4)',borderRadius:'6px',padding:'4px 10px',fontSize:'0.78rem',fontWeight:700,color:'var(--gold)'},onClick:()=>handleSetActiveNav('pending-approvals')},
+            h('i',{className:'fas fa-clock'}),' ',pendingApprovalsCount,' Pending'
+          ),
+          h('button',{className:'header-logout-btn',onClick:handleLogout},h('i',{className:'fas fa-sign-out-alt'}),' Logout')
+        )
+      ),
+      h('main',{className:'page-content'},
+        renderContent()
+      )
+    )
+  );
+}
+
+render(h(App,null), document.getElementById('root'));
+</script>
+
+<script>(function(){
+'use strict';
+if(window.__EnejiStatsEcosystemBridge)return;
+window.__EnejiStatsEcosystemBridge=true;
+const KEY='eneji-matchday-shared-v1',CHANNEL='eneji-matchday-sync-v1',VERSION=2;
+let bc=null,lastRemoteStamp='';
+function read(){try{const x=JSON.parse(localStorage.getItem(KEY)||'{}');return x&&typeof x==='object'?x:{};}catch(e){return {};}}
+function arr(d,keys){if(Array.isArray(d))return d;for(const k of keys||[])if(Array.isArray(d&&d[k]))return d[k];return [];}
+function str(v){return v===null||v===undefined?'':String(v).trim();}
+function rowType(x){return str(x&&((x.assignment_id||x.assignmentId)?'assignment':(x.submission_id||x.submissionId)?'submission':(x.stats_request_id||x.statsRequestId||x.request_id||x.requestId)?'request':(x.match_id||x.matchId)?'match':''));}
+function rowKey(x){if(!x||typeof x!=='object')return String(x||'');const t=rowType(x),id=str(x.id||x._id),aid=str(x.assignment_id||x.assignmentId),sid=str(x.submission_id||x.submissionId),rid=str(x.stats_request_id||x.statsRequestId||x.request_id||x.requestId),mid=str(x.match_id||x.matchId||x.match&&x.match.id),pid=str(x.player_id||x.playerId||x.player&&x.player.id),did=str(x.dco_id||x.dcoId);return (t||'row')+':'+(aid||sid||rid||mid||pid||did||id||JSON.stringify(x));}
+function mergeRows(a,b){const map=new Map((Array.isArray(a)?a:[]).map(x=>[rowKey(x),x]));(Array.isArray(b)?b:[]).forEach(x=>{const k=rowKey(x),old=map.get(k),next=Object.assign({},old||{},x);['players','supervisorIds','supervisor_ids','activeMatchIds','events','actions','assignmentIds','assignment_ids'].forEach(p=>{if(Array.isArray(old&&old[p])&&Array.isArray(x&&x[p])&&!x[p].length&&old[p].length)next[p]=old[p];});map.set(k,next);});return Array.from(map.values());}
+function publish(patch,source){const cur=read(),next=Object.assign({},cur,{schemaVersion:VERSION});Object.keys(patch||{}).forEach(k=>{next[k]=Array.isArray(patch[k])?mergeRows(next[k],patch[k]):patch[k];});next.updatedAt=Date.now();next.lastSource=source||document.title||'dashboard';try{localStorage.setItem(KEY,JSON.stringify(next));}catch(e){}try{if(!bc&&'BroadcastChannel'in window)bc=new BroadcastChannel(CHANNEL);if(bc)bc.postMessage({type:'ecosystem-update',updatedAt:next.updatedAt,source:next.lastSource});}catch(e){}window.dispatchEvent(new CustomEvent('enejistats:ecosystem-updated',{detail:next}));return next;}
+function notify(){window.dispatchEvent(new CustomEvent('enejistats:ecosystem-updated',{detail:read()}));}
+window.EnejiStatsEcosystem={version:VERSION,key:KEY,read,publish,mergeRows,notify};
+async function api(path,options){const r=await fetch(path,Object.assign({credentials:'include',cache:'no-store'},options||{}));if(!r.ok)throw new Error('HTTP '+r.status);const t=await r.text();if(!t)return {};try{return JSON.parse(t);}catch(e){return {};}}
+const title=(document.title||'').toLowerCase(),isDco=title.includes('stats tracker'),isSupervisor=title.includes('supervisor dashboard'),isMatchCentre=title.includes('match centre');
+async function syncDco(){try{const [a,s]=await Promise.allSettled([api('/api/dco/assignments'),api('/api/dco/submissions')]);const assignments=a.status==='fulfilled'?arr(a.value,['assignments','results','data']):[];const submissions=s.status==='fulfilled'?arr(s.value,['submissions','results','data']):[];if(assignments.length||submissions.length)publish({assignments,stats:submissions,submissions},'dco');}catch(e){}}
+async function syncSupervisor(){try{const [m,d,a,s]=await Promise.allSettled([api('/api/supervisor/matches'),api('/api/supervisor/available-dcos'),api('/api/admin/assignments?limit=200'),api('/api/dco/submissions')]);const matches=m.status==='fulfilled'?arr(m.value,['matches','results','data']):[];const dcos=d.status==='fulfilled'?arr(d.value,['dcos','users','results','data']):[];const assignments=a.status==='fulfilled'?arr(a.value,['assignments','results','data']):[];const submissions=s.status==='fulfilled'?arr(s.value,['submissions','results','data']):[];if(matches.length||dcos.length||assignments.length||submissions.length)publish({matches,dcos,assignments,stats:submissions,submissions},'supervisor');}catch(e){}}
+async function syncMatchCentre(){try{const [m,r,s,a,d]=await Promise.allSettled([api('/api/admin/matches'),api('/api/admin/stats-requests/all?limit=200'),api('/api/admin/supervisors'),api('/api/admin/assignments?limit=200'),api('/api/dco/submissions')]);const matches=m.status==='fulfilled'?arr(m.value,['matches','results','data']):[];const requests=r.status==='fulfilled'?arr(r.value,['requests','stats_requests','results','data']):[];const supervisors=s.status==='fulfilled'?arr(s.value,['supervisors','results','data']):[];const assignments=a.status==='fulfilled'?arr(a.value,['assignments','results','data']):[];const submissions=d.status==='fulfilled'?arr(d.value,['submissions','results','data']):[];if(matches.length||requests.length||supervisors.length||assignments.length||submissions.length)publish({matches,requests,statsRequests:requests,supervisors,assignments,stats:submissions,submissions},'match-centre');}catch(e){}}
+async function sync(){if(isDco)await syncDco();else if(isSupervisor)await syncSupervisor();else if(isMatchCentre)await syncMatchCentre();notify();}
+function onUpdate(){const shared=read();if(String(shared.updatedAt||'')===lastRemoteStamp)return;lastRemoteStamp=String(shared.updatedAt||'');notify();try{if(isDco&&typeof window.loadLiveData==='function')window.loadLiveData();if(isMatchCentre){if(typeof window.mcPullBroadcast==='function')window.mcPullBroadcast();if(typeof window.loadStatsRequests==='function')window.loadStatsRequests();if(typeof window.loadAssignments==='function')window.loadAssignments();if(typeof window.mcRender==='function')window.mcRender();}}catch(e){}}
+window.addEventListener('storage',e=>{if(e.key===KEY)onUpdate();});try{if('BroadcastChannel'in window){bc=new BroadcastChannel(CHANNEL);bc.addEventListener('message',onUpdate);}}catch(e){}
+sync();setInterval(sync,15000);
+})();</script>
+</body>
+</html>

@@ -1,0 +1,2475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+<title>EnejiStats — Scout Dashboard</title>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
+<script>
+window.addEventListener('pageshow',function(e){
+  if(e.persisted){
+    fetch('/api/auth/me',{credentials:'include',cache:'no-store'})
+      .then(function(r){if(!r.ok)window.location.replace('/login');})
+      .catch(function(){window.location.replace('/login');});
+  }
+});
+</script>
+<script src="https://unpkg.com/preact@10.19.3/dist/preact.umd.js"></script>
+<script src="https://unpkg.com/preact@10.19.3/hooks/dist/hooks.umd.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<style>
+:root{
+  --primary:#004aad;--primary-l:#0066cc;--gold:#ffd700;
+  --dark:#1e1e2f;--dark2:#252537;--dark3:#2e2e45;
+  --success:#22c55e;--warning:#f59e0b;--danger:#ef4444;--info:#38bdf8;--orange:#fd7e14;
+  --muted:#6b7280;--text:#e2e8f0;--text2:#94a3b8;
+  --border:rgba(255,255,255,.08);--radius:10px;--sidebar:260px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--dark);color:var(--text);min-height:100vh;font-size:14px;overflow-x:hidden}
+button{cursor:pointer;font-family:inherit}
+input,select,textarea{font-family:inherit}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--dark)}
+::-webkit-scrollbar-thumb{background:var(--dark3);border-radius:3px}
+
+/* ─── AUTH GATE ─── */
+#auth-gate{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--dark);gap:16px;text-align:center;padding:20px}
+#auth-gate .brand{font-size:28px;font-weight:900;letter-spacing:2px}
+#auth-gate .brand span{color:var(--gold)}
+#auth-gate .spinner{width:32px;height:32px;border:3px solid rgba(255,255,255,.15);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite}
+#auth-gate .gate-msg{color:var(--text2);font-size:13px}
+#auth-gate .gate-err{color:var(--danger);font-size:14px;font-weight:600}
+
+/* ─── LAYOUT ─── */
+#app{display:none;min-height:100vh}
+.layout{display:flex;min-height:100vh}
+
+/* ─── SIDEBAR ─── */
+.sidebar{width:var(--sidebar);background:var(--dark2);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:200;transform:translateX(-100%);transition:transform .3s;overflow-y:auto}
+.sidebar.open{transform:translateX(0)}
+@media(min-width:900px){.sidebar{transform:translateX(0)!important}}
+#sb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:190}
+#sb-overlay.show{display:block}
+@media(min-width:900px){#sb-overlay{display:none!important}}
+
+.sb-head{padding:18px 16px 14px;border-bottom:1px solid var(--border);text-align:center}
+.sb-av{width:64px;height:64px;border-radius:50%;border:3px solid var(--gold);background:var(--dark3);display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--gold);margin:0 auto 8px;overflow:hidden}
+.sb-av img{width:100%;height:100%;object-fit:contain}
+.sb-name{font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;gap:4px}
+.sb-type{font-size:10px;color:var(--gold);display:block;margin:2px 0 5px;text-transform:uppercase;letter-spacing:.5px}
+.sb-affil{font-size:11px;background:rgba(0,74,173,.2);border:1px solid rgba(0,74,173,.4);color:var(--text2);padding:2px 8px;border-radius:20px;display:inline-block;margin-bottom:6px}
+.spill{display:inline-block;padding:2px 10px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase}
+.spill.trial{background:var(--orange);color:#fff}
+.spill.active{background:var(--success);color:#fff}
+.spill.expired,.spill.trial_expired{background:var(--danger);color:#fff}
+.spill.grace_period{background:var(--warning);color:#000}
+.sb-wl{font-size:11px;color:var(--text2);margin-top:6px}
+.wl-count{background:var(--gold);color:var(--dark);font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px}
+
+.sb-nav{list-style:none;padding:8px 0;flex:1}
+.ni{display:flex;align-items:center;gap:10px;padding:11px 18px;cursor:pointer;color:var(--text2);font-size:13px;transition:all .2s;border-left:3px solid transparent}
+.ni:hover{background:var(--dark3);color:var(--text)}
+.ni.active{background:rgba(0,74,173,.2);color:var(--gold);border-left-color:var(--gold)}
+.ni i{width:18px;text-align:center;font-size:14px}
+.ni-badge{background:var(--danger);color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:700;margin-left:auto;display:none}
+.ni-badge.show{display:inline-block}
+.ni.logout{color:#ff6b6b}
+.ni.logout:hover{background:rgba(220,53,69,.1)}
+.sb-foot{padding:16px;border-top:1px solid var(--border);text-align:center;font-size:10px;color:var(--muted)}
+
+/* ─── MAIN ─── */
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+@media(min-width:900px){.main{margin-left:var(--sidebar)}}
+
+/* ─── TOPBAR ─── */
+.topbar{position:sticky;top:0;z-index:100;background:linear-gradient(135deg,var(--dark) 0%,var(--primary) 100%);padding:0 16px;height:56px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 12px rgba(0,0,0,.4)}
+.hamburger{background:none;border:none;color:var(--text);font-size:20px;padding:6px;display:flex;align-items:center}
+@media(min-width:900px){.hamburger{display:none}}
+.tb-brand{font-weight:900;font-size:16px;color:#fff;display:flex;align-items:center;gap:6px}
+.tb-brand span{color:var(--gold)}
+.tb-title{font-size:12px;color:rgba(255,255,255,.7);border-left:1px solid rgba(255,255,255,.2);padding-left:12px;margin-left:2px;display:none}
+@media(min-width:500px){.tb-title{display:block}}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.tb-av{width:36px;height:36px;border-radius:50%;border:2px solid var(--gold);background:var(--dark3);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--gold);overflow:hidden;flex-shrink:0}
+.tb-av img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.tb-name{font-size:12px;font-weight:700;display:none;align-items:center;gap:4px;color:#fff}
+@media(min-width:600px){.tb-name{display:flex}}
+.role-badge{background:var(--gold);color:var(--dark);font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px}
+.logout-btn{background:rgba(220,53,69,.2);border:1px solid var(--danger);color:#ff6b6b;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600}
+.logout-btn:hover{background:var(--danger);color:#fff}
+
+/* ─── BANNERS ─── */
+.banner{padding:10px 16px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.banner.trial{background:linear-gradient(90deg,#fd7e14,#e06c10);color:#fff}
+.banner.grace{background:linear-gradient(90deg,#ffc107,#e0a800);color:#000}
+.banner.expired{background:linear-gradient(90deg,#dc3545,#b02a37);color:#fff}
+.banner-btn{background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.5);color:inherit;padding:4px 12px;border-radius:5px;font-size:12px;font-weight:700;cursor:pointer;margin-left:auto}
+
+/* ─── CONTENT ─── */
+.content{flex:1;padding:16px}
+@media(min-width:900px){.content{padding:20px 24px}}
+.page{display:none;max-width:1100px;margin:0 auto}
+.page.active{display:block}
+
+/* ─── PAGE HEADER ─── */
+.page-title{font-size:20px;font-weight:800;margin-bottom:4px}
+.page-sub{color:var(--text2);font-size:13px;margin-bottom:18px}
+
+/* ─── CARD ─── */
+.card{background:var(--dark2);border-radius:var(--radius);padding:16px;margin-bottom:16px;border:1px solid var(--border)}
+.card-title{font-size:15px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:10px}
+.card-title i{color:var(--gold)}
+
+/* ─── STATS ─── */
+.stats-row{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px}
+@media(min-width:500px){.stats-row{grid-template-columns:repeat(4,1fr)}}
+.stat-box{background:var(--dark2);border-radius:var(--radius);padding:14px;text-align:center;border:1px solid var(--border);position:relative;overflow:hidden}
+.stat-box::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.stat-box.blue::before{background:var(--primary-l)}
+.stat-box.green::before{background:var(--success)}
+.stat-box.orange::before{background:var(--orange)}
+.stat-box.gold::before{background:var(--gold)}
+.stat-box.red::before{background:var(--danger)}
+.stat-num{font-size:28px;font-weight:900;line-height:1}
+.stat-lbl{font-size:11px;color:var(--text2);margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
+
+/* ─── ACTIVITY ─── */
+.activity-item{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
+.activity-item:last-child{border-bottom:none}
+.activity-icon{width:34px;height:34px;border-radius:50%;background:rgba(0,74,173,.2);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--gold);flex-shrink:0}
+.activity-body{flex:1;min-width:0}
+.activity-title{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.activity-time{font-size:11px;color:var(--text2)}
+
+/* ─── PLAYER ROW ─── */
+.player-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
+.player-row:last-child{border-bottom:none}
+.pav{width:42px;height:42px;border-radius:50%;background:var(--dark3);display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--text2);flex-shrink:0;overflow:hidden}
+.pav img{width:100%;height:100%;object-fit:cover}
+.pinfo{flex:1;min-width:0}
+.pname{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pmeta{font-size:12px;color:var(--text2);margin-top:2px}
+
+/* ─── PLAYER CARDS GRID ─── */
+.results-grid{display:grid;grid-template-columns:1fr;gap:14px}
+@media(min-width:600px){.results-grid{grid-template-columns:1fr 1fr}}
+@media(min-width:1000px){.results-grid{grid-template-columns:1fr 1fr 1fr}}
+
+.player-card{background:var(--dark2);border:1px solid var(--border);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px;transition:border .2s}
+.player-card:hover{border-color:var(--primary-l)}
+.pc-head{display:flex;align-items:center;gap:12px}
+.pc-photo{width:72px;height:72px;border-radius:50%;border:2px solid var(--border);background:var(--dark3);display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--text2);flex-shrink:0;overflow:hidden}
+.pc-photo img{width:100%;height:100%;object-fit:contain}
+.pc-info{flex:1;min-width:0}
+.pc-name{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px}
+.pc-meta{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-top:3px}
+.pc-stats{display:flex;flex-wrap:wrap;gap:6px}
+.stat-pill{font-size:11px;background:rgba(255,255,255,.05);border:1px solid var(--border);padding:3px 9px;border-radius:20px;display:flex;align-items:center;gap:4px}
+.stat-pill b{color:var(--gold)}
+.pc-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* ─── WATCHLIST ENTRIES ─── */
+.wl-entry{background:var(--dark2);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;gap:12px;align-items:flex-start;margin-bottom:10px;transition:border .2s}
+.wl-entry:hover{border-color:var(--primary-l)}
+.wl-photo{width:48px;height:48px;border-radius:50%;border:2px solid var(--border);background:var(--dark3);display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--text2);flex-shrink:0;overflow:hidden}
+.wl-photo img{width:100%;height:100%;object-fit:cover}
+.wl-body{flex:1;min-width:0}
+.wl-name{font-size:14px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.wl-meta{font-size:12px;color:var(--text2);margin-bottom:4px}
+.wl-dur{font-size:11px;color:var(--text2);margin-bottom:6px}
+.wl-stats{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.wl-actions{display:flex;gap:6px;flex-wrap:wrap}
+
+/* ─── REPORTS ─── */
+.report-item{display:flex;align-items:center;gap:14px;padding:14px;background:var(--dark2);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;transition:border .2s}
+.report-item:hover{border-color:var(--primary-l)}
+.report-icon{width:44px;height:44px;border-radius:10px;background:rgba(0,74,173,.2);display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--gold);flex-shrink:0}
+.report-info{flex:1;min-width:0}
+.report-title{font-size:14px;font-weight:700;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.report-meta{font-size:12px;color:var(--text2)}
+.report-actions{display:flex;gap:6px;flex-shrink:0}
+
+/* ─── BADGES ─── */
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;text-transform:uppercase}
+.badge-active{background:rgba(34,197,94,.15);color:#4ade80}
+.badge-expiring{background:rgba(245,158,11,.15);color:#fbbf24}
+.badge-expired{background:rgba(239,68,68,.15);color:#f87171}
+.pos-badge{display:inline-block;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:700}
+.pos-att{background:rgba(229,62,62,.2);color:#fc8181}
+.pos-mid{background:rgba(0,102,204,.2);color:#63b3ed}
+.pos-def{background:rgba(56,161,105,.2);color:#68d391}
+.pos-gk{background:rgba(255,215,0,.2);color:var(--gold)}
+.chip{font-size:10px;padding:2px 8px;border-radius:20px;border:1px solid var(--border);color:var(--text2);background:rgba(255,255,255,.04)}
+.chip.free{background:rgba(253,126,20,.15);color:#fbd38d;border-color:var(--orange)}
+.status-chip{font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px}
+.status-chip.active{background:rgba(34,197,94,.15);color:#4ade80;border:1px solid var(--success)}
+.status-chip.review{background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid var(--warning)}
+.btn-wl{background:none;border:1px solid var(--border);color:var(--text2);padding:5px 10px;border-radius:7px;font-size:12px;display:flex;align-items:center;gap:5px;transition:all .2s}
+.btn-wl.active{color:var(--gold);border-color:var(--gold);background:rgba(255,215,0,.08)}
+.btn-wl:hover{border-color:var(--gold);color:var(--gold)}
+
+/* ─── BUTTONS ─── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:7px;font-weight:700;font-size:13px;cursor:pointer;border:none;font-family:inherit;transition:all .18s}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-l)}
+.btn-gold{background:var(--gold);color:#000}
+.btn-gold:hover{background:#e6c200}
+.btn-danger{background:rgba(239,68,68,.12);border:1px solid var(--danger);color:#f87171}
+.btn-danger:hover{background:var(--danger);color:#fff}
+.btn-ghost{background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text2)}
+.btn-ghost:hover{background:rgba(255,255,255,.12);color:#fff}
+.btn-outline{background:transparent;border:1.5px solid var(--border);color:var(--text2)}
+.btn-outline:hover{border-color:var(--primary-l);color:var(--text)}
+.btn-secondary{background:var(--dark3);border:1px solid var(--border);color:var(--text2)}
+.btn-secondary:hover{border-color:var(--primary-l);color:var(--text)}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-xs{padding:3px 8px;font-size:11px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-full{width:100%;justify-content:center}
+
+/* ─── FORMS ─── */
+.form-group{margin-bottom:14px}
+.form-label{display:block;font-size:11px;font-weight:700;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.3px}
+.form-input{width:100%;padding:9px 12px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:13px;outline:none}
+.form-input:focus{border-color:var(--primary)}
+.form-input::placeholder{color:#475569}
+textarea.form-input{resize:vertical;min-height:80px}
+select.form-input option{background:var(--dark)}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:600px){.form-grid{grid-template-columns:1fr}}
+.char-count{font-size:11px;color:var(--text2);text-align:right;margin-top:2px}
+
+/* ─── FILTERS ─── */
+.search-bar{position:relative;margin-bottom:14px}
+.search-bar input{padding-left:38px!important}
+.search-bar .search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text2);pointer-events:none}
+.filter-toggle{background:var(--dark3);border:1px solid var(--border);color:var(--text);padding:9px 14px;border-radius:7px;font-size:13px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:all .2s;margin-bottom:14px;width:100%}
+.filter-toggle:hover{border-color:var(--primary-l)}
+.filter-panel{background:var(--dark3);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:14px}
+.filter-section-title{font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+.filter-section-title:first-child{margin-top:0}
+.range-row{display:flex;gap:8px;align-items:center}
+.range-row span{font-size:12px;color:var(--text2);flex-shrink:0}
+.multi-select{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.multi-select label{display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--dark);border:1px solid var(--border);padding:4px 10px;border-radius:20px;transition:all .2s}
+.multi-select label.checked{background:rgba(0,74,173,.25);border-color:var(--primary);color:var(--text)}
+
+/* ─── TABLE ─── */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:8px 10px;color:var(--text2);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border)}
+td{padding:10px;border-bottom:1px solid rgba(255,255,255,.04);color:var(--text2);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+
+/* ─── COMPARISON TABLE ─── */
+.comparison-wrapper{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.comparison-table{border-collapse:collapse;min-width:100%}
+.comparison-table th,.comparison-table td{padding:10px 12px;border:1px solid var(--border);text-align:center;font-size:13px}
+.comparison-table th{background:var(--dark3);font-weight:700;font-size:12px}
+.comparison-table .cat-row td{background:rgba(0,74,173,.15);color:var(--gold);font-weight:700;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+.comparison-table .label-col{text-align:left;color:var(--text2);font-size:12px;width:160px}
+.comparison-table .best{background:rgba(34,197,94,.15);color:#4ade80;font-weight:700}
+.comparison-table .worst{background:rgba(239,68,68,.15);color:#f87171}
+.comp-photo{width:60px;height:60px;border-radius:50%;border:2px solid var(--border);margin:0 auto 6px;background:var(--dark3);display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--text2);overflow:hidden}
+.comp-photo img{width:100%;height:100%;object-fit:contain}
+
+/* ─── INNER TABS ─── */
+.inner-tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:18px;overflow-x:auto}
+.inner-tab{padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;white-space:nowrap;transition:all .2s}
+.inner-tab.active{color:var(--gold);border-bottom-color:var(--gold)}
+.inner-tab:hover{color:var(--text)}
+
+/* ─── PLANS ─── */
+.plans-grid{display:grid;grid-template-columns:1fr;gap:14px}
+@media(min-width:600px){.plans-grid{grid-template-columns:repeat(3,1fr)}}
+.plan-card{background:var(--dark2);border:1px solid var(--border);border-radius:var(--radius);padding:22px;text-align:center;position:relative;overflow:hidden;transition:all .2s}
+.plan-card.featured{border-color:var(--gold);box-shadow:0 0 16px rgba(255,215,0,.08)}
+.plan-badge{position:absolute;top:12px;right:-26px;background:var(--gold);color:#000;font-size:10px;font-weight:800;padding:3px 32px;transform:rotate(45deg)}
+.plan-name{font-size:16px;font-weight:800;margin-bottom:4px}
+.plan-price{font-size:28px;font-weight:900;color:var(--gold);margin:10px 0 2px}
+.plan-period{font-size:12px;color:var(--text2)}
+.plan-desc{font-size:12px;color:var(--text2);margin-bottom:16px;margin-top:6px}
+.plan-discount{font-size:12px;color:var(--success);font-weight:600;margin-bottom:14px}
+
+/* ─── SUB HISTORY ─── */
+.history-table{width:100%;border-collapse:collapse;font-size:13px}
+.history-table th,.history-table td{padding:10px 14px;border-bottom:1px solid var(--border);text-align:left}
+.history-table th{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px}
+.history-table tr:hover td{background:rgba(255,255,255,.03)}
+
+/* ─── NOTIF ─── */
+.notif-item{display:flex;gap:12px;padding:14px;background:var(--dark2);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;cursor:pointer;transition:all .2s}
+.notif-item.unread{border-left:3px solid var(--gold);background:rgba(0,74,173,.08)}
+.notif-icon{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;background:rgba(0,74,173,.15);color:var(--gold)}
+.notif-body{flex:1;min-width:0}
+.notif-title-text{font-size:14px;font-weight:700;margin-bottom:3px}
+.notif-msg-text{font-size:12px;color:var(--text2);margin-bottom:4px}
+.notif-time{font-size:11px;color:var(--text2)}
+
+/* ─── SETTINGS TOGGLES ─── */
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border)}
+.toggle-label{font-size:14px;font-weight:600}
+.toggle-desc{font-size:12px;color:var(--text2)}
+.toggle-switch{position:relative;width:44px;height:24px;flex-shrink:0}
+.toggle-switch input{opacity:0;width:0;height:0;position:absolute}
+.toggle-slider{position:absolute;inset:0;background:var(--muted);border-radius:24px;cursor:pointer;transition:.3s}
+.toggle-slider:before{content:'';position:absolute;width:18px;height:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s}
+input:checked+.toggle-slider{background:var(--primary)}
+input:checked+.toggle-slider:before{transform:translateX(20px)}
+
+/* ─── AVATAR UPLOAD ─── */
+.avatar-upload{position:relative;width:140px;height:140px;margin:0 auto 16px;cursor:pointer}
+.avatar-circle{width:140px;height:140px;border-radius:50%;border:3px solid var(--gold);background:var(--dark3);display:flex;align-items:center;justify-content:center;font-size:48px;color:var(--text2);overflow:hidden}
+.avatar-circle img{width:100%;height:100%;object-fit:contain}
+.avatar-overlay{position:absolute;inset:0;border-radius:50%;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;color:#fff;font-size:22px}
+.avatar-upload:hover .avatar-overlay{opacity:1}
+
+/* ─── PAGINATION ─── */
+.pagination{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:18px}
+.pagination button{background:var(--dark);border:1px solid var(--border);color:var(--text);padding:6px 14px;border-radius:6px;font-size:13px;transition:all .2s}
+.pagination button:hover:not(:disabled){border-color:var(--primary-l)}
+.pagination button:disabled{opacity:.4;cursor:not-allowed}
+.pg-label{color:var(--gold);font-size:13px}
+
+/* ─── PAYMENT WIZARD (overlay/modal shell) ─── */
+.pw-overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:9999;display:flex;align-items:flex-end;justify-content:center;padding:0}
+@media(min-width:600px){.pw-overlay{align-items:center;padding:20px}}
+.pw-modal{background:var(--dark2);border:1px solid var(--border);border-radius:14px 14px 0 0;width:100%;max-width:540px;max-height:90vh;overflow-y:auto}
+@media(min-width:600px){.pw-modal{border-radius:14px}}
+.pw-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
+.pw-title{font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px;color:var(--text)}
+.pw-title i{color:var(--gold)}
+.pw-close{background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer;line-height:1;padding:0 4px}
+.pw-close:hover{color:var(--text)}
+.pw-body{padding:20px}
+
+/* ─── PAYMENT WIZARD (step bar) ─── */
+.pw-step-bar{display:flex;align-items:flex-start;padding:0 0 16px;border-bottom:1px solid var(--border);margin-bottom:16px;overflow-x:auto}
+.pw-step-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;min-width:64px}
+.pw-step-dot{width:28px;height:28px;border-radius:50%;background:var(--dark3);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--text2)}
+.pw-step-active .pw-step-dot{background:var(--primary);border-color:var(--primary);color:#fff}
+.pw-step-done .pw-step-dot{background:var(--success);border-color:var(--success);color:#fff}
+.pw-step-label{font-size:10px;font-weight:600;color:var(--text2);text-align:center;white-space:nowrap}
+.pw-step-active .pw-step-label{color:var(--text)}
+
+/* ─── PAYMENT WIZARD (content) ─── */
+.pw-error{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);color:#f87171;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.pw-loading{text-align:center;padding:24px;color:var(--text2);font-size:14px}
+.pw-loading i{margin-right:6px}
+.pw-plan-list{display:flex;flex-direction:column;gap:10px}
+.pw-plan-radio{display:flex;align-items:center;gap:12px;padding:14px 16px;background:rgba(255,255,255,.03);border:2px solid var(--border);border-radius:10px;cursor:pointer;transition:all .2s}
+.pw-plan-radio input{margin:0;flex-shrink:0;accent-color:var(--gold)}
+.pw-plan-selected{border-color:var(--gold);background:rgba(255,215,0,.04)}
+.pw-plan-info{flex:1}
+.pw-plan-name{font-size:14px;font-weight:700}
+.pw-plan-bonus{font-size:11px;color:var(--success);font-weight:600;margin-top:2px}
+.pw-plan-price{font-size:16px;font-weight:900;color:var(--gold);white-space:nowrap}
+.pw-bank-details{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px}
+.pw-bank-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);gap:8px;flex-wrap:wrap}
+.pw-bank-row:last-child{border-bottom:none}
+.pw-bank-label{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.3px;flex-shrink:0}
+.pw-bank-value-wrap{font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pw-reference{font-family:monospace;font-size:12px;color:var(--gold);word-break:break-all}
+.pw-notice{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);color:#fbbf24;border-radius:8px;padding:10px 14px;font-size:12px;margin-bottom:14px}
+.pw-btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.pw-drop-zone{border:2px dashed var(--border);border-radius:10px;padding:28px 20px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:10px}
+.pw-drop-zone:hover,.pw-drop-active{border-color:var(--gold);background:rgba(255,215,0,.03)}
+.pw-progress-wrap{height:6px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden;margin-top:10px}
+.pw-progress-bar{height:100%;background:var(--primary);border-radius:3px;transition:width .3s}
+.copy-btn{background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text2);padding:3px 9px;border-radius:5px;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:all .15s}
+.copy-btn:hover{background:rgba(255,255,255,.12);color:var(--text)}
+
+/* ─── MODAL ─── */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:9999;display:flex;align-items:flex-end;justify-content:center;padding:0;opacity:0;pointer-events:none;transition:opacity .2s}
+@media(min-width:600px){.modal{align-items:center;padding:20px}}
+.modal.open{opacity:1;pointer-events:all}
+.modal-box{background:var(--dark2);border:1px solid var(--border);border-radius:14px 14px 0 0;padding:20px;width:100%;max-height:90vh;overflow-y:auto;transform:translateY(30px);transition:transform .2s}
+@media(min-width:600px){.modal-box{border-radius:14px;max-width:540px}}
+.modal.open .modal-box{transform:none}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.modal-title{font-size:15px;font-weight:800}
+.modal-close{background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer;line-height:1}
+.modal-close:hover{color:var(--text)}
+
+/* ─── TOAST ─── */
+#toasts{position:fixed;bottom:20px;right:20px;z-index:99999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{background:var(--dark2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;min-width:220px;max-width:340px;font-size:13px;display:flex;align-items:center;gap:8px;box-shadow:0 8px 24px rgba(0,0,0,.4);animation:tIn .2s ease;pointer-events:all}
+.toast.success{border-left:4px solid var(--success)}
+.toast.error{border-left:4px solid var(--danger)}
+.toast.info{border-left:4px solid var(--info)}
+.toast.warning{border-left:4px solid var(--warning)}
+@keyframes tIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:none}}
+
+/* ─── EMPTY / LOADING ─── */
+.empty{text-align:center;padding:36px 20px;color:var(--text2)}
+.empty i{font-size:36px;opacity:.3;display:block;margin-bottom:10px}
+.empty h3{font-size:15px;font-weight:600;margin-bottom:4px}
+.empty p{font-size:13px}
+.loading{text-align:center;padding:30px;color:var(--text2)}
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ─── MISC ─── */
+.section-actions{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+.search-input{padding:7px 12px;border-radius:7px;border:1px solid var(--border);background:rgba(255,255,255,.05);color:var(--text);font-size:13px;outline:none}
+.search-input:focus{border-color:var(--primary)}
+.search-input::placeholder{color:#475569}
+.divider{height:1px;background:var(--border);margin:14px 0}
+.text-muted{color:var(--text2)}.text-gold{color:var(--gold)}.text-success{color:var(--success)}.text-danger{color:var(--danger)}
+.fw7{font-weight:700}.fs11{font-size:11px}.fs12{font-size:12px}.mono{font-family:monospace;font-size:12px}
+.info-box{background:rgba(0,74,173,.08);border:1px solid rgba(0,74,173,.2);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--text2);margin-bottom:14px}
+.warn-box{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:8px;padding:10px 12px;font-size:12px;color:#fbbf24;margin-bottom:14px}
+.compare-floating{position:fixed;bottom:20px;right:20px;background:var(--primary);border-radius:12px;padding:12px 16px;box-shadow:0 4px 20px rgba(0,0,0,.5);z-index:100;display:flex;gap:12px;align-items:center;display:none}
+
+/* ─── PRINT ─── */
+@media print{
+  .sidebar,.topbar,#sb-overlay,#banner-wrap,#toasts,.no-print,.modal,.pw-overlay{display:none!important}
+  .main{margin-left:0!important}
+  .page{display:block!important}
+  body{background:#fff;color:#000}
+  .print-header,.print-footer{display:block!important}
+  .card,.player-card,.wl-entry,.report-item{border:1px solid #ccc;break-inside:avoid}
+}
+.print-header,.print-footer{display:none}
+.print-header{border-bottom:3px solid #004aad;padding-bottom:12px;margin-bottom:16px}
+.print-footer{border-top:3px solid #004aad;padding-top:12px;margin-top:16px;font-size:11px;color:#555}
+
+/* EnejiStats faded palette background */
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse at 20% 30%,rgba(0,74,173,0.05) 0%,transparent 60%),
+             radial-gradient(ellipse at 80% 70%,rgba(245,184,0,0.05) 0%,transparent 60%),
+             radial-gradient(ellipse at 50% 100%,rgba(0,74,173,0.03) 0%,transparent 50%);}
+</style>
+</head>
+<body>
+
+<!-- ═══ AUTH GATE ═══ -->
+<div id="auth-gate">
+  <div class="brand" style="font-size:0;"><div style="display:inline-flex;flex-direction:column;align-items:center"><div style="display:flex;align-items:baseline;padding-top:18px"><span style="font-weight:900;font-size:26px;letter-spacing:3px;line-height:1;color:#fff">Ene</span><span style="font-weight:900;font-size:26px;letter-spacing:3px;line-height:1;position:relative;display:inline-block;color:#fff"><span style="position:absolute;top:-17px;left:50%;transform:translateX(-50%);display:inline-block;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 50% 50%, #1a4fa0 2.4px, transparent 3px), #f5b800;box-shadow:inset 0 0 0 0.6px rgba(0,0,0,0.28);pointer-events:none"></span>ȷı</span><span style="font-weight:900;font-size:26px;letter-spacing:3px;line-height:1;color:#f5b800">Stats</span></div></div></div>
+  <div class="spinner"></div>
+  <div class="gate-msg">Authenticating…</div>
+</div>
+
+<!-- ═══ APP ═══ -->
+<div id="app">
+  <div class="layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sb-head">
+        <div class="sb-av" id="sb-av"><i class="fas fa-user"></i></div>
+        <div class="sb-name" id="sb-name">—</div>
+        <span class="sb-type">Scout</span>
+        <div class="sb-affil" id="sb-affil">—</div>
+        <span class="spill" id="sb-pill">—</span>
+        <div class="sb-wl">Watchlist <span class="wl-count" id="sb-wl-count">0</span></div>
+      </div>
+      <ul class="sb-nav">
+        <li class="ni active" id="ni-overview"     onclick="showTab('overview',this)"><i class="fas fa-home"></i> Overview</li>
+        <li class="ni"        id="ni-profile"      onclick="showTab('profile',this)"><i class="fas fa-user"></i> My Profile</li>
+        <li class="ni"        id="ni-search"       onclick="showTab('search',this)"><i class="fas fa-search"></i> Search Players</li>
+        <li class="ni"        id="ni-clubs"        onclick="showTab('clubs',this)"><i class="fas fa-shield-alt"></i> Search Clubs</li>
+        <li class="ni"        id="ni-watchlist"    onclick="showTab('watchlist',this)"><i class="fas fa-eye"></i> My Watchlist</li>
+        <li class="ni"        id="ni-comparison"   onclick="showTab('comparison',this)"><i class="fas fa-balance-scale"></i> Comparison</li>
+        <li class="ni"        id="ni-reports"      onclick="showTab('reports',this)"><i class="fas fa-file-alt"></i> Reports</li>
+        <li class="ni"        id="ni-sub"          onclick="showTab('sub',this)"><i class="fas fa-credit-card"></i> Subscription</li>
+        <li class="ni"        id="ni-notif"        onclick="showTab('notif',this)"><i class="fas fa-bell"></i> Notifications <span class="ni-badge" id="notif-badge"></span></li>
+        <li class="ni"        id="ni-settings"     onclick="showTab('settings',this)"><i class="fas fa-cog"></i> Settings</li>
+        <li class="ni logout"                      onclick="doLogout()"><i class="fas fa-sign-out-alt"></i> Logout</li>
+      </ul>
+      <div class="sb-foot" style="padding-top:4px;line-height:1;"><div style="display:inline-flex;flex-direction:column;align-items:center"><div style="display:flex;align-items:baseline;padding-top:18px"><span style="font-weight:900;font-size:26px;letter-spacing:3px;line-height:1;color:#fff">Ene</span><span style="font-weight:900;font-size:26px;letter-spacing:3px;line-height:1;position:relative;display:inline-block;color:#fff"><span style="position:absolute;top:-17px;left:50%;transform:translateX(-50%);display:inline-block;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 50% 50%, #1a4fa0 2.4px, transparent 3px), #f5b800;box-shadow:inset 0 0 0 0.6px rgba(0,0,0,0.28);pointer-events:none"></span>ȷı</span><span style="font-weight:900;font-size:26px;letter-spacing:3px;line-height:1;color:#f5b800">Stats</span></div></div><br/><span style="font-size:10px;color:rgba(255,255,255,0.5)">Africa's Football Intelligence Platform</span></div>
+    </aside>
+
+    <div id="sb-overlay" onclick="closeSidebar()"></div>
+
+    <!-- MAIN -->
+    <main class="main">
+      <div class="topbar">
+        <button class="hamburger" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+        <div class="tb-brand" style="overflow:visible;"><div style="display:inline-flex;flex-direction:column;align-items:center"><div style="display:flex;align-items:baseline;padding-top:18px"><span style="font-weight:900;font-size:26px;letter-spacing:3px;line-height:1;color:#fff">Ene</span><span style="font-weight:900;font-size:26px;letter-spacing:3px;line-height:1;position:relative;display:inline-block;color:#fff"><span style="position:absolute;top:-17px;left:50%;transform:translateX(-50%);display:inline-block;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 50% 50%, #1a4fa0 2.4px, transparent 3px), #f5b800;box-shadow:inset 0 0 0 0.6px rgba(0,0,0,0.28);pointer-events:none"></span>ȷı</span><span style="font-weight:900;font-size:26px;letter-spacing:3px;line-height:1;color:#f5b800">Stats</span></div></div></div>
+        <div class="tb-title">Scout Dashboard</div>
+        <div class="tb-right">
+          <div class="tb-av" id="tb-av"><i class="fas fa-user"></i></div>
+          <div class="tb-name" id="tb-name"></div>
+          <span class="role-badge">Scout</span>
+          <button class="logout-btn" onclick="doLogout()"><i class="fas fa-sign-out-alt"></i></button>
+        </div>
+      </div>
+
+      <div id="banner-wrap"></div>
+
+      <div class="content">
+
+        <!-- ═ OVERVIEW ═ -->
+        <div class="page active" id="page-overview">
+          <div class="page-title">Welcome back <span id="ov-firstname">Scout</span> 👋</div>
+          <div class="page-sub" id="ov-sub">—</div>
+          <div class="stats-row">
+            <div class="stat-box blue"><div class="stat-num" id="ov-players">—</div><div class="stat-lbl">Players Watched</div></div>
+            <div class="stat-box green"><div class="stat-num" id="ov-clubs">—</div><div class="stat-lbl">Clubs Watched</div></div>
+            <div class="stat-box gold"><div class="stat-num" id="ov-reports">—</div><div class="stat-lbl">Reports</div></div>
+            <div class="stat-box red"><div class="stat-num" id="ov-bgc">—</div><div class="stat-lbl">BGC Requests</div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr;gap:16px" id="ov-grid">
+            <div class="card">
+              <div class="card-title"><i class="fas fa-clock"></i> Recent Watchlist</div>
+              <div id="ov-wl-list"><div class="loading"><span class="spinner"></span> Loading…</div></div>
+            </div>
+            <div class="card">
+              <div class="card-title"><i class="fas fa-file-alt"></i> Recent Reports</div>
+              <div id="ov-rpt-list"><div class="loading"><span class="spinner"></span> Loading…</div></div>
+              <div style="margin-top:10px"><button class="btn btn-ghost btn-sm" onclick="showTab('reports')"><i class="fas fa-arrow-right"></i> All Reports</button></div>
+            </div>
+          </div>
+          <div class="card" style="margin-top:16px">
+            <div class="card-title"><i class="fas fa-search"></i> Quick Player Search</div>
+            <div class="search-bar">
+              <i class="fas fa-search search-icon"></i>
+              <input class="form-input" id="ov-search-input" placeholder="Search for a player by name…" onfocus="showTab('search')" onkeydown="if(event.key==='Enter')showTab('search')"/>
+            </div>
+            <button class="btn btn-primary" onclick="showTab('search')"><i class="fas fa-search"></i> Search Players</button>
+          </div>
+        </div>
+
+        <!-- ═ PROFILE ═ -->
+        <div class="page" id="page-profile">
+          <div class="page-title"><i class="fas fa-user text-gold"></i> My Profile</div>
+          <div class="page-sub">Manage your scouting profile and personal information</div>
+          <div id="profile-content"><div class="loading"><span class="spinner"></span> Loading…</div></div>
+        </div>
+
+        <!-- ═ SEARCH PLAYERS ═ -->
+        <div class="page" id="page-search">
+          <div class="page-title"><i class="fas fa-search text-gold"></i> Search Players</div>
+          <div class="page-sub">Find and discover talented football players across Africa</div>
+          <div class="search-bar">
+            <i class="fas fa-search search-icon"></i>
+            <input class="form-input" id="sp-q" placeholder="Search by player name…" oninput="spSearch()"/>
+          </div>
+          <button class="filter-toggle" onclick="spToggleFilters()">
+            <i class="fas fa-sliders-h"></i> Advanced Filters
+            <i class="fas fa-chevron-down" id="sp-filter-icon" style="margin-left:auto"></i>
+          </button>
+          <div id="sp-filters" style="display:none">
+            <div class="filter-panel" id="sp-filter-panel"></div>
+          </div>
+          <div id="sp-results"><div class="empty"><i class="fas fa-search"></i><h3>Search for players</h3><p>Type a name or apply filters above.</p></div></div>
+          <div id="sp-pagination" style="display:none" class="pagination">
+            <button onclick="spPage(-1)" id="sp-prev"><i class="fas fa-chevron-left"></i> Prev</button>
+            <span class="pg-label" id="sp-pg-lbl">Page 1</span>
+            <button onclick="spPage(1)" id="sp-next">Next <i class="fas fa-chevron-right"></i></button>
+          </div>
+          <div class="compare-floating" id="compare-floating">
+            <span style="font-size:13px;font-weight:700" id="compare-count-lbl">0 selected</span>
+            <button class="btn btn-gold btn-sm" onclick="showTab('comparison')">Compare <i class="fas fa-balance-scale"></i></button>
+          </div>
+        </div>
+
+        <!-- ═ SEARCH CLUBS ═ -->
+        <div class="page" id="page-clubs">
+          <div class="page-title"><i class="fas fa-shield-alt text-gold"></i> Search Clubs</div>
+          <div class="page-sub">Discover and monitor football clubs across Africa</div>
+          <div class="search-bar">
+            <i class="fas fa-search search-icon"></i>
+            <input class="form-input" id="sc-q" placeholder="Search by club name…" oninput="scSearch()"/>
+          </div>
+          <button class="filter-toggle" onclick="scToggleFilters()">
+            <i class="fas fa-sliders-h"></i> Advanced Filters
+            <i class="fas fa-chevron-down" id="sc-filter-icon" style="margin-left:auto"></i>
+          </button>
+          <div id="sc-filters" style="display:none">
+            <div class="filter-panel" id="sc-filter-panel"></div>
+          </div>
+          <div id="sc-results"><div class="empty"><i class="fas fa-shield-alt"></i><h3>Search for clubs</h3><p>Type a name or apply filters above.</p></div></div>
+          <div id="sc-pagination" style="display:none" class="pagination">
+            <button onclick="scPage(-1)" id="sc-prev"><i class="fas fa-chevron-left"></i> Prev</button>
+            <span class="pg-label" id="sc-pg-lbl">Page 1</span>
+            <button onclick="scPage(1)" id="sc-next">Next <i class="fas fa-chevron-right"></i></button>
+          </div>
+        </div>
+
+        <!-- ═ WATCHLIST ═ -->
+        <div class="page" id="page-watchlist">
+          <div class="page-title"><i class="fas fa-eye text-gold"></i> My Watchlist</div>
+          <div class="page-sub">Monitor players and clubs you are tracking</div>
+          <div class="inner-tabs">
+            <div class="inner-tab active" id="wl-tab-players" onclick="wlSection('players',this)">Players</div>
+            <div class="inner-tab" id="wl-tab-clubs" onclick="wlSection('clubs',this)">Clubs</div>
+          </div>
+          <div id="wl-players"><div class="loading"><span class="spinner"></span> Loading…</div></div>
+          <div id="wl-clubs" style="display:none"><div class="loading"><span class="spinner"></span> Loading…</div></div>
+        </div>
+
+        <!-- ═ COMPARISON ═ -->
+        <div class="page" id="page-comparison">
+          <div class="print-header">
+            <div style="font-size:18px;font-weight:900">EnejiStats | Africa's Football Intelligence Platform <span style="float:right;font-size:12px">[CONFIDENTIAL]</span></div>
+            <div style="border-top:3px solid #004aad;margin:8px 0"></div>
+            <div style="font-size:16px;font-weight:700">Player Comparison Report</div>
+            <div id="print-meta" style="font-size:12px">Generated: —</div>
+            <div style="border-top:1px solid #ccc;margin:8px 0"></div>
+          </div>
+          <div class="page-title"><i class="fas fa-balance-scale text-gold"></i> Player Comparison</div>
+          <div class="page-sub">Compare up to 5 players side-by-side</div>
+          <div class="card">
+            <div class="card-title"><i class="fas fa-plus-circle"></i> Add Players to Compare</div>
+            <div id="cmp-queue" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px"></div>
+            <div style="position:relative">
+              <div class="search-bar" style="margin-bottom:0">
+                <i class="fas fa-search search-icon"></i>
+                <input class="form-input" id="cmp-q" placeholder="Search player to add…" oninput="cmpPlayerSearch(this.value)"/>
+              </div>
+              <div id="cmp-dropdown" style="position:absolute;top:100%;left:0;right:0;background:var(--dark2);border:1px solid var(--border);border-radius:0 0 10px 10px;z-index:50;max-height:200px;overflow-y:auto;display:none"></div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+              <button class="btn btn-primary btn-sm" id="cmp-gen-btn" onclick="cmpGenerateReport()" disabled><i class="fas fa-file-pdf"></i> Generate Report</button>
+              <button class="btn btn-secondary btn-sm" onclick="cmpAddAllWatchlist()"><i class="fas fa-star"></i> Add All to Watchlist</button>
+              <button class="btn btn-secondary btn-sm" onclick="cmpClear()"><i class="fas fa-times"></i> Clear All</button>
+            </div>
+          </div>
+          <div id="cmp-table-wrap"></div>
+        </div>
+
+        <!-- ═ REPORTS ═ -->
+        <div class="page" id="page-reports">
+          <div class="page-title"><i class="fas fa-file-alt text-gold"></i> Reports</div>
+          <div class="page-sub">Create and manage your scouting reports</div>
+          <div class="inner-tabs">
+            <div class="inner-tab active" id="rpt-tab-list" onclick="rptSection('list',this)">Saved Reports</div>
+            <div class="inner-tab" id="rpt-tab-create" onclick="rptSection('create',this)">+ Create New</div>
+          </div>
+          <div id="rpt-list"><div class="loading"><span class="spinner"></span> Loading…</div></div>
+          <div id="rpt-create" style="display:none">
+            <div class="card">
+              <div class="card-title"><i class="fas fa-plus-circle"></i> New Report</div>
+              <div class="form-group">
+                <label class="form-label">Report Type</label>
+                <select class="form-input" id="rpt-type" onchange="rptTypeChange()">
+                  <option value="player">Player Scouting Report</option>
+                  <option value="club">Club Scouting Report</option>
+                  <option value="watchlist_summary">Watchlist Summary Report</option>
+                </select>
+              </div>
+              <div id="rpt-player-section">
+                <div class="form-group">
+                  <label class="form-label">Select Player</label>
+                  <div style="position:relative">
+                    <div class="search-bar" style="margin-bottom:0">
+                      <i class="fas fa-search search-icon"></i>
+                      <input class="form-input" id="rpt-player-q" placeholder="Search player…" oninput="rptPlayerSearch(this.value)"/>
+                    </div>
+                    <div id="rpt-player-dropdown" style="position:absolute;top:100%;left:0;right:0;background:var(--dark2);border:1px solid var(--border);border-radius:0 0 10px 10px;z-index:50;max-height:200px;overflow-y:auto;display:none"></div>
+                  </div>
+                </div>
+                <div id="rpt-player-preview"></div>
+              </div>
+              <div id="rpt-club-section" style="display:none">
+                <div class="form-group">
+                  <label class="form-label">Select Club</label>
+                  <div style="position:relative">
+                    <div class="search-bar" style="margin-bottom:0">
+                      <i class="fas fa-search search-icon"></i>
+                      <input class="form-input" id="rpt-club-q" placeholder="Search club…" oninput="rptClubSearch(this.value)"/>
+                    </div>
+                    <div id="rpt-club-dropdown" style="position:absolute;top:100%;left:0;right:0;background:var(--dark2);border:1px solid var(--border);border-radius:0 0 10px 10px;z-index:50;max-height:200px;overflow-y:auto;display:none"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Report Title</label>
+                <input class="form-input" id="rpt-title" placeholder="Enter report title…"/>
+              </div>
+              <div id="rpt-rec-section" class="form-group">
+                <label class="form-label">Recommendation</label>
+                <select class="form-input" id="rpt-rec">
+                  <option>Recommend</option><option>Monitor</option><option>Not Suitable</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Scout's Assessment Notes (max 1000 chars)</label>
+                <textarea class="form-input" id="rpt-notes" rows="5" maxlength="1000" oninput="document.getElementById('rpt-notes-count').textContent=this.value.length+'/1000'" placeholder="Enter your personal assessment…"></textarea>
+                <div class="char-count" id="rpt-notes-count">0/1000</div>
+              </div>
+              <div style="display:flex;gap:10px;flex-wrap:wrap">
+                <button class="btn btn-primary" onclick="saveReport()"><i class="fas fa-save"></i> Save Report</button>
+                <button class="btn btn-gold" onclick="saveReportAndPrint()"><i class="fas fa-print"></i> Save &amp; Print</button>
+                <button class="btn btn-secondary" onclick="rptSection('list')">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═ SUBSCRIPTION ═ -->
+        <div class="page" id="page-sub">
+          <div class="page-title"><i class="fas fa-credit-card text-gold"></i> Subscription</div>
+          <div class="page-sub">Manage your EnejiStats scout subscription</div>
+          <div id="sub-status-card"></div>
+          <div class="plans-grid">
+            <div class="plan-card">
+              <div class="plan-name">Monthly</div>
+              <div class="plan-price">₦50,000<span>/mo</span></div>
+              <div class="plan-desc">Full access for 1 month</div>
+              <button class="btn btn-primary btn-full" onclick="openPayWizard('SUBSCRIPTION')"><i class="fas fa-university"></i> Subscribe Now</button>
+            </div>
+            <div class="plan-card featured">
+              <div class="plan-badge">POPULAR</div>
+              <div class="plan-name">6-Month</div>
+              <div class="plan-price">₦291,000<span>/6mo</span></div>
+              <div class="plan-desc">Full access for 6 months</div>
+              <div class="plan-discount"><i class="fas fa-tag"></i> Save 3%</div>
+              <button class="btn btn-gold btn-full" onclick="openPayWizard('SUBSCRIPTION')"><i class="fas fa-university"></i> Subscribe Now</button>
+            </div>
+            <div class="plan-card">
+              <div class="plan-name">Annual</div>
+              <div class="plan-price">₦540,000<span>/yr</span></div>
+              <div class="plan-desc">Full access for 12 months</div>
+              <div class="plan-discount"><i class="fas fa-tag"></i> Save 10%</div>
+              <button class="btn btn-primary btn-full" onclick="openPayWizard('SUBSCRIPTION')"><i class="fas fa-university"></i> Subscribe Now</button>
+            </div>
+          </div>
+          <div id="sub-history"></div>
+        </div>
+
+        <!-- ═ NOTIFICATIONS ═ -->
+        <div class="page" id="page-notif">
+          <div class="page-title"><i class="fas fa-bell text-gold"></i> Notifications <span id="notif-count-badge"></span></div>
+          <div class="page-sub">Stay updated on watchlist activity, background checks, and more</div>
+          <div id="notif-mark-row" style="display:none;justify-content:flex-end;margin-bottom:12px">
+            <button class="btn btn-secondary btn-sm" onclick="markAllRead()"><i class="fas fa-check-double"></i> Mark All Read</button>
+          </div>
+          <div id="notif-list"><div class="loading"><span class="spinner"></span> Loading…</div></div>
+        </div>
+
+        <!-- ═ SETTINGS ═ -->
+        <div class="page" id="page-settings">
+          <div class="page-title"><i class="fas fa-cog text-gold"></i> Settings</div>
+          <div class="page-sub">Configure your dashboard preferences</div>
+          <div class="card">
+            <div class="card-title"><i class="fas fa-bell"></i> Notification Preferences</div>
+            <div id="settings-toggles"></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="fas fa-shield-alt"></i> Privacy &amp; Security</div>
+            <div class="toggle-row">
+              <div><div class="toggle-label">Profile Visibility</div><div class="toggle-desc">Allow your scout profile to be visible to club administrators</div></div>
+              <label class="toggle-switch"><input type="checkbox" id="s-profile-visible" checked/><span class="toggle-slider"></span></label>
+            </div>
+            <div style="margin-top:14px">
+              <button class="btn btn-secondary btn-sm"><i class="fas fa-key"></i> Change Password</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="fas fa-trash"></i> Account</div>
+            <button class="btn btn-danger btn-sm" onclick="doLogout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+          </div>
+          <button class="btn btn-primary" style="margin-top:4px" onclick="saveSettings()"><i class="fas fa-save"></i> Save Settings</button>
+        </div>
+
+      </div><!-- /content -->
+    </main>
+  </div><!-- /layout -->
+</div><!-- /app -->
+
+<!-- ═══ MODALS ═══ -->
+
+<!-- BGC Modal -->
+<div class="modal" id="m-bgc">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <div class="modal-title"><i class="fas fa-shield-alt"></i> Request Background Check</div>
+      <button class="modal-close" onclick="closeModal('m-bgc')">×</button>
+    </div>
+    <div class="info-box"><b>Target:</b> <span id="bgc-target-name">—</span><br/><b>Date:</b> <span id="bgc-date">—</span></div>
+    <div class="form-group">
+      <label class="form-label">Notes / Areas to Investigate</label>
+      <textarea class="form-input" id="bgc-notes" rows="4" maxlength="500" oninput="document.getElementById('bgc-count').textContent=this.value.length+'/500'" placeholder="Describe specific concerns or areas you'd like investigated…"></textarea>
+      <div class="char-count" id="bgc-count">0/500</div>
+    </div>
+    <button class="btn btn-primary btn-full" onclick="submitBGC()"><i class="fas fa-shield-alt"></i> Submit Request</button>
+  </div>
+</div>
+
+<!-- View Report Modal -->
+<div class="modal" id="m-view-report">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <div class="modal-title" id="view-report-title">Report</div>
+      <button class="modal-close" onclick="closeModal('m-view-report')">×</button>
+    </div>
+    <div id="view-report-body"></div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toasts"></div>
+
+<!-- Payment Wizard Preact root -->
+<div id="pw-wizard-root"></div>
+
+<script>
+/* ════════════════════════════════════════════
+   PREACT REFS
+════════════════════════════════════════════ */
+var h          = preact.h;
+var render     = preact.render;
+var useState   = preactHooks.useState;
+var useEffect  = preactHooks.useEffect;
+var useCallback= preactHooks.useCallback;
+var useRef     = preactHooks.useRef;
+
+/* ════════════════════════════════════════════
+   GLOBAL STATE
+════════════════════════════════════════════ */
+const S = {
+  scout: null,
+  scoutId: null,
+  tab: 'overview',
+  watchlistIds: new Set(),
+  watchlistRawMap: new Map(),
+  compareQueue: [],
+  spPage: 1,
+  spFilters: {},
+  spFiltersVisible: false,
+  scPage: 1,
+  scFiltersVisible: false,
+  bgcTargetId: null,
+  bgcTargetType: null,
+  rptSelectedPlayer: null,
+  rptSelectedClub: null,
+  rptPlayerStats: null,
+  rptPlayerProfile: null,
+  rptClubStats: null,
+  notifData: [],
+  settings: { email_notifs: true, sms_notifs: false, watchlist_alerts: true, sub_reminders: true },
+  cmpDebounce: null,
+  scDebounce: null,
+  rptPlayerDebounce: null,
+  rptClubDebounce: null,
+};
+
+const NATIONALITIES = [
+  'Nigerian','Ghanaian','Kenyan','South African','Cameroonian','Senegalese',
+  'Egyptian','Moroccan','Algerian','Tanzanian','Ugandan','Ethiopian','Zambian',
+  'Zimbabwean','Malian','Ivorian','Other African','Other',
+];
+
+/* ════════════════════════════════════════════
+   HELPERS
+════════════════════════════════════════════ */
+const $ = id => document.getElementById(id);
+const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function fmtDate(d){ if(!d) return '—'; return new Date(d).toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'}); }
+function fmtDT(d){ if(!d) return '—'; return new Date(d).toLocaleString('en-NG'); }
+function daysSince(d){ if(!d) return 0; return Math.floor((Date.now()-new Date(d))/86400000); }
+function initials(name){ if(!name) return '?'; return name.split(' ').slice(0,2).map(p=>p[0]).join('').toUpperCase(); }
+function getFlag(n){ const m={Nigeria:'🇳🇬',Ghana:'🇬🇭',Kenya:'🇰🇪','South Africa':'🇿🇦',Cameroon:'🇨🇲',Senegal:'🇸🇳',Egypt:'🇪🇬',Morocco:'🇲🇦',Algeria:'🇩🇿',Tanzania:'🇹🇿',Uganda:'🇺🇬',Ethiopia:'🇪🇹',Zambia:'🇿🇲',Zimbabwe:'🇿🇼',Mali:'🇲🇱','Ivory Coast':'🇨🇮'}; return m[n]||'🌍'; }
+function posBadge(pos){ const g=pos?(['GK'].includes(pos)?'gk':['CB','LB','RB','LWB','RWB'].includes(pos)?'def':['CDM','CM','CAM','LM','RM','AM','LW','RW'].includes(pos)?'mid':'att'):'mid'; return {gk:'pos-gk',def:'pos-def',mid:'pos-mid',att:'pos-att'}[g]; }
+function loadingHtml(){ return '<div class="loading"><span class="spinner"></span> Loading…</div>'; }
+function emptyHtml(icon,title,text){ return `<div class="empty"><i class="fas ${icon}"></i><h3>${esc(title)}</h3><p>${esc(text)}</p></div>`; }
+function avatarHtml(src,name,size=40){ const st=`width:${size}px;height:${size}px;border-radius:50%;background:var(--dark3);display:flex;align-items:center;justify-content:center;font-size:${Math.round(size*.38)}px;color:var(--gold);font-weight:700;overflow:hidden;flex-shrink:0;border:2px solid var(--border)`; if(src) return `<div style="${st}"><img src="${esc(src)}" style="width:100%;height:100%;object-fit:cover"/></div>`; return `<div style="${st}">${esc(initials(name))}</div>`; }
+function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; }
+
+async function api(path, opts={}){
+  const res = await fetch(path, {
+    credentials:'include',
+    headers:{'Content-Type':'application/json',...(opts.headers||{})},
+    ...opts,
+  });
+  if(!res.ok){ const e=await res.json().catch(()=>({detail:res.statusText})); throw new Error(e.detail||'Request failed'); }
+  return res.json();
+}
+
+/* ════════════════════════════════════════════
+   TOAST
+════════════════════════════════════════════ */
+function toast(msg,type='info'){
+  const el=document.createElement('div');
+  el.className=`toast ${type}`;
+  const icons={success:'fa-check-circle',error:'fa-times-circle',warning:'fa-exclamation-triangle',info:'fa-info-circle'};
+  el.innerHTML=`<i class="fas ${icons[type]||icons.info}"></i><span>${esc(msg)}</span>`;
+  $('toasts').appendChild(el);
+  setTimeout(()=>el.remove(),4000);
+}
+
+/* ════════════════════════════════════════════
+   PAYMENT WIZARD (unified — matches Player/Club dashboards)
+════════════════════════════════════════════ */
+function usePaymentWizard(type, role) {
+  var _s0  = useState('PLAN_SELECT'),  step         = _s0[0],  setStep         = _s0[1];
+  var _s1  = useState(false),          loading      = _s1[0],  setLoading      = _s1[1];
+  var _s2  = useState(''),             error        = _s2[0],  setError        = _s2[1];
+  var _s3  = useState([]),             plans        = _s3[0],  setPlans        = _s3[1];
+  var _s4  = useState(null),           selectedPlan = _s4[0],  setSelectedPlan = _s4[1];
+  var _s5  = useState(''),             intentId     = _s5[0],  setIntentId     = _s5[1];
+  var _s6  = useState(''),             reference    = _s6[0],  setReference    = _s6[1];
+  var _s7  = useState(null),           bankDetails  = _s7[0],  setBankDetails  = _s7[1];
+  var _s8  = useState(null),           receiptFile  = _s8[0],  setReceiptFile  = _s8[1];
+  var _s9  = useState(0),              uploadPct    = _s9[0],  setUploadPct    = _s9[1];
+  var _s10 = useState(false),          dragOver     = _s10[0], setDragOver     = _s10[1];
+
+  useEffect(function () {
+    setLoading(true);
+    setError('');
+    var url = type === 'SUBSCRIPTION' ? '/api/subscription/pricing' : '/api/token/pricing';
+    fetch(url, { credentials: 'include' })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
+      .then(function (data) {
+        var raw  = type === 'SUBSCRIPTION' ? (data.plans || []) : (data.packages || []);
+        var list = raw.map(function (p) {
+          var amt = p.amount || p.price || 0;
+          return Object.assign({}, p, {
+            label:  type === 'SUBSCRIPTION'
+              ? (p.name || ((p.durationMonths || p.months || 1) + ' Month' +
+                  ((p.durationMonths || p.months || 1) > 1 ? 's' : '')))
+              : (p.label || (p.tokens + ' Token' + (p.tokens !== 1 ? 's' : ''))),
+            key:    type === 'SUBSCRIPTION'
+              ? (p.key || ((p.durationMonths || p.months || 1) + '_MONTH'))
+              : (p.key || ('tokens_' + p.tokens)),
+            price:  amt,
+            amount: amt,
+          });
+        });
+        setPlans(list);
+        if (list.length > 0) setSelectedPlan(list[0]);
+        setLoading(false);
+      })
+      .catch(function () {
+        setError('Unable to load pricing. Please try again.');
+        setLoading(false);
+      });
+  }, [type]);
+
+  var createIntent = useCallback(function () {
+    if (!selectedPlan) return;
+    setLoading(true);
+    setError('');
+    var body = type === 'SUBSCRIPTION'
+      ? { paymentType: 'SUBSCRIPTION', selectedPlan: selectedPlan.key, role: role,
+          level: selectedPlan.level || undefined }
+      : { paymentType: 'TOKEN_PURCHASE', selectedPlan: selectedPlan.key, role: role,
+          tokens: selectedPlan.tokens };
+    fetch('/api/payment/bank-transfer/intent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(body),
+    })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
+      .then(function (data) {
+        setIntentId(data.intentId || data.intent_id || '');
+        setReference(data.reference || data.ref || '');
+        return fetch('/api/bank-details/active', { credentials: 'include' });
+      })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
+      .then(function (bd) {
+        setBankDetails(bd);
+        setLoading(false);
+        setStep('TRANSFER_DETAILS');
+      })
+      .catch(function () {
+        setError('Unable to create payment intent. Please try again.');
+        setLoading(false);
+      });
+  }, [selectedPlan, type, role]);
+
+  var goToUpload = useCallback(function () { setStep('RECEIPT_UPLOAD'); }, []);
+
+  var handleFile = useCallback(function (file) {
+    if (!file) return;
+    var ext = (file.name.split('.').pop() || '').toLowerCase();
+    if (!['pdf', 'png', 'jpg', 'jpeg'].includes(ext)) {
+      setError('Only PDF, PNG, JPG, JPEG files are allowed.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) { setError('File must be under 10 MB.'); return; }
+    setError('');
+    setReceiptFile(file);
+  }, []);
+
+  var uploadReceipt = useCallback(function () {
+    if (!receiptFile || !intentId) return;
+    setLoading(true);
+    setError('');
+    setUploadPct(0);
+    var fd = new FormData();
+    fd.append('intentId',    intentId);
+    fd.append('receiptFile', receiptFile);
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/payment/bank-transfer/receipt');
+    xhr.withCredentials = true;
+    xhr.upload.onprogress = function (e) {
+      if (e.lengthComputable) setUploadPct(Math.round(e.loaded / e.total * 100));
+    };
+    xhr.onload = function () {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        setUploadPct(100);
+        setLoading(false);
+        setStep('SUBMITTED');
+      } else {
+        setError('Unable to upload receipt. Please try again.');
+        setLoading(false);
+      }
+    };
+    xhr.onerror = function () { setError('Upload failed. Please try again.'); setLoading(false); };
+    xhr.send(fd);
+  }, [receiptFile, intentId]);
+
+  return {
+    step: step, setStep: setStep,
+    loading: loading, error: error, setError: setError,
+    plans: plans, selectedPlan: selectedPlan, setSelectedPlan: setSelectedPlan,
+    intentId: intentId, reference: reference, bankDetails: bankDetails,
+    receiptFile: receiptFile, uploadPct: uploadPct,
+    dragOver: dragOver, setDragOver: setDragOver,
+    createIntent: createIntent, goToUpload: goToUpload,
+    handleFile: handleFile, uploadReceipt: uploadReceipt,
+  };
+}
+
+function PaymentWizard(props) {
+  var type       = props.type;
+  var role       = props.role;
+  var onClose    = props.onClose;
+  var onComplete = props.onComplete;
+  var wiz        = usePaymentWizard(type, role);
+  var fileRef    = useRef(null);
+
+  var STEP_LABELS = ['Select Plan', 'Bank Transfer', 'Upload Receipt', 'Done'];
+  var STEP_KEYS   = ['PLAN_SELECT', 'TRANSFER_DETAILS', 'RECEIPT_UPLOAD', 'SUBMITTED'];
+  var curIdx      = STEP_KEYS.indexOf(wiz.step);
+
+  var pwCopy = useCallback(function (text) {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).catch(function () {});
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    toast('Copied!', 'info');
+  }, []);
+
+  var onDrop     = useCallback(function (e) {
+    e.preventDefault();
+    wiz.setDragOver(false);
+    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) wiz.handleFile(f);
+  }, [wiz.handleFile]);
+  var onDragOver  = useCallback(function (e) { e.preventDefault(); wiz.setDragOver(true);  }, []);
+  var onDragLeave = useCallback(function ()  { wiz.setDragOver(false); }, []);
+
+  // ── Step indicator ──
+  var stepBar = h('div', { className: 'pw-step-bar' },
+    STEP_LABELS.map(function (label, i) {
+      var cls = 'pw-step-item' +
+        (i === curIdx ? ' pw-step-active' : i < curIdx ? ' pw-step-done' : '');
+      return h('div', { key: i, className: cls },
+        h('div', { className: 'pw-step-dot' },
+          i < curIdx ? h('i', { className: 'fas fa-check' }) : (i + 1)),
+        h('div', { className: 'pw-step-label' }, label));
+    })
+  );
+
+  var errDiv = wiz.error
+    ? h('div', { className: 'pw-error' },
+        h('i', { className: 'fas fa-exclamation-triangle' }), ' ', wiz.error)
+    : null;
+
+  // ── STEP 1: PLAN_SELECT ──
+  var stepPlanSelect = null;
+  if (wiz.step === 'PLAN_SELECT') {
+    var planListContent;
+    if (wiz.loading) {
+      planListContent = h('div', { className: 'pw-loading' },
+        h('i', { className: 'fas fa-spinner fa-spin' }), ' Loading pricing…');
+    } else if (!wiz.plans.length) {
+      planListContent = h('div', { className: 'pw-error' }, 'No plans available. Please refresh.');
+    } else {
+      planListContent = h('div', null,
+        h('div', { className: 'pw-plan-list' },
+          wiz.plans.map(function (plan) {
+            var isSel = wiz.selectedPlan && wiz.selectedPlan.key === plan.key;
+            return h('label', {
+              key: plan.key,
+              className: 'pw-plan-radio' + (isSel ? ' pw-plan-selected' : ''),
+            },
+              h('input', {
+                type: 'radio', name: 'pw_plan', value: plan.key,
+                checked: !!isSel,
+                onChange: function () { wiz.setSelectedPlan(plan); },
+              }),
+              h('div', { className: 'pw-plan-info' },
+                h('div', { className: 'pw-plan-name' }, plan.label),
+                plan.bonus
+                  ? h('div', { className: 'pw-plan-bonus' },
+                      h('i', { className: 'fas fa-tag' }), ' ', plan.bonus)
+                  : null),
+              h('div', { className: 'pw-plan-price' },
+                '\u20a6' + (plan.price || plan.amount || 0).toLocaleString())
+            );
+          })
+        ),
+        h('div', { className: 'pw-btn-row', style: 'margin-top:1rem;' },
+          h('button', {
+            className: 'btn btn-outline',
+            disabled: wiz.loading,
+            onClick: onClose,
+          }, h('i', { className: 'fas fa-times' }), ' Cancel'),
+          h('button', {
+            className: 'btn btn-primary',
+            disabled: !wiz.selectedPlan || wiz.loading,
+            onClick: wiz.createIntent,
+          },
+            wiz.loading
+              ? [h('i', { className: 'fas fa-spinner fa-spin' }), ' Creating intent…']
+              : [h('i', { className: 'fas fa-university' }), ' Bank Transfer'])
+        )
+      );
+    }
+    stepPlanSelect = planListContent;
+  }
+
+  // ── STEP 2: TRANSFER_DETAILS ──
+  var stepTransfer = null;
+  if (wiz.step === 'TRANSFER_DETAILS') {
+    if (wiz.loading) {
+      stepTransfer = h('div', { className: 'pw-loading' },
+        h('i', { className: 'fas fa-spinner fa-spin' }), ' Loading bank details…');
+    } else {
+      var bd       = wiz.bankDetails || {};
+      var acctNum  = bd.accountNumber || bd.account_number || '\u2014';
+      var bankName = bd.bankName || bd.bank_name || bd.bank || '\u2014';
+      var acctName = bd.accountName || bd.account_name || '\u2014';
+      var amount   = (wiz.selectedPlan && (wiz.selectedPlan.price || wiz.selectedPlan.amount)) || 0;
+      stepTransfer = h('div', null,
+        h('div', { className: 'pw-bank-details' },
+          [
+            ['Reference Number', h('span', null,
+              h('span', { className: 'pw-reference' }, wiz.reference),
+              h('button', { className: 'copy-btn', onClick: function () { pwCopy(wiz.reference); } },
+                h('i', { className: 'fas fa-copy' }), ' Copy'))],
+            ['Bank Name',        bankName],
+            ['Account Name',     acctName],
+            ['Account Number',   h('span', null,
+              h('span', null, acctNum),
+              h('button', { className: 'copy-btn', onClick: function () { pwCopy(acctNum); } },
+                h('i', { className: 'fas fa-copy' }), ' Copy'))],
+            ['Amount',           h('span', { style: 'color:var(--gold);font-weight:800;' },
+              '\u20a6' + amount.toLocaleString())],
+          ].map(function (row) {
+            return h('div', { key: row[0], className: 'pw-bank-row' },
+              h('span', { className: 'pw-bank-label' }, row[0]),
+              h('span', { className: 'pw-bank-value-wrap' }, row[1]));
+          })
+        ),
+        h('div', { className: 'pw-notice' },
+          h('i', { className: 'fas fa-exclamation-triangle' }),
+          ' Use reference ', h('strong', null, wiz.reference), ' in your transfer narration.'),
+        h('div', { className: 'pw-btn-row' },
+          h('button', {
+            className: 'btn btn-outline',
+            onClick: function () { wiz.setStep('PLAN_SELECT'); },
+          }, h('i', { className: 'fas fa-arrow-left' }), ' Back'),
+          h('button', { className: 'btn btn-primary', onClick: wiz.goToUpload },
+            h('i', { className: 'fas fa-check' }), ' I Have Made Payment')
+        )
+      );
+    }
+  }
+
+  // ── STEP 3: RECEIPT_UPLOAD ──
+  var stepUpload = null;
+  if (wiz.step === 'RECEIPT_UPLOAD') {
+    var dropCls  = 'pw-drop-zone' + (wiz.dragOver ? ' pw-drop-active' : '');
+    var dropInner = wiz.receiptFile
+      ? h('div', null,
+          h('i', { className: 'fas fa-file-alt',
+            style: 'font-size:2rem;color:var(--gold);display:block;margin-bottom:.4rem;' }),
+          h('div', { style: 'font-weight:700;font-size:.9rem;' }, wiz.receiptFile.name),
+          h('div', { style: 'font-size:.78rem;color:var(--text2);' },
+            (wiz.receiptFile.size / 1024).toFixed(1) + ' KB'))
+      : h('div', null,
+          h('i', { className: 'fas fa-cloud-upload-alt',
+            style: 'font-size:2.5rem;color:var(--text2);display:block;margin-bottom:.4rem;' }),
+          h('div', { style: 'font-weight:600;color:var(--text2);' }, 'Drag & drop or click to select'),
+          h('div', { style: 'font-size:.78rem;color:var(--text2);margin-top:.25rem;' },
+            'PDF, PNG, JPG, JPEG \u2014 max 10 MB'));
+    var progressBar = (wiz.uploadPct > 0 && wiz.uploadPct < 100)
+      ? h('div', null,
+          h('div', { className: 'pw-progress-wrap' },
+            h('div', { className: 'pw-progress-bar', style: 'width:' + wiz.uploadPct + '%;' })),
+          h('div', { style: 'font-size:.78rem;color:var(--text2);text-align:center;margin-top:.25rem;' },
+            wiz.uploadPct + '% uploaded'))
+      : null;
+    stepUpload = h('div', null,
+      h('div', { style: 'font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:.75rem;' },
+        'Upload your payment receipt (PDF, PNG, JPG \u2014 max 10 MB)'),
+      h('div', {
+        className: dropCls,
+        onDragOver: onDragOver, onDragLeave: onDragLeave, onDrop: onDrop,
+        onClick: function () { fileRef.current && fileRef.current.click(); },
+      }, dropInner),
+      h('input', {
+        ref: fileRef, type: 'file', accept: '.pdf,.png,.jpg,.jpeg',
+        style: 'display:none;',
+        onChange: function (e) { wiz.handleFile(e.target.files && e.target.files[0]); },
+      }),
+      progressBar,
+      errDiv,
+      h('div', { className: 'pw-btn-row' },
+        h('button', {
+          className: 'btn btn-outline',
+          disabled: wiz.loading,
+          onClick: function () { wiz.setStep('TRANSFER_DETAILS'); },
+        }, h('i', { className: 'fas fa-arrow-left' }), ' Back'),
+        h('button', {
+          className: 'btn btn-primary',
+          disabled: !wiz.receiptFile || wiz.loading,
+          onClick: wiz.uploadReceipt,
+        },
+          wiz.loading
+            ? [h('i', { className: 'fas fa-spinner fa-spin' }), ' Uploading ' + wiz.uploadPct + '%…']
+            : [h('i', { className: 'fas fa-upload' }), ' Submit Receipt'])
+      )
+    );
+  }
+
+  // ── STEP 4: SUBMITTED ──
+  var stepDone = null;
+  if (wiz.step === 'SUBMITTED') {
+    stepDone = h('div', { style: 'text-align:center;padding:1.5rem 0;' },
+      h('i', { className: 'fas fa-check-circle',
+        style: 'font-size:3.5rem;color:var(--success);display:block;margin-bottom:1rem;' }),
+      h('div', { style: 'font-size:1.25rem;font-weight:800;margin-bottom:.5rem;' },
+        'Receipt Submitted!'),
+      h('div', { style: 'font-size:.85rem;color:var(--text2);margin-bottom:.5rem;' },
+        'Reference: ', h('strong', { style: 'color:var(--gold);' }, wiz.reference || '\u2014')),
+      h('p', { style: 'font-size:.82rem;color:var(--text2);margin-bottom:1.5rem;' },
+        'Your payment will be reviewed within 24\u201348 hours and your account updated.'),
+      h('button', {
+        className: 'btn btn-primary',
+        style: 'max-width:200px;margin:0 auto;',
+        onClick: function () { if (onComplete) onComplete(); if (onClose) onClose(); },
+      }, h('i', { className: 'fas fa-check' }), ' Done')
+    );
+  }
+
+  // ── Modal shell ──
+  var title = type === 'SUBSCRIPTION' ? 'Subscribe' : 'Buy Tokens';
+  return h('div', { className: 'pw-overlay' },
+    h('div', { className: 'pw-modal' },
+      h('div', { className: 'pw-header' },
+        h('div', { className: 'pw-title' },
+          h('i', { className: type === 'SUBSCRIPTION' ? 'fas fa-credit-card' : 'fas fa-coins' }),
+          ' ', title),
+        h('button', { className: 'pw-close', onClick: onClose }, '\u00d7')
+      ),
+      h('div', { className: 'pw-body' },
+        stepBar,
+        wiz.step !== 'RECEIPT_UPLOAD' ? errDiv : null,
+        stepPlanSelect,
+        stepTransfer,
+        stepUpload,
+        stepDone
+      )
+    )
+  );
+}
+
+/* ── Wizard open/close helpers ── */
+function openPayWizard(type) {
+  var root = $('pw-wizard-root');
+  render(
+    h(PaymentWizard, {
+      type: type || 'SUBSCRIPTION',
+      role: 'scout',
+      onClose: closePayWizard,
+      onComplete: function () {
+        toast('Payment submitted! Our team will review within 24\u201348 hours.', 'success', 7000);
+        loadSub();
+      },
+    }),
+    root
+  );
+}
+
+function closePayWizard() {
+  var root = $('pw-wizard-root');
+  render(null, root);
+}
+
+/* ════════════════════════════════════════════
+   AUTH + INIT
+════════════════════════════════════════════ */
+async function init(){
+  try{
+    const user = await api('/api/auth/me');
+    if(user.role !== 'scout'){
+      $('auth-gate').innerHTML=`
+        <div class="brand" style="font-size:0;"><div style="display:inline-flex;flex-direction:column;align-items:center"><div style="display:flex;align-items:baseline;padding-top:18px"><span style="font-weight:900;font-size:26px;letter-spacing:3px;line-height:1;color:#fff">Ene</span><span style="font-weight:900;font-size:26px;letter-spacing:3px;line-height:1;position:relative;display:inline-block;color:#fff"><span style="position:absolute;top:-17px;left:50%;transform:translateX(-50%);display:inline-block;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 50% 50%, #1a4fa0 2.4px, transparent 3px), #f5b800;box-shadow:inset 0 0 0 0.6px rgba(0,0,0,0.28);pointer-events:none"></span>ȷı</span><span style="font-weight:900;font-size:26px;letter-spacing:3px;line-height:1;color:#f5b800">Stats</span></div></div></div>
+        <i class="fas fa-user-slash" style="font-size:48px;color:var(--danger)"></i>
+        <h2>Scouts Only</h2>
+        <p class="gate-msg">This dashboard is exclusively for registered scouts.</p>
+        <a href="/" class="btn btn-primary">Return Home</a>`;
+      return;
+    }
+    S.scout = user;
+    S.scoutId = user.scout_id || user.id;
+    $('auth-gate').style.display='none';
+    $('app').style.display='block';
+    populateSidebar(user);
+    populateTopbar(user);
+    showBanner(user.subscription);
+    await loadWatchlistIds();
+    loadNotifCount();
+    loadOverview();
+  } catch(e){
+    $('auth-gate').innerHTML=`
+      <div class="brand" style="font-size:0;"><div style="display:inline-flex;flex-direction:column;align-items:center"><div style="display:flex;align-items:baseline;padding-top:18px"><span style="font-weight:900;font-size:26px;letter-spacing:3px;line-height:1;color:#fff">Ene</span><span style="font-weight:900;font-size:26px;letter-spacing:3px;line-height:1;position:relative;display:inline-block;color:#fff"><span style="position:absolute;top:-17px;left:50%;transform:translateX(-50%);display:inline-block;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 50% 50%, #1a4fa0 2.4px, transparent 3px), #f5b800;box-shadow:inset 0 0 0 0.6px rgba(0,0,0,0.28);pointer-events:none"></span>ȷı</span><span style="font-weight:900;font-size:26px;letter-spacing:3px;line-height:1;color:#f5b800">Stats</span></div></div></div>
+      <i class="fas fa-lock" style="font-size:48px;color:var(--danger)"></i>
+      <h2>Access Denied</h2>
+      <p class="gate-msg">You must be logged in to access this dashboard.</p>
+      <a href="/login" class="btn btn-primary">Go to Login</a>`;
+  }
+}
+
+function populateSidebar(u){
+  const sub = u.subscription||{};
+  const status = sub.status||'trial';
+  const av=$('sb-av');
+  if(u.photo_url) av.innerHTML=`<img src="${esc(u.photo_url)}"/>`;
+  else av.innerHTML=`<span style="font-size:20px;font-weight:700;color:var(--gold)">${esc(initials(u.full_name))}</span>`;
+  $('sb-name').textContent=u.full_name||'Scout';
+  const affil=u.affiliation_type;
+  $('sb-affil').textContent=affil==='independent'?'Independent Scout':(affil?`${affil.charAt(0).toUpperCase()+affil.slice(1)}: ${u.affiliation_name||''}`:'Scout');
+  const pill=$('sb-pill');
+  pill.textContent=status.charAt(0).toUpperCase()+status.slice(1).replace(/_/g,' ');
+  pill.className='spill '+status;
+}
+
+function populateTopbar(u){
+  const av=$('tb-av');
+  if(u.photo_url) av.innerHTML=`<img src="${esc(u.photo_url)}"/>`;
+  else av.innerHTML=`<span style="font-size:13px;font-weight:700;color:var(--gold)">${esc(initials(u.full_name))}</span>`;
+  $('tb-name').innerHTML=`<span>${esc(u.full_name?.split(' ')[0]||'Scout')}</span>`;
+}
+
+function showBanner(sub){
+  if(!sub) return;
+  const status=sub.status||'trial';
+  let html='';
+  if(status==='trial'){
+    const d=sub.trial_days_remaining??0;
+    html=`<div class="banner trial"><i class="fas fa-clock"></i> Trial Period: ${d} day${d!==1?'s':''} remaining — <button class="banner-btn" onclick="showTab('sub')">Subscribe Now</button></div>`;
+  } else if(status==='expired'){
+    html=`<div class="banner expired"><i class="fas fa-exclamation-triangle"></i> Subscription Expired — <button class="banner-btn" onclick="showTab('sub')">Renew to continue</button></div>`;
+  }
+  $('banner-wrap').innerHTML=html;
+}
+
+async function doLogout(){
+  try{ await fetch('/api/auth/logout',{method:'POST',credentials:'include'}); }catch(e){}
+  try{ localStorage.clear(); }catch(e){}
+  try{ sessionStorage.clear(); }catch(e){}
+  window.location.replace('/login');
+}
+
+/* ════════════════════════════════════════════
+   NAVIGATION
+════════════════════════════════════════════ */
+function showTab(tab, el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
+  const pg=$('page-'+tab);
+  if(pg) pg.classList.add('active');
+  const ni=$('ni-'+tab);
+  if(ni) ni.classList.add('active');
+  if(el) el.classList.add('active');
+  S.tab=tab;
+  closeSidebar();
+  if(tab==='overview') loadOverview();
+  if(tab==='profile')  loadProfile();
+  if(tab==='search')   buildSpFilters();
+  if(tab==='clubs')    buildScFilters();
+  if(tab==='watchlist') loadWatchlist();
+  if(tab==='comparison') renderComparison();
+  if(tab==='reports')  loadReports();
+  if(tab==='sub')      loadSub();
+  if(tab==='notif')    loadNotif();
+  if(tab==='settings') renderSettings();
+}
+
+function toggleSidebar(){ $('sidebar').classList.toggle('open'); $('sb-overlay').classList.toggle('show'); }
+function closeSidebar(){ $('sidebar').classList.remove('open'); $('sb-overlay').classList.remove('show'); }
+
+/* ════════════════════════════════════════════
+   WATCHLIST IDS
+════════════════════════════════════════════ */
+async function loadWatchlistIds(){
+  try{
+    const data = await api(`/api/scout/${S.scoutId}/watchlist`);
+    const items = data.items||data||[];
+    S.watchlistIds = new Set();
+    S.watchlistRawMap = new Map();
+    items.forEach(e=>{ S.watchlistIds.add(String(e.target_id||e.id)); S.watchlistRawMap.set(String(e.target_id||e.id), e.id); });
+    $('sb-wl-count').textContent=S.watchlistIds.size;
+  } catch(e){}
+}
+
+async function toggleWatchlist(targetId, targetType, btn){
+  const inWl = S.watchlistIds.has(String(targetId));
+  try{
+    if(inWl){
+      const wlId=S.watchlistRawMap.get(String(targetId));
+      if(wlId) await api(`/api/scout/${S.scoutId}/watchlist/${wlId}`,{method:'DELETE'});
+      toast('Removed from watchlist');
+    } else {
+      await api(`/api/scout/${S.scoutId}/watchlist`,{method:'POST',body:JSON.stringify({target_id:targetId,target_type:targetType})});
+      toast('Added to watchlist','success');
+    }
+    await loadWatchlistIds();
+    if(btn){
+      const active=S.watchlistIds.has(String(targetId));
+      btn.className='btn-wl'+(active?' active':'');
+      btn.innerHTML=`<i class="fas fa-star" style="color:${active?'var(--gold)':'inherit'}"></i> ${active?'Watching':'Watchlist'}`;
+    }
+  } catch(e){ toast(e.message,'error'); }
+}
+
+/* ════════════════════════════════════════════
+   OVERVIEW
+════════════════════════════════════════════ */
+async function loadOverview(){
+  const u=S.scout;
+  if(!u) return;
+  $('ov-firstname').textContent=u.full_name?.split(' ')[0]||'Scout';
+  const affil=u.affiliation_type;
+  $('ov-sub').textContent=(affil==='independent'?'Independent Scout':(affil?`${affil.charAt(0).toUpperCase()+affil.slice(1)}: ${u.affiliation_name||''}`:'Scout'))+' • '+fmtDate(new Date().toISOString());
+  $('ov-wl-list').innerHTML=loadingHtml();
+  $('ov-rpt-list').innerHTML=loadingHtml();
+  try{
+    const [wlData, rptData] = await Promise.all([
+      api(`/api/scout/${S.scoutId}/watchlist`),
+      api(`/api/scout/${S.scoutId}/reports`),
+    ]);
+    const wl = wlData.items||wlData||[];
+    const rpts = (rptData.items||rptData||[]).slice(0,3);
+    const players=wl.filter(e=>e.target_type==='player').length;
+    const clubs=wl.filter(e=>e.target_type==='club').length;
+    const reports=(rptData.items||rptData||[]).length;
+    const bgc=wl.filter(e=>e.bgc_requested).length;
+    $('ov-players').textContent=players;
+    $('ov-clubs').textContent=clubs;
+    $('ov-reports').textContent=reports;
+    $('ov-bgc').textContent=bgc;
+    $('ov-wl-list').innerHTML=wl.slice(0,5).length?wl.slice(0,5).map(e=>`
+      <div class="activity-item">
+        <div class="activity-icon"><i class="fas ${e.target_type==='club'?'fa-shield-alt':'fa-user'}"></i></div>
+        <div class="activity-body">
+          <div class="activity-title">${esc(e.name||e.target_name||'—')}</div>
+          <div class="activity-time">${e.target_type==='player'?(e.position?e.position+' • ':''):''}Added ${fmtDate(e.date_added)}</div>
+        </div>
+      </div>`).join(''): emptyHtml('fa-eye','Empty','No watchlist entries yet.');
+    $('ov-rpt-list').innerHTML=rpts.length?rpts.map(r=>`
+      <div class="activity-item">
+        <div class="activity-icon"><i class="fas fa-file-alt"></i></div>
+        <div class="activity-body">
+          <div class="activity-title">${esc(r.title||r.report_type||'Report')}</div>
+          <div class="activity-time">${fmtDate(r.created_at)}</div>
+        </div>
+      </div>`).join(''): emptyHtml('fa-file','No reports','Generate your first scouting report.');
+  } catch(e){
+    $('ov-wl-list').innerHTML=`<p class="text-danger">${esc(e.message)}</p>`;
+    $('ov-rpt-list').innerHTML=`<p class="text-danger">${esc(e.message)}</p>`;
+  }
+}
+
+/* ════════════════════════════════════════════
+   PROFILE
+════════════════════════════════════════════ */
+async function loadProfile(){
+  const el=$('profile-content');
+  el.innerHTML=loadingHtml();
+  try{
+    const p = await api(`/api/scout/${S.scoutId}/profile`);
+    renderProfile(p,false);
+  } catch(e){ el.innerHTML=`<p class="text-danger">${esc(e.message)}</p>`; }
+}
+
+function renderProfile(p, editing){
+  const sub=S.scout?.subscription||{};
+  const status=sub.status||'trial';
+  if(editing){
+    $('profile-content').innerHTML=`
+      <div class="card" style="text-align:center;margin-bottom:16px">
+        <div class="avatar-upload" onclick="document.getElementById('profile-photo-input').click()">
+          <div class="avatar-circle" id="profile-av-circle">
+            ${p.photo_url?`<img src="${esc(p.photo_url)}"/>`:`<i class="fas fa-user"></i>`}
+          </div>
+          <div class="avatar-overlay"><i class="fas fa-camera"></i></div>
+        </div>
+        <input type="file" id="profile-photo-input" accept="image/*" style="display:none" onchange="uploadProfilePhoto(this)"/>
+        <div style="font-size:13px;color:var(--text2)">Click to change photo</div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="fas fa-edit"></i> Edit Profile</div>
+        <div class="form-grid">
+          <div class="form-group"><label class="form-label">Full Name</label><input class="form-input" id="pf-name" value="${esc(p.full_name||'')}"/></div>
+          <div class="form-group"><label class="form-label">Date of Birth</label><input class="form-input" type="date" id="pf-dob" value="${esc(p.date_of_birth||'')}"/></div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group"><label class="form-label">Nationality</label><select class="form-input" id="pf-nationality"><option value="">Select…</option>${NATIONALITIES.map(n=>`<option${p.nationality===n?' selected':''}>${esc(n)}</option>`).join('')}</select></div>
+          <div class="form-group"><label class="form-label">Gender</label><select class="form-input" id="pf-gender"><option value="">Select…</option>${['Male','Female','Other'].map(g=>`<option${p.gender===g?' selected':''}>${g}</option>`).join('')}</select></div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group"><label class="form-label">Phone</label><input class="form-input" id="pf-phone" value="${esc(p.phone||'')}"/></div>
+          <div class="form-group"><label class="form-label">WhatsApp</label><input class="form-input" id="pf-whatsapp" value="${esc(p.whatsapp||'')}"/></div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group"><label class="form-label">Affiliation Type</label>
+            <select class="form-input" id="pf-affil-type">
+              <option value="">Select…</option>
+              ${['independent','club','agency','federation','academy'].map(a=>`<option value="${a}"${p.affiliation_type===a?' selected':''}>${a.charAt(0).toUpperCase()+a.slice(1)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group"><label class="form-label">Affiliation Name</label><input class="form-input" id="pf-affil-name" value="${esc(p.affiliation_name||'')}"/></div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group"><label class="form-label">Operating Region</label><input class="form-input" id="pf-region" value="${esc(p.operating_region||'')}"/></div>
+          <div class="form-group"><label class="form-label">Role / Title</label><input class="form-input" id="pf-role" value="${esc(p.role_title||'')}"/></div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group"><label class="form-label">Years of Experience</label><input class="form-input" type="number" id="pf-exp" value="${esc(p.years_experience||'')}"/></div>
+          <div class="form-group"><label class="form-label">Specialization</label><input class="form-input" id="pf-spec" value="${esc(p.specialization||'')}"/></div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group"><label class="form-label">Regions Covered</label><input class="form-input" id="pf-rcov" value="${esc(p.regions_covered||'')}"/></div>
+          <div class="form-group"><label class="form-label">Languages</label><input class="form-input" id="pf-lang" value="${esc(p.languages||'')}"/></div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group"><label class="form-label">LinkedIn</label><input class="form-input" id="pf-linkedin" value="${esc(p.linkedin||'')}"/></div>
+          <div class="form-group"><label class="form-label">Instagram</label><input class="form-input" id="pf-instagram" value="${esc(p.instagram||'')}"/></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Brief Bio (max 500 chars)</label>
+          <textarea class="form-input" id="pf-bio" maxlength="500" rows="4" oninput="document.getElementById('pf-bio-count').textContent=this.value.length+'/500'">${esc(p.bio||'')}</textarea>
+          <div class="char-count" id="pf-bio-count">${(p.bio||'').length}/500</div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="saveProfile()"><i class="fas fa-save"></i> Save Changes</button>
+          <button class="btn btn-secondary" onclick="loadProfile()">Cancel</button>
+        </div>
+      </div>`;
+  } else {
+    const rows=[
+      ['Full Name', p.full_name],
+      ['Scout ID', p.scout_id||S.scoutId],
+      ['Date of Birth', fmtDate(p.date_of_birth)],
+      ['Nationality', getFlag(p.nationality)+' '+(p.nationality||'—')],
+      ['Gender', p.gender||'—'],
+      ['Phone', p.phone||'—'],
+      ['WhatsApp', p.whatsapp||'—'],
+      ['Email', p.email||S.scout?.email||'—'],
+      ['Affiliation', p.affiliation_type?p.affiliation_type.charAt(0).toUpperCase()+p.affiliation_type.slice(1):'—'],
+      p.affiliation_type!=='independent'?['Affiliation Name', p.affiliation_name||'—']:['Operating Region', p.operating_region||'—'],
+      ['Role / Title', p.role_title||'—'],
+      ['Experience', p.years_experience?p.years_experience+' years':'—'],
+      ['Specialization', p.specialization||'—'],
+      ['Regions Covered', p.regions_covered||'—'],
+      ['Languages', p.languages||'—'],
+      ['LinkedIn', p.linkedin||'—'],
+      ['Instagram', p.instagram||'—'],
+    ];
+    $('profile-content').innerHTML=`
+      <div class="card" style="text-align:center;margin-bottom:16px">
+        <div class="avatar-circle" style="margin:0 auto 12px">${p.photo_url?`<img src="${esc(p.photo_url)}"/>`:`<i class="fas fa-user" style="font-size:48px"></i>`}</div>
+        <div style="font-size:18px;font-weight:800">${esc(p.full_name||'—')}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:4px">${esc(S.scout?.affiliation_type==='independent'?'Independent Scout':S.scout?.affiliation_type||'Scout')}</div>
+        <span class="spill ${status}" style="margin-top:8px;display:inline-block">${status.charAt(0).toUpperCase()+status.slice(1).replace(/_/g,' ')}</span>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="fas fa-id-card"></i> Profile Information</div>
+        ${rows.map(([k,v])=>`
+          <div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+            <div style="min-width:160px;font-size:12px;font-weight:600;color:var(--text2)">${esc(k)}</div>
+            <div style="font-size:13px">${esc(String(v||'—'))}</div>
+          </div>`).join('')}
+        ${p.bio?`<div style="margin-top:14px"><div class="form-label">Bio</div><div style="font-size:13px;color:var(--text2);line-height:1.6">${esc(p.bio)}</div></div>`:''}
+        <div style="margin-top:16px">
+          <button class="btn btn-primary btn-sm" onclick="loadProfile_edit()"><i class="fas fa-edit"></i> Edit Profile</button>
+        </div>
+      </div>`;
+  }
+}
+
+async function loadProfile_edit(){
+  $('profile-content').innerHTML=loadingHtml();
+  try{
+    const p = await api(`/api/scout/${S.scoutId}/profile`);
+    renderProfile(p,true);
+  } catch(e){ $('profile-content').innerHTML=`<p class="text-danger">${esc(e.message)}</p>`; }
+}
+
+async function saveProfile(){
+  const fv=id=>$(id)?$(id).value.trim():'';
+  const body={
+    full_name:fv('pf-name'), date_of_birth:fv('pf-dob')||null,
+    nationality:fv('pf-nationality'), gender:fv('pf-gender'),
+    phone:fv('pf-phone'), whatsapp:fv('pf-whatsapp'),
+    affiliation_type:fv('pf-affil-type'), affiliation_name:fv('pf-affil-name'),
+    operating_region:fv('pf-region'), role_title:fv('pf-role'),
+    years_experience:fv('pf-exp')?parseInt(fv('pf-exp')):null,
+    specialization:fv('pf-spec'), regions_covered:fv('pf-rcov'),
+    languages:fv('pf-lang'), linkedin:fv('pf-linkedin'), instagram:fv('pf-instagram'),
+    bio:$('pf-bio')?$('pf-bio').value.trim():'',
+  };
+  try{
+    await api(`/api/scout/${S.scoutId}/profile`,{method:'PATCH',body:JSON.stringify(body)});
+    const updated = await api(`/api/scout/${S.scoutId}/profile`);
+    S.scout={...S.scout,...updated};
+    populateSidebar(S.scout); populateTopbar(S.scout);
+    toast('Profile updated','success');
+    renderProfile(updated,false);
+  } catch(e){ toast(e.message,'error'); }
+}
+
+async function uploadProfilePhoto(input){
+  const file=input.files[0]; if(!file) return;
+  const fd=new FormData(); fd.append('file',file);
+  try{
+    const res=await fetch(`/api/scout/${S.scoutId}/photo`,{method:'POST',credentials:'include',body:fd});
+    const data=await res.json();
+    if(data.photo_url){ S.scout.photo_url=data.photo_url; populateSidebar(S.scout); populateTopbar(S.scout); toast('Photo updated','success'); }
+  } catch(e){ toast('Photo upload failed','error'); }
+}
+
+/* ════════════════════════════════════════════
+   SEARCH PLAYERS
+════════════════════════════════════════════ */
+function buildSpFilters(){
+  if($('sp-filter-panel').innerHTML) return;
+  $('sp-filter-panel').innerHTML=`
+    <div class="filter-section-title">Player Profile</div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Gender</label>
+        <select class="form-input" id="sp-gender" onchange="spSearchDelay()"><option value="">Any</option><option>Male</option><option>Female</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">Preferred Foot</label>
+        <select class="form-input" id="sp-foot" onchange="spSearchDelay()"><option value="">Any</option><option>Right</option><option>Left</option><option>Both</option></select>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Playing Category</label>
+        <select class="form-input" id="sp-cat" onchange="spSearchDelay()"><option value="">Any</option><option>Professional</option><option>Semi-Professional</option><option>Academy</option><option>University</option><option>Local</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">Agent Status</label>
+        <select class="form-input" id="sp-agent" onchange="spSearchDelay()"><option value="">Any</option><option value="represented">Represented</option><option value="unrepresented">Unrepresented</option></select>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Contract Status</label>
+        <select class="form-input" id="sp-contract" onchange="spSearchDelay()"><option value="">Any</option><option value="contracted">Contracted</option><option value="free">Free Agent</option></select>
+      </div>
+    </div>
+    <div class="filter-section-title">Age &amp; Physical</div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Age (Min / Max)</label>
+        <div class="range-row">
+          <input class="form-input" type="number" id="sp-age-min" placeholder="Min" oninput="spSearchDelay()"/>
+          <span>–</span>
+          <input class="form-input" type="number" id="sp-age-max" placeholder="Max" oninput="spSearchDelay()"/>
+        </div>
+      </div>
+      <div class="form-group"><label class="form-label">Height cm (Min / Max)</label>
+        <div class="range-row">
+          <input class="form-input" type="number" id="sp-h-min" placeholder="Min" oninput="spSearchDelay()"/>
+          <span>–</span>
+          <input class="form-input" type="number" id="sp-h-max" placeholder="Max" oninput="spSearchDelay()"/>
+        </div>
+      </div>
+    </div>
+    <div class="filter-section-title">Position</div>
+    <div class="multi-select" id="sp-positions">
+      ${['GK','CB','LB','RB','LWB','RWB','CDM','CM','CAM','LM','RM','LW','RW','SS','CF','ST'].map(p=>`
+        <label id="sp-pos-${p}"><input type="checkbox" onchange="spPosChange(this,'${p}')"/> ${p}</label>`).join('')}
+    </div>
+    <div class="filter-section-title">Nationality</div>
+    <div class="multi-select" id="sp-nats">
+      ${['Nigeria','Ghana','Kenya','South Africa','Cameroon','Senegal','Egypt','Morocco','Algeria','Tanzania','Uganda','Ethiopia','Zambia','Zimbabwe','Mali','Ivory Coast'].map(n=>`
+        <label id="sp-nat-${n.replace(/\s/g,'_')}"><input type="checkbox" onchange="spNatChange(this,'${n}')"/> ${n}</label>`).join('')}
+    </div>
+    <div class="filter-section-title">Location</div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Country</label><select class="form-input" id="sp-country" onchange="spGeoCountryChange(this.value)"><option value="">All Countries</option></select></div>
+      <div class="form-group"><label class="form-label" id="sp-state-label">State / Region</label><select class="form-input" id="sp-state" onchange="spGeoStateChange(this.value)" disabled><option value="">All States / Regions</option></select></div>
+      <div class="form-group"><label class="form-label" id="sp-lga-label">LGA / Local Area</label><select class="form-input" id="sp-lga" onchange="spSearchDelay()" disabled><option value="">All LGAs / Local Areas</option></select></div>
+      <div class="form-group"><label class="form-label">City / District</label><input class="form-input" id="sp-city" oninput="spSearchDelay()" placeholder="City, town or district"/></div>
+    </div>
+    <div class="filter-section-title">Performance Stats (Min / Max)</div>
+    ${[['Goals','sp-goals_min','sp-goals_max'],['Pass Accuracy %','sp-pa_min','sp-pa_max'],['Tackles Won','sp-tkl_min','sp-tkl_max'],['Dribble Success %','sp-drb_min','sp-drb_max'],['Shots on Target','sp-sot_min','sp-sot_max'],['Aerial Duel %','sp-aer_min','sp-aer_max'],['Saves','sp-sav_min','sp-sav_max'],['Clean Sheets','sp-cs_min','sp-cs_max']].map(([l,mn,mx])=>`
+      <div class="form-group"><label class="form-label">${esc(l)}</label>
+        <div class="range-row">
+          <input class="form-input" type="number" id="${mn}" placeholder="Min" oninput="spSearchDelay()"/>
+          <span>–</span>
+          <input class="form-input" type="number" id="${mx}" placeholder="Max" oninput="spSearchDelay()"/>
+        </div>
+      </div>`).join('')}
+    <button class="btn btn-secondary btn-sm" onclick="spClearFilters()">Clear Filters</button>`;
+}
+
+function spPosChange(cb, pos){
+  if(!S.spFilters.position) S.spFilters.position=[];
+  if(cb.checked) S.spFilters.position.push(pos);
+  else S.spFilters.position=S.spFilters.position.filter(p=>p!==pos);
+  const lbl=document.getElementById(`sp-pos-${pos}`);
+  if(lbl) lbl.classList.toggle('checked',cb.checked);
+  S.spPage=1; spSearchDelay();
+}
+
+function spNatChange(cb, nat){
+  if(!S.spFilters.nationality) S.spFilters.nationality=[];
+  if(cb.checked) S.spFilters.nationality.push(nat);
+  else S.spFilters.nationality=S.spFilters.nationality.filter(n=>n!==nat);
+  const lbl=document.getElementById(`sp-nat-${nat.replace(/\s/g,'_')}`);
+  if(lbl) lbl.classList.toggle('checked',cb.checked);
+  S.spPage=1; spSearchDelay();
+}
+
+function spToggleFilters(){
+  S.spFiltersVisible=!S.spFiltersVisible;
+  $('sp-filters').style.display=S.spFiltersVisible?'block':'none';
+  $('sp-filter-icon').className=`fas fa-chevron-${S.spFiltersVisible?'up':'down'}`;
+  buildSpFilters();
+  spGeoInit();
+}
+
+async function spGeoInit(){try{const r=await fetch('/api/public/countries',{credentials:'include'});if(!r.ok)return;const d=await r.json();const a=Array.isArray(d)?d:(d.countries||d.data||[]);const el=$('sp-country');if(!el)return;el.innerHTML='<option value="">All Countries</option>'+a.map(c=>`<option value="${esc(c.code||'')}">${esc(c.name||c.code||'')}</option>`).join('');}catch(e){}}
+async function spGeoCountryChange(code){const st=$('sp-state'),lg=$('sp-lga');if(!st||!lg)return;st.innerHTML='<option value="">Loading…</option>';lg.innerHTML='<option value="">All Local Areas</option>';lg.disabled=true;try{if(!code){st.innerHTML='<option value="">All States / Regions</option>';st.disabled=true;$('sp-state-label').textContent='State / Region';$('sp-lga-label').textContent='LGA / Local Area';spSearchDelay();return;}const r=await fetch('/api/public/countries/'+encodeURIComponent(code)+'/regions',{credentials:'include'});const d=await r.json();const a=Array.isArray(d)?d:(d.regions||[]);const label=d.region_label||'State / Region';$('sp-state-label').textContent=label;st.innerHTML='<option value="">All '+esc(label)+'s</option>'+a.map(x=>`<option value="${esc(typeof x==='string'?x:(x.name||x.state||x.region||''))}">${esc(typeof x==='string'?x:(x.name||x.state||x.region||''))}</option>`).join('');st.disabled=false;spSearchDelay();}catch(e){st.innerHTML='<option value="">Unable to load regions</option>';}}
+async function spGeoStateChange(region){const c=$('sp-country')?.value,lg=$('sp-lga');if(!lg)return;lg.innerHTML='<option value="">Loading…</option>';if(!c||!region){lg.innerHTML='<option value="">All Local Areas</option>';lg.disabled=true;spSearchDelay();return;}try{const r=await fetch('/api/public/countries/'+encodeURIComponent(c)+'/regions/'+encodeURIComponent(region)+'/subregions',{credentials:'include'});const d=await r.json();const a=Array.isArray(d)?d:(d.subregions||[]);const label=d.subregion_label||'LGA / Local Area';$('sp-lga-label').textContent=label;lg.innerHTML='<option value="">All '+esc(label)+'s</option>'+a.map(x=>`<option value="${esc(typeof x==='string'?x:(x.name||x.lga||x.subregion||''))}">${esc(typeof x==='string'?x:(x.name||x.lga||x.subregion||''))}</option>`).join('');lg.disabled=false;spSearchDelay();}catch(e){lg.innerHTML='<option value="">Unable to load local areas</option>';}}
+async function scGeoInit(){try{const r=await fetch('/api/public/countries',{credentials:'include'});if(!r.ok)return;const d=await r.json();const a=Array.isArray(d)?d:(d.countries||d.data||[]);const el=$('sc-country');if(!el)return;el.innerHTML='<option value="">All Countries</option>'+a.map(c=>`<option value="${esc(c.code||'')}">${esc(c.name||c.code||'')}</option>`).join('');}catch(e){}}
+async function scGeoCountryChange(code){const st=$('sc-state'),lg=$('sc-lga');if(!st||!lg)return;st.innerHTML='<option value="">Loading…</option>';lg.innerHTML='<option value="">All Local Areas</option>';lg.disabled=true;try{if(!code){st.innerHTML='<option value="">All States / Regions</option>';st.disabled=true;$('sc-state-label').textContent='State / Region';$('sc-lga-label').textContent='LGA / Local Area';scSearchDelay();return;}const r=await fetch('/api/public/countries/'+encodeURIComponent(code)+'/regions',{credentials:'include'});const d=await r.json();const a=Array.isArray(d)?d:(d.regions||[]);const label=d.region_label||'State / Region';$('sc-state-label').textContent=label;st.innerHTML='<option value="">All '+esc(label)+'s</option>'+a.map(x=>`<option value="${esc(typeof x==='string'?x:(x.name||x.state||x.region||''))}">${esc(typeof x==='string'?x:(x.name||x.state||x.region||''))}</option>`).join('');st.disabled=false;scSearchDelay();}catch(e){st.innerHTML='<option value="">Unable to load regions</option>';}}
+async function scGeoStateChange(region){const c=$('sc-country')?.value,lg=$('sc-lga');if(!lg)return;lg.innerHTML='<option value="">Loading…</option>';if(!c||!region){lg.innerHTML='<option value="">All Local Areas</option>';lg.disabled=true;scSearchDelay();return;}try{const r=await fetch('/api/public/countries/'+encodeURIComponent(c)+'/regions/'+encodeURIComponent(region)+'/subregions',{credentials:'include'});const d=await r.json();const a=Array.isArray(d)?d:(d.subregions||[]);const label=d.subregion_label||'LGA / Local Area';$('sc-lga-label').textContent=label;lg.innerHTML='<option value="">All '+esc(label)+'s</option>'+a.map(x=>`<option value="${esc(typeof x==='string'?x:(x.name||x.lga||x.subregion||''))}">${esc(typeof x==='string'?x:(x.name||x.lga||x.subregion||''))}</option>`).join('');lg.disabled=false;scSearchDelay();}catch(e){lg.innerHTML='<option value="">Unable to load local areas</option>';}}
+function spClearFilters(){
+  S.spFilters={};
+  ['sp-gender','sp-foot','sp-cat','sp-agent','sp-contract','sp-age-min','sp-age-max','sp-h-min','sp-h-max','sp-state','sp-lga','sp-city','sp-goals_min','sp-goals_max','sp-pa_min','sp-pa_max','sp-tkl_min','sp-tkl_max','sp-drb_min','sp-drb_max','sp-sot_min','sp-sot_max','sp-aer_min','sp-aer_max','sp-sav_min','sp-sav_max','sp-cs_min','sp-cs_max'].forEach(id=>{ const el=$(id); if(el) el.value=''; });
+  document.querySelectorAll('#sp-positions input[type=checkbox]').forEach(cb=>{ cb.checked=false; });
+  document.querySelectorAll('#sp-nats input[type=checkbox]').forEach(cb=>{ cb.checked=false; });
+  document.querySelectorAll('#sp-positions label, #sp-nats label').forEach(l=>l.classList.remove('checked'));
+  S.spPage=1; spSearchDelay();
+}
+
+function spSearchDelay(){ clearTimeout(S.spDebounce); S.spDebounce=setTimeout(()=>{ S.spPage=1; doSpSearch(); },500); }
+function spSearch(){ S.spPage=1; spSearchDelay(); }
+
+async function doSpSearch(){
+  const q=($('sp-q')||{value:''}).value.trim();
+  const el=$('sp-results');
+  el.innerHTML=loadingHtml();
+  try{
+    const params=new URLSearchParams();
+    if(q) params.set('name',q); params.set('page',S.spPage); params.set('per_page',20);
+    const f=S.spFilters||{};
+    if(f.nationality?.length) params.set('nationality',f.nationality.join(','));
+    if(f.position?.length) params.set('position',f.position.join(','));
+    const gv=id=>$(id)?$(id).value:'';
+    [['country','sp-country'],['age_min','sp-age-min'],['age_max','sp-age-max'],['gender','sp-gender'],['preferred_foot','sp-foot'],['playing_category','sp-cat'],['height_min','sp-h-min'],['height_max','sp-h-max'],['agent_status','sp-agent'],['contract_status','sp-contract'],['goals_min','sp-goals_min'],['goals_max','sp-goals_max'],['pass_accuracy_min','sp-pa_min'],['pass_accuracy_max','sp-pa_max'],['tackles_min','sp-tkl_min'],['tackles_max','sp-tkl_max'],['dribble_min','sp-drb_min'],['dribble_max','sp-drb_max'],['shots_on_target_min','sp-sot_min'],['shots_on_target_max','sp-sot_max'],['aerial_min','sp-aer_min'],['aerial_max','sp-aer_max'],['saves_min','sp-sav_min'],['saves_max','sp-sav_max'],['clean_sheets_min','sp-cs_min'],['clean_sheets_max','sp-cs_max'],['state','sp-state'],['lga','sp-lga'],['city','sp-city']].forEach(([k,id])=>{ const v=gv(id); if(v) params.set(k,v); });
+    const url=(q||Object.values(S.spFilters||{}).some(v=>v&&(!Array.isArray(v)||v.length)))?`/api/players/search?${params}`:`/api/players?${params}`;
+    const data=await api(url);
+    const items=data.items||data.results||data||[];
+    const total=data.total||items.length;
+    el.innerHTML=items.length?`<div style="font-size:13px;color:var(--text2);margin-bottom:12px">${total} result${total!==1?'s':''} found</div><div class="results-grid">${items.map(p=>playerCardHtml(p)).join('')}</div>`: emptyHtml('fa-user-slash','No players found','Try adjusting your filters or search term.');
+    $('sp-pagination').style.display=items.length?'flex':'none';
+    $('sp-prev').disabled=S.spPage<=1;
+    $('sp-next').disabled=items.length<20;
+    $('sp-pg-lbl').textContent=`Page ${S.spPage}`;
+    updateCompareFloating();
+  } catch(e){ el.innerHTML=`<p class="text-danger">${esc(e.message)}</p>`; }
+}
+
+function spPage(dir){ S.spPage=Math.max(1,S.spPage+dir); doSpSearch(); }
+
+function playerCardHtml(p){
+  const inWl=S.watchlistIds.has(String(p.id));
+  const inCmp=S.compareQueue.find(x=>String(x.id)===String(p.id));
+  const stats=p.stats||{};
+  const statPills=[
+    stats.goals>0?`<div class="stat-pill"><span>⚽</span><b>${stats.goals}</b> Goals</div>`:'',
+    stats.assists>0?`<div class="stat-pill"><span>🅰️</span><b>${stats.assists}</b> Assists</div>`:'',
+    stats.pass_accuracy>0?`<div class="stat-pill"><span>📊</span><b>${stats.pass_accuracy}%</b> Pass</div>`:'',
+    stats.tackles_won>0?`<div class="stat-pill"><span>🛡️</span><b>${stats.tackles_won}</b> Tackles</div>`:'',
+  ].filter(Boolean).slice(0,4).join('');
+  return `
+    <div class="player-card">
+      <div class="pc-head">
+        <div class="pc-photo">${p.photo_url?`<img src="${esc(p.photo_url)}"/>`:'<i class="fas fa-user"></i>'}</div>
+        <div class="pc-info">
+          <div class="pc-name">${esc(p.full_name||p.name||'—')}</div>
+          <div class="pc-meta">
+            <span class="pos-badge ${posBadge(p.position)}">${esc(p.position||'N/A')}</span>
+            <span>${getFlag(p.nationality)} ${esc(p.nationality||'')}</span>
+            ${p.age?`<span class="chip">${p.age} yrs</span>`:''}
+          </div>
+          <div class="pc-meta">
+            ${p.current_club?`<span class="chip">${esc(p.current_club)}</span>`:`<span class="chip free">Free Agent</span>`}
+            ${p.playing_category?`<span class="chip">${esc(p.playing_category)}</span>`:''}
+          </div>
+        </div>
+      </div>
+      ${statPills?`<div class="pc-stats">${statPills}</div>`:''}
+      <div class="pc-actions">
+        <button class="btn-wl${inWl?' active':''}" onclick="toggleWatchlist('${p.id}','player',this)">
+          <i class="fas fa-star" style="color:${inWl?'var(--gold)':'inherit'}"></i> ${inWl?'Watching':'Watchlist'}
+        </button>
+        <a href="/player/${p.id}" class="btn btn-primary btn-sm" target="_blank"><i class="fas fa-eye"></i> View</a>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;margin-left:auto">
+          <input type="checkbox" accent-color="var(--gold)" ${inCmp?'checked':''} onchange="cmpToggle(${JSON.stringify(p)},this)"/> Compare
+        </label>
+      </div>
+    </div>`;
+}
+
+/* ════════════════════════════════════════════
+   SEARCH CLUBS
+════════════════════════════════════════════ */
+function buildScFilters(){
+  if($('sc-filter-panel').innerHTML) return;
+  $('sc-filter-panel').innerHTML=`
+    <div class="filter-section-title">Club Profile</div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Category</label>
+        <select class="form-input" id="sc-cat" onchange="scSearchDelay()"><option value="">Any</option><option>Professional</option><option>Semi-Professional</option><option>Academy</option><option>Other</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">Registration Status</label>
+        <select class="form-input" id="sc-reg" onchange="scSearchDelay()"><option value="">Any</option><option value="registered">Registered</option><option value="unregistered">Unregistered</option></select>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Country</label><select class="form-input" id="sc-country" onchange="scGeoCountryChange(this.value)"><option value="">All Countries</option></select></div>
+      <div class="form-group"><label class="form-label" id="sc-state-label">State / Region</label><select class="form-input" id="sc-state" onchange="scGeoStateChange(this.value)" disabled><option value="">All States / Regions</option></select></div>
+      <div class="form-group"><label class="form-label" id="sc-lga-label">LGA / Local Area</label><select class="form-input" id="sc-lga" onchange="scSearchDelay()" disabled><option value="">All LGAs / Local Areas</option></select></div>
+      <div class="form-group"><label class="form-label">City / District</label><input class="form-input" id="sc-city" oninput="scSearchDelay()" placeholder="City, town or district"/></div>
+    </div>
+    <div class="filter-section-title">Club Stats (Min / Max)</div>
+    ${[['Goals Scored','sc-gs-min','sc-gs-max'],['Goals Conceded','sc-gc-min','sc-gc-max'],['Possession %','sc-pos-min','sc-pos-max'],['Pass Accuracy %','sc-pa-min','sc-pa-max'],['Shots on Target','sc-sot-min','sc-sot-max'],['Tackles Won','sc-tkl-min','sc-tkl-max'],['Clean Sheets','sc-cs-min','sc-cs-max'],['Matches Played','sc-mp-min','sc-mp-max']].map(([l,mn,mx])=>`
+      <div class="form-group"><label class="form-label">${esc(l)}</label>
+        <div class="range-row">
+          <input class="form-input" type="number" id="${mn}" placeholder="Min" oninput="scSearchDelay()"/>
+          <span>–</span>
+          <input class="form-input" type="number" id="${mx}" placeholder="Max" oninput="scSearchDelay()"/>
+        </div>
+      </div>`).join('')}
+    <button class="btn btn-secondary btn-sm" onclick="scClearFilters()">Clear Filters</button>`;
+}
+
+function scToggleFilters(){
+  S.scFiltersVisible=!S.scFiltersVisible;
+  $('sc-filters').style.display=S.scFiltersVisible?'block':'none';
+  $('sc-filter-icon').className=`fas fa-chevron-${S.scFiltersVisible?'up':'down'}`;
+  buildScFilters();
+  scGeoInit();
+}
+
+function scClearFilters(){
+  ['sc-cat','sc-reg','sc-state','sc-lga','sc-city','sc-gs-min','sc-gs-max','sc-gc-min','sc-gc-max','sc-pos-min','sc-pos-max','sc-pa-min','sc-pa-max','sc-sot-min','sc-sot-max','sc-tkl-min','sc-tkl-max','sc-cs-min','sc-cs-max','sc-mp-min','sc-mp-max'].forEach(id=>{ const el=$(id); if(el) el.value=''; });
+  scSearchDelay();
+}
+
+function scSearchDelay(){ clearTimeout(S.scDebounce); S.scDebounce=setTimeout(()=>{ S.scPage=1; doScSearch(); },500); }
+function scSearch(){ S.scPage=1; scSearchDelay(); }
+
+async function doScSearch(){
+  const q=($('sc-q')||{value:''}).value.trim();
+  const el=$('sc-results');
+  el.innerHTML=loadingHtml();
+  try{
+    const params=new URLSearchParams();
+    if(q) params.set('name',q); params.set('page',S.scPage); params.set('per_page',20);
+    const gv=id=>$(id)?$(id).value:'';
+    [['category','sc-cat'],['registration_status','sc-reg'],['country','sc-country'],['state','sc-state'],['lga','sc-lga'],['city','sc-city'],['goals_scored_min','sc-gs-min'],['goals_scored_max','sc-gs-max'],['goals_conceded_min','sc-gc-min'],['goals_conceded_max','sc-gc-max'],['possession_min','sc-pos-min'],['possession_max','sc-pos-max'],['pass_accuracy_min','sc-pa-min'],['pass_accuracy_max','sc-pa-max'],['shots_on_target_min','sc-sot-min'],['shots_on_target_max','sc-sot-max'],['tackles_won_min','sc-tkl-min'],['tackles_won_max','sc-tkl-max'],['clean_sheets_min','sc-cs-min'],['clean_sheets_max','sc-cs-max'],['matches_played_min','sc-mp-min'],['matches_played_max','sc-mp-max']].forEach(([k,id])=>{ const v=gv(id); if(v) params.set(k,v); });
+    const hasFilters=['sc-cat','sc-reg','sc-state','sc-lga','sc-city','sc-gs-min','sc-gs-max','sc-gc-min','sc-gc-max','sc-pos-min','sc-pos-max','sc-pa-min','sc-pa-max','sc-sot-min','sc-sot-max','sc-tkl-min','sc-tkl-max','sc-cs-min','sc-cs-max','sc-mp-min','sc-mp-max'].some(id=>gv(id));
+    const url=(q||hasFilters)?`/api/clubs/search?${params}`:`/api/clubs?${params}`;
+    const data=await api(url);
+    const items=data.items||data.results||data||[];
+    const total=data.total||items.length;
+    el.innerHTML=items.length?`<div style="font-size:13px;color:var(--text2);margin-bottom:12px">${total} result${total!==1?'s':''} found</div><div class="results-grid">${items.map(c=>clubCardHtml(c)).join('')}</div>`: emptyHtml('fa-shield-alt','No clubs found','Try adjusting your search or filters.');
+    $('sc-pagination').style.display=items.length?'flex':'none';
+    $('sc-prev').disabled=S.scPage<=1;
+    $('sc-next').disabled=items.length<20;
+    $('sc-pg-lbl').textContent=`Page ${S.scPage}`;
+  } catch(e){ el.innerHTML=`<p class="text-danger">${esc(e.message)}</p>`; }
+}
+
+function scPage(dir){ S.scPage=Math.max(1,S.scPage+dir); doScSearch(); }
+
+function clubCardHtml(c){
+  const inWl=S.watchlistIds.has(String(c.id));
+  const stats=c.stats||{};
+  return `
+    <div class="player-card">
+      <div class="pc-head">
+        <div class="pc-photo" style="font-size:28px">${c.logo_url?`<img src="${esc(c.logo_url)}"/>`:'<i class="fas fa-shield-alt"></i>'}</div>
+        <div class="pc-info">
+          <div class="pc-name">${esc(c.name||'—')}</div>
+          <div class="pc-meta">
+            <span class="chip">${esc(c.category||'—')}</span>
+            <span class="chip">${esc([c.city,c.state,c.lga||c.local_area].filter(Boolean).join(', ')||'—')}</span>
+          </div>
+          <div class="pc-meta">
+            ${c.registration_status?`<span class="chip">${esc(c.registration_status)}</span>`:''}
+            ${c.squad_size>0?`<span class="chip">${c.squad_size} players</span>`:''}
+          </div>
+        </div>
+      </div>
+      <div class="pc-stats">
+        ${stats.goals_scored>0?`<div class="stat-pill"><span>⚽</span><b>${stats.goals_scored}</b> Goals</div>`:''}
+        ${stats.win_rate>0?`<div class="stat-pill"><span>📈</span><b>${stats.win_rate}%</b> Win Rate</div>`:''}
+      </div>
+      <div class="pc-actions">
+        <button class="btn-wl${inWl?' active':''}" onclick="toggleWatchlist('${c.id}','club',this)">
+          <i class="fas fa-star" style="color:${inWl?'var(--gold)':'inherit'}"></i> ${inWl?'Watching':'Watchlist'}
+        </button>
+        <a href="/club/${c.id}" class="btn btn-primary btn-sm" target="_blank"><i class="fas fa-eye"></i> View</a>
+      </div>
+    </div>`;
+}
+
+/* ════════════════════════════════════════════
+   WATCHLIST
+════════════════════════════════════════════ */
+async function loadWatchlist(){
+  $('wl-players').innerHTML=loadingHtml();
+  $('wl-clubs').innerHTML=loadingHtml();
+  try{
+    const data=await api(`/api/scout/${S.scoutId}/watchlist`);
+    const items=data.items||data||[];
+    const players=items.filter(e=>e.target_type==='player');
+    const clubs=items.filter(e=>e.target_type==='club');
+    $('wl-players').innerHTML=players.length?players.map(e=>wlEntryHtml(e,'player')).join(''): emptyHtml('fa-eye','No players','Add players to your watchlist from Search Players.');
+    $('wl-clubs').innerHTML=clubs.length?clubs.map(e=>wlEntryHtml(e,'club')).join(''): emptyHtml('fa-shield-alt','No clubs','Add clubs to your watchlist from Search Clubs.');
+  } catch(e){
+    $('wl-players').innerHTML=`<p class="text-danger">${esc(e.message)}</p>`;
+    $('wl-clubs').innerHTML=`<p class="text-danger">${esc(e.message)}</p>`;
+  }
+}
+
+function wlSection(section, el){
+  document.querySelectorAll('.inner-tab').forEach(t=>t.classList.remove('active'));
+  if(el) el.classList.add('active');
+  $('wl-players').style.display=section==='players'?'block':'none';
+  $('wl-clubs').style.display=section==='clubs'?'block':'none';
+}
+
+function wlEntryHtml(e, type){
+  const name=e.name||e.target_name||'—';
+  const days=daysSince(e.date_added);
+  const stats=e.recent_stats||{};
+  const statPills=Object.entries(stats).filter(([,v])=>v&&v>0).slice(0,4).map(([k,v])=>`<div class="stat-pill"><b>${v}</b> ${k.replace(/_/g,' ')}</div>`).join('');
+  return `
+    <div class="wl-entry">
+      <div class="wl-photo">${e.photo_url?`<img src="${esc(e.photo_url)}" style="width:100%;height:100%;object-fit:cover"/>`:`<i class="fas ${type==='club'?'fa-shield-alt':'fa-user'}"></i>`}</div>
+      <div class="wl-body">
+        <div class="wl-name">
+          ${esc(name)}
+          ${type==='player'&&e.position?`<span class="pos-badge ${posBadge(e.position)}">${esc(e.position)}</span>`:''}
+          ${e.nationality?`<span>${getFlag(e.nationality)}</span>`:''}
+          <span class="status-chip ${e.watch_status==='review'?'review':'active'}" style="margin-left:auto">${e.watch_status==='review'?'Under Review':'Active Monitoring'}</span>
+        </div>
+        <div class="wl-meta">${type==='player'?(e.current_club||'Free Agent'):([e.city,e.state,e.lga||e.local_area].filter(Boolean).length?esc([e.city,e.state,e.lga||e.local_area].filter(Boolean).join(', ')):'')}${type==='player'&&e.playing_category?` • ${esc(e.playing_category)}`:''}</div>
+        <div class="wl-dur"><i class="fas fa-calendar-alt"></i> Watching since ${fmtDate(e.date_added)} · ${days} day${days!==1?'s':''}</div>
+        ${statPills?`<div class="wl-stats">${statPills}</div>`:''}
+        <div class="wl-actions">
+          <a href="/${type==='club'?'club':'player'}/${e.target_id}" class="btn btn-secondary btn-xs" target="_blank"><i class="fas fa-eye"></i> View Profile</a>
+          <button class="btn btn-xs btn-ghost" onclick="openBGCModal('${e.target_id}','${type}','${esc(name)}')"><i class="fas fa-shield-alt"></i> Background Check</button>
+          <button class="btn btn-xs btn-danger" onclick="removeWatchlist('${e.id}')"><i class="fas fa-trash"></i> Remove</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function removeWatchlist(wlId){
+  try{
+    await api(`/api/scout/${S.scoutId}/watchlist/${wlId}`,{method:'DELETE'});
+    toast('Removed from watchlist');
+    loadWatchlist(); loadWatchlistIds();
+  } catch(e){ toast(e.message,'error'); }
+}
+
+function openBGCModal(targetId, targetType, targetName){
+  S.bgcTargetId=targetId; S.bgcTargetType=targetType;
+  $('bgc-target-name').textContent=targetName;
+  $('bgc-date').textContent=new Date().toLocaleDateString();
+  $('bgc-notes').value=''; $('bgc-count').textContent='0/500';
+  openModal('m-bgc');
+}
+
+async function submitBGC(){
+  const notes=$('bgc-notes').value.trim();
+  try{
+    await api(`/api/scout/${S.scoutId}/background-check-requests`,{method:'POST',body:JSON.stringify({target_id:S.bgcTargetId,target_type:S.bgcTargetType,target_name:$('bgc-target-name').textContent,notes})});
+    toast('Background check request submitted. Admin will contact you.','success');
+    closeModal('m-bgc');
+  } catch(e){ toast(e.message,'error'); }
+}
+
+/* ════════════════════════════════════════════
+   COMPARISON
+════════════════════════════════════════════ */
+function cmpToggle(player, cb){
+  const exists=S.compareQueue.find(x=>String(x.id)===String(player.id));
+  if(exists){ S.compareQueue=S.compareQueue.filter(x=>String(x.id)!==String(player.id)); cb.checked=false; }
+  else if(S.compareQueue.length>=5){ toast('You can compare up to 5 players','warning'); cb.checked=false; return; }
+  else { S.compareQueue.push(player); }
+  updateCompareFloating();
+}
+
+function updateCompareFloating(){
+  const f=$('compare-floating');
+  if(S.compareQueue.length>0){
+    f.style.display='flex';
+    $('compare-count-lbl').textContent=`${S.compareQueue.length} player${S.compareQueue.length>1?'s':''} selected`;
+  } else { f.style.display='none'; }
+  const btn=$('cmp-gen-btn');
+  if(btn) btn.disabled=S.compareQueue.length<2;
+}
+
+function cmpPlayerSearch(q){
+  clearTimeout(S.cmpDebounce);
+  if(!q){ $('cmp-dropdown').style.display='none'; return; }
+  S.cmpDebounce=setTimeout(async()=>{
+    try{
+      const data=await api(`/api/players/search?name=${encodeURIComponent(q)}&per_page=8`);
+      const items=data.items||data.results||data||[];
+      const dd=$('cmp-dropdown');
+      if(!items.length){ dd.style.display='none'; return; }
+      dd.innerHTML=items.map(p=>`
+        <div style="padding:10px 14px;cursor:pointer;display:flex;gap:10px;align-items:center;transition:background .2s" onmouseenter="this.style.background='rgba(255,255,255,.05)'" onmouseleave="this.style.background=''" onclick="cmpAdd(${JSON.stringify(p)})">
+          ${avatarHtml(p.photo_url,p.full_name||p.name,32)}
+          <span style="font-size:13px;font-weight:600">${esc(p.full_name||p.name)}</span>
+          <span class="pos-badge ${posBadge(p.position)}">${esc(p.position)}</span>
+        </div>`).join('');
+      dd.style.display='block';
+    } catch(e){}
+  },500);
+}
+
+function cmpAdd(player){
+  $('cmp-dropdown').style.display='none';
+  $('cmp-q').value='';
+  if(S.compareQueue.find(x=>String(x.id)===String(player.id))){ toast('Already added','warning'); return; }
+  if(S.compareQueue.length>=5){ toast('Max 5 players','warning'); return; }
+  S.compareQueue.push(player);
+  updateCompareFloating();
+  renderComparison();
+}
+
+function cmpRemove(id){ S.compareQueue=S.compareQueue.filter(p=>String(p.id)!==String(id)); updateCompareFloating(); renderComparison(); }
+function cmpClear(){ S.compareQueue=[]; updateCompareFloating(); renderComparison(); }
+
+async function cmpAddAllWatchlist(){
+  let ok=0;
+  for(const p of S.compareQueue){
+    try{ await api(`/api/scout/${S.scoutId}/watchlist`,{method:'POST',body:JSON.stringify({target_id:p.id,target_type:'player'})}); ok++; } catch(e){}
+  }
+  toast(`Added ${ok} player${ok!==1?'s':''} to watchlist`,'success');
+  await loadWatchlistIds();
+}
+
+async function cmpGenerateReport(){
+  try{
+    const profileMap={};
+    for(const p of S.compareQueue){
+      try{ profileMap[p.id]=await api(`/api/player/${p.id}/public-profile`); } catch(e){ profileMap[p.id]=p; }
+    }
+    const statsMap={};
+    for(const p of S.compareQueue){
+      try{ statsMap[p.id]=await api(`/api/player/${p.id}/stats/summary`); } catch(e){ statsMap[p.id]={}; }
+    }
+    await api(`/api/scout/${S.scoutId}/reports`,{method:'POST',body:JSON.stringify({
+      report_type:'player_comparison',
+      title:`Player Comparison — ${S.compareQueue.map(p=>(profileMap[p.id]?.full_name||p.full_name||p.name||'Player')).join(' vs ')}`,
+      player_ids:S.compareQueue.map(p=>p.id),
+      data:{profiles:profileMap,stats:statsMap}
+    })});
+    toast('Comparison report saved','success');
+    $('print-meta').textContent=`Prepared by: ${S.scout?.full_name} | Generated: ${new Date().toLocaleString()}`;
+    window.print();
+  } catch(e){ toast(e.message,'error'); }
+}
+
+function renderComparison(){
+  const queueHtml=S.compareQueue.map(p=>`
+    <div style="display:flex;align-items:center;gap:8px;background:rgba(0,74,173,.15);border:1px solid var(--primary);padding:6px 12px;border-radius:20px;font-size:13px">
+      ${esc(p.full_name||p.name||'Player')}
+      <button style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:14px" onclick="cmpRemove('${p.id}')">✕</button>
+    </div>`).join('');
+  const remaining=5-S.compareQueue.length;
+  $('cmp-queue').innerHTML=queueHtml+(remaining<5?`<span style="font-size:12px;color:var(--text2);align-self:center">${remaining} slot${remaining!==1?'s':''} remaining</span>`:'');
+  const btn=$('cmp-gen-btn');
+  if(btn) btn.disabled=S.compareQueue.length<2;
+  const wrap=$('cmp-table-wrap');
+  if(S.compareQueue.length<2){ wrap.innerHTML=emptyHtml('fa-balance-scale','Select 2–5 players','Use the search above or the Compare checkbox on player cards.'); return; }
+  renderCmpTable(wrap);
+}
+
+async function renderCmpTable(wrap){
+  wrap.innerHTML=loadingHtml();
+  const profileMap={}, statsMap={};
+  for(const p of S.compareQueue){
+    try{ profileMap[p.id]=await api(`/api/player/${p.id}/public-profile`); } catch(e){ profileMap[p.id]=p; }
+    try{ statsMap[p.id]=await api(`/api/player/${p.id}/stats/summary`); } catch(e){ statsMap[p.id]={}; }
+  }
+  const n=S.compareQueue.length;
+  const SECTIONS=[
+    {title:'⚽ Attack',stats:[['Goals','goals',false],['Assists','assists',false],['Shots','shots',false],['Shots on Target','shots_on_target',false],['Conversion Rate %','conversion_rate',false],['Dribble Success %','dribble_success',false],['Crosses Completed','crosses',false],['Key Passes','key_passes',false]]},
+    {title:'🤝 Team Play',stats:[['Pass Accuracy %','pass_accuracy',false],['Long Pass Accuracy %','long_pass_accuracy',false],['Touches','touches',false],['Ball Retention %','ball_retention',false]]},
+    {title:'🛡️ Defence',stats:[['Tackles Won','tackles_won',false],['Interceptions','interceptions',false],['Clearances','clearances',false],['Aerial Duel %','aerial_duel',false]]},
+    ...(S.compareQueue.some(p=>(profileMap[p.id]?.position||p.position)==='GK')?[{title:'🧤 Goalkeeping',stats:[['Saves','saves',false],['Save %','save_percentage',false],['Clean Sheets','clean_sheets',false],['Goals Conceded','goals_conceded',true]]}]:[]),
+    {title:'⚠️ Discipline',stats:[['Yellow Cards','yellow_cards',true],['Red Cards','red_cards',true],['Fair Play Rating','fair_play_rating',false]]},
+  ];
+  function hlCalc(vals,reverse){
+    const nums=vals.map(v=>parseFloat(v)).filter(v=>!isNaN(v));
+    if(nums.length<2) return {};
+    const max=Math.max(...nums),min=Math.min(...nums);
+    const res={};
+    vals.forEach((v,i)=>{const n=parseFloat(v);if(!isNaN(n)){if(reverse?n===min:n===max)res[i]='best';else if(reverse?n===max:n===min)res[i]='worst';}});
+    return res;
+  }
+  const thead=`<tr><th class="label-col">Player</th>${S.compareQueue.map(p=>{const prof=profileMap[p.id]||p;return`<th><div class="comp-photo">${prof.photo_url?`<img src="${esc(prof.photo_url)}" style="width:100%;height:100%;object-fit:cover"/>`:`<i class="fas fa-user"></i>`}</div><div style="font-size:13px;font-weight:700">${esc(prof.full_name||prof.name||'Player')}</div><div style="display:flex;gap:3px;justify-content:center;flex-wrap:wrap;margin:3px 0"><span class="pos-badge ${posBadge(prof.position)}">${esc(prof.position||'—')}</span>${prof.age?`<span style="font-size:11px;color:var(--text2)">${prof.age}y</span>`:''}</div><div style="font-size:11px;color:var(--text2)">${esc(prof.current_club||'Free Agent')}</div><div style="font-size:11px">${getFlag(prof.nationality)} ${esc(prof.nationality||'')}</div></th>`;}).join('')}</tr>`;
+  const tbodyRows=SECTIONS.map(sec=>{
+    const catRow=`<tr class="cat-row"><td colspan="${n+1}">${esc(sec.title)}</td></tr>`;
+    const dataRows=sec.stats.map(([label,key,reverse])=>{
+      const vals=S.compareQueue.map(p=>{const s=statsMap[p.id];const v=s&&s[key];return v!==undefined&&v!==null?String(v):'N/A';});
+      const hl=hlCalc(vals,reverse);
+      return `<tr><td class="label-col">${esc(label)}</td>${vals.map((v,i)=>`<td class="${hl[i]||''}">${esc(v)}</td>`).join('')}</tr>`;
+    }).join('');
+    return catRow+dataRows;
+  }).join('');
+  wrap.innerHTML=`
+    <div class="comparison-wrapper">
+      <table class="comparison-table">
+        <thead>${thead}</thead>
+        <tbody>${tbodyRows}</tbody>
+      </table>
+    </div>
+    <div class="print-footer" style="margin-top:20px">
+      <div style="font-weight:700">EnejiStats | Africa's Football Intelligence Platform</div>
+      <div>enejistats@gmail.com | +234 808 394 0039 | +234 706 555 6569</div>
+      <div style="font-size:10px;margin-top:4px;color:#888">This report is confidential and intended solely for the use of the named recipient.</div>
+    </div>`;
+}
+
+/* ════════════════════════════════════════════
+   REPORTS
+════════════════════════════════════════════ */
+async function loadReports(){
+  $('rpt-list').innerHTML=loadingHtml();
+  try{
+    const data=await api(`/api/scout/${S.scoutId}/reports`);
+    const items=data.items||data||[];
+    $('rpt-list').innerHTML=items.length?items.map(r=>`
+      <div class="report-item">
+        <div class="report-icon"><i class="fas ${r.report_type==='player_comparison'?'fa-balance-scale':r.report_type==='club'?'fa-shield-alt':'fa-file-alt'}"></i></div>
+        <div class="report-info">
+          <div class="report-title">${esc(r.title||'Untitled Report')}</div>
+          <div class="report-meta">${esc((r.report_type||'').replace(/_/g,' '))} • ${fmtDate(r.created_at)}</div>
+        </div>
+        <div class="report-actions">
+          <button class="btn btn-secondary btn-xs" onclick="viewReport('${r.id}')"><i class="fas fa-eye"></i></button>
+          <button class="btn btn-secondary btn-xs" onclick="window.print()"><i class="fas fa-print"></i></button>
+          <button class="btn btn-xs btn-danger" onclick="deleteReport('${r.id}')"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>`).join(''): emptyHtml('fa-file','No reports yet','Create your first scouting report above.');
+  } catch(e){ $('rpt-list').innerHTML=`<p class="text-danger">${esc(e.message)}</p>`; }
+}
+
+function rptSection(section, el){
+  document.querySelectorAll('.inner-tab').forEach(t=>t.classList.remove('active'));
+  if(el) el.classList.add('active');
+  $('rpt-list').style.display=section==='list'?'block':'none';
+  $('rpt-create').style.display=section==='create'?'block':'none';
+  if(section==='list') loadReports();
+}
+
+function rptTypeChange(){
+  const type=$('rpt-type').value;
+  $('rpt-player-section').style.display=type==='player'?'block':'none';
+  $('rpt-club-section').style.display=type==='club'?'block':'none';
+  $('rpt-rec-section').style.display=type==='player'?'block':'none';
+}
+
+function rptPlayerSearch(q){
+  clearTimeout(S.rptPlayerDebounce);
+  if(!q){ $('rpt-player-dropdown').style.display='none'; return; }
+  S.rptPlayerDebounce=setTimeout(async()=>{
+    try{
+      const data=await api(`/api/players/search?name=${encodeURIComponent(q)}&per_page=8`);
+      const items=data.items||data||[];
+      const dd=$('rpt-player-dropdown');
+      if(!items.length){ dd.style.display='none'; return; }
+      dd.innerHTML=items.map(p=>`
+        <div style="padding:10px;cursor:pointer;display:flex;gap:10px;align-items:center" onmouseenter="this.style.background='rgba(255,255,255,.05)'" onmouseleave="this.style.background=''" onclick="rptSelectPlayer(${JSON.stringify(p)})">
+          ${avatarHtml(p.photo_url,p.full_name||p.name,32)}
+          <div><div style="font-size:13px;font-weight:600">${esc(p.full_name||p.name)}</div><div style="font-size:11px;color:var(--text2)">${esc(p.position||'')} · ${esc(p.nationality||'')}</div></div>
+        </div>`).join('');
+      dd.style.display='block';
+    } catch(e){}
+  },500);
+}
+
+async function rptSelectPlayer(p){
+  $('rpt-player-dropdown').style.display='none';
+  $('rpt-player-q').value=p.full_name||p.name||'';
+  S.rptSelectedPlayer=p;
+  if(!$('rpt-title').value) $('rpt-title').value=`Scouting Report — ${p.full_name||p.name}`;
+  $('rpt-player-preview').innerHTML=loadingHtml();
+  try{
+    const [stats,profile]=await Promise.all([
+      api(`/api/player/${p.id}/stats/summary`).catch(()=>({})),
+      api(`/api/player/${p.id}/public-profile`).catch(()=>p),
+    ]);
+    S.rptPlayerStats=stats; S.rptPlayerProfile=profile;
+    const statPills=Object.entries(stats).filter(([,v])=>v&&v!==0&&v!=='0').map(([k,v])=>`<div class="stat-pill"><b>${v}</b> ${k.replace(/_/g,' ')}</div>`).join('');
+    $('rpt-player-preview').innerHTML=`
+      <div class="card" style="background:var(--dark3);margin-bottom:14px">
+        <div style="display:flex;gap:12px;align-items:center;margin-bottom:10px">
+          ${avatarHtml(profile.photo_url,profile.full_name||p.full_name,60)}
+          <div>
+            <div style="font-size:15px;font-weight:700">${esc(profile.full_name||p.full_name)}</div>
+            <div style="font-size:12px;color:var(--text2)">${esc(profile.position||'')} • ${esc(profile.current_club||'Free Agent')} • ${getFlag(profile.nationality)} ${esc(profile.nationality||'')}</div>
+            ${profile.contract_expiry?`<div style="font-size:11px;color:var(--text2)">Contract expires: ${fmtDate(profile.contract_expiry)}</div>`:''}
+            ${profile.agent_name?`<div style="font-size:11px;color:var(--text2)">Agent: ${esc(profile.agent_name)}</div>`:''}
+          </div>
+        </div>
+        ${statPills?`<div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;margin-bottom:8px">Stats</div><div class="pc-stats">${statPills}</div>`:''}
+      </div>`;
+  } catch(e){ $('rpt-player-preview').innerHTML=''; }
+}
+
+function rptClubSearch(q){
+  clearTimeout(S.rptClubDebounce);
+  if(!q){ $('rpt-club-dropdown').style.display='none'; return; }
+  S.rptClubDebounce=setTimeout(async()=>{
+    try{
+      const data=await api(`/api/clubs/search?name=${encodeURIComponent(q)}&per_page=8`);
+      const items=data.items||data||[];
+      const dd=$('rpt-club-dropdown');
+      if(!items.length){ dd.style.display='none'; return; }
+      dd.innerHTML=items.map(c=>`
+        <div style="padding:10px;cursor:pointer;display:flex;gap:10px;align-items:center" onmouseenter="this.style.background='rgba(255,255,255,.05)'" onmouseleave="this.style.background=''" onclick="rptSelectClub(${JSON.stringify(c)})">
+          ${avatarHtml(c.logo_url,c.name,32)}
+          <div><div style="font-size:13px;font-weight:600">${esc(c.name)}</div><div style="font-size:11px;color:var(--text2)">${esc(c.category||'')} · ${esc(c.city||'')}</div></div>
+        </div>`).join('');
+      dd.style.display='block';
+    } catch(e){}
+  },500);
+}
+
+async function rptSelectClub(c){
+  $('rpt-club-dropdown').style.display='none';
+  $('rpt-club-q').value=c.name||'';
+  S.rptSelectedClub=c;
+  if(!$('rpt-title').value) $('rpt-title').value=`Club Scouting Report — ${c.name}`;
+  try{
+    const stats=await api(`/api/club/${c.id}/stats/summary`).catch(()=>({}));
+    S.rptClubStats=stats;
+  } catch(e){}
+}
+
+async function saveReport(){
+  const type=$('rpt-type').value;
+  const payload={
+    report_type:type, title:$('rpt-title').value.trim(),
+    player_id:S.rptSelectedPlayer?.id||undefined,
+    club_id:S.rptSelectedClub?.id||undefined,
+    notes:$('rpt-notes').value.trim(),
+    recommendation:$('rpt-rec').value,
+  };
+  try{
+    await api(`/api/scout/${S.scoutId}/reports`,{method:'POST',body:JSON.stringify(payload)});
+    toast('Report saved','success');
+    rptSection('list'); loadReports();
+    S.rptSelectedPlayer=null; S.rptSelectedClub=null; S.rptPlayerStats=null; S.rptPlayerProfile=null; S.rptClubStats=null;
+    ['rpt-player-q','rpt-club-q','rpt-title','rpt-notes'].forEach(id=>{ const el=$(id); if(el) el.value=''; });
+    $('rpt-player-preview').innerHTML='';
+  } catch(e){ toast(e.message,'error'); }
+}
+
+async function saveReportAndPrint(){
+  await saveReport();
+  window.print();
+}
+
+async function deleteReport(id){
+  if(!confirm('Delete this report?')) return;
+  try{
+    await api(`/api/scout/${S.scoutId}/reports/${id}`,{method:'DELETE'});
+    toast('Report deleted'); loadReports();
+  } catch(e){ toast(e.message,'error'); }
+}
+
+async function viewReport(id){
+  try{
+    const r=await api(`/api/scout/${S.scoutId}/reports/${id}`);
+    $('view-report-title').textContent=r.title||'Report';
+    $('view-report-body').innerHTML=`
+      <div style="font-size:13px;line-height:1.7">
+        <div style="margin-bottom:10px"><b>Type:</b> ${esc((r.report_type||'').replace(/_/g,' '))}</div>
+        <div style="margin-bottom:10px"><b>Created:</b> ${fmtDT(r.created_at)}</div>
+        ${r.recommendation?`<div style="margin-bottom:10px"><b>Recommendation:</b> <span style="color:${r.recommendation==='Recommend'?'var(--success)':r.recommendation==='Monitor'?'var(--warning)':'var(--danger)'}">${esc(r.recommendation)}</span></div>`:''}
+        ${r.notes?`<div style="margin-bottom:10px"><b>Notes:</b><div style="margin-top:6px;color:var(--text2);white-space:pre-wrap">${esc(r.notes)}</div></div>`:''}
+      </div>`;
+    openModal('m-view-report');
+  } catch(e){ toast(e.message,'error'); }
+}
+
+/* ════════════════════════════════════════════
+   SUBSCRIPTION
+════════════════════════════════════════════ */
+async function loadSub(){
+  try{
+    const sub=S.scout?.subscription||{};
+    const status=sub.status||'trial';
+    const expiresAt=sub.expires_at||sub.end_date;
+    const planName=sub.plan||sub.selected_plan;
+    $('sub-status-card').innerHTML=`
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-title"><i class="fas fa-info-circle"></i> Current Subscription Status</div>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+          <div><div style="font-size:12px;color:var(--text2);margin-bottom:4px">Status</div><span class="spill ${status}" style="font-size:13px;padding:5px 14px">${status.charAt(0).toUpperCase()+status.slice(1).replace(/_/g,' ')}</span></div>
+          ${expiresAt?`<div><div style="font-size:12px;color:var(--text2);margin-bottom:4px">Expires</div><div style="font-size:14px;font-weight:700">${fmtDate(expiresAt)}</div></div>`:''}
+          ${planName?`<div><div style="font-size:12px;color:var(--text2);margin-bottom:4px">Plan</div><div style="font-size:14px;font-weight:700;text-transform:capitalize">${esc(planName.replace(/_/g,' '))}</div></div>`:''}
+        </div>
+      </div>`;
+    const hist=await api(`/api/scout/${S.scoutId}/payment-history`).catch(()=>[]);
+    const history=hist.items||hist||[];
+    $('sub-history').innerHTML=history.length?`
+      <div class="card" style="margin-top:16px">
+        <div class="card-title"><i class="fas fa-history"></i> Billing History</div>
+        <div class="tbl-wrap">
+          <table class="history-table">
+            <thead><tr><th>Plan</th><th>Amount</th><th>Date</th><th>Status</th></tr></thead>
+            <tbody>${history.map(h=>`<tr>
+              <td style="text-transform:capitalize">${esc((h.plan||h.selected_plan||h.selectedPlan||'—').replace(/_/g,' '))}</td>
+              <td>₦${(h.amount||0).toLocaleString()}</td>
+              <td>${fmtDate(h.created_at||h.date)}</td>
+              <td><span class="chip ${h.status==='active'||h.status==='completed'||h.status==='paid'?'badge-active':''}">${esc(h.status)}</span></td>
+            </tr>`).join('')}</tbody>
+          </table>
+        </div>
+      </div>`:'';
+  } catch(e){}
+}
+
+/* ════════════════════════════════════════════
+   NOTIFICATIONS
+════════════════════════════════════════════ */
+async function loadNotifCount(){
+  try{
+    const data=await api(`/api/scout/${S.scoutId}/notifications`);
+    const items=data.items||data||[];
+    const unread=items.filter(n=>!n.is_read).length;
+    const badge=$('notif-badge');
+    badge.textContent=unread||'';
+    badge.className='ni-badge'+(unread?' show':'');
+  } catch(e){}
+}
+
+async function loadNotif(){
+  $('notif-list').innerHTML=loadingHtml();
+  try{
+    const data=await api(`/api/scout/${S.scoutId}/notifications`);
+    const items=data.items||data||[];
+    S.notifData=items;
+    const unread=items.filter(n=>!n.is_read).length;
+    const badge=$('notif-badge');
+    badge.textContent=unread||''; badge.className='ni-badge'+(unread?' show':'');
+    const cb=$('notif-count-badge');
+    if(unread>0) cb.innerHTML=`<span style="background:var(--danger);color:#fff;font-size:12px;font-weight:700;padding:2px 9px;border-radius:20px;margin-left:8px">${unread}</span>`;
+    else cb.innerHTML='';
+    $('notif-mark-row').style.display=unread>0?'flex':'none';
+    const TYPE_ICONS={watchlist_update:'fa-eye',background_check:'fa-user-shield',subscription_expiring:'fa-credit-card',admin_message:'fa-bullhorn',search_alert:'fa-search'};
+    const TYPE_COLORS={watchlist_update:'#63b3ed',background_check:'#68d391',subscription_expiring:'#fbbf24',admin_message:'var(--gold)',search_alert:'#f87171'};
+    $('notif-list').innerHTML=items.length?items.map(n=>`
+      <div class="notif-item ${!n.is_read?'unread':''}" onclick="markRead('${n.id}')">
+        <div class="notif-icon" style="color:${TYPE_COLORS[n.type]||'var(--gold)'}">
+          <i class="fas ${TYPE_ICONS[n.type]||'fa-bell'}"></i>
+        </div>
+        <div class="notif-body">
+          <div class="notif-title-text">${esc(n.title||n.type?.replace(/_/g,' ')||'Notification')}</div>
+          <div class="notif-msg-text">${esc(n.message||n.body||'—')}</div>
+          <div class="notif-time">${fmtDT(n.created_at)}</div>
+        </div>
+        ${!n.is_read?`<div style="width:8px;height:8px;border-radius:50%;background:var(--gold);flex-shrink:0;margin-top:4px"></div>`:''}
+      </div>`).join(''): emptyHtml('fa-bell-slash','No notifications',"You're all caught up!");
+  } catch(e){ $('notif-list').innerHTML=`<p class="text-danger">${esc(e.message)}</p>`; }
+}
+
+async function markRead(id){
+  try{
+    await api(`/api/scout/${S.scoutId}/notifications/${id}/read`,{method:'PATCH'});
+    const el=document.querySelector(`.notif-item[onclick*="${id}"]`);
+    if(el){ el.classList.remove('unread'); const dot=el.querySelector('div[style*="border-radius:50%"]'); if(dot) dot.remove(); }
+  } catch(e){}
+}
+
+async function markAllRead(){
+  try{
+    await api(`/api/scout/${S.scoutId}/notifications/read-all`,{method:'PATCH'});
+    toast('All marked as read','success'); loadNotif();
+  } catch(e){ toast(e.message,'error'); }
+}
+
+/* ════════════════════════════════════════════
+   SETTINGS
+════════════════════════════════════════════ */
+function renderSettings(){
+  const scout=S.scout||{};
+  S.settings={
+    email_notifs:    scout.email_notifs    !== undefined ? scout.email_notifs    : S.settings.email_notifs,
+    sms_notifs:      scout.sms_notifs      !== undefined ? scout.sms_notifs      : S.settings.sms_notifs,
+    watchlist_alerts:scout.watchlist_alerts!== undefined ? scout.watchlist_alerts: S.settings.watchlist_alerts,
+    sub_reminders:   scout.sub_reminders   !== undefined ? scout.sub_reminders   : S.settings.sub_reminders,
+  };
+  const rows=[
+    ['email_notifs','Email Notifications','Receive notifications via email'],
+    ['sms_notifs','SMS Notifications','Receive SMS alerts for important events'],
+    ['watchlist_alerts','Watchlist Alerts','Get notified of changes to watched players/clubs'],
+    ['sub_reminders','Subscription Reminders','Remind me before subscription expires'],
+  ];
+  $('settings-toggles').innerHTML=rows.map(([k,label,desc])=>`
+    <div class="toggle-row">
+      <div><div class="toggle-label">${esc(label)}</div><div class="toggle-desc">${esc(desc)}</div></div>
+      <label class="toggle-switch"><input type="checkbox" id="s-${k}" ${S.settings[k]?'checked':''} onchange="S.settings['${k}']=this.checked"/><span class="toggle-slider"></span></label>
+    </div>`).join('');
+  const pv=$('s-profile-visible');
+  if(pv) pv.checked = scout.profile_visible !== undefined ? scout.profile_visible : true;
+}
+
+async function saveSettings(){
+  const body={...S.settings, profile_visible:$('s-profile-visible')?.checked};
+  try{
+    await api(`/api/scout/${S.scoutId}/settings`,{method:'PATCH',body:JSON.stringify(body)});
+    toast('Settings saved','success');
+  } catch(e){ toast(e.message,'error'); }
+}
+
+/* ════════════════════════════════════════════
+   MODAL HELPERS
+════════════════════════════════════════════ */
+function openModal(id){ const m=$(id); if(m) m.classList.add('open'); }
+function closeModal(id){ const m=$(id); if(m) m.classList.remove('open'); }
+
+/* ════════════════════════════════════════════
+   START
+════════════════════════════════════════════ */
+init();
+</script>
+</body>
+</html>

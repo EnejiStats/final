@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Enejistats — Customer Care Dashboard</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+  <meta http-equiv="Pragma" content="no-cache"/>
+  <meta http-equiv="Expires" content="0"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --primary:#1a4fa0;--secondary:#0066cc;--gold:#f5b800;
+      --dark1:#0d1117;--dark2:#161b22;--dark3:#21262d;--dark4:#30363d;
+      --text:#e6edf3;--muted:#8b949e;
+      --success:#22c55e;--warning:#f59e0b;--danger:#ef4444;
+      --sidebar-w:270px;
+    }
+    body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--dark1);color:var(--text);min-height:100vh;overflow-x:hidden}
+    input,select,textarea,button{font-family:inherit}
+    a{color:var(--secondary);text-decoration:none}
+
+    /* ── SIDEBAR ── */
+    #sidebar{position:fixed;top:0;left:0;height:100vh;width:var(--sidebar-w);background:var(--dark2);border-right:1px solid var(--dark4);z-index:1100;display:flex;flex-direction:column;transition:transform .3s ease;overflow-y:auto}
+    .sb-head{background:linear-gradient(160deg,var(--primary) 0%,var(--secondary) 100%);padding:1.1rem 1rem;display:flex;align-items:center;gap:.6rem;flex-shrink:0}
+    .sb-logo{font-size:1.2rem;font-weight:900;color:#fff;letter-spacing:1px}
+    .sb-logo span{color:var(--gold)}
+    .sb-profile{padding:1.1rem;display:flex;flex-direction:column;align-items:center;gap:.35rem;border-bottom:1px solid var(--dark4);flex-shrink:0}
+    .sb-av{width:56px;height:56px;border-radius:50%;border:2.5px solid var(--gold);background:rgba(26,79,160,.4);display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:1.4rem;overflow:hidden;flex-shrink:0}
+    .sb-av img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+    .sb-name{color:var(--text);font-weight:700;font-size:.9rem;text-align:center}
+    .role-badge{background:var(--success);color:#052e16;font-size:.6rem;font-weight:800;padding:.2rem .6rem;border-radius:20px;text-transform:uppercase;letter-spacing:.5px}
+    .status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:.3rem;flex-shrink:0}
+    .sb-status{font-size:.72rem;color:var(--muted);display:flex;align-items:center;gap:.3rem}
+    .sb-email{font-size:.68rem;color:var(--muted);text-align:center;word-break:break-all}
+    .sb-nav{flex:1;padding:.4rem 0}
+    .nav-item{display:flex;align-items:center;gap:.75rem;padding:.75rem 1.1rem;color:rgba(255,255,255,.75);cursor:pointer;transition:all .18s;font-size:.87rem;border-left:3px solid transparent;position:relative}
+    .nav-item:hover{background:rgba(255,255,255,.06);color:var(--text);padding-left:1.3rem}
+    .nav-item.active{background:rgba(26,79,160,.2);border-left-color:var(--secondary);color:#fff}
+    .nav-item i{color:var(--secondary);width:20px;text-align:center;font-size:.9rem}
+    .nav-item.active i{color:var(--gold)}
+    .nav-item.logout-item{border-top:1px solid var(--dark4);margin-top:.3rem;color:var(--danger)}
+    .nav-item.logout-item i{color:var(--danger)}
+    .notif-badge{background:var(--danger);color:#fff;font-size:.6rem;font-weight:800;padding:.1rem .4rem;border-radius:20px;margin-left:auto;min-width:18px;text-align:center}
+
+    /* ── OVERLAY ── */
+    #overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1050}
+    #overlay.show{display:block}
+
+    /* ── HEADER ── */
+    #header{position:fixed;top:0;left:var(--sidebar-w);right:0;height:58px;z-index:1000;background:linear-gradient(90deg,var(--dark2),rgba(26,79,160,.3));border-bottom:1px solid var(--dark4);display:flex;align-items:center;justify-content:space-between;padding:0 1.2rem;transition:left .3s}
+    #header.full{left:0}
+    .h-left{display:flex;align-items:center;gap:.8rem}
+    .hamburger{background:none;border:none;color:var(--text);font-size:1.25rem;cursor:pointer;padding:.25rem}
+    .h-title{color:var(--text);font-weight:700;font-size:.95rem;display:flex;align-items:center;gap:.4rem}
+    .h-title i{color:var(--gold)}
+    .h-right{display:flex;align-items:center;gap:.7rem}
+    .h-av{width:34px;height:34px;border-radius:50%;background:rgba(26,79,160,.5);display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:.9rem;border:1.5px solid var(--gold);overflow:hidden}
+    .h-av img{width:100%;height:100%;object-fit:cover}
+    .h-name{color:var(--text);font-size:.82rem;font-weight:600}
+    .h-role{font-size:.67rem;color:var(--muted)}
+    .btn-lo{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);color:var(--danger);padding:.3rem .75rem;border-radius:6px;cursor:pointer;font-size:.78rem;font-weight:600;transition:all .2s}
+    .btn-lo:hover{background:rgba(239,68,68,.25)}
+
+    /* ── STATUS SELECTOR IN HEADER ── */
+    .status-sel{padding:.2rem .5rem;border-radius:6px;border:1px solid var(--dark4);background:var(--dark3);color:var(--text);font-size:.75rem;cursor:pointer}
+
+    /* ── MAIN ── */
+    #main{margin-left:var(--sidebar-w);margin-top:58px;padding:1.4rem;min-height:calc(100vh - 58px);transition:margin-left .3s;overflow-x:hidden}
+    #main.full{margin-left:0}
+    .breadcrumb{font-size:.78rem;color:var(--muted);margin-bottom:1rem;display:flex;align-items:center;gap:.4rem}
+    .breadcrumb i{font-size:.7rem}
+
+    /* ── CARDS ── */
+    .card{background:var(--dark2);border:1px solid var(--dark4);border-radius:12px;padding:1.25rem;margin-bottom:1rem}
+    .card-title{font-size:.95rem;font-weight:700;color:var(--text);margin-bottom:.85rem;display:flex;align-items:center;gap:.45rem}
+    .card-title i{color:var(--gold)}
+    .welcome-card{background:linear-gradient(135deg,#052e16 0%,#064e3b 100%);border:1px solid rgba(34,197,94,.2);border-radius:14px;padding:1.5rem;margin-bottom:1.2rem}
+    .welcome-card h2{font-size:1.25rem;font-weight:800;margin-bottom:.3rem;color:#fff}
+    .welcome-card p{color:rgba(255,255,255,.75);font-size:.84rem}
+
+    /* ── STATS ROW ── */
+    .stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;margin-bottom:1.2rem}
+    .stat-card{background:var(--dark2);border:1px solid var(--dark4);border-radius:12px;padding:1.1rem;border-top:3px solid var(--success);transition:transform .15s}
+    .stat-card:hover{transform:translateY(-2px)}
+    .stat-val{font-size:1.7rem;font-weight:800;color:var(--text);line-height:1.1}
+    .stat-label{font-size:.69rem;color:var(--muted);font-weight:600;text-transform:uppercase;margin-top:.3rem;letter-spacing:.5px}
+
+    /* ── CHAT INTERFACE ── */
+    .chat-pane{display:grid;grid-template-columns:300px 1fr;gap:1rem;height:calc(100vh - 180px);min-height:400px;max-height:700px}
+    .chat-list{overflow-y:auto;border:1px solid var(--dark4);border-radius:10px;background:var(--dark3)}
+    .chat-list-item{padding:.75rem 1rem;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;transition:background .15s;display:flex;align-items:flex-start;gap:.6rem}
+    .chat-list-item:hover{background:rgba(255,255,255,.04)}
+    .chat-list-item.active{background:rgba(26,79,160,.15);border-left:3px solid var(--secondary)}
+    .cli-av{width:34px;height:34px;border-radius:50%;background:rgba(26,79,160,.3);display:flex;align-items:center;justify-content:center;color:var(--secondary);font-size:.85rem;flex-shrink:0}
+    .cli-name{font-size:.83rem;font-weight:700;color:var(--text);line-height:1.2}
+    .cli-cat{font-size:.68rem;color:var(--muted)}
+    .cli-time{font-size:.65rem;color:var(--muted);margin-left:auto;flex-shrink:0}
+    .cli-unread{background:var(--danger);color:#fff;font-size:.6rem;font-weight:800;padding:.1rem .4rem;border-radius:20px}
+    .chat-main{display:flex;flex-direction:column;background:var(--dark3);border:1px solid var(--dark4);border-radius:10px;overflow:hidden}
+    .chat-hdr{background:var(--dark2);padding:.8rem 1rem;border-bottom:1px solid var(--dark4);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+    .chat-thread{flex:1;overflow-y:auto;padding:.9rem;display:flex;flex-direction:column;gap:.55rem;scroll-behavior:smooth}
+    .msg-row{display:flex;flex-direction:column}
+    .msg-row-agent{align-items:flex-end}
+    .msg-row-user{align-items:flex-start}
+    .msg-row-system{align-items:center}
+    .msg-b{max-width:72%;padding:.55rem .85rem;border-radius:12px;font-size:.83rem;line-height:1.5;word-break:break-word}
+    .msg-agent{background:var(--primary);color:#fff;border-radius:12px 2px 12px 12px}
+    .msg-user{background:var(--dark2);color:var(--text);border-radius:2px 12px 12px 12px;border:1px solid var(--dark4)}
+    .msg-system{background:rgba(255,255,255,.06);color:var(--muted);font-size:.74rem;border-radius:8px;padding:.3rem .8rem;max-width:90%;text-align:center;border:1px solid rgba(255,255,255,.08)}
+    .msg-time{font-size:.65rem;opacity:.7;margin-top:.2rem}
+    .chat-inp{padding:.8rem;background:var(--dark2);border-top:1px solid var(--dark4);flex-shrink:0;display:flex;gap:.5rem;align-items:flex-end}
+    .chat-inp textarea{flex:1;resize:none;background:var(--dark1);border:1.5px solid var(--dark4);border-radius:8px;padding:.55rem .75rem;color:var(--text);font-size:.83rem;line-height:1.4;min-height:40px;max-height:100px;transition:border .2s}
+    .chat-inp textarea:focus{outline:none;border-color:var(--secondary)}
+    .chat-inp textarea::placeholder{color:var(--muted)}
+
+    /* ── TABLES ── */
+    .tw{overflow-x:auto;border-radius:8px;border:1px solid var(--dark4)}
+    table{width:100%;border-collapse:collapse;font-size:.83rem}
+    th{background:rgba(26,79,160,.25);color:var(--muted);padding:.65rem .8rem;text-align:left;font-weight:600;font-size:.75rem;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--dark4)}
+    td{padding:.6rem .8rem;border-bottom:1px solid rgba(255,255,255,.04);color:var(--text);vertical-align:middle}
+    tr:hover td{background:rgba(255,255,255,.025)}
+    tr:last-child td{border-bottom:none}
+
+    /* ── BADGES ── */
+    .badge{display:inline-block;padding:.18rem .55rem;border-radius:20px;font-size:.68rem;font-weight:700;letter-spacing:.3px}
+    .b-success{background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.25)}
+    .b-warning{background:rgba(245,158,11,.15);color:var(--warning);border:1px solid rgba(245,158,11,.25)}
+    .b-danger{background:rgba(239,68,68,.15);color:var(--danger);border:1px solid rgba(239,68,68,.25)}
+    .b-info{background:rgba(26,79,160,.2);color:#60a5fa;border:1px solid rgba(96,165,250,.25)}
+    .b-secondary{background:rgba(255,255,255,.08);color:var(--muted);border:1px solid var(--dark4)}
+    .b-player{background:rgba(96,165,250,.15);color:#60a5fa;border:1px solid rgba(96,165,250,.2)}
+    .b-club{background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.2)}
+    .b-agent{background:rgba(245,158,11,.15);color:var(--warning);border:1px solid rgba(245,158,11,.2)}
+    .b-scout{background:rgba(168,85,247,.15);color:#c084fc;border:1px solid rgba(168,85,247,.2)}
+    .b-ds{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.2)}
+    .b-avail{background:rgba(34,197,94,.15);color:#22c55e;border:1px solid rgba(34,197,94,.25)}
+    .b-busy{background:rgba(245,158,11,.15);color:var(--warning);border:1px solid rgba(245,158,11,.25)}
+    .b-away{background:rgba(139,148,158,.15);color:var(--muted);border:1px solid rgba(139,148,158,.25)}
+
+    /* ── BUTTONS ── */
+    .btn{padding:.42rem .95rem;border-radius:8px;border:none;cursor:pointer;font-size:.8rem;font-weight:600;transition:all .18s;display:inline-flex;align-items:center;gap:.4rem}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+    .btn-primary{background:var(--primary);color:#fff}
+    .btn-primary:hover:not(:disabled){background:var(--secondary)}
+    .btn-secondary{background:rgba(255,255,255,.08);color:var(--text);border:1px solid var(--dark4)}
+    .btn-secondary:hover:not(:disabled){background:rgba(255,255,255,.14)}
+    .btn-success{background:rgba(34,197,94,.2);color:#22c55e;border:1px solid rgba(34,197,94,.3)}
+    .btn-success:hover:not(:disabled){background:rgba(34,197,94,.3)}
+    .btn-danger{background:rgba(239,68,68,.2);color:var(--danger);border:1px solid rgba(239,68,68,.3)}
+    .btn-danger:hover:not(:disabled){background:rgba(239,68,68,.3)}
+    .btn-warning{background:rgba(245,158,11,.2);color:var(--warning);border:1px solid rgba(245,158,11,.3)}
+    .btn-sm{padding:.28rem .65rem;font-size:.73rem}
+
+    /* ── FORMS ── */
+    .form-group{margin-bottom:.9rem}
+    label{display:block;font-size:.78rem;font-weight:600;color:var(--muted);margin-bottom:.35rem;letter-spacing:.2px}
+    input[type=text],input[type=email],input[type=password],input[type=date],input[type=number],select,textarea{width:100%;padding:.5rem .8rem;border:1.5px solid var(--dark4);border-radius:8px;font-family:inherit;font-size:.83rem;transition:border .2s;background:var(--dark1);color:var(--text)}
+    input:focus,select:focus,textarea:focus{outline:none;border-color:var(--secondary)}
+    textarea{resize:vertical;min-height:80px}
+    select option{background:var(--dark2);color:var(--text)}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}
+
+    /* ── QUEUE CARDS ── */
+    .queue-card{border:1px solid var(--dark4);border-radius:12px;padding:1rem;margin-bottom:.8rem;background:var(--dark3);display:flex;justify-content:space-between;align-items:center;gap:1rem;transition:border-color .2s}
+    .queue-card:hover{border-color:rgba(34,197,94,.3)}
+    .queue-info h4{font-size:.9rem;font-weight:700;color:var(--text);margin-bottom:.3rem}
+    .queue-meta{display:flex;gap:.6rem;flex-wrap:wrap;font-size:.73rem;color:var(--muted)}
+    .queue-wait{font-size:.78rem;font-weight:600;color:var(--warning);display:flex;align-items:center;gap:.3rem}
+    .priority-high{border-left:3px solid var(--danger)!important}
+    .priority-normal{border-left:3px solid var(--dark4)!important}
+
+    /* ── NOTIF CARDS ── */
+    .notif-item{display:flex;align-items:flex-start;gap:.7rem;padding:.75rem;border-radius:10px;background:var(--dark3);border:1px solid var(--dark4);margin-bottom:.6rem;cursor:pointer;transition:all .15s}
+    .notif-item:hover{border-color:rgba(255,255,255,.1);background:rgba(255,255,255,.04)}
+    .notif-item.unread{border-left:3px solid var(--secondary)}
+    .notif-icon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0}
+    .ni-assign{background:rgba(26,79,160,.2);color:var(--secondary)}
+    .ni-system{background:rgba(245,184,0,.15);color:var(--gold)}
+    .ni-escalate{background:rgba(239,68,68,.15);color:var(--danger)}
+    .ni-resolve{background:rgba(34,197,94,.15);color:var(--success)}
+    .ni-general{background:rgba(255,255,255,.07);color:var(--muted)}
+    .notif-body{flex:1;min-width:0}
+    .notif-title{font-size:.84rem;font-weight:600;color:var(--text);margin-bottom:.2rem}
+    .notif-msg{font-size:.76rem;color:var(--muted);line-height:1.4}
+    .notif-time{font-size:.68rem;color:var(--muted);margin-top:.2rem}
+    .notif-unread-dot{width:8px;height:8px;border-radius:50%;background:var(--secondary);flex-shrink:0;margin-top:.4rem}
+
+    /* ── HISTORY ── */
+    .hist-card{border:1px solid var(--dark4);border-radius:12px;padding:1rem;margin-bottom:.8rem;background:var(--dark3);cursor:pointer;transition:border-color .15s}
+    .hist-card:hover{border-color:rgba(26,79,160,.4)}
+
+    /* ── FILTER ROW ── */
+    .filter-row{display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem;align-items:center}
+    .filter-row select,.filter-row input{flex:1;min-width:110px;max-width:200px}
+
+    /* ── SKELETON ── */
+    .skeleton{background:linear-gradient(90deg,var(--dark3) 25%,var(--dark4) 50%,var(--dark3) 75%);background-size:200%;animation:shim 1.5s infinite;border-radius:8px}
+    @keyframes shim{0%{background-position:-200% 0}100%{background-position:200% 0}}
+    .sk-line{height:16px;margin-bottom:8px}
+
+    /* ── EMPTY STATE ── */
+    .empty-state{text-align:center;padding:2.5rem 1rem;color:var(--muted)}
+    .empty-state i{font-size:2.2rem;display:block;margin-bottom:.7rem;color:var(--dark4)}
+
+    /* ── NOTES ── */
+    .note-item{background:rgba(245,184,0,.07);border-left:3px solid var(--gold);padding:.55rem .8rem;border-radius:0 8px 8px 0;font-size:.8rem;margin-bottom:.4rem;color:var(--text)}
+
+    /* ── MODAL ── */
+    .modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:2000;display:flex;align-items:center;justify-content:center;padding:1rem}
+    .modal{background:var(--dark2);border:1px solid var(--dark4);border-radius:14px;width:100%;max-width:680px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+    .modal.wide{max-width:820px}
+    .modal-head{background:linear-gradient(90deg,var(--primary),var(--secondary));padding:.9rem 1.2rem;display:flex;align-items:center;justify-content:space-between;border-radius:14px 14px 0 0}
+    .modal-title{color:#fff;font-weight:700;font-size:.95rem}
+    .modal-close{background:none;border:none;color:rgba(255,255,255,.7);font-size:1.3rem;cursor:pointer;line-height:1}
+    .modal-close:hover{color:#fff}
+    .modal-body{padding:1.2rem}
+    .modal-foot{padding:.8rem 1.2rem;display:flex;gap:.5rem;justify-content:flex-end;border-top:1px solid var(--dark4)}
+
+    /* ── TOAST ── */
+    #tc{position:fixed;top:70px;right:1rem;z-index:9999;display:flex;flex-direction:column;gap:.5rem;pointer-events:none}
+    .toast{padding:.75rem 1.1rem;border-radius:10px;color:#fff;font-size:.83rem;font-weight:600;display:flex;align-items:center;gap:.55rem;box-shadow:0 6px 20px rgba(0,0,0,.4);animation:sli .3s ease;min-width:250px;max-width:360px;pointer-events:all;cursor:pointer;border:1px solid rgba(255,255,255,.1)}
+    .t-success{background:rgba(34,197,94,.9)}
+    .t-error{background:rgba(239,68,68,.9)}
+    .t-warning{background:rgba(245,158,11,.9);color:#111}
+    .t-info{background:rgba(26,79,160,.95)}
+    @keyframes sli{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+    /* ── PRINT ── */
+    .ph,.pf{display:none}
+    @media print{#sidebar,#overlay,#header,#tc,.btn,.filter-row,.modal-ov{display:none!important}#main{margin:0!important;padding:0!important}.ph,.pf{display:block!important}}
+
+    /* ── RESPONSIVE ── */
+    @media(max-width:1024px){#sidebar{transform:translateX(calc(-1 * var(--sidebar-w)))}#sidebar.open{transform:none}#header{left:0}#main{margin-left:0}.chat-pane{grid-template-columns:1fr;height:auto}}
+    @media(min-width:1025px){#sidebar{transform:none!important}#overlay{display:none!important}#header{left:var(--sidebar-w)}#main{margin-left:var(--sidebar-w)}}
+    @media(max-width:768px){.stats-row{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}.filter-row select,.filter-row input{max-width:100%}.queue-card{flex-direction:column;align-items:flex-start}}
+    @media(max-width:480px){.stats-row{grid-template-columns:1fr}}
+    @media(min-width:1400px){.stats-row{grid-template-columns:repeat(4,1fr)}#main{max-width:1600px;margin-right:auto}}
+  </style>
+</head>
+<body>
+
+<!-- ── DASHBOARD ── -->
+<div id="pages-wrap">
+  <div id="overlay" onclick="closeSidebar()"></div>
+  <div id="app"></div>
+</div>
+
+<div id="tc"></div>
+<div class="ph" style="padding:1rem">⚽ ENEJISTATS | Customer Care Dashboard [INTERNAL]<hr/></div>
+<div class="pf" style="padding:1rem"><hr/><p>Powered by Enejistats | www.enejistats.com</p></div>
+
+<script src="https://unpkg.com/preact@10.19.3/dist/preact.umd.js"></script>
+<script src="https://unpkg.com/preact@10.19.3/hooks/dist/hooks.umd.js"></script>
+<script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js"></script>
+<script>
+// ═══════════════════════════════════════════════════
+// AUTH + API LAYER
+// Matches the player dashboard pattern: auth is checked by the
+// mounted Preact app, with demo data available when the backend
+// is unavailable. There is no sign-in gate in this dashboard.
+// ═══════════════════════════════════════════════════
+const {h,render}=preact;
+const {useState,useEffect,useCallback,useRef,useMemo}=preactHooks;
+const html=htm.bind(h);
+const API_BASE='/api';
+
+function closeSidebar(){
+  const sb=document.getElementById('sidebar');
+  if(sb&&window.innerWidth<1025)sb.classList.remove('open');
+  const overlay=document.getElementById('overlay');
+  if(overlay)overlay.classList.remove('show');
+}
+
+async function apiCall(endpoint,opts={}){
+  const url=endpoint.startsWith('/api')?endpoint:API_BASE+endpoint;
+  const token=['enejistats_token','access_token','auth_token','token']
+    .map(key=>localStorage.getItem(key)||sessionStorage.getItem(key))
+    .find(Boolean);
+  const authHeader=token?{'Authorization':'Bearer '+token}:{};
+  const options={
+    credentials:'include',
+    headers:{'Content-Type':'application/json',...authHeader,...(opts.headers||{})},
+    ...opts
+  };
+  if(options.body instanceof FormData)delete options.headers['Content-Type'];
+  const res=await fetch(url,options);
+  if(!res.ok){
+    const err=await res.json().catch(()=>({}));
+    const e=new Error(err.detail||err.message||`HTTP ${res.status}`);
+    e.status=res.status;
+    throw e;
+  }
+  if(res.status===204)return null;
+  return res.json();
+}
+
+async function api(method,path,body,formData){
+  const opts={method};
+  if(formData)opts.body=formData;
+  else if(body)opts.body=JSON.stringify(body);
+  return apiCall(path.startsWith('/api')?path.slice(4):path,opts);
+}
+
+async function safeApi(method,path,body,fallback,successMsg){
+  try{
+    const r=await api(method,path,body);
+    if(successMsg)toast(successMsg,'success');
+    return r;
+  }catch(e){
+    if(fallback!==undefined)return typeof fallback==='function'?fallback():fallback;
+    throw e;
+  }
+}
+
+async function handleLogout(){
+  try{
+    await fetch('/api/auth/logout',{method:'POST',credentials:'include'});
+  }catch(e){
+    console.warn('Logout failed:',e);
+  }
+  localStorage.clear();
+  sessionStorage.clear();
+  localStorage.removeItem('token');
+  localStorage.removeItem('auth_token');
+  localStorage.removeItem('user');
+  localStorage.removeItem('currentUser');
+  sessionStorage.removeItem('token');
+  sessionStorage.removeItem('auth_token');
+  sessionStorage.removeItem('user');
+  sessionStorage.removeItem('currentUser');
+  window.location.replace('/login');
+}
+const doLogout=handleLogout;
+window.handleLogout=handleLogout;
+window.doLogout=handleLogout;
+
+// ═══════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════
+function toast(msg,type='info'){
+  const c=document.getElementById('tc');
+  const el=document.createElement('div');
+  const icons={success:'fa-check-circle',error:'fa-times-circle',warning:'fa-exclamation-triangle',info:'fa-info-circle'};
+  el.className=`toast t-${type}`;
+  el.innerHTML=`<i class="fas ${icons[type]||icons.info}"></i>${msg}`;
+  c.appendChild(el);
+  el.onclick=()=>el.remove();
+  setTimeout(()=>el.remove(),4800);
+}
+function timeSince(ms){
+  const s=Math.floor((Date.now()-ms)/1000);
+  if(s<60)return s+'s';
+  if(s<3600)return Math.floor(s/60)+'m';
+  return Math.floor(s/3600)+'h '+Math.floor((s%3600)/60)+'m';
+}
+
+// ═══════════════════════════════════════════════════
+// SEED DATA
+// ═══════════════════════════════════════════════════
+const SEED_OV={chatsToday:12,avgDuration:'28m',resolutionRate:88.5,queuePending:4};
+const SEED_QUEUE=[
+  {ticketId:'TK-00198',userName:'Taiwo Adesanya',userType:'Player',category:'Stats Request Issue',waitSince:Date.now()-420000,priority:'high'},
+  {ticketId:'TK-00197',userName:'Rivers FC',userType:'Club',category:'Token Top-up',waitSince:Date.now()-180000,priority:'normal'},
+  {ticketId:'TK-00196',userName:'Coach Eze Balogun',userType:'Scout',category:'Profile Issue',waitSince:Date.now()-60000,priority:'normal'},
+];
+const SEED_HISTORY=[
+  {ticketId:'TK-00195',userName:'Chukwuemeka Eze',userType:'Player',agent:'Me',startTime:'2026-06-21 08:12',end:'2026-06-21 08:35',duration:'23m',category:'Stats Request Issue',status:'Resolved',notes:'Resolved — DCO assigned.'},
+  {ticketId:'TK-00192',userName:'Lagos FC United',userType:'Club',agent:'Me',startTime:'2026-06-20 14:10',end:'2026-06-20 14:42',duration:'32m',category:'Token Top-up',status:'Resolved',notes:'Token balance delayed due to payment sync.'},
+  {ticketId:'TK-00188',userName:'Amaka Obi',userType:'Agent',agent:'Me',startTime:'2026-06-19 10:05',end:'2026-06-19 10:50',duration:'45m',category:'Subscription Query',status:'Escalated',notes:'Escalated to supervisor.'},
+];
+const SEED_NOTIFS=[
+  {id:1,type:'assign',title:'New Ticket Assigned',body:'TK-00198 has been assigned to you.',time:'2026-06-21 09:32',read:false},
+  {id:2,type:'system',title:'System Maintenance',body:'Scheduled maintenance on 22 June at 2:00 AM.',time:'2026-06-20 16:00',read:true},
+  {id:3,type:'resolve',title:'Ticket Auto-resolved',body:'TK-00190 was auto-resolved after 24h.',time:'2026-06-20 08:00',read:true},
+];
+const SEED_ACTIVE=[
+  {ticketId:'TK-00198',userName:'Taiwo Adesanya',userType:'Player',category:'Stats Request Issue',status:'active',unread:2,lastMsg:'My request has not been tracked.'},
+];
+const SEED_MSGS={
+  'TK-00198':[
+    {id:1,sender:'user',text:'Hello, I have a problem with my stats request. The DCO has not updated anything.',time:'09:32',read:true},
+    {id:2,sender:'agent',text:'Hello Taiwo! I\'m happy to help. Can you share your request reference?',time:'09:33',read:true},
+    {id:3,sender:'user',text:'My reference is STR-20260621-007.',time:'09:34',read:false},
+  ],
+};
+
+// ═══════════════════════════════════════════════════
+// COMPONENTS
+// ═══════════════════════════════════════════════════
+
+function Sidebar({active,onNav,user,open,onClose,notifCount,onStatusChange}){
+  const items=[
+    {id:'overview',icon:'fa-home',label:'Overview'},
+    {id:'active-chats',icon:'fa-comments',label:'Active Chats'},
+    {id:'queue',icon:'fa-list-ul',label:'Ticket Queue'},
+    {id:'history',icon:'fa-history',label:'Conversation History'},
+    {id:'notifications',icon:'fa-bell',label:'Notifications',badge:notifCount},
+    {id:'settings',icon:'fa-cog',label:'Settings'},
+  ];
+  const statusColor={available:'#22c55e',busy:'#f59e0b',away:'#8b949e'};
+  const initials=s=>s?s.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase():'CC';
+  return html`<div>
+    <div id="overlay" class=${open?'show':''} onClick=${onClose}></div>
+    <div id="sidebar" class=${open?'open':''}>
+      <div class="sb-head"><span class="sb-logo">ENEJI<span>STATS ⚽</span></span></div>
+      <div class="sb-profile">
+        <div class="sb-av">
+          ${user?.photo?html`<img src=${user.photo} alt="avatar"/>`
+          :html`<span style="font-size:1.1rem;font-weight:800;color:var(--gold)">${initials(user?.name||'CC')}</span>`}
+        </div>
+        <div class="sb-name">${user?.name||'CC Agent'}</div>
+        <span class="role-badge">Customer Care</span>
+        <div class="sb-status">
+          <span class="status-dot" style=${'background:'+statusColor[user?.status||'available']}></span>
+          <span>${(user?.status||'available').charAt(0).toUpperCase()+(user?.status||'available').slice(1)}</span>
+        </div>
+        <select class="status-sel" style="margin-top:.3rem;background:var(--dark3)" value=${user?.status||'available'} onChange=${e=>onStatusChange&&onStatusChange(e.target.value)}>
+          <option value="available">🟢 Available</option>
+          <option value="busy">🟡 Busy</option>
+          <option value="away">⚫ Away</option>
+        </select>
+        <div class="sb-email">${user?.email||''}</div>
+      </div>
+      <nav class="sb-nav">
+        ${items.map(it=>html`
+          <div class=${'nav-item'+(active===it.id?' active':'')} onClick=${()=>{onNav(it.id);onClose();}}>
+            <i class=${'fas '+it.icon}></i><span style="flex:1">${it.label}</span>
+            ${it.badge>0&&html`<span class="notif-badge">${it.badge}</span>`}
+          </div>`)}
+        <div class="nav-item logout-item" onClick=${()=>{doLogout();}}>
+          <i class="fas fa-sign-out-alt"></i><span>Logout</span>
+        </div>
+      </nav>
+    </div>
+  </div>`;
+}
+
+// ── OVERVIEW TAB ──
+function OverviewTab({user}){
+  const [loading,setLoading]=useState(true);
+  const [data,setData]=useState(null);
+  useEffect(()=>{
+    safeApi('GET',`/api/customer-care/agents/${user?.id||'me'}/overview`,null,SEED_OV)
+      .then(r=>{setData(r||SEED_OV);setLoading(false);}).catch(()=>{setData(SEED_OV);setLoading(false);});
+  },[]);
+  if(loading)return html`<div>${[1,2,3].map(()=>html`<div class="skeleton sk-line" style="height:60px;margin-bottom:10px"></div>`)}</div>`;
+  const d=data||SEED_OV;
+  const statsDef=[
+    {val:d.chatsToday,label:'Chats Today',color:'var(--success)',icon:'fa-comments'},
+    {val:d.avgDuration||'—',label:'Avg. Duration',color:'var(--secondary)',icon:'fa-clock'},
+    {val:(d.resolutionRate||0)+'%',label:'Resolution Rate',color:'var(--gold)',icon:'fa-check-circle'},
+    {val:d.queuePending,label:'Queue Pending',color:'var(--warning)',icon:'fa-list-ul'},
+  ];
+  const statusColor={available:'var(--success)',busy:'var(--warning)',away:'var(--muted)'};
+  const currentStatus=user?.status||'available';
+  return html`<div>
+    <div class="welcome-card">
+      <h2><i class="fas fa-headset" style="color:#86efac"></i> Welcome back, ${user?.name||'Customer Care Agent'}!</h2>
+      <p style="margin-top:.3rem">
+        Status: <b style=${'color:'+statusColor[currentStatus]}>${currentStatus.charAt(0).toUpperCase()+currentStatus.slice(1)}</b>
+        &nbsp;|&nbsp; Agent ID: ${user?.id||'—'} &nbsp;|&nbsp; ${new Date().toDateString()}
+      </p>
+    </div>
+    <div class="stats-row">
+      ${statsDef.map(s=>html`<div class="stat-card" style="border-top-color:${s.color}">
+        <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem">
+          <i class=${'fas '+s.icon} style=${'color:'+s.color+';font-size:.9rem'}></i>
+          <span class="stat-label" style="margin:0">${s.label}</span>
+        </div>
+        <div class="stat-val" style=${'color:'+s.color}>${s.val}</div>
+      </div>`)}
+    </div>
+    <div class="card">
+      <div class="card-title"><i class="fas fa-info-circle"></i> Quick Guide</div>
+      <ul style="list-style:none;display:flex;flex-direction:column;gap:.5rem">
+        ${[
+          {icon:'fa-list-ul',color:'var(--warning)',text:'Check the <b>Ticket Queue</b> for new unassigned tickets — accept them to begin helping users.'},
+          {icon:'fa-comments',color:'var(--success)',text:'Active conversations appear in <b>Active Chats</b> and auto-refresh every 10 seconds.'},
+          {icon:'fa-history',color:'var(--secondary)',text:'All resolved and escalated conversations are stored in <b>Conversation History</b> for review.'},
+          {icon:'fa-bell',color:'var(--gold)',text:'Check <b>Notifications</b> for assignments, escalations, and system updates.'},
+        ].map(q=>html`<li style="display:flex;align-items:flex-start;gap:.6rem;font-size:.82rem;color:var(--muted);line-height:1.5">
+          <i class=${'fas '+q.icon} style=${'color:'+q.color+';margin-top:.15rem;width:16px;flex-shrink:0'}></i>
+          <span dangerouslySetInnerHTML=${{__html:q.text}}></span>
+        </li>`)}
+      </ul>
+    </div>
+  </div>`;
+}
+
+// ── ACTIVE CHATS TAB ──
+function ActiveChatsTab({user}){
+  const [chats,setChats]=useState(SEED_ACTIVE);
+  const [selectedId,setSelectedId]=useState(null);
+  const [messages,setMessages]=useState([]);
+  const [input,setInput]=useState('');
+  const [sending,setSending]=useState(false);
+  const [loadingMsgs,setLoadingMsgs]=useState(false);
+  const [notes,setNotes]=useState([]);
+  const [noteText,setNoteText]=useState('');
+  const [showNotes,setShowNotes]=useState(false);
+  const [endingChat,setEndingChat]=useState(false);
+  const threadRef=useRef(null);
+  const pollRef=useRef(null);
+
+  const selectedChat=chats.find(c=>c.ticketId===selectedId);
+
+  const loadChats=async()=>{
+    try{
+      const r=await api('GET',`/api/customer-care/agents/${user?.id||'me'}/history`);
+      if(r&&r.history){}
+    }catch(e){}
+    setChats(SEED_ACTIVE);
+  };
+
+  const selectChat=async(ticketId)=>{
+    setSelectedId(ticketId);
+    setMessages(SEED_MSGS[ticketId]||[]);
+    setLoadingMsgs(true);
+    if(pollRef.current)clearInterval(pollRef.current);
+    try{
+      const r=await api('GET',`/api/customer-care/chats/${ticketId}`);
+      if(r){
+        setMessages(r.messages||SEED_MSGS[ticketId]||[]);
+        setNotes(r.agentNotes||[]);
+      }
+    }catch(e){}
+    setLoadingMsgs(false);
+    scrollThread();
+    pollRef.current=setInterval(async()=>{
+      try{
+        const r=await api('GET',`/api/customer-care/chats/${ticketId}/messages`);
+        if(r?.messages)setMessages(r.messages);
+        scrollThread();
+      }catch(e){}
+    },10000);
+  };
+
+  useEffect(()=>{return()=>{if(pollRef.current)clearInterval(pollRef.current);};},[]);
+
+  const scrollThread=()=>{setTimeout(()=>{if(threadRef.current)threadRef.current.scrollTop=threadRef.current.scrollHeight;},50);};
+
+  const sendMsg=async()=>{
+    const text=input.trim();
+    if(!text||!selectedId)return;
+    setSending(true);
+    const optimistic={id:Date.now(),sender:'agent',text,time:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),read:false};
+    setMessages(prev=>[...prev,optimistic]);
+    setInput('');scrollThread();
+    try{await api('POST',`/api/customer-care/chats/${selectedId}/messages`,{text});}
+    catch(e){toast('Failed to send: '+e.message,'error');}
+    setSending(false);
+  };
+
+  const addNote=async()=>{
+    if(!noteText.trim()||!selectedId)return;
+    try{
+      const r=await safeApi('POST',`/api/customer-care/chats/${selectedId}/notes`,{note:noteText},null,'Note saved.');
+      if(r)setNotes(prev=>[...prev,{id:r.id,text:noteText,time:new Date().toLocaleTimeString()}]);
+      setNoteText('');
+    }catch(e){toast('Failed to save note: '+e.message,'error');}
+  };
+
+  const endChat=async()=>{
+    if(!selectedId)return;
+    setEndingChat(true);
+    try{
+      await safeApi('POST',`/api/customer-care/chats/${selectedId}/end`,{},null,'Chat ended and marked as Resolved.');
+      setChats(prev=>prev.filter(c=>c.ticketId!==selectedId));
+      setSelectedId(null);setMessages([]);
+      if(pollRef.current)clearInterval(pollRef.current);
+    }catch(e){toast('End chat failed: '+e.message,'error');}
+    setEndingChat(false);
+  };
+
+  const utbClass=t=>({Player:'b-player',Club:'b-club',Agent:'b-agent',Scout:'b-scout','Data Scout':'b-ds'}[t]||'b-secondary');
+
+  return html`<div>
+    ${chats.length===0&&!selectedId?html`<div class="card"><div class="empty-state"><i class="fas fa-comments"></i><p>No active chats. Accept a ticket from the Queue to start helping users.</p></div></div>`
+    :html`<div class="card" style="padding:.5rem">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:.5rem .75rem;margin-bottom:.5rem;border-bottom:1px solid var(--dark4)">
+        <div class="card-title" style="margin:0"><i class="fas fa-comments"></i> Active Chats (${chats.length})</div>
+        <span style="font-size:.73rem;color:var(--muted)">Auto-refreshes every 10s</span>
+      </div>
+      <div class="chat-pane">
+        <div class="chat-list">
+          ${chats.map(c=>html`<div class=${'chat-list-item'+(selectedId===c.ticketId?' active':'')} onClick=${()=>selectChat(c.ticketId)}>
+            <div class="cli-av"><i class="fas fa-user"></i></div>
+            <div style="flex:1;min-width:0">
+              <div class="cli-name">${c.userName||c.user_name}</div>
+              <div class="cli-cat">${c.category} · <span class=${'badge '+utbClass(c.userType||c.user_type)} style="font-size:.58rem">${c.userType||c.user_type}</span></div>
+              <div class="cli-cat" style="margin-top:.2rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.lastMsg||c.last_message||''}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.3rem">
+              ${(c.unread>0)&&html`<span class="cli-unread">${c.unread}</span>`}
+            </div>
+          </div>`)}
+        </div>
+        <div class="chat-main">
+          ${!selectedId?html`<div class="empty-state" style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column"><i class="fas fa-hand-pointer"></i><p>Select a chat to open</p></div>`
+          :html`<div style="display:flex;flex-direction:column;height:100%">
+            <div class="chat-hdr">
+              <div>
+                <div style="font-weight:700;color:var(--text)">${selectedChat?.userName||selectedChat?.user_name||selectedId}</div>
+                <div style="font-size:.73rem;color:var(--muted)">${selectedChat?.category||''} · <span class=${'badge '+utbClass(selectedChat?.userType||selectedChat?.user_type)} style="font-size:.6rem">${selectedChat?.userType||selectedChat?.user_type||''}</span></div>
+              </div>
+              <div style="display:flex;gap:.4rem;flex-wrap:wrap">
+                <button class="btn btn-secondary btn-sm" onClick=${()=>setShowNotes(n=>!n)}><i class="fas fa-sticky-note" style="color:var(--gold)"></i> Notes (${notes.length})</button>
+                <button class="btn btn-danger btn-sm" onClick=${endChat} disabled=${endingChat}>${endingChat?html`<i class="fas fa-spinner spin"></i>`:html`<i class="fas fa-phone-slash"></i>`} End Chat</button>
+              </div>
+            </div>
+            ${showNotes&&html`<div style="padding:.6rem;background:var(--dark1);border-bottom:1px solid var(--dark4);flex-shrink:0">
+              <div style="font-size:.78rem;font-weight:700;color:var(--muted);margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.4px">Internal Notes</div>
+              ${notes.map(n=>html`<div class="note-item"><i class="fas fa-sticky-note" style="color:var(--gold)"></i> ${n.text} <span style="color:var(--muted);font-size:.68rem">(${n.time})</span></div>`)}
+              ${notes.length===0&&html`<p style="font-size:.75rem;color:var(--muted);margin-bottom:.4rem">No notes yet.</p>`}
+              <div style="display:flex;gap:.4rem;margin-top:.4rem">
+                <input type="text" placeholder="Add internal note…" value=${noteText} onInput=${e=>setNoteText(e.target.value)} style="flex:1;padding:.35rem .6rem;font-size:.78rem"/>
+                <button class="btn btn-warning btn-sm" onClick=${addNote}><i class="fas fa-save"></i></button>
+              </div>
+            </div>`}
+            ${loadingMsgs?html`<div class="skeleton" style="flex:1;margin:.5rem;border-radius:8px"></div>`
+            :html`<div class="chat-thread" ref=${threadRef}>
+              ${messages.map(m=>html`<div class=${'msg-row msg-row-'+(m.sender==='agent'?'agent':m.sender==='system'?'system':'user')}>
+                <div class=${'msg-b msg-'+(m.sender==='agent'?'agent':m.sender==='system'?'system':'user')}>${m.text}
+                  <div class="msg-time">${m.time}</div>
+                </div>
+                ${m.sender!=='system'&&html`<div style="font-size:.65rem;color:var(--muted);margin-top:.15rem">${m.sender==='agent'?'You':'User'}</div>`}
+              </div>`)}
+            </div>`}
+            <div class="chat-inp">
+              <textarea placeholder="Type a reply…" rows="1"
+                value=${input}
+                onInput=${e=>{setInput(e.target.value);e.target.style.height='auto';e.target.style.height=Math.min(e.target.scrollHeight,100)+'px';}}
+                onKeyDown=${e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}}}></textarea>
+              <button class="btn btn-primary" onClick=${sendMsg} disabled=${sending||!input.trim()} title="Send (Enter)">
+                ${sending?html`<i class="fas fa-spinner spin"></i>`:html`<i class="fas fa-paper-plane"></i>`}
+              </button>
+            </div>
+          </div>`}
+        </div>
+      </div>
+    </div>`}
+  </div>`;
+}
+
+// ── TICKET QUEUE TAB ──
+function TicketQueueTab({user,onQueueCount}){
+  const [queue,setQueue]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [accepting,setAccepting]=useState({});
+  const [typeFilter,setTypeFilter]=useState('');
+  const pollRef=useRef(null);
+
+  const load=async()=>{
+    const r=await safeApi('GET','/api/customer-care/queue',null,SEED_QUEUE);
+    const items=Array.isArray(r)?r:(r?.queue||SEED_QUEUE);
+    setQueue(items);
+    onQueueCount&&onQueueCount(items.length);
+    setLoading(false);
+  };
+  useEffect(()=>{
+    load();
+    pollRef.current=setInterval(load,10000);
+    return()=>{if(pollRef.current)clearInterval(pollRef.current);};
+  },[]);
+
+  const accept=async(ticketId)=>{
+    setAccepting(a=>({...a,[ticketId]:true}));
+    try{
+      await safeApi('POST',`/api/customer-care/queue/${ticketId}/accept`,{},null,'Ticket accepted! Go to Active Chats.');
+      setQueue(prev=>prev.filter(q=>q.ticketId!==ticketId));
+    }catch(e){toast('Accept failed: '+e.message,'error');}
+    setAccepting(a=>({...a,[ticketId]:false}));
+  };
+
+  const utbClass=t=>({Player:'b-player',Club:'b-club',Agent:'b-agent',Scout:'b-scout','Data Scout':'b-ds'}[t]||'b-secondary');
+  const filtered=typeFilter?queue.filter(q=>q.userType===typeFilter):queue;
+
+  return html`<div>
+    <div class="card">
+      <div class="card-title" style="justify-content:space-between;flex-wrap:wrap;gap:.5rem">
+        <span><i class="fas fa-list-ul"></i> Ticket Queue (${filtered.length} waiting)</span>
+        <div style="display:flex;align-items:center;gap:.5rem">
+          <span style="font-size:.73rem;color:var(--muted)">Auto-refreshes every 10s</span>
+          <button class="btn btn-secondary btn-sm" onClick=${load}><i class="fas fa-sync"></i></button>
+        </div>
+      </div>
+      <div class="filter-row">
+        <select style="max-width:160px;flex:0" value=${typeFilter} onChange=${e=>setTypeFilter(e.target.value)}>
+          <option value="">All User Types</option>
+          ${['Player','Club','Agent','Scout','Data Scout'].map(t=>html`<option value=${t}>${t}</option>`)}
+        </select>
+      </div>
+      ${loading?html`<div class="skeleton sk-line" style="height:120px"></div>`
+      :filtered.length===0?html`<div class="empty-state"><i class="fas fa-check-circle" style="color:var(--success)"></i><p>Queue is clear! No pending tickets.</p></div>`
+      :filtered.map(t=>html`<div class=${'queue-card priority-'+t.priority}>
+        <div class="queue-info" style="flex:1">
+          <h4>${t.ticketId} — ${t.userName}</h4>
+          <div class="queue-meta">
+            <span><span class=${'badge '+utbClass(t.userType)}>${t.userType}</span></span>
+            <span><i class="fas fa-tag"></i> ${t.category}</span>
+            ${t.priority==='high'&&html`<span class="badge b-danger"><i class="fas fa-exclamation"></i> High Priority</span>`}
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.5rem;flex-shrink:0">
+          <div class="queue-wait"><i class="fas fa-clock"></i> Waiting: ${timeSince(t.waitSince)}</div>
+          <button class="btn btn-success btn-sm" onClick=${()=>accept(t.ticketId)} disabled=${accepting[t.ticketId]}>
+            ${accepting[t.ticketId]?html`<i class="fas fa-spinner spin"></i> Accepting…`:'<i class="fas fa-hand-paper"></i> Accept'}
+          </button>
+        </div>
+      </div>`)}
+    </div>
+  </div>`;
+}
+
+// ── HISTORY TAB ──
+function HistoryTab({user}){
+  const [history,setHistory]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [selected,setSelected]=useState(null);
+  const [selMsgs,setSelMsgs]=useState([]);
+  const [loadingMsgs,setLoadingMsgs]=useState(false);
+  const [statusFilter,setStatusFilter]=useState('');
+  const [typeFilter,setTypeFilter]=useState('');
+  const [search,setSearch]=useState('');
+
+  useEffect(()=>{loadHistory();},[]);
+  const loadHistory=async()=>{
+    setLoading(true);
+    const r=await safeApi('GET',`/api/customer-care/agents/${user?.id||'me'}/history`,null,{history:SEED_HISTORY});
+    setHistory(r?.history||SEED_HISTORY);setLoading(false);
+  };
+
+  const openConv=async t=>{
+    setSelected(t);setSelMsgs([]);setLoadingMsgs(true);
+    try{
+      const r=await api('GET',`/api/customer-care/chats/${t.ticketId||t.ticket_id}`);
+      if(r)setSelMsgs(r.messages||[]);
+    }catch(e){}
+    setLoadingMsgs(false);
+  };
+
+  const statusBadge=s=>({Resolved:'b-success',Escalated:'b-warning',Closed:'b-secondary'}[s]||'b-secondary');
+  const utbClass=t=>({Player:'b-player',Club:'b-club',Agent:'b-agent',Scout:'b-scout','Data Scout':'b-ds'}[t]||'b-secondary');
+  const filtered=history.filter(h=>{
+    if(statusFilter&&h.status!==statusFilter)return false;
+    if(typeFilter&&(h.userType||h.user_type)!==typeFilter)return false;
+    if(search&&!JSON.stringify(h).toLowerCase().includes(search.toLowerCase()))return false;
+    return true;
+  });
+
+  return html`<div>
+    ${selected&&html`<div class="modal-ov" onClick=${()=>setSelected(null)}>
+      <div class="modal wide" onClick=${e=>e.stopPropagation()}>
+        <div class="modal-head">
+          <span class="modal-title"><i class="fas fa-history"></i> ${selected.ticketId} — ${selected.userName||selected.user_name}</span>
+          <button class="modal-close" onClick=${()=>setSelected(null)}>×</button>
+        </div>
+        <div class="modal-body">
+          <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem">
+            <span class=${'badge '+utbClass(selected.userType||selected.user_type)}>${selected.userType||selected.user_type}</span>
+            <span class=${'badge '+statusBadge(selected.status)}>${selected.status}</span>
+            <span style="font-size:.75rem;color:var(--muted)"><i class="fas fa-tag"></i> ${selected.category}</span>
+            <span style="font-size:.75rem;color:var(--muted)"><i class="fas fa-clock"></i> Duration: ${selected.duration||'—'}</span>
+          </div>
+          <div style="font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.4px">Conversation Transcript</div>
+          ${loadingMsgs?html`<div class="skeleton sk-line" style="height:200px"></div>`
+          :html`<div class="chat-thread" style="max-height:320px;background:var(--dark3);border-radius:10px;border:1px solid var(--dark4)">
+            ${selMsgs.length===0?html`<p style="color:var(--muted);text-align:center;padding:1rem">No messages recorded for this ticket.</p>`
+            :selMsgs.map(m=>html`<div class=${'msg-row msg-row-'+(m.sender==='agent'?'agent':m.sender==='system'?'system':'user')}>
+              <div class=${'msg-b msg-'+(m.sender==='agent'?'agent':m.sender==='system'?'system':'user')}>${m.text}
+                <div class="msg-time">${m.time}</div>
+              </div>
+              ${m.sender!=='system'&&html`<div style="font-size:.65rem;color:var(--muted);margin-top:.15rem">${m.sender==='agent'?'Agent':'User'}</div>`}
+            </div>`)}
+          </div>`}
+          ${selected.notes&&html`<div class="note-item" style="margin-top:.8rem"><b><i class="fas fa-sticky-note" style="color:var(--gold)"></i> Note:</b> ${selected.notes}</div>`}
+        </div>
+      </div>
+    </div>`}
+
+    <div class="card">
+      <div class="card-title" style="justify-content:space-between;flex-wrap:wrap;gap:.5rem">
+        <span><i class="fas fa-history"></i> Conversation History</span>
+        <button class="btn btn-secondary btn-sm" onClick=${loadHistory}><i class="fas fa-sync"></i></button>
+      </div>
+      <div class="filter-row">
+        <input type="text" placeholder="Search…" value=${search} onInput=${e=>setSearch(e.target.value)} style="max-width:200px"/>
+        <select style="max-width:140px;flex:0" value=${statusFilter} onChange=${e=>setStatusFilter(e.target.value)}>
+          <option value="">All Statuses</option>
+          ${['Resolved','Escalated','Closed'].map(s=>html`<option value=${s}>${s}</option>`)}
+        </select>
+        <select style="max-width:140px;flex:0" value=${typeFilter} onChange=${e=>setTypeFilter(e.target.value)}>
+          <option value="">All Types</option>
+          ${['Player','Club','Agent','Scout','Data Scout'].map(t=>html`<option value=${t}>${t}</option>`)}
+        </select>
+        <button class="btn btn-secondary btn-sm" onClick=${()=>{window.print();}}>🖨️ Print</button>
+        <span style="color:var(--muted);font-size:.78rem">${filtered.length} record${filtered.length!==1?'s':''}</span>
+      </div>
+      ${loading?html`<div class="skeleton sk-line" style="height:120px"></div>`
+      :filtered.length===0?html`<div class="empty-state"><i class="fas fa-history"></i><p>No conversation records found.</p></div>`
+      :html`<div class="tw"><table>
+        <thead><tr><th>Ticket ID</th><th>User</th><th>Category</th><th>Duration</th><th>Date</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody>
+          ${filtered.map(h=>html`<tr>
+            <td><b style="color:var(--secondary)">${h.ticketId||h.ticket_id}</b></td>
+            <td>${h.userName||h.user_name||'—'} <span class=${'badge '+utbClass(h.userType||h.user_type)}>${h.userType||h.user_type}</span></td>
+            <td>${h.category||'—'}</td>
+            <td>${h.duration||'—'}</td>
+            <td style="font-size:.73rem;color:var(--muted)">${(h.startTime||h.start_time||'').substring(0,16)}</td>
+            <td><span class=${'badge '+statusBadge(h.status)}>${h.status}</span></td>
+            <td><button class="btn btn-secondary btn-sm" onClick=${()=>openConv(h)}><i class="fas fa-eye"></i></button></td>
+          </tr>`)}
+        </tbody>
+      </table></div>`}
+    </div>
+  </div>`;
+}
+
+// ── NOTIFICATIONS TAB ──
+function NotificationsTab({user,onUnreadChange}){
+  const [notifs,setNotifs]=useState([]);
+  const [loading,setLoading]=useState(true);
+
+  useEffect(()=>{loadNotifs();},[]);
+  const loadNotifs=async()=>{
+    setLoading(true);
+    const r=await safeApi('GET',`/api/customer-care/agents/${user?.id||'me'}/notifications`,null,{notifications:SEED_NOTIFS});
+    const items=r?.notifications||SEED_NOTIFS;
+    setNotifs(items);
+    onUnreadChange&&onUnreadChange(items.filter(n=>!n.read).length);
+    setLoading(false);
+  };
+  const markRead=async(notif)=>{
+    if(notif.read)return;
+    try{await api('PATCH',`/api/customer-care/agents/${user?.id||'me'}/notifications/${notif.id}/read`,{});}catch(e){}
+    setNotifs(prev=>prev.map(n=>n.id===notif.id?{...n,read:true}:n));
+    onUnreadChange&&onUnreadChange(notifs.filter(n=>!n.read&&n.id!==notif.id).length);
+  };
+  const markAllRead=async()=>{
+    try{await safeApi('PATCH',`/api/customer-care/agents/${user?.id||'me'}/notifications/read-all`,{},null,'All notifications marked as read.');}catch(e){}
+    setNotifs(prev=>prev.map(n=>({...n,read:true})));
+    onUnreadChange&&onUnreadChange(0);
+  };
+  const niIcon={assign:'fa-ticket-alt',system:'fa-cog',escalate:'fa-exclamation-circle',resolve:'fa-check-circle',general:'fa-bell'};
+  const niClass={assign:'ni-assign',system:'ni-system',escalate:'ni-escalate',resolve:'ni-resolve',general:'ni-general'};
+  const unread=notifs.filter(n=>!n.read).length;
+
+  return html`<div>
+    <div class="card">
+      <div class="card-title" style="justify-content:space-between;flex-wrap:wrap;gap:.5rem">
+        <span><i class="fas fa-bell"></i> Notifications ${unread>0&&html`<span class="notif-badge" style="margin-left:.4rem">${unread} new</span>`}</span>
+        <div style="display:flex;gap:.4rem">
+          ${unread>0&&html`<button class="btn btn-secondary btn-sm" onClick=${markAllRead}><i class="fas fa-check-double"></i> Mark All Read</button>`}
+          <button class="btn btn-secondary btn-sm" onClick=${loadNotifs}><i class="fas fa-sync"></i></button>
+        </div>
+      </div>
+      ${loading?html`<div class="skeleton sk-line" style="height:200px"></div>`
+      :notifs.length===0?html`<div class="empty-state"><i class="fas fa-bell-slash"></i><p>No notifications yet.</p></div>`
+      :notifs.map(n=>html`<div class=${'notif-item'+(n.read?'':' unread')} onClick=${()=>markRead(n)}>
+        <div class=${'notif-icon '+(niClass[n.type]||niClass.general)}><i class=${'fas '+(niIcon[n.type]||niIcon.general)}></i></div>
+        <div class="notif-body">
+          <div class="notif-title">${n.title}</div>
+          <div class="notif-msg">${n.body||n.message||''}</div>
+          <div class="notif-time"><i class="fas fa-clock" style="font-size:.6rem"></i> ${n.time||n.created_at||''}</div>
+        </div>
+        ${!n.read&&html`<div class="notif-unread-dot"></div>`}
+      </div>`)}
+    </div>
+  </div>`;
+}
+
+// ── SETTINGS TAB ──
+function SettingsTab({user,onUserUpdate}){
+  const [name,setName]=useState(user?.name||'');
+  const [email]=useState(user?.email||'');
+  const [phone,setPhone]=useState(user?.phone||'');
+  const [saving,setSaving]=useState(false);
+  const [showPw,setShowPw]=useState(false);
+  const [otpSent,setOtpSent]=useState(false);
+  const [otp,setOtp]=useState('');
+  const [newPw,setNewPw]=useState('');
+  const [confirmPw,setConfirmPw]=useState('');
+  const [changingPw,setChangingPw]=useState(false);
+
+  const saveProfile=async()=>{
+    if(!name.trim()){toast('Name is required.','error');return;}
+    setSaving(true);
+    try{
+      await safeApi('PATCH',`/api/customer-care/agents/${user?.id||'me'}/settings`,{name,phone},null,'Profile updated.');
+      onUserUpdate&&onUserUpdate({...user,name,phone});
+    }catch(e){toast('Update failed: '+e.message,'error');}
+    setSaving(false);
+  };
+  const requestOtp=async()=>{
+    try{await safeApi('POST','/api/customer-care/settings/request-otp',{email},null);}catch(e){}
+    setOtpSent(true);toast('OTP sent to your registered email.','info');
+  };
+  const changePw=async()=>{
+    if(!otp.trim()){toast('Enter the OTP from your email.','error');return;}
+    if(!newPw||newPw.length<8){toast('Password must be at least 8 characters.','error');return;}
+    if(newPw!==confirmPw){toast('Passwords do not match.','error');return;}
+    setChangingPw(true);
+    try{
+      await safeApi('POST','/api/customer-care/settings/change-password',{otp,newPassword:newPw},null,'Password changed successfully.');
+      setShowPw(false);setOtp('');setNewPw('');setConfirmPw('');setOtpSent(false);
+    }catch(e){toast('Change failed: '+e.message,'error');}
+    setChangingPw(false);
+  };
+
+  return html`<div>
+    <div class="card">
+      <div class="card-title"><i class="fas fa-user-edit"></i> Profile Settings</div>
+      <div class="grid2">
+        <div class="form-group"><label>Full Name *</label><input type="text" value=${name} onInput=${e=>setName(e.target.value)}/></div>
+        <div class="form-group"><label>Email Address</label><input type="email" value=${email} disabled style="opacity:.6;cursor:not-allowed"/></div>
+        <div class="form-group"><label>Phone / Contact</label><input type="text" value=${phone} onInput=${e=>setPhone(e.target.value)} placeholder="+234…"/></div>
+      </div>
+      <button class="btn btn-primary" onClick=${saveProfile} disabled=${saving}>
+        ${saving?html`<i class="fas fa-spinner spin"></i> Saving…`:'💾 Save Profile'}
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><i class="fas fa-lock"></i> Change Password</div>
+      ${!showPw?html`<button class="btn btn-secondary" onClick=${()=>setShowPw(true)}><i class="fas fa-key"></i> Change Password</button>`
+      :html`<div>
+        ${!otpSent?html`<div>
+          <p style="font-size:.82rem;color:var(--muted);margin-bottom:.7rem">An OTP will be sent to: <b style="color:var(--text)">${email}</b></p>
+          <div style="display:flex;gap:.5rem">
+            <button class="btn btn-primary" onClick=${requestOtp}><i class="fas fa-envelope"></i> Send OTP</button>
+            <button class="btn btn-secondary" onClick=${()=>setShowPw(false)}>Cancel</button>
+          </div>
+        </div>`
+        :html`<div>
+          <p style="color:var(--success);font-size:.82rem;margin-bottom:.7rem"><i class="fas fa-check-circle"></i> OTP sent to ${email}.</p>
+          <div class="grid2">
+            <div class="form-group"><label>OTP Code *</label><input type="text" maxlength="6" value=${otp} onInput=${e=>setOtp(e.target.value)} placeholder="Enter OTP…"/></div>
+            <div></div>
+            <div class="form-group"><label>New Password * (min 8 chars)</label><input type="password" value=${newPw} onInput=${e=>setNewPw(e.target.value)}/></div>
+            <div class="form-group"><label>Confirm Password *</label><input type="password" value=${confirmPw} onInput=${e=>setConfirmPw(e.target.value)}/></div>
+          </div>
+          <div style="display:flex;gap:.5rem">
+            <button class="btn btn-primary" onClick=${changePw} disabled=${changingPw}>
+              ${changingPw?html`<i class="fas fa-spinner spin"></i> Changing…`:'✓ Change Password'}
+            </button>
+            <button class="btn btn-secondary" onClick=${()=>{setShowPw(false);setOtpSent(false);setOtp('');setNewPw('');setConfirmPw('');}}>Cancel</button>
+          </div>
+        </div>`}
+      </div>`}
+    </div>
+
+    <div class="card">
+      <div class="card-title"><i class="fas fa-info-circle"></i> Account Information</div>
+      <div style="display:flex;flex-direction:column;gap:.5rem;font-size:.84rem">
+        ${[
+          {label:'Agent ID',val:user?.id||'—'},
+          {label:'Email',val:email||'—'},
+          {label:'Role',val:'Customer Care Agent'},
+        ].map(r=>html`<div style="display:flex;gap:.5rem;padding:.5rem 0;border-bottom:1px solid rgba(255,255,255,.05)">
+          <span style="color:var(--muted);width:130px;flex-shrink:0">${r.label}</span>
+          <span style="color:var(--text);font-weight:600">${r.val}</span>
+        </div>`)}
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── APP ROOT ──
+const TAB_TITLES={
+  'overview':'Dashboard Overview','active-chats':'Active Chats',
+  'queue':'Ticket Queue','history':'Conversation History',
+  'notifications':'Notifications','settings':'Settings'
+};
+
+function App(){
+  const [authState,setAuthState]=useState('loading');
+  const [ccUser,setCcUser]=useState(null);
+  const [sidebarOpen,setSidebarOpen]=useState(window.innerWidth>=1025);
+  const [activeTab,setActiveTab]=useState('overview');
+  const [unreadNotifs,setUnreadNotifs]=useState(0);
+
+  useEffect(()=>{
+    const handleResize=()=>{if(window.innerWidth<1025)setSidebarOpen(false);else setSidebarOpen(true);};
+    window.addEventListener('resize',handleResize);
+    return()=>window.removeEventListener('resize',handleResize);
+  },[]);
+
+  const toggleSidebar=()=>{
+    setSidebarOpen(o=>{
+      const next=!o;
+      const ov=document.getElementById('overlay');
+      if(ov){if(next&&window.innerWidth<1025)ov.classList.add('show');else ov.classList.remove('show');}
+      return next;
+    });
+  };
+
+  const nav=tab=>{setActiveTab(tab);if(window.innerWidth<1025){setSidebarOpen(false);const ov=document.getElementById('overlay');if(ov)ov.classList.remove('show');}};
+  const closeSb=()=>{if(window.innerWidth<1025){setSidebarOpen(false);const ov=document.getElementById('overlay');if(ov)ov.classList.remove('show');}};
+
+  const handleStatusChange=async(newStatus)=>{
+    try{
+      await safeApi('PATCH',`/api/customer-care/agents/${ccUser.id}/status`,{status:newStatus},null);
+      setCcUser(u=>({...u,status:newStatus}));
+      const statusLabels={available:'Available',busy:'Busy',away:'Away'};
+      toast(`Status changed to ${statusLabels[newStatus]||newStatus}.`,'success');
+    }catch(e){toast('Status update failed.','error');}
+  };
+
+  const statusColor={available:'var(--success)',busy:'var(--warning)',away:'var(--muted)'};
+  const initials=s=>s?s.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase():'CC';
+  const canonicalRole=value=>String(value||'').trim().toLowerCase().replace(/[- ]/g,'_');
+
+  useEffect(()=>{
+    async function checkAuth(){
+      try{
+        const me=await apiCall('/auth/me');
+        const role=canonicalRole(me?.sub_role||me?.role);
+        if(me&&role === 'customer_care'){
+          setCcUser({
+             id:me.user_id||me.id||'CC001',
+             name:me.name||me.full_name||me.email||'CC Agent',
+            email:me.email||'',
+             role,
+             photo:me.avatar||me.photo||'',
+            status:me.status||'available'
+          });
+          setAuthState('authenticated');
+        }else{
+          localStorage.clear();
+          sessionStorage.clear();
+          window.location.replace('/login');
+        }
+      }catch(err){
+        if(err.status===401||err.status===403){
+          localStorage.clear();
+          sessionStorage.clear();
+          window.location.replace('/login');
+        }else{
+          setCcUser({id:'CC001',name:'CC Agent',email:'',role:'customer_care',photo:'',status:'available'});
+          setAuthState('demo');
+        }
+      }
+    }
+    checkAuth();
+  },[]);
+
+  if(authState==='loading')return html`<div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:1rem;"><i class="fas fa-spinner fa-spin" style="font-size:2.5rem;color:var(--secondary);"></i><div style="color:var(--muted);font-weight:600;">Loading Dashboard...</div></div>`;
+  return html`<div>
+    <${Sidebar}
+      active=${activeTab}
+      onNav=${nav}
+      user=${ccUser}
+      open=${sidebarOpen}
+      onClose=${closeSb}
+      notifCount=${unreadNotifs}
+      onStatusChange=${handleStatusChange}/>
+
+    <div id="header" class=${sidebarOpen&&window.innerWidth>=1025?'':'full'}>
+      <div class="h-left">
+        <button class="hamburger" onClick=${toggleSidebar} title="Toggle sidebar">☰</button>
+        <span class="h-title"><i class="fas fa-headset"></i> <span>CC Dashboard — ${TAB_TITLES[activeTab]||activeTab}</span></span>
+      </div>
+      <div class="h-right">
+        <span class="status-dot" style=${'background:'+statusColor[ccUser.status||'available']+';flex-shrink:0;display:inline-block;width:9px;height:9px;border-radius:50%'}></span>
+        <div class="h-av">${ccUser.photo?html`<img src=${ccUser.photo}/>`
+          :html`<span style="font-size:.75rem;font-weight:800;color:var(--gold)">${initials(ccUser.name)}</span>`}</div>
+        <button class="btn-lo" onClick=${()=>doLogout()}>Logout</button>
+      </div>
+    </div>
+
+    <div id="main" class=${sidebarOpen&&window.innerWidth>=1025?'':'full'}>
+      <div class="breadcrumb"><i class="fas fa-home"></i> <i class="fas fa-chevron-right"></i> ${TAB_TITLES[activeTab]||activeTab}</div>
+      ${activeTab==='overview'&&html`<${OverviewTab} user=${ccUser}/>`}
+      ${activeTab==='active-chats'&&html`<${ActiveChatsTab} user=${ccUser}/>`}
+      ${activeTab==='queue'&&html`<${TicketQueueTab} user=${ccUser} onQueueCount=${()=>{}}/>`}
+      ${activeTab==='history'&&html`<${HistoryTab} user=${ccUser}/>`}
+      ${activeTab==='notifications'&&html`<${NotificationsTab} user=${ccUser} onUnreadChange=${setUnreadNotifs}/>`}
+      ${activeTab==='settings'&&html`<${SettingsTab} user=${ccUser} onUserUpdate=${setCcUser}/>`}
+    </div>
+  </div>`;
+}
+
+function renderApp(){
+  render(html`<${App}/>`,document.getElementById('app'));
+}
+renderApp();
+</script>
+</body>
+</html>

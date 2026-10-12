@@ -1,0 +1,3233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Register — EnejiStats</title>
+<meta name="description" content="Create your EnejiStats account — Africa's trusted football intelligence platform."/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+<script src="https://unpkg.com/preact@10.19.3/dist/preact.umd.js"></script>
+<script src="https://unpkg.com/preact@10.19.3/hooks/dist/hooks.umd.js"></script>
+<script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js"></script>
+<style>
+:root{
+  --primary:#004aad;--primary-light:#0066cc;--gold:#f5b800;
+  --header-bg:#162060;--dark-bg:#1e1e2f;--page-bg:#0f172a;
+  --brand-gradient:linear-gradient(135deg,#162060 0%,#0d1b3e 100%);
+  --success:#22c55e;--warning:#f59e0b;--danger:#ef4444;--muted:#94a3b8;
+  --border:rgba(255,255,255,.12);--surface:rgba(255,255,255,.05);
+  --radius:12px;--font:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--page-bg);min-height:100vh;color:#e2e8f0;-webkit-font-smoothing:antialiased}
+a{color:var(--gold);text-decoration:none}
+a:hover{text-decoration:underline}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:4px}
+
+/* ── Header ── */
+.site-header{position:sticky;top:0;z-index:1000;background:var(--header-bg);border-bottom:4px solid var(--gold)}
+.site-header .inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;padding:0 20px;height:68px;gap:16px}
+.logo-link{text-decoration:none;white-space:nowrap;display:inline-block;vertical-align:middle}
+.hamburger{display:none;background:none;border:none;font-size:1.4rem;cursor:pointer;color:#fff;margin-left:auto}
+.site-nav{display:flex;align-items:center;gap:4px;margin-left:auto;list-style:none}
+.site-nav a{padding:6px 10px;font-size:.85rem;color:rgba(255,255,255,.8);border-radius:6px;font-weight:500;transition:all .2s;text-decoration:none}
+.site-nav a:hover,.site-nav a.active{color:#fff;background:rgba(255,255,255,.1)}
+.site-nav .btn-register{background:var(--gold);color:#0f172a!important;padding:7px 14px;border-radius:8px;font-weight:700}
+.site-nav .btn-register:hover{opacity:.9}
+@media(max-width:768px){
+  .hamburger{display:block}
+  .site-nav{display:none;position:fixed;top:68px;left:0;right:0;bottom:0;background:var(--header-bg);flex-direction:column;align-items:flex-start;padding:20px;gap:0;overflow-y:auto;z-index:999}
+  .site-nav.open{display:flex}
+  .site-nav a{width:100%;padding:12px 8px;border-bottom:1px solid rgba(255,255,255,.08);font-size:1rem}
+}
+
+/* ── Footer ── */
+.site-footer{background:#1e1e1e;color:#94a3b8;padding:60px 20px 20px}
+.footer-grid{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:40px}
+@media(max-width:768px){.footer-grid{grid-template-columns:1fr}}
+.footer-col h4{color:#fff;font-size:.9rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:14px}
+.footer-col p,.footer-col li{font-size:.83rem;line-height:1.7;color:#94a3b8}
+.footer-col ul{list-style:none}
+.footer-col ul li a{color:#94a3b8;font-size:.83rem}
+.footer-col ul li a:hover{color:var(--gold)}
+.footer-social{display:flex;gap:10px;margin-top:10px}
+.footer-social a{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:.8rem;transition:background .2s}
+.footer-social a:hover{background:var(--primary);color:#fff}
+.footer-bottom{max-width:1200px;margin:40px auto 0;padding-top:20px;border-top:1px solid #2d2d2d;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;font-size:.78rem}
+.footer-bottom a{color:#94a3b8}
+
+/* ── Layout ── */
+.auth-layout{display:flex;min-height:calc(100vh - 68px)}
+.brand-panel{width:420px;flex-shrink:0;background:var(--brand-gradient);border-right:4px solid var(--gold);display:flex;flex-direction:column;justify-content:center;align-items:center;padding:60px 40px;text-align:center}
+@media(max-width:768px){.brand-panel{display:none}}
+.brand-panel h2{color:#fff;font-size:1.5rem;font-weight:700;margin:1.4rem 0 .5rem;line-height:1.3}
+.brand-panel p{color:rgba(255,255,255,.72);font-size:.88rem;line-height:1.65;margin-bottom:28px}
+.brand-panel .tagline{color:var(--gold);font-style:italic;font-size:.85rem;border-top:1px solid rgba(255,255,255,.15);padding-top:18px;margin-top:auto}
+.bp-features{list-style:none}
+.bp-features li{color:rgba(255,255,255,.82);font-size:.85rem;padding:7px 0;display:flex;align-items:center;gap:10px;text-align:left;border-bottom:1px solid rgba(255,255,255,.06)}
+.bp-features li:last-child{border-bottom:none}
+.bp-features li i{color:var(--gold);width:16px;flex-shrink:0}
+.form-panel{flex:1;display:flex;justify-content:center;align-items:flex-start;padding:40px 20px;overflow-y:auto}
+@media(max-width:600px){.form-panel{padding:20px 12px}}
+.form-card{background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:16px;padding:40px;width:100%;max-width:700px;backdrop-filter:blur(10px)}
+@media(max-width:600px){.form-card{padding:24px 16px}}
+
+/* ── Step indicator ── */
+.step-indicator{display:flex;align-items:center;justify-content:center;margin-bottom:28px}
+.step-bubble{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;border:2px solid var(--muted);color:var(--muted);background:transparent;flex-shrink:0;transition:all .3s}
+.step-bubble.active{background:var(--gold);border-color:var(--gold);color:#1e1e2f}
+.step-bubble.done{background:var(--success);border-color:var(--success);color:#fff}
+.step-line{flex:1;height:2px;background:var(--muted);max-width:80px;transition:background .3s}
+.step-line.done{background:var(--success)}
+.step-label{font-size:.72rem;color:var(--muted);margin-top:6px;text-align:center;white-space:nowrap}
+.step-wrap{display:flex;flex-direction:column;align-items:center}
+
+/* ── Role grid ── */
+.role-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:24px 0}
+@media(max-width:640px){.role-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:400px){.role-grid{grid-template-columns:1fr}}
+.role-card{border:2px solid rgba(255,255,255,.12);border-radius:12px;padding:20px 16px;cursor:pointer;transition:all .25s;background:rgba(255,255,255,.04);text-align:center;position:relative}
+.role-card:hover{border-color:var(--gold);transform:translateY(-3px);background:rgba(255,215,0,.06)}
+.role-card.selected{border-color:var(--gold);background:rgba(255,215,0,.1)}
+.role-card .check{position:absolute;top:10px;right:10px;width:22px;height:22px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:.7rem;color:#1e1e2f;opacity:0;transition:opacity .2s}
+.role-card.selected .check{opacity:1}
+.role-card .role-icon{font-size:2.2rem;margin-bottom:10px;display:block}
+.role-card h3{color:#fff;font-size:1rem;font-weight:700;margin-bottom:6px}
+.role-card p{color:var(--muted);font-size:.78rem;line-height:1.5}
+
+/* ── Form elements ── */
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:.82rem;font-weight:600;color:#cbd5e1;margin-bottom:6px}
+.form-group label .req{color:var(--danger)}
+.form-control{width:100%;padding:10px 14px;background:rgba(255,255,255,.07);border:1px solid var(--border);border-radius:8px;color:#f1f5f9;font-size:.9rem;font-family:var(--font);outline:none;transition:border .2s,background .2s}
+.form-control:focus{border-color:var(--primary-light);background:rgba(255,255,255,.1)}
+.form-control::placeholder{color:var(--muted)}
+.form-control option{background:#1e1e2f;color:#f1f5f9}
+.form-control:disabled{opacity:.5;cursor:not-allowed}
+.input-group{position:relative}
+.input-group .form-control{padding-right:40px}
+.input-icon{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.9rem;pointer-events:none}
+.input-icon.clickable{pointer-events:all;cursor:pointer}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:500px){.form-row{grid-template-columns:1fr}}
+textarea.form-control{resize:vertical;min-height:80px}
+/* ── Title-case all plain text / textarea inputs ── */
+input.form-control:not([type=email]):not([type=password]):not([type=number]):not([type=date]):not([type=url]):not([type=tel]),
+textarea.form-control{text-transform:capitalize}
+.helper-text{font-size:.76rem;color:var(--muted);margin-top:4px}
+.error-text{font-size:.76rem;color:var(--danger);margin-top:4px}
+.success-text{font-size:.76rem;color:var(--success);margin-top:4px}
+.warning-text{font-size:.76rem;color:var(--warning);margin-top:4px}
+.check-label{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:.88rem;color:#cbd5e1;padding:4px 0}
+.check-label input[type=checkbox],.check-label input[type=radio]{width:16px;height:16px;accent-color:var(--primary)}
+.radio-group{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px}
+.radio-card{flex:1;min-width:140px;border:2px solid var(--border);border-radius:10px;padding:14px 12px;cursor:pointer;text-align:center;transition:all .2s}
+.radio-card:hover{border-color:var(--gold)}
+.radio-card.active{border-color:var(--gold);background:rgba(255,215,0,.08)}
+.radio-card h5{color:#fff;font-size:.88rem;font-weight:700;margin-bottom:4px}
+.radio-card p{color:var(--muted);font-size:.74rem}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 24px;border-radius:8px;font-weight:600;font-size:.9rem;cursor:pointer;border:none;font-family:var(--font);transition:all .2s;text-decoration:none}
+.btn:disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
+.btn-gold{background:var(--gold);color:#1e1e2f}
+.btn-gold:hover{background:#e6c200}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-light)}
+.btn-outline{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.3)}
+.btn-outline:hover{border-color:#fff}
+.btn-success{background:var(--success);color:#fff}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-sm{padding:6px 14px;font-size:.82rem}
+.btn-full{width:100%}
+.btn-group{display:flex;justify-content:space-between;align-items:center;margin-top:28px;padding-top:20px;border-top:1px solid rgba(255,255,255,.08);gap:12px}
+
+/* ── Password strength ── */
+.pw-bar{height:4px;border-radius:2px;margin-top:8px;background:rgba(255,255,255,.1)}
+.pw-fill{height:100%;border-radius:2px;transition:all .3s}
+.pw-label{font-size:.75rem;margin-top:4px;font-weight:600}
+.pw-rules{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.pw-rule{font-size:.73rem;padding:2px 8px;border-radius:4px;background:rgba(255,255,255,.06);color:var(--muted)}
+.pw-rule.met{background:rgba(34,197,94,.1);color:var(--success)}
+
+/* ── File upload ── */
+.file-upload-area{border:2px dashed rgba(255,255,255,.2);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:border .2s;background:rgba(255,255,255,.03)}
+.file-upload-area:hover{border-color:var(--gold)}
+.file-upload-area .icon{font-size:1.8rem;color:var(--muted);margin-bottom:8px}
+.file-upload-area p{font-size:.82rem;color:var(--muted)}
+.file-preview{display:flex;align-items:center;gap:12px;padding:10px 14px;background:rgba(255,255,255,.05);border-radius:8px;margin-top:8px}
+.file-preview img{width:48px;height:48px;object-fit:cover;border-radius:6px;border:2px solid var(--primary)}
+.file-preview .file-info{flex:1;min-width:0}
+.file-preview .file-info span{display:block;font-size:.82rem;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.file-preview .file-info small{color:var(--muted);font-size:.74rem}
+
+/* ── GPS ── */
+.gps-coords{font-family:monospace;font-size:.78rem;background:rgba(0,0,0,.3);padding:6px 10px;border-radius:6px;margin-top:8px;color:var(--success)}
+
+/* ── Tags ── */
+.tag-input{display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px;background:rgba(255,255,255,.07);border:1px solid var(--border);border-radius:8px;min-height:44px;cursor:text}
+.tag-item{background:var(--primary);color:#fff;padding:3px 10px;border-radius:20px;font-size:.78rem;display:flex;align-items:center;gap:6px}
+.tag-item button{background:none;border:none;color:rgba(255,255,255,.7);cursor:pointer;font-size:.9rem;line-height:1;padding:0}
+.tag-item button:hover{color:#fff}
+.tag-dropdown{position:absolute;z-index:100;top:100%;left:0;right:0;background:#1e1e2f;border:1px solid var(--border);border-radius:8px;max-height:200px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.tag-dropdown-item{padding:8px 14px;cursor:pointer;font-size:.85rem;color:#e2e8f0;transition:background .15s}
+.tag-dropdown-item:hover{background:rgba(255,255,255,.08)}
+
+/* ── Chips ── */
+.check-chip{display:flex;align-items:center;gap:6px;padding:5px 12px;border:1.5px solid rgba(255,255,255,.2);border-radius:20px;cursor:pointer;font-size:.8rem;color:#cbd5e1;transition:all .15s;user-select:none}
+.check-chip.active{border-color:var(--primary);background:rgba(0,74,173,.25);color:#fff}
+.check-chip input{display:none}
+.checkbox-group{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+
+/* ── Section blocks ── */
+.section-block{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:18px;margin-bottom:16px}
+.section-block:last-child{margin-bottom:0}
+.section-block-title{font-size:.7rem;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+
+/* ── Review ── */
+.review-section{margin-bottom:20px}
+.review-section h4{font-size:.78rem;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
+.review-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 20px}
+@media(max-width:500px){.review-grid{grid-template-columns:1fr}}
+.review-item dt{font-size:.74rem;color:var(--muted)}
+.review-item dd{font-size:.85rem;color:#e2e8f0;font-weight:500;word-break:break-word}
+
+/* ── Note card ── */
+.note-card{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:10px;padding:16px;font-size:.83rem;color:#fbbf24;line-height:1.7}
+.note-card ul{margin-top:8px;padding-left:18px}
+.note-card li{margin-bottom:4px}
+
+/* ── Applicant badge ── */
+.applicant-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(0,74,173,.2);border:1px solid rgba(0,74,173,.4);color:#7eb3ff;padding:4px 12px;border-radius:20px;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:14px}
+
+/* ── Toasts ── */
+.toast-container{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;pointer-events:none}
+.toast{padding:12px 20px;border-radius:10px;font-size:.88rem;font-weight:600;color:#fff;box-shadow:0 4px 16px rgba(0,0,0,.3);animation:slideIn .3s ease;pointer-events:all;max-width:320px}
+.toast.success{background:var(--success)}
+.toast.error{background:var(--danger)}
+.toast.info{background:var(--primary)}
+.toast.warning{background:var(--warning);color:#1e1e2f}
+@keyframes slideIn{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes bounce{from{transform:translateY(0)}to{transform:translateY(5px)}}
+
+/* ── Overlays ── */
+.overlay-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:5000;display:flex;align-items:flex-start;justify-content:center;padding:max(20px,env(safe-area-inset-top)) max(20px,env(safe-area-inset-right)) max(20px,env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left));overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.overlay-card{background:#1e1e2f;border:1px solid var(--border);border-radius:16px;width:100%;max-width:640px;max-height:min(85dvh,900px);min-height:0;margin:auto 0;display:flex;flex-direction:column}
+.overlay-header{padding:20px 24px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:space-between}
+.overlay-header h3{font-size:1.1rem;font-weight:700;color:#fff}
+.overlay-content{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:20px 24px;font-size:.85rem;color:#94a3b8;line-height:1.8}
+.overlay-footer{padding:16px 24px;border-top:1px solid rgba(255,255,255,.1)}
+.overlay-tabs{display:flex;gap:.35rem;margin-bottom:1rem;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:0}
+.overlay-tab-btn{padding:.5rem 1rem;font-size:.82rem;font-weight:700;cursor:pointer;background:transparent;border:none;color:#64748b;border-bottom:2px solid transparent;margin-bottom:-1px;font-family:var(--font,sans-serif);transition:all .2s}
+.overlay-tab-btn.active{color:var(--gold);border-bottom-color:var(--gold)}
+.overlay-tab-btn:hover:not(.active){color:#cbd5e1}
+.overlay-doc{color:#94a3b8;line-height:1.8;font-size:.85rem}
+.overlay-doc h4,.overlay-doc h2{color:#fff;font-size:.95rem;margin:16px 0 8px}
+.overlay-doc p{margin-bottom:10px}
+.overlay-doc ul,.overlay-doc ol{padding-left:18px;margin:.5rem 0}
+.overlay-doc li{margin-bottom:4px}
+.overlay-doc strong{color:#e2e8f0}
+.overlay-doc table{width:100%;border-collapse:collapse;margin:.8rem 0;font-size:.82rem}
+.overlay-doc th{background:rgba(0,74,173,.2);color:#7eb3ff;text-align:left;padding:.5rem .7rem;font-weight:700;border-bottom:1px solid rgba(255,255,255,.12)}
+.overlay-doc td{padding:.5rem .7rem;border-bottom:1px solid rgba(255,255,255,.07);color:#94a3b8}
+.overlay-doc h2{font-size:1rem;font-weight:700;color:var(--gold);margin:1.1rem 0 .55rem;padding-bottom:.45rem;border-bottom:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:.4rem}
+.overlay-doc h2 .num{background:var(--primary);color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:.68rem;flex-shrink:0}
+.overlay-doc a{color:var(--gold)}
+
+/* ── Club search result card ── */
+.club-result-card{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;cursor:pointer;transition:background .15s;border-bottom:1px solid rgba(255,255,255,.04)}
+.club-result-card:hover{background:rgba(255,255,255,.06)}
+.club-result-card:last-child{border-bottom:none}
+.club-badge{width:42px;height:42px;border-radius:8px;flex-shrink:0;background:linear-gradient(135deg,var(--primary),#3b82f6);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.75rem;color:#fff;letter-spacing:.5px;background-size:cover;background-position:center}
+.club-result-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.club-result-name{font-size:.86rem;font-weight:700;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.club-result-level{font-size:.73rem;color:var(--gold);font-weight:600}
+.club-result-meta{font-size:.72rem;color:var(--muted)}
+.club-result-fields{display:flex;flex-wrap:wrap;gap:3px 10px;margin-top:3px}
+.club-result-field{font-size:.71rem;color:#94a3b8;display:flex;align-items:center;gap:3px}
+.club-result-field strong{color:#cbd5e1}
+
+/* ── Smart select ── */
+.smart-select-wrap{position:relative}
+.smart-select-results{position:absolute;top:100%;left:0;right:0;z-index:50;background:#1e1e2f;border:1px solid var(--border);border-radius:8px;max-height:220px;overflow-y:auto;box-shadow:0 8px 20px rgba(0,0,0,.4);margin-top:2px}
+.smart-select-item{padding:9px 14px;cursor:pointer;font-size:.85rem;color:#e2e8f0;transition:background .15s}
+.smart-select-item:hover,.smart-select-item.highlighted{background:rgba(255,255,255,.09)}
+.search-results{position:absolute;top:100%;left:0;right:0;z-index:50;background:#1e1e2f;border:1px solid var(--border);border-radius:8px;max-height:240px;overflow-y:auto;box-shadow:0 8px 20px rgba(0,0,0,.4);margin-top:2px}
+.search-result-item{padding:9px 14px;cursor:pointer;font-size:.85rem;color:#e2e8f0;transition:background .15s;display:flex;justify-content:space-between;align-items:center}
+.search-result-item:hover{background:rgba(255,255,255,.07)}
+.search-result-item small{color:var(--muted);font-size:.75rem}
+.loading-shimmer{height:36px;background:rgba(255,255,255,.06);border-radius:8px;animation:shimmer 1.5s infinite;border:1px solid var(--border)}
+@keyframes shimmer{0%,100%{opacity:.6}50%{opacity:1}}
+
+/* ── Misc ── */
+.same-phone-row{display:flex;align-items:center;gap:8px;margin-top:6px}
+.same-phone-row label{font-size:.8rem;color:var(--muted);cursor:pointer}
+.email-status{display:flex;align-items:center;gap:6px;font-size:.78rem;margin-top:4px}
+.email-status.ok{color:var(--success)}
+.email-status.err{color:var(--danger)}
+.email-status.checking{color:var(--muted)}
+.page-title{font-size:1.5rem;font-weight:700;color:#fff;margin-bottom:6px}
+.page-sub{font-size:.88rem;color:var(--muted);margin-bottom:4px}
+.form-heading{font-size:1.1rem;font-weight:700;color:#fff;margin-bottom:18px}
+.consent-block{margin-top:24px;padding:16px;background:rgba(255,255,255,.04);border-radius:10px;border:1px solid var(--border)}
+.consent-title{font-size:.78rem;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px}
+.liveness-card{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:12px;padding:24px}
+.liveness-done{text-align:center;padding:24px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:10px}
+
+/* ── Email verify overlay ── */
+.ev-overlay{position:fixed;inset:0;background:rgba(30,30,47,.97);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:max(1.5rem,env(safe-area-inset-top)) max(1.5rem,env(safe-area-inset-right)) max(1.5rem,env(safe-area-inset-bottom)) max(1.5rem,env(safe-area-inset-left));overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.ev-box{background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:20px;padding:2.5rem 2rem;max-width:440px;width:100%;max-height:calc(100dvh - 3rem);overflow-y:auto;margin:auto 0;text-align:center;backdrop-filter:blur(16px)}
+
+/* ── Confirm-submit modal ── */
+.csm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:9998;display:flex;align-items:flex-start;justify-content:center;padding:max(1.25rem,env(safe-area-inset-top)) max(1.25rem,env(safe-area-inset-right)) max(1.25rem,env(safe-area-inset-bottom)) max(1.25rem,env(safe-area-inset-left));overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;backdrop-filter:blur(3px);animation:csmFadeIn .18s ease}
+@keyframes csmFadeIn{from{opacity:0}to{opacity:1}}
+.csm-card{background:#1e1e2f;border:1px solid rgba(245,184,0,.22);border-radius:20px;width:100%;max-width:460px;max-height:min(92dvh,900px);min-height:0;margin:auto 0;overflow:hidden;display:flex;flex-direction:column;animation:csmSlideUp .2s ease}
+@keyframes csmSlideUp{from{transform:translateY(24px);opacity:0}to{transform:translateY(0);opacity:1}}
+.csm-head{padding:24px 24px 18px;border-bottom:1px solid rgba(255,255,255,.08);text-align:center}
+.csm-body{padding:20px 24px;flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.csm-foot{padding:16px 24px;border-top:1px solid rgba(255,255,255,.08);display:flex;gap:12px}
+.csm-foot .btn{flex:1}
+.csm-next-box{background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.2);border-radius:10px;padding:14px 18px;margin-bottom:14px}
+.csm-review-note{background:rgba(245,184,0,.07);border:1px solid rgba(245,184,0,.2);border-radius:8px;padding:11px 14px;font-size:.82rem;color:#cbd5e1;margin-bottom:14px}
+.csm-expiry{font-size:.77rem;color:#64748b;text-align:center;margin-bottom:0}
+.ev-icon{font-size:3rem;margin-bottom:1rem;color:var(--gold)}
+.ev-icon.done{color:var(--success);animation:evPop .4s ease}
+.ev-otp-input{font-size:2rem;letter-spacing:.5rem;text-align:center;padding:.75rem 1rem;border-radius:12px;border:2px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;width:200px;font-weight:700;outline:none;font-family:monospace}
+.ev-otp-input:focus{border-color:var(--gold)}
+@keyframes evPop{0%{transform:scale(.5);opacity:0}70%{transform:scale(1.2)}100%{transform:scale(1);opacity:1}}
+
+/* ── Toggle switch ── */
+.toggle-row{display:flex;align-items:center;gap:12px;padding:10px 12px;background:rgba(255,255,255,.04);border-radius:8px;border:1px solid rgba(255,255,255,.08);margin-bottom:16px}
+.toggle-row-label{flex:1;font-size:.82rem}
+.toggle-row-label strong{display:block;color:#e2e8f0;margin-bottom:2px;font-size:.83rem}
+.toggle-row-label span{color:var(--muted);font-size:.75rem}
+.toggle-switch{position:relative;display:inline-block;width:40px;height:22px;flex-shrink:0}
+.toggle-switch input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;inset:0;background:rgba(255,255,255,.2);border-radius:22px;cursor:pointer;transition:.3s}
+.toggle-slider::before{content:'';position:absolute;height:16px;width:16px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s}
+.toggle-switch input:checked+.toggle-slider{background:var(--primary)}
+.toggle-switch input:checked+.toggle-slider::before{transform:translateX(18px)}
+
+/* ── Authentication Footer Links ── */
+.auth-links{margin-top:24px;display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:14px;font-size:.82rem;color:#64748b}
+.auth-links-text{color:#64748b}
+.auth-link{color:var(--gold,#f5b800);text-decoration:none;font-weight:600;transition:color .2s ease}
+.auth-link:hover{text-decoration:underline}
+.auth-divider{width:1px;height:16px;background:rgba(255,255,255,.18)}
+@media(max-width:480px){
+  .auth-links{flex-direction:column;gap:10px}
+  .auth-divider{display:none}
+  .layout,.two-col{flex-direction:column}
+  .brand-panel{display:none}
+  .panel,.form-panel{padding:2rem 1.25rem}
+  input,select,.btn-register{min-height:44px}
+  .form-row{flex-direction:column}
+}
+@media(max-width:360px){.panel,.form-panel{padding:1.5rem 1rem}}
+
+/* ── Venue Ground search detail card ── */
+.ground-detail-card{background:rgba(0,74,173,.1);border:1px solid rgba(0,74,173,.3);border-radius:10px;padding:14px 16px;margin-top:10px}
+.ground-name{font-weight:700;font-size:.94rem;color:var(--gold);margin-bottom:10px;display:flex;align-items:center;gap:7px}
+.ground-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;font-size:.8rem;color:#94a3b8;margin-bottom:8px}
+.ground-detail-item{display:flex;flex-direction:column;gap:1px}
+.ground-detail-item strong{font-size:.7rem;text-transform:uppercase;letter-spacing:.8px;color:#64748b}
+.ground-detail-item span{color:#cbd5e1;font-size:.8rem}
+.ground-clear-btn{background:none;border:1px solid rgba(255,255,255,.2);border-radius:6px;color:#94a3b8;font-size:.75rem;padding:3px 10px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;margin-top:8px;font-family:var(--font)}
+.ground-clear-btn:hover{border-color:var(--danger);color:var(--danger)}
+</style>
+  <link rel="stylesheet" href="/static/css/eneji-branding.css"/>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(function(){
+'use strict';
+const { h, render, Fragment } = preact;
+const { useState, useEffect, useRef, useCallback, useMemo } = preactHooks;
+const html = htm.bind(h);
+
+/* ─── CONSTANTS ─────────────────────────────────────────────────────────────── */
+const FALLBACK_POSITION_MAP = {
+  'Goalkeeper': ['GK'],
+  'Defender':   ['CB','RB','LB','RWB','LWB'],
+  'Midfielder': ['CDM','CM','CAM','RM','LM'],
+  'Attacker':   ['ST','CF','LW','RW'],
+};
+const FALLBACK_PLAYER_LEVELS = ['Professional','Semi-Professional','Academy','Local','University'];
+const FALLBACK_CLUB_LEVELS   = ['Professional','Semi-Professional','Academy','Local','University'];
+
+const LANGUAGES_LIST   = ['English','French','Arabic','Portuguese','Hausa','Yoruba','Igbo','Swahili','Amharic','Zulu','Afrikaans','Twi','Wolof','Fulani','Spanish','German','Italian'];
+const EDUCATION_LEVELS = ['B.Sc.','M.Sc.','Ph.D.','HND','OND','O-Level (WAEC/NECO)','A-Level','NCE','MBA','B.Eng.','B.Ed.','B.Tech.','Other'];
+const YEAR_NOW = new Date().getFullYear();
+
+/* ── Utility: title-case a string (capitalise first letter of every word) ── */
+const toTitleCase = s => !s ? s : s.replace(/\b\w/g, c => c.toUpperCase());
+
+/* ─── TEMPLATE HELPERS (personalised legal doc) ─────────────────────────── */
+function _escHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function getTemplatePlaceholders(d, role) {
+  const now     = new Date();
+  const fmt     = dt => dt.toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'});
+  const roleDef = ROLE_DEFS.find(r => r.id === role) || {};
+  const fName   = d.firstName || '';
+  const lName   = d.lastName  || '';
+  const full    = d.fullName  || [fName, d.middleName, lName].filter(Boolean).join(' ') || '';
+  const org     = d.clubName  || d.agencyName || d.affiliatedClub || '';
+  return {
+    fullName:        full   || 'Not provided',
+    firstName:       fName  || full.split(' ')[0]   || 'Not provided',
+    lastName:        lName  || full.split(' ').slice(-1)[0] || '',
+    email:           d.email  || 'Not provided',
+    phone:           d.phone  || 'Not provided',
+    userId:          'Will be assigned upon successful registration',
+    userType:        roleDef.label || role || '',
+    userRole:        roleDef.label || role || '',
+    userCategory:    d.playerLevel || d.clubLevel || d.agentType || d.affiliationType || 'Standard',
+    department:      d.roleInOrg   || d.specialization || 'N/A',
+    organization:    d.affiliatedClub || d.agencyName || 'N/A',
+    businessName:    org  || 'N/A',
+    registrationDate: fmt(now),
+    acceptedDate:    fmt(now),
+    currentDate:     fmt(now),
+    applicationName: 'EnejiStats',
+    companyName:     'Enejistats',
+  };
+}
+function applyTemplate(html, phs) {
+  return html.replace(/\{\{(\w+)\}\}/g, (_, k) => phs.hasOwnProperty(k) ? _escHtml(phs[k]) : '');
+}
+async function hashContent(text) {
+  try {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+  } catch(_) { return ''; }
+}
+
+const ROLE_DEFS = [
+  {id:'player',     icon:'⚽', label:'Player',                  desc:'Track match stats, manage your profile, connect with agents.'},
+  {id:'club',       icon:'🏟️', label:'Club',                    desc:'Manage your squad and request professional stats tracking.'},
+  {id:'scout',      icon:'🔍', label:'Scout',                    desc:'Search, watchlist and compare players across Africa.'},
+  {id:'agent',      icon:'🤝', label:'Agent',                    desc:'Represent players, manage contracts and generate reports.'},
+  {id:'dco',        icon:'📋', label:'Data-Collection Officer',  desc:'Earn by tracking match statistics in real time on the pitch.'},
+  {id:'supervisor', icon:'👁️', label:'Supervisor',               desc:'Oversee Data-Collection Officers and validate match statistics.'},
+];
+
+/* ─── SHARED HOOK — click outside ───────────────────────────────────────────── */
+function useClickOutside(ref, handler) {
+  useEffect(() => {
+    function listener(e) {
+      if (ref.current && !ref.current.contains(e.target)) handler();
+    }
+    document.addEventListener('mousedown', listener);
+    return () => document.removeEventListener('mousedown', listener);
+  }, [ref, handler]);
+}
+
+/* ─── DATA HOOKS ─────────────────────────────────────────────────────────────── */
+function useConfig(endpoint, fallback, transform) {
+  const [data, setData] = useState(fallback);
+  useEffect(() => {
+    let cancelled = false;
+    fetch(endpoint)
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(d => {
+        if (cancelled) return;
+        const result = transform ? transform(d) : d;
+        if (result && (Array.isArray(result) ? result.length > 0 : Object.keys(result).length > 0)) setData(result);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [endpoint]);
+  return data;
+}
+
+/*
+ * usePlatformConfig
+ * Fetches:
+ *   GET /api/config/positions       → posMap
+ *   GET /api/config/player-levels   → playerLevels
+ *   GET /api/public/countries       → countries list (code + name, dynamically from backend)
+ *
+ * Country list response: { countries: [{ code, name, region_label, subregion_label }, ...] }
+ * Country names come entirely from the backend COUNTRY_NAMES registry — no local hardcoding.
+ */
+function usePlatformConfig() {
+  const posMap = useConfig('/api/config/positions', FALLBACK_POSITION_MAP, d => d.positions || d.data || d);
+  const playerLevels = useConfig('/api/config/player-levels', FALLBACK_PLAYER_LEVELS,
+    d => Array.isArray(d) ? d : (d.levels || d.data || FALLBACK_PLAYER_LEVELS));
+  const countries = useConfig('/api/public/countries', [],
+    d => {
+      const list = Array.isArray(d) ? d : (d.countries || d.data || []);
+      return list.map(c => ({
+        code: c.code || c.v || c.value || c.id,
+        name: c.name || c.l || c.label || c.code || c.v || c.value || c.id,
+        regionLabel:    c.region_label    || 'State / Region',
+        subregionLabel: c.subregion_label || 'LGA / Local Area',
+      })).filter(c => c.code && c.name);
+    });
+  const allPositions = useMemo(() => Object.values(posMap).flat(), [posMap]);
+  return { posMap, playerLevels, countries, allPositions };
+}
+
+/*
+ * useStates — Fetches the list of regions (states / provinces / emirates / etc.)
+ * for a given ISO-3166-1 alpha-2 country code.
+ *
+ * Endpoint: GET /api/public/countries/{ISO_CODE}/regions
+ * Response: { country, region_label, regions: string[] }
+ *
+ * Returns: [regions: string[], loading: bool, regionLabel: string]
+ */
+function useStates(countryCode) {
+  const [states,setStates]=useState([]), [loading,setLoading]=useState(false);
+  const [regionLabel,setRegionLabel]=useState('State / Region');
+  useEffect(()=>{
+    if(!countryCode){setStates([]);setRegionLabel('State / Region');return;}
+    const controller=new AbortController();
+    setLoading(true);
+    fetch('/api/public/countries/'+encodeURIComponent(String(countryCode).toUpperCase())+'/regions',{credentials:'include',signal:controller.signal})
+      .then(r=>r.ok?r.json():Promise.reject(new Error('regions request failed')))
+      .then(d=>{
+        const list=Array.isArray(d)?d:(d.regions||[]);
+        setStates(list.map(x=>typeof x==='string'?x:(x?.name||x?.state||x?.region||'')).filter(Boolean));
+        setRegionLabel(d.region_label||'State / Region');
+      }).catch(e=>{if(e.name!=='AbortError')setStates([]);})
+      .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
+    return ()=>controller.abort();
+  },[countryCode]);
+  return [states,loading,regionLabel];
+}
+
+/*
+ * useLGAs — Fetches the list of subregions (LGAs / counties / cities / districts / etc.)
+ * for a given country + region combination.
+ *
+ * Endpoint: GET /api/public/countries/{ISO_CODE}/regions/{region_name}/subregions
+ * Response: { subregion_label, subregions: string[] }
+ *
+ * Returns: [subregions: string[], loading: bool, subregionLabel: string]
+ */
+function useLGAs(countryCode,region) {
+  const [lgas,setLGAs]=useState([]), [loading,setLoading]=useState(false);
+  const [subregionLabel,setSubregionLabel]=useState('LGA / Local Area');
+  useEffect(()=>{
+    if(!countryCode||!region){setLGAs([]);setSubregionLabel('LGA / Local Area');return;}
+    const controller=new AbortController();
+    setLoading(true);
+    const url='/api/public/countries/'+encodeURIComponent(String(countryCode).toUpperCase())+'/regions/'+encodeURIComponent(region)+'/subregions';
+    fetch(url,{credentials:'include',signal:controller.signal})
+      .then(r=>r.ok?r.json():Promise.reject(new Error('subregions request failed')))
+      .then(d=>{
+        const list=Array.isArray(d)?d:(d.subregions||[]);
+        setLGAs(list.map(x=>typeof x==='string'?x:(x?.name||x?.lga||x?.subregion||'')).filter(Boolean));
+        setSubregionLabel(d.subregion_label||'LGA / Local Area');
+      }).catch(e=>{if(e.name!=='AbortError')setLGAs([]);})
+      .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
+    return ()=>controller.abort();
+  },[countryCode,region]);
+  return [lgas,loading,subregionLabel];
+}
+
+
+/* ─── TOAST ──────────────────────────────────────────────────────────────────── */
+let _setToasts = null;
+function showToast(msg, type = 'info') {
+  if (!_setToasts) return;
+  const id = Date.now();
+  _setToasts(p => [...p, {id, msg, type}]);
+  setTimeout(() => _setToasts(p => p.filter(t => t.id !== id)), 4000);
+}
+function ToastContainer() {
+  const [toasts, setToasts] = useState([]);
+  useEffect(() => { _setToasts = setToasts; return () => { _setToasts = null; }; }, []);
+  return html`<div class="toast-container">${toasts.map(t => html`<div key=${t.id} class=${'toast ' + t.type}>${t.msg}</div>`)}</div>`;
+}
+
+/* ─── LOGO ───────────────────────────────────────────────────────────────────── */
+function Logo({ size }) {
+  return html`<a href="/" class="logo-link">
+    <img src="/static/images/eneji-stats-branding.png" alt="EnejiStats" class="eneji-logo-img"/>
+  </a>`;
+}
+
+/* ─── SITE HEADER ────────────────────────────────────────────────────────────── */
+function SiteHeader() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  return html`
+    <header class="site-header" role="banner">
+      <div class="inner">
+        <${Logo}/>
+        <button class="hamburger" onClick=${() => setMenuOpen(o => !o)} aria-label="Toggle menu" aria-expanded=${menuOpen}>
+          <i class=${menuOpen ? 'fas fa-times' : 'fas fa-bars'} aria-hidden="true"></i>
+        </button>
+        <ul class=${'site-nav' + (menuOpen ? ' open' : '')} role="list">
+          <li><a href="/">Home</a></li>
+          <li><a href="/about.html">About</a></li>
+          <li><a href="/leaderboard.html">Leaderboard</a></li>
+          <li><a href="/pricing.html">Pricing</a></li>
+          <li><a href="/contact.html">Contact</a></li>
+          <li><a href="/register.html" class="btn-register active">Register</a></li>
+          <li><a href="/login.html">Sign In</a></li>
+        </ul>
+      </div>
+    </header>`;
+}
+
+/* ─── SITE FOOTER ────────────────────────────────────────────────────────────── */
+function SiteFooter() {
+  return html`
+    <footer class="site-footer" role="contentinfo">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <h4>About</h4>
+          <p>EnejiStats is Africa's trusted football data platform — data-driven talent tracking across Nigeria and the continent.</p>
+          <p style="margin-top:8px;font-style:italic;color:#f5b800;font-size:.8rem">Tracking talent with precision, integrity and reliability.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Quick Links</h4>
+          <ul>${['Home','About','Pricing','Leaderboard','Contact','Register'].map(l => html`<li key=${l}><a href="/${l.toLowerCase()}.html">${l}</a></li>`)}</ul>
+        </div>
+        <div class="footer-col">
+          <h4>For Users</h4>
+          <ul>
+            <li><a href="#">Player Stats</a></li>
+            <li><a href="#">Club Stats</a></li>
+            <li><a href="/register.html?role=dco">Become a Data-Collection Officer</a></li>
+            <li><a href="/register.html?role=scout">Become a Scout</a></li>
+            <li><a href="/register.html?role=agent">Agent Programme</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Connect</h4>
+          <p><a href="mailto:enejistats@gmail.com">enejistats@gmail.com</a></p>
+          <div class="footer-social">
+            ${[['fab fa-twitter','#'],['fab fa-facebook','#'],['fab fa-instagram','#'],['fab fa-linkedin','#'],['fab fa-youtube','#']].map(([ic,hr],i) => html`<a key=${i} href=${hr} target="_blank" rel="noopener noreferrer"><i class=${ic}></i></a>`)}
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© ${YEAR_NOW} EnejiStats. All rights reserved.</span>
+        <span><a href="/privacy-terms.html" style="margin-left:12px">Terms</a><a href="/privacy-terms.html#privacy" style="margin-left:12px">Privacy</a><a href="/cookies.html" style="margin-left:12px">Cookies</a></span>
+      </div>
+    </footer>`;
+}
+
+/* ─── STEP INDICATOR ─────────────────────────────────────────────────────────── */
+function StepIndicator({current}) {
+  const steps = ['Choose Role', 'Your Details', 'Challenge & Review'];
+  return html`
+    <div style="margin-bottom:28px">
+      <div class="step-indicator" role="list" aria-label="Registration steps">
+        ${steps.map((label, i) => html`
+          <div key=${i} class="step-wrap" role="listitem">
+            <div class=${'step-bubble' + (i < current ? ' done' : i === current ? ' active' : '')}
+              aria-label=${label + (i < current ? ' — completed' : i === current ? ' — current' : '')}
+              aria-current=${i === current ? 'step' : undefined}>
+              ${i < current ? html`<i class="fas fa-check" style="font-size:.7rem" aria-hidden="true"></i>` : (i + 1)}
+            </div>
+            <div class="step-label" style=${i === current ? 'color:#f5b800' : ''}>${label}</div>
+          </div>
+          ${i < steps.length - 1 ? html`<div class=${'step-line' + (i < current ? ' done' : '')} aria-hidden="true"></div>` : ''}
+        `)}
+      </div>
+    </div>`;
+}
+
+/* ─── GPS CAPTURE ────────────────────────────────────────────────────────────── */
+function GPSCapture({value, onChange, label, required}) {
+  const [status, setStatus] = useState(value ? 'captured' : 'idle');
+  const capture = () => {
+    setStatus('loading');
+    if (!navigator.geolocation) {
+      setStatus('error');
+      showToast('Geolocation is not supported by your browser.', 'error');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        onChange({lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy});
+        setStatus('captured');
+      },
+      err => {
+        setStatus('error');
+        showToast('Could not get location — check permissions and retry.', 'error');
+      },
+      {enableHighAccuracy: true, timeout: 15000}
+    );
+  };
+  return html`
+    <div class="form-group" style="margin-bottom:0">
+      <label>${label || 'GPS Location'}${required ? html`<span class="req"> *</span>` : ''}</label>
+      <button type="button" class=${'btn btn-sm ' + (status === 'captured' ? 'btn-success' : 'btn-primary')} onClick=${capture}>
+        <i class="fas fa-map-marker-alt" aria-hidden="true"></i>
+        ${status === 'loading' ? 'Getting location…' : status === 'captured' ? '✓ Location captured — tap to update' : '📍 Get My Location'}
+      </button>
+      ${status === 'loading' ? html`<p class="helper-text" style="margin-top:6px"><i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Acquiring GPS…</p>` : ''}
+      ${status === 'error'   ? html`<p class="error-text"  style="margin-top:6px"><i class="fas fa-exclamation-triangle" aria-hidden="true"></i> Failed — check browser permissions and retry.</p>` : ''}
+      ${status === 'captured' && value ? html`
+        <div class="gps-coords" style="margin-top:8px" aria-live="polite">
+          Lat: ${value.lat.toFixed(6)} | Lng: ${value.lng.toFixed(6)} | ±${value.acc.toFixed(0)}m
+        </div>
+        <div style="margin-top:10px;border-radius:8px;overflow:hidden;height:150px">
+          <iframe src=${'https://maps.google.com/maps?q=' + value.lat + ',' + value.lng + '&z=15&output=embed'}
+            allowfullscreen loading="lazy" style="width:100%;height:100%;border:none"
+            title="Your location on map"></iframe>
+        </div>` : ''}
+    </div>`;
+}
+
+/* ─── PASSWORD STRENGTH ──────────────────────────────────────────────────────── */
+function pwStrength(pw) {
+  if (!pw) return {score: 0, label: '', color: ''};
+  let s = 0;
+  if (pw.length >= 8)          s++;
+  if (/[A-Z]/.test(pw))        s++;
+  if (/[0-9]/.test(pw))        s++;
+  if (/[^A-Za-z0-9]/.test(pw)) s++;
+  const labels = ['Weak','Fair','Strong','Very Strong'];
+  const colors = ['#ef4444','#f97316','#f59e0b','#22c55e'];
+  return {score: s, label: labels[s-1] || '', color: colors[s-1] || '#ef4444'};
+}
+function PasswordStrength({pw}) {
+  const {score, label, color} = pwStrength(pw);
+  const rules = [
+    {label:'8+ chars',  met: pw.length >= 8},
+    {label:'Uppercase', met: /[A-Z]/.test(pw)},
+    {label:'Number',    met: /[0-9]/.test(pw)},
+    {label:'Special',   met: /[^A-Za-z0-9]/.test(pw)},
+  ];
+  if (!pw) return null;
+  return html`
+    <div>
+      <div class="pw-bar" role="progressbar" aria-valuenow=${score * 25} aria-valuemin="0" aria-valuemax="100">
+        <div class="pw-fill" style=${{width: (score / 4 * 100) + '%', background: color}}></div>
+      </div>
+      <p class="pw-label" style=${{color}}>${label}</p>
+      <div class="pw-rules" aria-label="Password requirements">
+        ${rules.map((r, i) => html`<span key=${i} class=${'pw-rule' + (r.met ? ' met' : '')}>
+          <i class=${'fas fa-' + (r.met ? 'check' : 'times')} style="font-size:.65rem;margin-right:3px" aria-hidden="true"></i>${r.label}
+        </span>`)}
+      </div>
+    </div>`;
+}
+
+/* ─── FILE UPLOAD ────────────────────────────────────────────────────────────── */
+function fmtBytes(b) {
+  return b < 1024 * 1024 ? (b / 1024).toFixed(1) + 'KB' : (b / (1024 * 1024)).toFixed(2) + 'MB';
+}
+function FileUpload({id, label, accept, maxMB, required, value, onChange, hint}) {
+  const ref = useRef();
+  const maxBytes = (maxMB || 1) * 1024 * 1024;
+  const handleChange = e => {
+    const f = e.target.files[0];
+    if (!f) return;
+    if (f.size > maxBytes) { showToast('File too large. Max ' + (maxMB || 1) + 'MB', 'error'); return; }
+    onChange(f);
+  };
+  const preview = value && value.type?.startsWith('image/') ? URL.createObjectURL(value) : null;
+  return html`
+    <div class="form-group" style="margin-bottom:0">
+      <label for=${'file-' + id}>${label}${required ? html`<span class="req"> *</span>` : ''}</label>
+      <div class="file-upload-area" onClick=${() => ref.current.click()} role="button" tabIndex="0"
+        onKeyDown=${e => e.key === 'Enter' && ref.current.click()}>
+        <div class="icon"><i class="fas fa-cloud-upload-alt" aria-hidden="true"></i></div>
+        <p>${value ? 'Click to change' : 'Click to upload'}</p>
+        ${hint ? html`<p style="font-size:.72rem;color:#475569;margin-top:3px">${hint}</p>` : ''}
+      </div>
+      ${value ? html`
+        <div class="file-preview">
+          ${preview ? html`<img src=${preview} alt="Preview of uploaded file"/>` : ''}
+          <div class="file-info"><span>${value.name}</span><small>${fmtBytes(value.size)}</small></div>
+          <button type="button" class="btn btn-sm btn-danger" onClick=${e => { e.stopPropagation(); onChange(null); }} aria-label="Remove file">
+            <i class="fas fa-trash" aria-hidden="true"></i>
+          </button>
+        </div>` : ''}
+      <input ref=${ref} id=${'file-' + id} type="file" accept=${accept} style="display:none" onChange=${handleChange}/>
+    </div>`;
+}
+
+/* ─── EMAIL FIELD ────────────────────────────────────────────────────────────── */
+function EmailField({value, onChange}) {
+  const [status, setStatus] = useState('idle');
+  const timer = useRef();
+  const check = useCallback(email => {
+    clearTimeout(timer.current);
+    if (!email.includes('@') || !email.includes('.')) { setStatus('idle'); return; }
+    setStatus('checking');
+    timer.current = setTimeout(async () => {
+      try {
+        const r = await fetch('/api/auth/check-email?email=' + encodeURIComponent(email));
+        const d = await r.json();
+        setStatus(d.available ? 'ok' : 'taken');
+      } catch { setStatus('idle'); }
+    }, 300);
+  }, []);
+  return html`
+    <div class="form-group">
+      <label for="email-field">Email Address <span class="req">*</span></label>
+      <div class="input-group">
+        <input id="email-field" type="email" class="form-control" value=${value}
+          onInput=${e => { onChange(e.target.value); check(e.target.value); }}
+          placeholder="you@example.com" autocomplete="email"
+          aria-describedby="email-status-msg" aria-invalid=${status === 'taken' ? 'true' : 'false'}/>
+        <span class="input-icon" aria-hidden="true">
+          ${status === 'checking' ? html`<i class="fas fa-spinner fa-spin"></i>` : ''}
+          ${status === 'ok'       ? html`<i class="fas fa-check"  style="color:#22c55e"></i>` : ''}
+          ${status === 'taken'    ? html`<i class="fas fa-times"  style="color:#ef4444"></i>` : ''}
+        </span>
+      </div>
+      ${status === 'ok'    ? html`<p id="email-status-msg" class="email-status ok"   role="status"><i class="fas fa-check-circle" aria-hidden="true"></i> Email available</p>` : ''}
+      ${status === 'taken' ? html`<p id="email-status-msg" class="email-status err"  role="alert"><i class="fas fa-times-circle" aria-hidden="true"></i> Already registered — <a href="/login.html">Sign in?</a></p>` : ''}
+    </div>`;
+}
+
+/* ─── COUNTRY SELECT — searchable typeahead ──────────────────────────────────── */
+/*
+ * Populated by GET /api/public/countries
+ * Response shape: { countries: [{ code, name, region_label, subregion_label }, ...] }
+ * Only countries present in the backend LOCATION_CONFIG are returned.
+ */
+function CountrySelect({label, value, onChange, countries, required, placeholder}) {
+  const [search, setSearch] = useState('');
+  const [open,   setOpen]   = useState(false);
+  const ref = useRef();
+  const close = useCallback(() => setOpen(false), []);
+  useClickOutside(ref, close);
+  const selected  = countries.find(c => c.code === value);
+  const filtered  = useMemo(() => countries.filter(c => c.name.toLowerCase().includes(search.toLowerCase())).slice(0, 40), [countries, search]);
+  const select    = c => { onChange(c.code); setSearch(''); setOpen(false); };
+  return html`
+    <div class="form-group" ref=${ref}>
+      <label>${label || 'Country'}${required ? html`<span class="req"> *</span>` : ''}</label>
+      <div class="smart-select-wrap">
+        <div class="input-group">
+          <input class="form-control" value=${selected ? selected.name : search}
+            onInput=${e => { setSearch(e.target.value); onChange(''); setOpen(true); }}
+            onFocus=${() => setOpen(true)}
+            placeholder=${placeholder || 'Search country…'}
+            aria-autocomplete="list" aria-expanded=${open} role="combobox"/>
+          <span class="input-icon" aria-hidden="true"><i class="fas fa-chevron-down" style="font-size:.7rem"></i></span>
+        </div>
+        ${open && filtered.length ? html`
+          <div class="smart-select-results" role="listbox">
+            ${filtered.map(c => html`
+              <div key=${c.code} class="smart-select-item" role="option"
+                onMouseDown=${e => { e.preventDefault(); select(c); }}>
+                <span>${c.name}</span><small style="color:var(--muted);margin-left:8px">${c.code}</small>
+              </div>`)}
+          </div>` : ''}
+      </div>
+    </div>`;
+}
+
+/* ─── STATE SELECT — data-driven, label-agnostic ────────────────────────────── */
+function StateSelect({states, loading, regionLabel, value, onChange, phOverride}) {
+  const [search, setSearch] = useState(value || '');
+  const [open,   setOpen]   = useState(false);
+  const ref = useRef();
+  const close = useCallback(() => setOpen(false), []);
+  useClickOutside(ref, close);
+  useEffect(() => { if (value !== undefined && value !== search) setSearch(value || ''); }, [value]);
+  const ph       = phOverride || (regionLabel ? 'Select ' + regionLabel.toLowerCase() + '…' : 'Select state / region…');
+  const filtered = useMemo(() => (states || []).filter(s => s.toLowerCase().includes(search.toLowerCase())).slice(0, 60), [states, search]);
+  if (loading) return html`<div class="loading-shimmer" style="margin-top:6px"></div>`;
+  return html`
+    <div class="smart-select-wrap" ref=${ref}>
+      <div class="input-group">
+        <input class="form-control" value=${search}
+          onInput=${e => { setSearch(e.target.value); onChange(''); setOpen(true); }}
+          onFocus=${() => { setOpen(true); setSearch(''); }}
+          placeholder=${ph}
+          aria-autocomplete="list" aria-expanded=${open} role="combobox"/>
+        <span class="input-icon" aria-hidden="true"><i class="fas fa-chevron-down" style="font-size:.7rem"></i></span>
+      </div>
+      ${open && filtered.length ? html`
+        <div class="smart-select-results" role="listbox">
+          ${filtered.map(s => html`
+            <div key=${s} class="smart-select-item" role="option"
+              onMouseDown=${e => { e.preventDefault(); setSearch(s); onChange(s); setOpen(false); }}>
+              ${s}
+            </div>`)}
+        </div>` : ''}
+    </div>`;
+}
+
+/* ─── LGA SELECT — data-driven, label-agnostic ──────────────────────────────── */
+function LGASelect({lgas, loading, subregionLabel, value, onChange, phOverride}) {
+  const [search, setSearch] = useState(value || '');
+  const [open,   setOpen]   = useState(false);
+  const ref = useRef();
+  const close = useCallback(() => setOpen(false), []);
+  useClickOutside(ref, close);
+  useEffect(() => { if (value !== undefined && value !== search) setSearch(value || ''); }, [value]);
+  const ph       = phOverride || (subregionLabel ? 'Search ' + subregionLabel.toLowerCase() + '…' : 'Search local area…');
+  const filtered = useMemo(() => (lgas || []).filter(l => l.toLowerCase().includes(search.toLowerCase())).slice(0, 50), [lgas, search]);
+  if (loading) return html`<div class="loading-shimmer" style="margin-top:6px"></div>`;
+  return html`
+    <div class="smart-select-wrap" ref=${ref}>
+      <div class="input-group">
+        <input class="form-control" value=${search} placeholder=${ph}
+          onInput=${e => { setSearch(e.target.value); onChange(''); setOpen(true); }}
+          onFocus=${() => setOpen(true)}
+          aria-autocomplete="list" aria-expanded=${open} role="combobox"/>
+        <span class="input-icon" aria-hidden="true"><i class="fas fa-chevron-down" style="font-size:.7rem"></i></span>
+      </div>
+      ${open && filtered.length ? html`
+        <div class="smart-select-results" role="listbox">
+          ${filtered.map(l => html`
+            <div key=${l} class="smart-select-item" role="option"
+              onMouseDown=${e => { e.preventDefault(); setSearch(l); onChange(l); setOpen(false); }}>
+              ${l}
+            </div>`)}
+        </div>` : ''}
+    </div>`;
+}
+
+/* ─── LOCATION BLOCK — reusable country-aware section ───────────────────────── */
+function LocationBlock({d, set, countries, required, title, subtitle, gpsField, gpsLabel}) {
+  const [states, statesLoading, regionLabel]   = useStates(d.country);
+  const [lgas,   lgasLoading, subregionLabel]  = useLGAs(d.country, d.state);
+  const gpsKey = gpsField || 'gps';
+  const gpsVal = d[gpsKey];
+  const setGps = v => set(gpsKey, v);
+  const [cSearch, setCSearch] = useState('');
+  const [cOpen,   setCOpen]   = useState(false);
+  const cRef = useRef();
+  const closeC = useCallback(() => setCOpen(false), []);
+  useClickOutside(cRef, closeC);
+  const selected  = (countries || []).find(c => c.code === d.country);
+  const filteredC = useMemo(() => (countries || []).filter(c => c.name.toLowerCase().includes(cSearch.toLowerCase())).slice(0, 50), [countries, cSearch]);
+  return html`
+    <div class="section-block">
+      <div class="section-block-title"><i class="fas fa-map-marker-alt" aria-hidden="true"></i> ${title || 'Location'}</div>
+      ${subtitle ? html`<p class="helper-text" style="margin-bottom:12px">${subtitle}</p>` : ''}
+      <div class="form-row" style="margin-bottom:12px">
+        <div class="form-group" style="margin-bottom:0">
+          <label>Country${required ? html`<span class="req"> *</span>` : ''}</label>
+          <div class="smart-select-wrap" ref=${cRef}>
+            <div class="input-group">
+              <input class="form-control"
+                value=${selected ? selected.name : cSearch}
+                onInput=${e => { setCSearch(e.target.value); set('country',''); set('state',''); set('lga',''); setCOpen(true); }}
+                onFocus=${() => { setCOpen(true); setCSearch(''); }}
+                placeholder="Search country…"
+                aria-autocomplete="list" aria-expanded=${cOpen} role="combobox"/>
+              <span class="input-icon" aria-hidden="true"><i class="fas fa-globe-africa" style="font-size:.75rem"></i></span>
+            </div>
+            ${cOpen && filteredC.length ? html`
+              <div class="smart-select-results" role="listbox">
+                ${filteredC.map(c => html`
+                  <div key=${c.code} class="smart-select-item" role="option"
+                    onMouseDown=${e => { e.preventDefault(); set('country', c.code); set('state',''); set('lga',''); setCSearch(''); setCOpen(false); }}>
+                    <span>${c.name}</span><small style="color:var(--muted);margin-left:8px">${c.code}</small>
+                  </div>`)}
+              </div>` : ''}
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>${regionLabel}${required ? html`<span class="req"> *</span>` : ''}</label>
+          <${StateSelect} states=${states} loading=${statesLoading} regionLabel=${regionLabel}
+            value=${d.state || ''}
+            onChange=${v => { set('state', v); set('lga', ''); }}/>
+        </div>
+      </div>
+      <div class="form-row" style="margin-bottom:16px">
+        <div class="form-group" style="margin-bottom:0">
+          <label>${subregionLabel}${required ? html`<span class="req"> *</span>` : ''}</label>
+          <${LGASelect} lgas=${lgas} loading=${lgasLoading} subregionLabel=${subregionLabel}
+            value=${d.lga || ''}
+            onChange=${v => set('lga', v)}/>
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ─── EDUCATION SELECT ───────────────────────────────────────────────────────── */
+function EducationSelect({value, onChange, required}) {
+  const [search, setSearch] = useState(value || '');
+  const [open,   setOpen]   = useState(false);
+  const ref = useRef();
+  const close = useCallback(() => setOpen(false), []);
+  useClickOutside(ref, close);
+  useEffect(() => { if (value) setSearch(value); }, [value]);
+  const filtered = useMemo(() => EDUCATION_LEVELS.filter(l => l.toLowerCase().includes(search.toLowerCase())), [search]);
+  return html`
+    <div class="form-group">
+      <label>Educational Qualification${required ? html`<span class="req"> *</span>` : ''}</label>
+      <div class="smart-select-wrap" ref=${ref}>
+        <div class="input-group">
+          <input class="form-control" value=${search} placeholder="Search qualification…"
+            onInput=${e => { setSearch(e.target.value); onChange(''); setOpen(true); }}
+            onFocus=${() => setOpen(true)}/>
+          <span class="input-icon" aria-hidden="true"><i class="fas fa-graduation-cap" style="font-size:.8rem"></i></span>
+        </div>
+        ${open && filtered.length ? html`
+          <div class="smart-select-results">
+            ${filtered.map(l => html`
+              <div key=${l} class="smart-select-item"
+                onMouseDown=${e => { e.preventDefault(); setSearch(l); onChange(l); setOpen(false); }}>
+                ${l}
+              </div>`)}
+          </div>` : ''}
+      </div>
+      ${value ? html`<p class="success-text" style="margin-top:4px"><i class="fas fa-check-circle" aria-hidden="true"></i> ${value}</p>` : ''}
+    </div>`;
+}
+
+/* ─── MULTI TAG SELECT ───────────────────────────────────────────────────────── */
+function MultiTag({label, options, value, onChange, required, placeholder}) {
+  const [search, setSearch] = useState('');
+  const [open,   setOpen]   = useState(false);
+  const ref = useRef();
+  const close = useCallback(() => setOpen(false), []);
+  useClickOutside(ref, close);
+  const filtered = options.filter(o => o.toLowerCase().includes(search.toLowerCase()) && !value.includes(o));
+  const toggle   = opt => {
+    onChange(value.includes(opt) ? value.filter(v => v !== opt) : [...value, opt]);
+    setSearch('');
+  };
+  return html`
+    <div class="form-group" ref=${ref}>
+      <label>${label}${required ? html`<span class="req"> *</span>` : ''}</label>
+      <div style="position:relative">
+        <div class="tag-input" onClick=${() => setOpen(true)}>
+          ${value.map(v => html`<span key=${v} class="tag-item">${v}
+            <button type="button" onClick=${e => { e.stopPropagation(); toggle(v); }} aria-label=${'Remove ' + v}>×</button>
+          </span>`)}
+          <input type="text" value=${search}
+            onInput=${e => setSearch(e.target.value)}
+            onFocus=${() => setOpen(true)}
+            placeholder=${value.length ? '' : '+ ' + (placeholder || 'Add…')}
+            style="background:none;border:none;outline:none;color:#e2e8f0;font-size:.82rem;flex:1;min-width:80px"/>
+        </div>
+        ${open && filtered.length ? html`
+          <div class="tag-dropdown">
+            ${filtered.map(o => html`
+              <div key=${o} class="tag-dropdown-item"
+                onMouseDown=${e => { e.preventDefault(); toggle(o); }}>
+                ${o}
+              </div>`)}
+          </div>` : ''}
+      </div>
+    </div>`;
+}
+
+/* ─── CHIP GROUP ─────────────────────────────────────────────────────────────── */
+function ChipGroup({label, options, value, onChange, required}) {
+  const toggle = opt => onChange(value.includes(opt) ? value.filter(v => v !== opt) : [...value, opt]);
+  return html`
+    <div class="form-group">
+      <label>${label}${required ? html`<span class="req"> *</span>` : ''}</label>
+      <div class="checkbox-group" role="group" aria-label=${label}>
+        ${options.map(o => html`
+          <label key=${o} class=${'check-chip' + (value.includes(o) ? ' active' : '')}>
+            <input type="checkbox" checked=${value.includes(o)} onChange=${() => toggle(o)}/>${o}
+          </label>`)}
+      </div>
+    </div>`;
+}
+
+/* ─── CLUB SEARCH ────────────────────────────────────────────────────────────── */
+/*
+ * Location-aware club search. Passes country/state/lga to the API so results
+ * are pre-filtered server-side. Client-side fallback filtering then enforces
+ * the lowest (most specific) supplied location tier: lga > state > country.
+ *
+ * Club result card displays ≥ 5 identification fields:
+ *   1. Club name (+ verified badge)
+ *   2. Club level
+ *   3. Country
+ *   4. State / Region
+ *   5. LGA / Local Area
+ *   6. Home Ground (if available)
+ *   7. Year Founded (if available)
+ */
+function ClubSearch({value, clubId, onSelect, level, country, state, lga, required}) {
+  const [q,       setQ]       = useState(value || '');
+  const [results, setResults] = useState([]);
+  const [open,    setOpen]    = useState(false);
+  const [loading, setLoading] = useState(false);
+  const timer = useRef();
+  const ref   = useRef();
+  const close = useCallback(() => setOpen(false), []);
+  useClickOutside(ref, close);
+
+  const search = useCallback(async query => {
+    if (query.length < 2) { setResults([]); return; }
+    setLoading(true);
+    try {
+      /* Build URL with all location params for server-side filtering */
+      const params = new URLSearchParams({ q: query });
+      if (level)   params.set('level',   level);
+      if (country) params.set('country', country);
+      if (state)   params.set('state',   state);
+      if (lga)     params.set('lga',     lga);
+      const r   = await fetch('/api/public/clubs?' + params.toString());
+      const d   = await r.json();
+      let clubs = (d.clubs || d.data || d.results || []).slice(0, 30);
+
+      /* Client-side fallback: prioritise most specific location field */
+      const ql = query.toLowerCase();
+      if (lga) {
+        const lgaL = lga.toLowerCase();
+        clubs = clubs.filter(c =>
+          (c.lga || c.local_area || '').toLowerCase().includes(lgaL) ||
+          (c.name || c.club_name || '').toLowerCase().includes(ql)
+        );
+      } else if (state) {
+        const stL = state.toLowerCase();
+        clubs = clubs.filter(c =>
+          (c.state || c.region || '').toLowerCase().includes(stL) ||
+          (c.name || c.club_name || '').toLowerCase().includes(ql)
+        );
+      } else if (country) {
+        const ctL = country.toLowerCase();
+        clubs = clubs.filter(c =>
+          (c.country || c.country_code || '').toLowerCase().includes(ctL) ||
+          (c.name || c.club_name || '').toLowerCase().includes(ql)
+        );
+      }
+
+      setResults(clubs.slice(0, 20));
+      setOpen(true);
+    } catch { setResults([]); }
+    finally  { setLoading(false); }
+  }, [level, country, state, lga]);
+
+  const handleInput = e => {
+    const v = e.target.value;
+    setQ(v); onSelect(v, '');
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => search(v), 350);
+  };
+
+  const select = c => {
+    const name = c.name || c.club_name || c.title || '';
+    setQ(name);
+    onSelect(name, c.id || c._id || c.club_id || '');
+    setOpen(false); setResults([]);
+  };
+
+  return html`
+    <div class="form-group" style="margin-bottom:0" ref=${ref}>
+      <label>Current Club${required ? html`<span class="req"> *</span>` : ''}</label>
+      <p class="helper-text" style="margin-bottom:6px">Search registered clubs or type "Free Agent"${(lga || state || country) ? html` — filtered by your location` : ''}</p>
+      <div class="search-wrap" style="position:relative">
+        <div class="input-group">
+          <input class="form-control" value=${q} onInput=${handleInput} placeholder="Club name or Free Agent…"
+            aria-autocomplete="list" aria-expanded=${open} role="combobox"/>
+          ${loading ? html`<span class="input-icon"><i class="fas fa-spinner fa-spin" style="font-size:.75rem" aria-hidden="true"></i></span>` : ''}
+          ${clubId  ? html`<span class="input-icon" style="color:#22c55e" aria-hidden="true"><i class="fas fa-check-circle"></i></span>` : ''}
+        </div>
+        ${open && results.length ? html`
+          <div class="search-results" style="padding:4px 0" role="listbox">
+            ${results.map(c => {
+              const name     = c.name || c.club_name || '';
+              const initials = name.split(' ').slice(0, 2).map(w => w[0] || '').join('').toUpperCase() || '?';
+              const logo     = c.logo_url || c.logo || c.badge || '';
+              const cLevel    = c.level || c.club_level || '';
+              const cNickname = c.nickname || c.club_nickname || '';
+              const cCountry  = c.country_name || c.country || '';
+              const cState    = c.state || c.region || '';
+              const cLga      = c.lga || c.local_area || c.city || '';
+              const cGround   = c.home_ground || c.primary_ground || c.stadium || '';
+              const cFounded  = c.founded || c.year_founded || '';
+              const cStatus   = c.registration_status || c.status || '';
+              return html`
+                <div key=${c.id || name} class="club-result-card" role="option"
+                  onMouseDown=${e => { e.preventDefault(); select(c); }}>
+                  <div class="club-badge" style=${logo ? 'background:transparent;padding:0;overflow:hidden' : ''}>
+                    ${logo
+                      ? html`<img src=${logo} alt=${name} style="width:100%;height:100%;object-fit:cover;border-radius:8px;"
+                          onError=${e => { e.target.style.display='none'; }}/>`
+                      : initials}
+                  </div>
+                  <div class="club-result-info">
+                    <span class="club-result-name">
+                      ${name}
+                      ${c.verified || c.is_verified ? html`<i class="fas fa-check-circle" style="color:#3b82f6;font-size:.7rem;vertical-align:middle;margin-left:3px" aria-label="Verified"></i>` : ''}
+                    </span>
+                    ${cNickname ? html`<span style="font-size:.71rem;color:#94a3b8;font-style:italic;display:block;margin-top:1px;line-height:1.2">"${cNickname}"</span>` : ''}
+                    ${cLevel ? html`<span class="club-result-level"><i class="fas fa-layer-group" style="font-size:.65rem;margin-right:3px"></i>${cLevel}</span>` : ''}
+                    <div class="club-result-fields">
+                      ${cCountry ? html`<span class="club-result-field"><i class="fas fa-globe-africa" style="font-size:.62rem;color:var(--primary)"></i><strong>${cCountry}</strong></span>` : ''}
+                      ${cState   ? html`<span class="club-result-field"><i class="fas fa-map" style="font-size:.62rem;color:#64748b"></i>${cState}</span>` : ''}
+                      ${cLga     ? html`<span class="club-result-field"><i class="fas fa-map-pin" style="font-size:.62rem;color:#64748b"></i>${cLga}</span>` : ''}
+                      ${cGround  ? html`<span class="club-result-field"><i class="fas fa-futbol" style="font-size:.62rem;color:#64748b"></i>${cGround}</span>` : ''}
+                      ${cFounded ? html`<span class="club-result-field"><i class="fas fa-calendar-alt" style="font-size:.62rem;color:#64748b"></i>Est. ${cFounded}</span>` : ''}
+                      ${cStatus  ? html`<span class="club-result-field"><i class="fas fa-certificate" style="font-size:.62rem;color:#64748b"></i>${cStatus}</span>` : ''}
+                    </div>
+                  </div>
+                </div>`;
+            })}
+          </div>` : ''}
+      </div>
+      ${clubId ? html`<p class="success-text" style="margin-top:4px"><i class="fas fa-check-circle" aria-hidden="true"></i> Club matched</p>` :
+        q && q.toLowerCase() !== 'free agent' ? html`<p class="warning-text" style="margin-top:4px"><i class="fas fa-exclamation-circle" aria-hidden="true"></i> No match yet — keep typing or type "Free Agent"</p>` : ''}
+    </div>`;
+}
+
+/* ─── COMMON FIELDS (credentials + contact) ──────────────────────────────────── */
+function CommonFields({d, set, role}) {
+  const [showPw, setShowPw] = useState(false);
+  const [showCp, setShowCp] = useState(false);
+  return html`
+    <div>
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-lock" aria-hidden="true"></i> Account Credentials</div>
+        <${EmailField} value=${d.email || ''} onChange=${v => set('email', v)}/>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="field-pw">Password <span class="req">*</span></label>
+            <div class="input-group">
+              <input id="field-pw" type=${showPw ? 'text' : 'password'} class="form-control"
+                value=${d.password || ''} onInput=${e => set('password', e.target.value)}
+                placeholder="Create password" autocomplete="new-password"/>
+              <span class="input-icon clickable" onClick=${() => setShowPw(s => !s)} aria-label=${showPw ? 'Hide password' : 'Show password'} role="button" tabIndex="0">
+                <i class=${'fas fa-eye' + (showPw ? '-slash' : '')} aria-hidden="true"></i>
+              </span>
+            </div>
+            <${PasswordStrength} pw=${d.password || ''}/>
+          </div>
+          <div class="form-group">
+            <label for="field-cp">Confirm Password <span class="req">*</span></label>
+            <div class="input-group">
+              <input id="field-cp" type=${showCp ? 'text' : 'password'} class="form-control"
+                value=${d.confirmPassword || ''} onInput=${e => set('confirmPassword', e.target.value)}
+                placeholder="Repeat password" autocomplete="new-password"
+                aria-invalid=${d.password && d.confirmPassword && d.password !== d.confirmPassword ? 'true' : 'false'}/>
+              <span class="input-icon clickable" onClick=${() => setShowCp(s => !s)} aria-label=${showCp ? 'Hide confirm password' : 'Show confirm password'} role="button" tabIndex="0">
+                <i class=${'fas fa-eye' + (showCp ? '-slash' : '')} aria-hidden="true"></i>
+              </span>
+            </div>
+            ${d.password && d.confirmPassword ? html`
+              <p class=${d.password === d.confirmPassword ? 'success-text' : 'error-text'} role="status">
+                ${d.password === d.confirmPassword ? '✓ Passwords match' : '✗ Passwords do not match'}
+              </p>` : ''}
+          </div>
+        </div>
+      </div>
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-phone" aria-hidden="true"></i> Contact</div>
+        ${(role !== 'player' && role !== 'agent') ? html`
+          <div class="form-group">
+            <label>${role === 'club' ? 'Contact Person Name' : 'Full Name'} <span class="req">*</span></label>
+            <input class="form-control" value=${d.fullName || ''}
+              autocapitalize="words"
+              onInput=${e => set('fullName', toTitleCase(e.target.value))}
+              placeholder="Enter full name"/>
+          </div>` : ''}
+        <div class="form-row">
+          <div class="form-group" style="margin-bottom:0">
+            <label for="field-phone">Phone Number <span class="req">*</span></label>
+            <input id="field-phone" type="tel" class="form-control" value=${d.phone || ''}
+              onInput=${e => set('phone', e.target.value)} placeholder="+234 800 000 0000" autocomplete="tel"/>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label for="field-wa">WhatsApp</label>
+            <input id="field-wa" type="tel" class="form-control"
+              value=${d.samePhone ? d.phone : (d.whatsapp || '')}
+              onInput=${e => set('whatsapp', e.target.value)}
+              placeholder="+234 800 000 0000"
+              disabled=${!!d.samePhone}/>
+            <div class="same-phone-row">
+              <input type="checkbox" id="sameph" checked=${!!d.samePhone} onChange=${e => set('samePhone', e.target.checked)}/>
+              <label for="sameph">Same as phone</label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ─── PLAYER FIELDS ──────────────────────────────────────────────────────────── */
+/*
+ * Location API calls (triggered by country/state changes):
+ *   useStates(d.country) → GET /api/public/countries/{code}/regions
+ *   useLGAs(d.country, d.state) → GET /api/public/countries/{code}/regions/{region}/subregions
+ * Labels (regionLabel, subregionLabel) come dynamically from these API responses.
+ * Club search receives country/state/lga so results are location-filtered.
+ */
+function PlayerFields({d, set, posMap, playerLevels, countries, allPositions}) {
+  const [states, statesLoading, regionLabel]  = useStates(d.country);
+  const [lgas,   lgasLoading, subregionLabel] = useLGAs(d.country, d.state);
+  const positions = d.positionCategory ? (posMap[d.positionCategory] || []) : [];
+  return html`
+    <div>
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-user" aria-hidden="true"></i> Personal Details</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="fn">First Name <span class="req">*</span></label>
+            <input id="fn" class="form-control" value=${d.firstName || ''} autocapitalize="words" onInput=${e => set('firstName', toTitleCase(e.target.value))} placeholder="First name" autocomplete="given-name"/>
+          </div>
+          <div class="form-group">
+            <label for="mn">Middle Name</label>
+            <input id="mn" class="form-control" value=${d.middleName || ''} autocapitalize="words" onInput=${e => set('middleName', toTitleCase(e.target.value))} placeholder="Optional"/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="ln">Last Name <span class="req">*</span></label>
+          <input id="ln" class="form-control" value=${d.lastName || ''} autocapitalize="words" onInput=${e => set('lastName', toTitleCase(e.target.value))} placeholder="Last name / Surname" autocomplete="family-name"/>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="dob">Date of Birth <span class="req">*</span></label>
+            <input id="dob" type="date" class="form-control" value=${d.dob || ''} onChange=${e => set('dob', e.target.value)} autocomplete="bday"/>
+          </div>
+          <div class="form-group">
+            <label for="gender">Gender <span class="req">*</span></label>
+            <select id="gender" class="form-control" value=${d.gender || ''} onChange=${e => set('gender', e.target.value)}>
+              <option value="">Select</option><option>Male</option><option>Female</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+          <input type="checkbox" id="dobvis" checked=${!!d.dobVisible} onChange=${e => set('dobVisible', e.target.checked)} style="accent-color:var(--primary)"/>
+          <label for="dobvis" style="font-size:.82rem;color:#cbd5e1;cursor:pointer">Show my age / DOB publicly on my profile</label>
+        </div>
+        <!-- Country — populated from GET /api/public/countries -->
+        <div class="form-row">
+          <${CountrySelect} label="Country / Nationality" value=${d.country || ''}
+            onChange=${v => { set('country', v); set('nationality', v); set('state', ''); set('lga', ''); }}
+            countries=${countries} required=${true}/>
+          <div class="form-group">
+            <!-- regionLabel from GET /api/public/countries/{code}/regions -->
+            <label>${regionLabel} <span class="req">*</span></label>
+            <${StateSelect} states=${states} loading=${statesLoading} regionLabel=${regionLabel}
+              value=${d.state || ''}
+              onChange=${v => { set('state', v); set('lga', ''); }}/>
+          </div>
+        </div>
+        <div class="form-group">
+          <!-- subregionLabel from GET /api/public/countries/{code}/regions/{r}/subregions -->
+          <label>${subregionLabel} <span class="req">*</span></label>
+          <${LGASelect} lgas=${lgas} loading=${lgasLoading} subregionLabel=${subregionLabel}
+            value=${d.lga || ''}
+            onChange=${v => set('lga', v)}/>
+        </div>
+        <div class="form-group">
+          <label>Street / Detailed Address <span class="req">*</span></label>
+          <textarea class="form-control" rows="2" value=${d.detailedAddress || ''}
+            onInput=${e => set('detailedAddress', e.target.value)}
+            placeholder="House number, street, area, town…"></textarea>
+        </div>
+        <${FileUpload} id="photo" label="Profile Photo" accept="image/*" maxMB=${0.5}
+          value=${d.profilePhoto || null} onChange=${f => set('profilePhoto', f)} hint="Max 500 KB"/>
+      </div>
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-futbol" aria-hidden="true"></i> Football Profile</div>
+        <div class="form-group">
+          <label>Player Level <span class="req">*</span></label>
+          <select class="form-control" value=${d.playerLevel || ''} onChange=${e => set('playerLevel', e.target.value)}>
+            <option value="">Select level</option>
+            ${playerLevels.map(l => html`<option key=${l}>${l}</option>`)}
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Height (cm) <span class="req">*</span></label>
+            <input type="number" class="form-control" value=${d.height || ''}
+              onInput=${e => set('height', e.target.value)} placeholder="e.g. 178" min="140" max="220"/>
+          </div>
+          <div class="form-group">
+            <label>Weight (kg) <span class="req">*</span></label>
+            <input type="number" class="form-control" value=${d.weight || ''}
+              onInput=${e => set('weight', e.target.value)} placeholder="e.g. 72" min="30" max="180"/>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Dominant Foot <span class="req">*</span></label>
+            <select class="form-control" value=${d.dominantFoot || ''} onChange=${e => set('dominantFoot', e.target.value)}>
+              <option value="">Select</option><option>Right</option><option>Left</option><option>Both</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Position Category <span class="req">*</span></label>
+            <select class="form-control" value=${d.positionCategory || ''}
+              onChange=${e => { set('positionCategory', e.target.value); set('preferredPosition', ''); }}>
+              <option value="">Select category</option>
+              ${Object.keys(posMap).map(k => html`<option key=${k}>${k}</option>`)}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Preferred Position <span class="req">*</span></label>
+            <select class="form-control" value=${d.preferredPosition || ''}
+              onChange=${e => set('preferredPosition', e.target.value)}
+              disabled=${!d.positionCategory}>
+              <option value="">Select position</option>
+              ${positions.map(p => html`<option key=${p}>${p}</option>`)}
+            </select>
+          </div>
+        </div>
+        <${ChipGroup} label="Secondary Positions"
+          options=${allPositions.filter(p => p !== d.preferredPosition)}
+          value=${d.secondaryPositions || []} onChange=${v => set('secondaryPositions', v)}/>
+        <!-- ClubSearch receives country/state/lga for location-sensitive filtering -->
+        <${ClubSearch}
+          value=${d.currentClub || ''} clubId=${d.clubId || ''} level=${d.playerLevel || ''}
+          country=${d.country || ''} state=${d.state || ''} lga=${d.lga || ''}
+          required=${true}
+          onSelect=${(name, id) => { set('currentClub', name); set('clubId', id); }}/>
+      </div>
+    </div>`;
+}
+
+/* ─── VENUE GROUND SEARCH ────────────────────────────────────────────────────── */
+/*
+ * Location-aware venue search.
+ * Passes search + country/state/lga to the API for server-side filtering.
+ * Client-side fallback enforces the most specific location tier: lga > state > country.
+ *
+ * Selected venue detail card shows ≥ 5 identification fields:
+ *   1. Venue name
+ *   2. Venue type
+ *   3. Surface type
+ *   4. Capacity
+ *   5. Country
+ *   6. State / Region
+ *   7. LGA / Local Area
+ *   8. Full address
+ *   9. Owner / Managing club (if available)
+ */
+function VenueGroundSearch({value, venueData, onSelect, country, countryName, state, lga, label, required, placeholder}) {
+  const [q, setQ]             = useState(value || '');
+  const [results, setResults] = useState([]);
+  const [open, setOpen]       = useState(false);
+  const [loading, setLoading] = useState(false);
+  const timer                 = useRef();
+  const ref                   = useRef();
+
+  useEffect(() => { setQ(value || ''); }, [value]);
+
+  useEffect(() => {
+    const close = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, []);
+
+  const search = useCallback(async query => {
+    const normalizedQuery = String(query || '').trim();
+    if (normalizedQuery.length < 3) { setResults([]); setOpen(false); return; }
+    setLoading(true);
+    try {
+      /*
+       * The FastAPI endpoint names its venue-name search parameter "search".
+       * Keep the request contract aligned with /api/public/venues rather than
+       * sending "q", which the endpoint ignores.
+       */
+      /*
+       * Registration stores the human-readable country name (for example,
+       * "Nigeria"), while the country selector stores the ISO code ("NG").
+       * Send the name to the venues endpoint so its exact country filter
+       * matches the value persisted in MongoDB.
+       */
+      const locationCountry = countryName || country;
+      const params = new URLSearchParams({search: normalizedQuery, limit: '100'});
+      if (locationCountry) params.set('country', locationCountry);
+      if (state)   params.set('state',   state);
+      if (lga)     params.set('lga',     lga);
+
+      const r = await fetch('/api/public/venues?' + params.toString(), {credentials: 'include'});
+      if (!r.ok) { setResults([]); return; }
+      const d = await r.json();
+      let venues = Array.isArray(d) ? d : (d.venues || []);
+
+      /* Client-side fallback: filter by name query, then most specific location */
+       const ql = normalizedQuery.toLowerCase();
+      venues = venues.filter(v => {
+         const name = String(
+           v.venue_name || v.name || v.stadium || v.stadium_name || v.ground_name || ''
+         ).toLowerCase();
+        return name.includes(ql);
+      });
+
+      if (lga) {
+        const lgaL = lga.toLowerCase();
+        const byLga = venues.filter(v => (v.lga || v.local_area || '').toLowerCase().includes(lgaL));
+        if (byLga.length > 0) venues = byLga;
+      } else if (state) {
+        const stL = state.toLowerCase();
+        const bySt = venues.filter(v => (v.state || v.region || '').toLowerCase().includes(stL));
+        if (bySt.length > 0) venues = bySt;
+      } else if (country) {
+         const ctL = locationCountry.toLowerCase();
+        const byCt = venues.filter(v => (v.country || v.country_code || '').toLowerCase().includes(ctL));
+        if (byCt.length > 0) venues = byCt;
+      }
+
+      setResults(venues.slice(0, 15));
+      setOpen(true);
+    } catch { setResults([]); }
+    finally { setLoading(false); }
+  }, [country, countryName, state, lga]);
+
+  const handleInput = e => {
+    const v = e.target.value;
+    setQ(v);
+    if (!v) onSelect(null);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => search(v), 350);
+  };
+
+  const select = v => {
+    setQ(v.venue_name || v.name || v.stadium || v.stadium_name || v.ground_name || '');
+    onSelect(v);
+    setOpen(false); setResults([]);
+  };
+
+  return html`
+    <div ref=${ref} style="position:relative">
+      <div class="form-group">
+        <label>
+          ${label || 'Ground / Venue'}
+          ${required ? html`<span class="req"> *</span>` : html`<span style="font-weight:400;font-size:.72rem"> (optional)</span>`}
+        </label>
+        <p class="helper-text" style="margin-bottom:6px">
+          <i class="fas fa-info-circle" aria-hidden="true"></i>
+          Type 3+ characters to search DCO-registered venues${(lga || state || country) ? html` — filtered by your location` : ''}
+        </p>
+        <div style="position:relative">
+          <input class="form-control" value=${q}
+            onInput=${handleInput}
+            onFocus=${() => { if (q.length >= 3) setOpen(true); }}
+            placeholder=${placeholder || 'Search registered venues…'}/>
+          ${loading ? html`<span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--primary)"><i class="fas fa-spinner fa-spin" style="font-size:.75rem"></i></span>` : ''}
+          ${venueData && !loading ? html`<span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--success)"><i class="fas fa-check-circle"></i></span>` : ''}
+        </div>
+        ${open && results.length ? html`
+          <div class="smart-select-results" role="listbox">
+            ${results.map(v => {
+              const vName    = v.venue_name || v.name || v.stadium || v.stadium_name || v.ground_name || '—';
+              const vType    = v.venue_type  || '';
+              const vSurface = v.surface_type || '';
+              const vCap     = v.capacity ? Number(v.capacity).toLocaleString() + ' seats' : '';
+              const vCountry = v.country || v.country_name || '';
+              const vState   = v.state   || v.region      || '';
+              const vLga     = v.lga     || v.local_area  || '';
+              const vAddr    = v.full_address || v.address || '';
+              const vOwner   = v.owner   || v.managing_club || '';
+              return html`
+                <div key=${v._id || v.venue_id || v.id || vName} class="smart-select-item" role="option"
+                  onMouseDown=${e => { e.preventDefault(); select(v); }}
+                  style="padding:10px 14px">
+                  <div style="font-weight:700;color:#e2e8f0;font-size:.9rem;margin-bottom:4px">${vName}</div>
+                  <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">
+                    ${vType    ? html`<span style="font-size:.67rem;background:rgba(99,102,241,.18);color:#818cf8;border-radius:4px;padding:1px 6px">${vType}</span>` : ''}
+                    ${vSurface ? html`<span style="font-size:.67rem;background:rgba(16,185,129,.14);color:#34d399;border-radius:4px;padding:1px 6px">${vSurface}</span>` : ''}
+                    ${vCap     ? html`<span style="font-size:.67rem;background:rgba(245,184,0,.12);color:#fbbf24;border-radius:4px;padding:1px 6px"><i class="fas fa-users" style="font-size:.6rem;margin-right:2px"></i>${vCap}</span>` : ''}
+                  </div>
+                  <div style="font-size:.72rem;color:#94a3b8;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+                    ${vCountry ? html`<span><i class="fas fa-globe-africa" style="color:var(--primary);margin-right:2px;font-size:.62rem"></i>${vCountry}</span>` : ''}
+                    ${vState   ? html`<span style="color:#64748b">›</span><span>${vState}</span>` : ''}
+                    ${vLga     ? html`<span style="color:#64748b">›</span><span>${vLga}</span>` : ''}
+                    ${vOwner   ? html`<span style="color:#64748b;margin-left:4px"><i class="fas fa-shield-alt" style="font-size:.6rem;margin-right:2px"></i>${vOwner}</span>` : ''}
+                  </div>
+                  ${vAddr ? html`<div style="font-size:.68rem;color:#475569;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%"><i class="fas fa-road" style="font-size:.6rem;margin-right:3px"></i>${vAddr}</div>` : ''}
+                </div>`;
+            })}
+          </div>` : ''}
+        ${open && !loading && results.length === 0 && q.length >= 3 ? html`
+          <div class="smart-select-results">
+            <div class="smart-select-item" style="color:#94a3b8;cursor:default;font-size:.82rem">
+              <i class="fas fa-info-circle" style="margin-right:6px"></i>
+              No venues found — ensure venues are registered by a DCO first
+            </div>
+          </div>` : ''}
+      </div>
+
+      ${venueData ? html`
+        <div class="ground-detail-card">
+          <div class="ground-name">
+            <i class="fas fa-map-marker-alt"></i>
+            ${venueData.venue_name || venueData.name}
+            ${venueData.verified || venueData.is_verified ? html`<i class="fas fa-check-circle" style="color:#3b82f6;font-size:.8rem" aria-label="Verified venue"></i>` : ''}
+          </div>
+          <div class="ground-detail-grid">
+            <div class="ground-detail-item">
+              <strong>Venue Type</strong>
+              <span>${venueData.venue_type || '—'}</span>
+            </div>
+            <div class="ground-detail-item">
+              <strong>Surface</strong>
+              <span>${venueData.surface_type || '—'}</span>
+            </div>
+            <div class="ground-detail-item">
+              <strong>Capacity</strong>
+              <span>${venueData.capacity ? Number(venueData.capacity).toLocaleString() + ' seats' : '—'}</span>
+            </div>
+            <div class="ground-detail-item">
+              <strong>Country</strong>
+              <span>${venueData.country || venueData.country_name || '—'}</span>
+            </div>
+            <div class="ground-detail-item">
+              <strong>State / Region</strong>
+              <span>${venueData.state || venueData.region || '—'}</span>
+            </div>
+            <div class="ground-detail-item">
+              <strong>LGA / Local Area</strong>
+              <span>${venueData.lga || venueData.local_area || '—'}</span>
+            </div>
+            ${venueData.owner || venueData.managing_club ? html`
+            <div class="ground-detail-item">
+              <strong>Owner / Club</strong>
+              <span>${venueData.owner || venueData.managing_club}</span>
+            </div>` : ''}
+            ${venueData.lighting ? html`
+            <div class="ground-detail-item">
+              <strong>Floodlights</strong>
+              <span>${venueData.lighting}</span>
+            </div>` : ''}
+          </div>
+          ${venueData.full_address || venueData.address ? html`
+            <div style="color:#94a3b8;margin-top:6px;font-size:.78rem;padding-top:6px;border-top:1px solid rgba(255,255,255,.06)">
+              <i class="fas fa-road" style="color:var(--primary);margin-right:4px"></i>
+              <strong style="color:#64748b;font-size:.7rem;text-transform:uppercase;letter-spacing:.6px">Address: </strong>
+              ${venueData.full_address || venueData.address}
+            </div>` : ''}
+          <button type="button" class="ground-clear-btn"
+            onClick=${() => { setQ(''); onSelect(null); }}>
+            <i class="fas fa-times"></i> Clear selection
+          </button>
+        </div>` : ''}
+    </div>`;
+}
+
+/* ─── CLUB FIELDS ────────────────────────────────────────────────────────────── */
+/*
+ * Location API calls:
+ *   useStates(d.country) → GET /api/public/countries/{code}/regions
+ *   useLGAs(d.country, d.state) → GET /api/public/countries/{code}/regions/{region}/subregions
+ * regionLabel and subregionLabel adapt to the selected country automatically.
+ * VenueGroundSearch receives club location so venue results are location-filtered.
+ */
+function ClubFields({d, set, countries}) {
+  const [states, statesLoading, regionLabel]  = useStates(d.country);
+  const [lgas,   lgasLoading, subregionLabel] = useLGAs(d.country, d.state);
+  const selectedCountry = (countries || []).find(c => c.code === d.country);
+  return html`
+    <div>
+      <!-- 1. Club Level -->
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-layer-group" aria-hidden="true"></i> Club Level <span class="req">*</span></div>
+        <div class="form-group" style="margin-bottom:0">
+          <select class="form-control" required value=${d.clubLevel || ''} onChange=${e => set('clubLevel', e.target.value)}>
+            <option value="">Select Club Level</option>
+            ${FALLBACK_CLUB_LEVELS.map(l => html`<option key=${l}>${l}</option>`)}
+          </select>
+        </div>
+      </div>
+
+      <!-- 2. Club Location -->
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-map-marker-alt" aria-hidden="true"></i> Club Location</div>
+        <div class="form-row">
+          <${CountrySelect} label="Country" value=${d.country || ''}
+            onChange=${v => { set('country', v); set('state', ''); set('lga', ''); }}
+            countries=${countries} required=${true}/>
+          <div class="form-group">
+            <label>${regionLabel} <span class="req">*</span></label>
+            <${StateSelect} states=${states} loading=${statesLoading} regionLabel=${regionLabel}
+              value=${d.state || ''}
+              onChange=${v => { set('state', v); set('lga', ''); }}/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>${subregionLabel}</label>
+          <${LGASelect} lgas=${lgas} loading=${lgasLoading} subregionLabel=${subregionLabel}
+            value=${d.lga || ''}
+            onChange=${v => set('lga', v)}/>
+        </div>
+        <div class="form-group">
+          <label>City / District <span class="req">*</span></label>
+          <input class="form-control" required value=${d.city || ''} autocapitalize="words" onInput=${e => set('city', toTitleCase(e.target.value))} placeholder="City, town or district name"/>
+        </div>
+        <${GPSCapture} label="Club Office / Location GPS" required=${true} value=${d.clubOfficeGps || null} onChange=${v => set('clubOfficeGps', v)}/>
+      </div>
+
+      <!-- 3. Club Details -->
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-building" aria-hidden="true"></i> Club Details</div>
+        <div class="form-group">
+          <label>Club Name <span class="req">*</span></label>
+          <input class="form-control" required value=${d.clubName || ''} autocapitalize="words" onInput=${e => set('clubName', toTitleCase(e.target.value))} placeholder="Official club name"/>
+        </div>
+        <div class="form-group">
+          <label>Club Nickname <span style="font-weight:400;font-size:.72rem">(optional)</span></label>
+          <input class="form-control" value=${d.clubNickname || ''} autocapitalize="words" onInput=${e => set('clubNickname', toTitleCase(e.target.value))} placeholder="e.g. The Lions, Eagles…"/>
+        </div>
+        <div class="form-group">
+          <label>Year Founded <span style="font-weight:400;font-size:.72rem">(optional)</span></label>
+          <input type="number" class="form-control" value=${d.founded || ''} onInput=${e => set('founded', e.target.value)} placeholder="e.g. 1998" min="1800" max="2099"/>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Club Email <span style="font-weight:400;font-size:.72rem">(optional)</span></label>
+            <input type="email" class="form-control" value=${d.clubEmail || ''} onInput=${e => set('clubEmail', e.target.value)} placeholder="club@example.com"/>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>Club Phone <span style="font-weight:400;font-size:.72rem">(optional)</span></label>
+            <input type="tel" class="form-control" value=${d.clubPhone || ''} onInput=${e => set('clubPhone', e.target.value)} placeholder="+234…"/>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>Website <span style="font-weight:400;font-size:.72rem">(optional)</span></label>
+          <input type="url" class="form-control" value=${d.website || ''} onInput=${e => set('website', e.target.value)} placeholder="https://…"/>
+        </div>
+      </div>
+
+      <!-- 4. Registration Status -->
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-certificate" aria-hidden="true"></i> Club Registration Status</div>
+        <div class="radio-group">
+          ${[
+            {v:'registered',   l:'Officially Registered (CAC)', d:'Has Corporate Affairs Commission number'},
+            {v:'unregistered', l:'Not Yet Registered',           d:'Operating without formal registration'},
+            {v:'pending',      l:'Registration Pending',          d:'Applied but not yet confirmed'},
+          ].map(t => html`
+            <div key=${t.v} class=${'radio-card' + (d.isRegistered === t.v ? ' active' : '')} onClick=${() => set('isRegistered', t.v)}>
+              <h5>${t.l}</h5><p>${t.d}</p>
+            </div>`)}
+        </div>
+        ${d.isRegistered === 'registered' ? html`
+          <div class="form-group" style="margin-top:0.75rem;margin-bottom:0">
+            <label>CAC Registration Number <span class="req">*</span></label>
+            <input class="form-control" value=${d.cacNumber || ''} onInput=${e => set('cacNumber', e.target.value)} placeholder="RC000000"/>
+          </div>` : ''}
+      </div>
+
+      <!-- 5. Primary Ground — filtered by club location -->
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-futbol" aria-hidden="true"></i> Primary Ground <span class="req">*</span></div>
+        <p class="helper-text" style="margin-bottom:.75rem">
+          Select the club's home ground from DCO-registered venues.
+          If the ground is not listed, ask your DCO to register it first in the Venues module.
+        </p>
+        <${VenueGroundSearch}
+          value=${d.primaryGround ? (d.primaryGround.venue_name || d.primaryGround.name || '') : ''}
+          venueData=${d.primaryGround || null}
+          onSelect=${v => { set('primaryGround', v); if (v) set('stadiumAddress', v.full_address || v.address || d.stadiumAddress || ''); }}
+          country=${d.country || ''}
+           countryName=${selectedCountry ? selectedCountry.name : ''}
+          state=${d.state || ''}
+          lga=${d.lga || ''}
+          label="Primary Ground / Home Venue"
+          required=${true}
+          placeholder="Type venue name to search…"/>
+        ${d.primaryGround && (d.primaryGround.full_address || d.primaryGround.address) ? html`
+          <p class="helper-text" style="margin-top:8px;color:var(--success)">
+            <i class="fas fa-map-marker-alt" style="margin-right:4px"></i>
+            <strong>Address on record:</strong> ${d.primaryGround.full_address || d.primaryGround.address}
+          </p>` : ''}
+      </div>
+
+      <!-- 6. Secondary Ground — filtered by club location -->
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-map-pin" aria-hidden="true"></i> Secondary / Alternate Ground <span style="font-weight:400;font-size:.75rem">(optional)</span></div>
+        <p class="helper-text" style="margin-bottom:.75rem">
+          Does this club play at a second ground? Select it below (also from registered venues).
+        </p>
+        <${VenueGroundSearch}
+          value=${d.secondaryGround ? (d.secondaryGround.venue_name || d.secondaryGround.name || '') : ''}
+          venueData=${d.secondaryGround || null}
+          onSelect=${v => set('secondaryGround', v)}
+          country=${d.country || ''}
+           countryName=${selectedCountry ? selectedCountry.name : ''}
+          state=${d.state || ''}
+          lga=${d.lga || ''}
+          label="Secondary / Alternate Ground"
+          required=${false}
+          placeholder="Type venue name to search…"/>
+      </div>
+
+      <!-- 7. Club Logo -->
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-image" aria-hidden="true"></i> Club Logo <span class="req">*</span></div>
+        <${FileUpload} id="logo" label="Club Logo / Crest" accept="image/*" maxMB=${1}
+          value=${d.logo || null} onChange=${f => set('logo', f)} hint="Required — Max 1 MB · PNG or JPEG recommended"/>
+        ${!d.logo ? html`<p class="helper-text" style="margin-top:5px;color:var(--danger)"><i class="fas fa-exclamation-circle"></i> Club logo is required.</p>` : ''}
+      </div>
+    </div>`;
+}
+
+/* ─── SCOUT FIELDS ───────────────────────────────────────────────────────────── */
+/*
+ * Location API calls:
+ *   useStates(d.country) → GET /api/public/countries/{code}/regions
+ *   useLGAs(d.country, d.state) → GET /api/public/countries/{code}/regions/{region}/subregions
+ */
+function ScoutFields({d, set, countries}) {
+  const [states, statesLoading, regionLabel]  = useStates(d.country);
+  const [lgas,   lgasLoading, subregionLabel] = useLGAs(d.country, d.state);
+  return html`
+    <div>
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-id-badge" aria-hidden="true"></i> Scout Profile</div>
+        <div class="form-group">
+          <label>Affiliation Type <span class="req">*</span></label>
+          <div class="radio-group">
+            ${[
+              {v:'independent', l:'Independent Scout',      desc:'Operate independently across regions.'},
+              {v:'club',        l:'Club-Affiliated Scout',  desc:'Officially scouting for a specific club.'},
+            ].map(t => html`
+              <div key=${t.v} class=${'radio-card' + (d.affiliationType === t.v ? ' active' : '')} onClick=${() => set('affiliationType', t.v)}>
+                <h5>${t.l}</h5><p>${t.desc}</p>
+              </div>`)}
+          </div>
+        </div>
+        ${d.affiliationType === 'club' ? html`
+          <div class="form-group">
+            <label>Affiliated Club <span class="req">*</span></label>
+            <input class="form-control" value=${d.affiliatedClub || ''} autocapitalize="words" onInput=${e => set('affiliatedClub', toTitleCase(e.target.value))} placeholder="Club name"/>
+          </div>
+          <div class="form-group">
+            <label>Your Role in the Club</label>
+            <input class="form-control" value=${d.roleInOrg || ''} onInput=${e => set('roleInOrg', e.target.value)} placeholder="e.g. Head of Recruitment"/>
+          </div>` : ''}
+        ${d.affiliationType === 'independent' ? html`
+          <div class="form-group">
+            <label>Primary Operating Region <span class="req">*</span></label>
+            <input class="form-control" value=${d.operatingRegion || ''} autocapitalize="words" onInput=${e => set('operatingRegion', toTitleCase(e.target.value))} placeholder="e.g. West Africa, Lagos, etc."/>
+          </div>` : ''}
+        <div class="form-row">
+          <div class="form-group">
+            <label>Years of Experience <span class="req">*</span></label>
+            <input type="number" class="form-control" value=${d.yearsExperience || ''}
+              onInput=${e => set('yearsExperience', e.target.value)} placeholder="e.g. 5" min="0" max="60"/>
+          </div>
+          <div class="form-group">
+            <label>Specialization</label>
+            <select class="form-control" value=${d.specialization || ''} onChange=${e => set('specialization', e.target.value)}>
+              <option value="">Select area</option>
+              ${['Youth/Academy','Senior Football','Goalkeepers','Defenders','Midfielders','Attackers','All-round'].map(s => html`<option key=${s}>${s}</option>`)}
+            </select>
+          </div>
+        </div>
+        <div class="form-row" style="margin-top:4px">
+          <${CountrySelect} label="Country" value=${d.country || ''}
+            onChange=${v => { set('country', v); set('state', ''); set('lga', ''); }}
+            countries=${countries} required=${true}/>
+          <div class="form-group">
+            <label>${regionLabel} <span class="req">*</span></label>
+            <${StateSelect} states=${states} loading=${statesLoading} regionLabel=${regionLabel}
+              value=${d.state || ''}
+              onChange=${v => { set('state', v); set('lga', ''); }}/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>${subregionLabel} <span class="req">*</span></label>
+          <${LGASelect} lgas=${lgas} loading=${lgasLoading} subregionLabel=${subregionLabel}
+            value=${d.lga || ''}
+            onChange=${v => set('lga', v)}/>
+        </div>
+        <${GPSCapture} label="Your Current Location GPS" required=${true} value=${d.gps || null} onChange=${v => set('gps', v)}/>
+        <div class="form-group">
+          <label>Street / Detailed Address <span class="req">*</span></label>
+          <textarea class="form-control" rows="2" value=${d.detailedAddress || ''}
+            onInput=${e => set('detailedAddress', e.target.value)}
+            placeholder="House number, street, area, town…"></textarea>
+        </div>
+        <${FileUpload} id="scout-photo" label="Profile Photo" accept="image/*" maxMB=${0.5}
+          value=${d.profilePhoto || null} onChange=${f => set('profilePhoto', f)} hint="Optional · Max 500 KB"/>
+      </div>
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-share-alt" aria-hidden="true"></i> Professional Links</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>LinkedIn</label>
+            <input class="form-control" value=${d.linkedin || ''} onInput=${e => set('linkedin', e.target.value)} placeholder="linkedin.com/in/…"/>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>Instagram</label>
+            <input class="form-control" value=${d.instagram || ''} onInput=${e => set('instagram', e.target.value)} placeholder="@handle"/>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>Bio <span style="font-weight:400;font-size:.75rem">(max 500 chars)</span></label>
+          <textarea class="form-control" rows="3" value=${d.bio || ''}
+            onInput=${e => set('bio', e.target.value.slice(0, 500))}
+            placeholder="Describe your scouting experience…"></textarea>
+          <p class="helper-text" style="text-align:right">${(d.bio || '').length}/500</p>
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ─── AGENT FIELDS ───────────────────────────────────────────────────────────── */
+/*
+ * Location API calls:
+ *   useStates(d.country) → GET /api/public/countries/{code}/regions
+ *   useLGAs(d.country, d.state) → GET /api/public/countries/{code}/regions/{region}/subregions
+ * CountrySelect used twice: once for nationality/HQ country, once for country of registration.
+ */
+function AgentFields({d, set, countries}) {
+  const [states, statesLoading, regionLabel]  = useStates(d.country);
+  const [lgas,   lgasLoading, subregionLabel] = useLGAs(d.country, d.state);
+  return html`
+    <div>
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-id-badge" aria-hidden="true"></i> Account Type</div>
+        <div class="radio-group">
+          ${[
+            {v:'individual',   l:'Individual Agent',        desc:'Representing players as an individual.'},
+            {v:'organisation', l:'Organisation / Agency',   desc:'A company or agency representing multiple players.'},
+          ].map(t => html`
+            <div key=${t.v} class=${'radio-card' + (d.agentType === t.v ? ' active' : '')} onClick=${() => set('agentType', t.v)}>
+              <h5>${t.l}</h5><p>${t.desc}</p>
+            </div>`)}
+        </div>
+      </div>
+      ${d.agentType === 'individual' ? html`
+        <div class="section-block">
+          <div class="section-block-title"><i class="fas fa-user" aria-hidden="true"></i> Personal Details</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>First Name <span class="req">*</span></label>
+              <input class="form-control" value=${d.firstName || ''} autocapitalize="words" onInput=${e => set('firstName', toTitleCase(e.target.value))} placeholder="First name"/>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label>Last Name <span class="req">*</span></label>
+              <input class="form-control" value=${d.lastName || ''} autocapitalize="words" onInput=${e => set('lastName', toTitleCase(e.target.value))} placeholder="Last name"/>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Date of Birth <span class="req">*</span></label>
+              <input type="date" class="form-control" value=${d.dob || ''} onChange=${e => set('dob', e.target.value)}/>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label>Gender <span class="req">*</span></label>
+              <select class="form-control" value=${d.gender || ''} onChange=${e => set('gender', e.target.value)}>
+                <option value="">Select</option><option>Male</option><option>Female</option><option>Other</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>FIFA Licence / Accreditation</label>
+            <input class="form-control" value=${d.fifaLicense || ''} onInput=${e => set('fifaLicense', e.target.value)} placeholder="e.g. FIFA Licensed Agent — optional"/>
+          </div>
+          <div class="form-row">
+            <${CountrySelect} label="Country / Nationality" value=${d.country || ''}
+              onChange=${v => { set('country', v); set('nationality', v); set('state', ''); set('lga', ''); }}
+              countries=${countries} required=${true}/>
+            <div class="form-group">
+              <label>${regionLabel} <span class="req">*</span></label>
+              <${StateSelect} states=${states} loading=${statesLoading} regionLabel=${regionLabel}
+                value=${d.state || ''}
+                onChange=${v => { set('state', v); set('lga', ''); }}/>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>${subregionLabel} <span class="req">*</span></label>
+            <${LGASelect} lgas=${lgas} loading=${lgasLoading} subregionLabel=${subregionLabel}
+              value=${d.lga || ''}
+              onChange=${v => set('lga', v)}/>
+          </div>
+          <${GPSCapture} label="Your Current Location GPS" required=${true} value=${d.gps || null} onChange=${v => set('gps', v)}/>
+          <div class="form-group">
+            <label>Street / Detailed Address <span class="req">*</span></label>
+            <textarea class="form-control" rows="2" value=${d.detailedAddress || ''}
+              onInput=${e => set('detailedAddress', e.target.value)}
+              placeholder="House number, street, area, town…"></textarea>
+          </div>
+          <${FileUpload} id="photo" label="Profile Photo" accept="image/*" maxMB=${0.5}
+            value=${d.profilePhoto || null} onChange=${f => set('profilePhoto', f)} hint="Max 500 KB"/>
+        </div>` : ''}
+      ${d.agentType === 'organisation' ? html`
+        <div class="section-block">
+          <div class="section-block-title"><i class="fas fa-building" aria-hidden="true"></i> Organisation Details</div>
+          <div class="form-group">
+            <label>Agency / Organisation Name <span class="req">*</span></label>
+            <input class="form-control" value=${d.agencyName || ''} autocapitalize="words" onInput=${e => set('agencyName', toTitleCase(e.target.value))} placeholder="Agency name"/>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Registration Number</label>
+              <input class="form-control" value=${d.registrationNumber || ''} onInput=${e => set('registrationNumber', e.target.value)} placeholder="CAC or equivalent"/>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label>Country of Registration</label>
+              <!-- Separate country picker — does NOT affect the state/LGA cascade -->
+              <${CountrySelect} label="" value=${d.countryOfRegistration || ''} onChange=${v => set('countryOfRegistration', v)} countries=${countries}/>
+            </div>
+          </div>
+          <div class="form-row" style="margin-top:4px">
+            <${CountrySelect} label="Country" value=${d.country || ''}
+              onChange=${v => { set('country', v); set('state', ''); set('lga', ''); }}
+              countries=${countries} required=${true}/>
+            <div class="form-group">
+              <label>${regionLabel} <span class="req">*</span></label>
+              <${StateSelect} states=${states} loading=${statesLoading} regionLabel=${regionLabel}
+                value=${d.state || ''}
+                onChange=${v => { set('state', v); set('lga', ''); }}/>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>${subregionLabel} <span class="req">*</span></label>
+            <${LGASelect} lgas=${lgas} loading=${lgasLoading} subregionLabel=${subregionLabel}
+              value=${d.lga || ''}
+              onChange=${v => set('lga', v)}/>
+          </div>
+          <${GPSCapture} label="Your Current Location GPS" required=${true} value=${d.gps || null} onChange=${v => set('gps', v)}/>
+          <div class="form-group">
+            <label>Street / Detailed Address <span class="req">*</span></label>
+            <textarea class="form-control" rows="2" value=${d.detailedAddress || ''}
+              onInput=${e => set('detailedAddress', e.target.value)}
+              placeholder="House number, street, area, town…"></textarea>
+          </div>
+          <${FileUpload} id="photo" label="Profile Photo" accept="image/*" maxMB=${0.5}
+            value=${d.profilePhoto || null} onChange=${f => set('profilePhoto', f)} hint="Max 500 KB"/>
+        </div>` : ''}
+      ${d.agentType ? html`
+        <div class="section-block">
+          <div class="section-block-title"><i class="fas fa-briefcase" aria-hidden="true"></i> Professional Profile</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Years of Experience <span class="req">*</span></label>
+              <input type="number" class="form-control" value=${d.yearsExperience || ''}
+                onInput=${e => set('yearsExperience', e.target.value)} placeholder="e.g. 5" min="0" max="60"/>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label>Website</label>
+              <input type="url" class="form-control" value=${d.website || ''} onInput=${e => set('website', e.target.value)} placeholder="https://…"/>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Instagram</label>
+              <input class="form-control" value=${d.instagram || ''} onInput=${e => set('instagram', e.target.value)} placeholder="@handle"/>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label>LinkedIn</label>
+              <input class="form-control" value=${d.linkedin || ''} onInput=${e => set('linkedin', e.target.value)} placeholder="linkedin.com/in/…"/>
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>Bio <span style="font-weight:400;font-size:.75rem">(max 500 chars)</span></label>
+            <textarea class="form-control" rows="3" value=${d.bio || ''}
+              onInput=${e => set('bio', e.target.value.slice(0, 500))}
+              placeholder="Describe your experience and services…"></textarea>
+            <p class="helper-text" style="text-align:right">${(d.bio || '').length}/500</p>
+          </div>
+        </div>` : ''}
+    </div>`;
+}
+
+/* ─── DCO FIELDS ─────────────────────────────────────────────────────────────── */
+/*
+ * Uses LocationBlock which internally manages all 3 location API calls.
+ */
+function DCOFields({d, set, countries}) {
+  return html`
+    <div>
+      <div style="margin-bottom:16px">
+        <span class="applicant-badge"><i class="fas fa-file-alt" aria-hidden="true"></i> Applicant — Not a registrant</span>
+        <p class="helper-text">Your application will be reviewed by our admin team before activation.</p>
+      </div>
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-user" aria-hidden="true"></i> Personal Information</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Date of Birth <span class="req">*</span></label>
+            <input type="date" class="form-control" value=${d.dob || ''} onChange=${e => set('dob', e.target.value)}/>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>Gender <span class="req">*</span></label>
+            <select class="form-control" value=${d.gender || ''} onChange=${e => set('gender', e.target.value)}>
+              <option value="">Select</option><option>Male</option><option>Female</option><option>Other</option>
+            </select>
+          </div>
+        </div>
+        <${EducationSelect} value=${d.educationLevel || ''} onChange=${v => set('educationLevel', v)} required=${true}/>
+        <${MultiTag} label="Languages Spoken" options=${LANGUAGES_LIST} value=${d.languages || []}
+          onChange=${v => set('languages', v)} placeholder="Add language" required=${true}/>
+      </div>
+      <${LocationBlock} d=${d} set=${set} countries=${countries} required
+        title="Residence & Location"
+        subtitle="Enter your country, state, and local area of residence."/>
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-map-marker-alt" aria-hidden="true"></i> GPS Location <span class="req">*</span></div>
+        <${GPSCapture} value=${d.gps || null} onChange=${v => set('gps', v)} label="Your Current GPS Location" required=${true}/>
+      </div>
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-home" aria-hidden="true"></i> Detailed Address</div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>Street / Detailed Address <span class="req">*</span></label>
+          <textarea class="form-control" rows="2" value=${d.detailedAddress || ''}
+            onInput=${e => set('detailedAddress', e.target.value)}
+            placeholder="House number, street, area, town…"></textarea>
+        </div>
+      </div>
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-camera" aria-hidden="true"></i> Profile Photo</div>
+        <${FileUpload} id="photo" label="Profile Photo" accept="image/*" maxMB=${0.5}
+          value=${d.profilePhoto || null} onChange=${f => set('profilePhoto', f)} hint="Max 500 KB"/>
+        <div class="note-card" style="margin-top:12px;margin-bottom:0">
+          <i class="fas fa-info-circle" aria-hidden="true"></i> Your tier and match assignments are set by our admin team after verification. Earnings range from ₦400 to ₦1,400 per match depending on your tier. Bank details can be provided after account activation from your dashboard.
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ─── SUPERVISOR FIELDS ──────────────────────────────────────────────────────── */
+/*
+ * Uses LocationBlock for residence location.
+ * Uses a separate useStates call for "States of Operation" chip selector.
+ */
+function SupervisorFields({d, set, countries}) {
+  const [opStates, opLoading, opRegionLabel] = useStates(d.country || '');
+  return html`
+    <div>
+      <div style="margin-bottom:16px">
+        <span class="applicant-badge"><i class="fas fa-file-alt" aria-hidden="true"></i> Applicant — Not a registrant</span>
+        <p class="helper-text">Your application will be reviewed by our admin team before activation.</p>
+      </div>
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-user" aria-hidden="true"></i> Personal Information</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Date of Birth <span class="req">*</span></label>
+            <input type="date" class="form-control" value=${d.dob || ''} onChange=${e => set('dob', e.target.value)}/>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>Gender <span class="req">*</span></label>
+            <select class="form-control" value=${d.gender || ''} onChange=${e => set('gender', e.target.value)}>
+              <option value="">Select</option><option>Male</option><option>Female</option><option>Other</option>
+            </select>
+          </div>
+        </div>
+        <${EducationSelect} value=${d.educationLevel || ''} onChange=${v => set('educationLevel', v)} required=${true}/>
+        <${MultiTag} label="Languages Spoken" options=${LANGUAGES_LIST} value=${d.languages || []}
+          onChange=${v => set('languages', v)} placeholder="Add language" required=${true}/>
+      </div>
+      <${LocationBlock} d=${d} set=${set} countries=${countries} required
+        title="Location" subtitle="Select your country, then choose your state / region of residence."/>
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-map-marker-alt" aria-hidden="true"></i> GPS Location <span class="req">*</span></div>
+        <${GPSCapture} value=${d.gps || null} onChange=${v => set('gps', v)} label="Your Current GPS Location" required=${true}/>
+      </div>
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-home" aria-hidden="true"></i> Detailed Address</div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>Street / Detailed Address <span class="req">*</span></label>
+          <textarea class="form-control" rows="2" value=${d.detailedAddress || ''}
+            onInput=${e => set('detailedAddress', e.target.value)}
+            placeholder="House number, street, area, town…"></textarea>
+        </div>
+      </div>
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-map-marker-alt" aria-hidden="true"></i> Area of Operation</div>
+        <div class="form-group">
+          <label>${opRegionLabel ? opRegionLabel + 's' : 'States / Regions'} of Operation <span class="req">*</span></label>
+          ${opLoading ? html`<div class="loading-shimmer" style="margin-top:6px"></div>` :
+            opStates.length > 0 ?
+            html`<div class="checkbox-group" style="margin-top:8px" role="group" aria-label="States of operation">
+              ${opStates.map(o => html`
+                <label key=${o} class=${'check-chip' + ((d.statesOfOp || []).includes(o) ? ' active' : '')}>
+                  <input type="checkbox"
+                    checked=${(d.statesOfOp || []).includes(o)}
+                    onChange=${() => {
+                      const cur = d.statesOfOp || [];
+                      set('statesOfOp', cur.includes(o) ? cur.filter(v => v !== o) : [...cur, o]);
+                    }}/>${o}
+                </label>`)}
+            </div>` :
+            html`<p class="helper-text">Select a country above to load available regions.</p>`}
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Years of Experience <span class="req">*</span></label>
+            <input type="number" class="form-control" value=${d.yearsExperience || ''}
+              onInput=${e => set('yearsExperience', e.target.value)} placeholder="e.g. 3" min="0" max="60"/>
+          </div>
+        </div>
+      </div>
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-file-pdf" aria-hidden="true"></i> CV / Resumé Upload</div>
+        <${FileUpload} id="cv" label="CV / Resumé" accept=".pdf,.doc,.docx" maxMB=${0.5}
+          value=${d.cv || null} onChange=${f => set('cv', f)} required=${true} hint="Required · PDF or Word · Max 500 KB"/>
+      </div>
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-camera" aria-hidden="true"></i> Profile Photo</div>
+        <${FileUpload} id="photo" label="Profile Photo" accept="image/*" maxMB=${0.5}
+          value=${d.profilePhoto || null} onChange=${f => set('profilePhoto', f)} hint="Max 500 KB"/>
+        <div class="note-card" style="margin-top:12px;margin-bottom:0">
+          <i class="fas fa-info-circle" aria-hidden="true"></i> Supervisors can oversee up to 11 Data-Collection Officers. Commission earnings range from ₦250 to ₦1,500 per supervised match depending on tier. Bank details can be provided after account activation from your dashboard.
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ─── DOC OVERLAY (scroll-gated) ────────────────────────────────────────────── */
+function DocOverlay({open, title, fetchUrl, apiUrl, contentHtml, onClose, onAccept, formData, role}) {
+  const contentRef = useRef();
+  const [canAccept,       setCanAccept]       = useState(false);
+  const [bodyHtml,        setBodyHtml]        = useState(contentHtml || '');
+  const [fetchTab,        setFetchTab]        = useState('terms');
+  const [scrollPct,       setScrollPct]       = useState(0);
+  const [loading,         setLoading]         = useState(false);
+  const [fetchError,      setFetchError]      = useState(false);
+  const [renderedPayload, setRenderedPayload] = useState(null);
+
+  const loadDoc = useCallback(() => {
+    if (!fetchUrl) return;
+    setLoading(true); setFetchError(false);
+    fetch(fetchUrl)
+      .then(r => { if (!r.ok) throw new Error(); return r.text(); })
+      .then(raw => {
+        const doc     = new DOMParser().parseFromString(raw, 'text/html');
+        const termsEl = doc.getElementById('terms-doc-content');
+        const privEl  = doc.getElementById('privacy-doc-content');
+        const phs     = formData ? getTemplatePlaceholders(formData, role) : null;
+        const tpl     = s => phs ? applyTemplate(s, phs) : s;
+
+        const termsHtml = tpl(termsEl ? termsEl.innerHTML  : '');
+        const privHtml  = tpl(privEl  ? privEl.innerHTML   : '');
+        const termsText = termsEl ? termsEl.textContent : '';
+        const privText  = privEl  ? privEl.textContent  : '';
+
+        setBodyHtml(termsEl || privEl
+          ? '__TABBED__' + JSON.stringify({ terms: termsHtml, privacy: privHtml })
+          : tpl(doc.body.innerHTML));
+
+        setRenderedPayload({ termsHtml, privHtml, termsText, privText });
+      })
+      .catch(() => setFetchError(true))
+      .finally(() => setLoading(false));
+  }, [fetchUrl, formData, role]);
+
+  useEffect(() => {
+    if (!open) return;
+    setCanAccept(false); setScrollPct(0); setFetchError(false);
+    if (contentRef.current) contentRef.current.scrollTop = 0;
+    if (fetchUrl) { loadDoc(); return; }
+    if (apiUrl) {
+      fetch(apiUrl).then(r => r.ok ? r.json() : Promise.reject())
+        .then(d => { if (d.content || d.html) setBodyHtml(d.content || d.html); })
+        .catch(() => {});
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const el = contentRef.current; if (!el) return;
+    const onScroll = () => {
+      const max = el.scrollHeight - el.clientHeight;
+      if (max <= 0) { setCanAccept(true); setScrollPct(100); return; }
+      const pct = Math.round((el.scrollTop / max) * 100);
+      setScrollPct(pct);
+      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 12) setCanAccept(true);
+    };
+    el.addEventListener('scroll', onScroll, {passive: true});
+    onScroll();
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [open, fetchTab]);
+
+  if (!open) return null;
+
+  const isTabbed  = typeof bodyHtml === 'string' && bodyHtml.startsWith('__TABBED__');
+  let tabbedData  = null;
+  if (isTabbed) { try { tabbedData = JSON.parse(bodyHtml.slice('__TABBED__'.length)); } catch(_) {} }
+
+  return html`
+    <div class="overlay-backdrop" onClick=${onClose} role="dialog" aria-modal="true" aria-label=${title}>
+      <div class="overlay-card" onClick=${e => e.stopPropagation()}>
+        <div class="overlay-header">
+          <h3>${title}</h3>
+          <button class="btn btn-sm btn-outline" onClick=${onClose}>Close</button>
+        </div>
+        <div style="height:3px;background:rgba(255,255,255,.08)" role="progressbar" aria-valuenow=${scrollPct} aria-valuemin="0" aria-valuemax="100">
+          <div style=${{width: scrollPct + '%', height:'100%', background:'var(--gold)', transition:'width .15s'}}></div>
+        </div>
+        <div class="overlay-content" ref=${contentRef}>
+          ${loading ? html`
+            <div style="text-align:center;padding:44px 0">
+              <i class="fas fa-spinner fa-spin" style="font-size:1.8rem;color:var(--gold);display:block;margin-bottom:12px" aria-hidden="true"></i>
+              <p style="color:#94a3b8;font-size:.85rem">Loading document…</p>
+            </div>` :
+          fetchError ? html`
+            <div style="text-align:center;padding:28px 16px">
+              <i class="fas fa-exclamation-triangle" style="color:#f59e0b;font-size:1.5rem;display:block;margin-bottom:10px" aria-hidden="true"></i>
+              <p style="color:#94a3b8;font-size:.85rem;margin-bottom:14px">Could not load document. Check your connection and try again.</p>
+              <button class="btn btn-outline btn-sm" onClick=${loadDoc}><i class="fas fa-redo" aria-hidden="true"></i> Retry</button>
+            </div>` :
+          tabbedData ? html`
+            <div class="overlay-tabs" role="tablist">
+              <button class=${'overlay-tab-btn' + (fetchTab === 'terms' ? ' active' : '')} role="tab"
+                aria-selected=${fetchTab === 'terms'}
+                onClick=${() => { setFetchTab('terms'); setCanAccept(false); if (contentRef.current) contentRef.current.scrollTop = 0; }}>
+                <i class="fas fa-file-contract" style="margin-right:5px" aria-hidden="true"></i>Terms of Service
+              </button>
+              <button class=${'overlay-tab-btn' + (fetchTab === 'privacy' ? ' active' : '')} role="tab"
+                aria-selected=${fetchTab === 'privacy'}
+                onClick=${() => { setFetchTab('privacy'); setCanAccept(false); if (contentRef.current) contentRef.current.scrollTop = 0; }}>
+                <i class="fas fa-shield-alt" style="margin-right:5px" aria-hidden="true"></i>Privacy Policy
+              </button>
+            </div>
+            <div class="overlay-doc" dangerouslySetInnerHTML=${{__html: fetchTab === 'terms' ? tabbedData.terms : tabbedData.privacy}}></div>` :
+          html`<div dangerouslySetInnerHTML=${{__html: bodyHtml}}></div>`}
+        </div>
+        <div class="overlay-footer">
+          ${!canAccept ? html`
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:10px 14px;background:rgba(255,215,0,.06);border:1px solid rgba(255,215,0,.2);border-radius:8px">
+              <i class="fas fa-arrow-down" style="color:var(--gold);animation:bounce .9s infinite alternate" aria-hidden="true"></i>
+              <p style="font-size:.82rem;color:#fbbf24;margin:0">Scroll to the end of the document to unlock the Accept button.</p>
+            </div>
+            <div style="display:flex;gap:10px">
+              <button class="btn btn-outline btn-full" onClick=${onClose}><i class="fas fa-times" aria-hidden="true"></i> Decline & Close</button>
+              <button class="btn btn-gold btn-full" disabled style="opacity:.35;cursor:not-allowed">
+                <i class="fas fa-lock" aria-hidden="true"></i> Accept (scroll to unlock)
+              </button>
+            </div>` : html`
+            <div style="display:flex;gap:10px">
+              <button class="btn btn-outline btn-full" onClick=${onClose}><i class="fas fa-times" aria-hidden="true"></i> Decline</button>
+              <button class="btn btn-gold btn-full" onClick=${() => { onAccept(renderedPayload); onClose(); }}><i class="fas fa-check" aria-hidden="true"></i> I Accept</button>
+            </div>`}
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ─── REVIEW SECTION ─────────────────────────────────────────────────────────── */
+/*
+ * Country names resolved from the countries list fetched from GET /api/public/countries.
+ */
+function ReviewSection({role, d, onEdit, countries}) {
+  const cname = code => (countries || []).find(c => c.code === code)?.name || code || '—';
+  const v     = x => x || '—';
+  const sections = {
+    player: [
+      {title:'Personal', rows:[
+        ['Name', [d.firstName, d.middleName, d.lastName].filter(Boolean).join(' ') || '—'],
+        ['DOB', v(d.dob)], ['Gender', v(d.gender)],
+        ['Country / Nationality', cname(d.country)], ['Height', d.height ? d.height + 'cm' : '—'],
+        ['Dominant Foot', v(d.dominantFoot)], ['DOB Visible', d.dobVisible ? 'Yes' : 'No'],
+      ]},
+      {title:'Football', rows:[
+        ['Level', v(d.playerLevel)],
+        ['Position', d.positionCategory && d.preferredPosition ? d.positionCategory + ' → ' + d.preferredPosition : '—'],
+        ['Secondary', (d.secondaryPositions || []).join(', ') || 'None'],
+        ['Club', d.currentClub || (d.clubId ? 'Matched' : '—')],
+      ]},
+      {title:'Location', rows:[
+        ['Country', cname(d.country)], ['State / Region', v(d.state)], ['Local Area', v(d.lga)],
+        ['Address', v(d.detailedAddress)],
+      ]},
+      {title:'Account', rows:[['Email', v(d.email)], ['Phone', v(d.phone)], ['Photo', d.profilePhoto ? 'Uploaded' : 'Not uploaded']]},
+    ],
+    club: [
+      {title:'Club', rows:[
+        ['Club Name', v(d.clubName)], ['Level', v(d.clubLevel)],
+        ['Country', cname(d.country)], ['State / Region', v(d.state)], ['Local Area', v(d.lga)],
+        ['City', v(d.city)], ['Founded', v(d.founded)],
+        ['Office GPS', d.clubOfficeGps ? d.clubOfficeGps.lat.toFixed(4) + ', ' + d.clubOfficeGps.lng.toFixed(4) : 'Not captured'],
+      ]},
+      {title:'Grounds', rows:[
+        ['Primary Ground', d.primaryGround ? (d.primaryGround.venue_name || d.primaryGround.name || '—') : '—'],
+        ['Secondary Ground', d.secondaryGround ? (d.secondaryGround.venue_name || d.secondaryGround.name || '—') : 'None'],
+      ]},
+      {title:'Account', rows:[['Email', v(d.email)], ['Phone', v(d.phone)], ['Logo', d.logo ? 'Uploaded' : 'Not uploaded']]},
+    ],
+    scout: [
+      {title:'Profile', rows:[
+        ['Affiliation', v(d.affiliationType)],
+        [d.affiliationType === 'independent' ? 'Region' : 'Club', d.affiliationType === 'independent' ? v(d.operatingRegion) : v(d.affiliatedClub)],
+        ['Experience', d.yearsExperience ? d.yearsExperience + ' years' : '—'],
+        ['Specialization', v(d.specialization)],
+      ]},
+      {title:'Location', rows:[['Country', cname(d.country)], ['State / Region', v(d.state)], ['Local Area', v(d.lga)], ['GPS', d.gps ? d.gps.lat.toFixed(4) + ', ' + d.gps.lng.toFixed(4) : 'Not captured']]},
+      {title:'Account', rows:[['Email', v(d.email)], ['Phone', v(d.phone)]]},
+    ],
+    agent: [
+      {title:'Agent', rows:[
+        ['Type', d.agentType === 'organisation' ? 'Organisation' : 'Individual'],
+        ['Name', d.agentType === 'organisation' ? v(d.agencyName) : v([d.firstName, d.lastName].filter(Boolean).join(' ') || d.fullName)],
+        ['FIFA License', d.fifaLicense || 'None'],
+        ['Experience', d.yearsExperience ? d.yearsExperience + ' yrs' : '—'],
+      ]},
+      {title:'Location', rows:[['Country', cname(d.country)], ['State / Region', v(d.state)], ['Local Area', v(d.lga)], ['GPS', d.gps ? d.gps.lat.toFixed(4) + ', ' + d.gps.lng.toFixed(4) : 'Not captured']]},
+      {title:'Account', rows:[['Email', v(d.email)], ['Phone', v(d.phone)]]},
+    ],
+    dco: [
+      {title:'DCO Application', rows:[
+        ['Full Name', v(d.fullName)], ['Country', cname(d.country)],
+        ['State / Region', v(d.state)], ['Local Area', v(d.lga)],
+        ['Education', v(d.educationLevel)],
+        ['Languages', (d.languages || []).join(', ') || '—'],
+      ]},
+      {title:'Location', rows:[['GPS', d.gps ? d.gps.lat.toFixed(4) + ', ' + d.gps.lng.toFixed(4) : 'Not captured']]},
+      {title:'Account', rows:[['Email', v(d.email)], ['Phone', v(d.phone)]]},
+    ],
+    supervisor: [
+      {title:'Supervisor Application', rows:[
+        ['Full Name', v(d.fullName)],
+        ['Country', cname(d.country)],
+        ['Regions of Op.', (d.statesOfOp || []).slice(0, 4).join(', ') || '—'],
+        ['Experience', d.yearsExperience ? d.yearsExperience + ' years' : '—'],
+        ['Education', v(d.educationLevel)],
+        ['Languages', (d.languages || []).join(', ') || '—'],
+        ['CV', d.cv ? 'Uploaded' : 'Not uploaded'],
+      ]},
+      {title:'Location', rows:[['GPS', d.gps ? d.gps.lat.toFixed(4) + ', ' + d.gps.lng.toFixed(4) : 'Not captured']]},
+      {title:'Account', rows:[['Email', v(d.email)], ['Phone', v(d.phone)]]},
+    ],
+  };
+  return html`
+    <div>
+      ${(sections[role] || []).map((s, si) => html`
+        <div key=${si} class="review-section">
+          <h4>${s.title}</h4>
+          <div class="review-grid">
+            ${s.rows.map(([k, val], ri) => html`<dl key=${ri} class="review-item"><dt>${k}</dt><dd>${val}</dd></dl>`)}
+          </div>
+        </div>`)}
+      <div style="text-align:center;margin-top:8px">
+        <button type="button" class="btn btn-outline btn-sm" onClick=${onEdit}>
+          <i class="fas fa-edit" aria-hidden="true"></i> Edit Information
+        </button>
+      </div>
+    </div>`;
+}
+
+/* ─── LIVENESS CHECK ─────────────────────────────────────────────────────────── */
+function LivenessCheck({onDone}) {
+  const [phase,            setPhase]            = useState('idle');
+  const [phraseSessionId,  setPhraseSessionId]  = useState('');
+  const [phraseText,       setPhraseText]       = useState('');
+  const [phraseInput,      setPhraseInput]      = useState('');
+  const [phraseError,      setPhraseError]      = useState('');
+  const [phraseSubmitting, setPhraseSubmitting] = useState(false);
+  const [phraseLoading,    setPhraseLoading]    = useState(false);
+  const fetchingRef = useRef(false);
+
+  const fetchChallengePhrase = useCallback(async () => {
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
+    setPhraseLoading(true); setPhraseError(''); setPhraseText(''); setPhraseSessionId('');
+    try {
+      const r = await fetch('/api/liveness/session', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'});
+      if (!r.ok) throw new Error('Server error — could not generate challenge phrase.');
+      const data = await r.json();
+      setPhraseSessionId(data.session_id || '');
+      setPhraseText(data.challenge_phrase || '');
+    } catch(e) {
+      setPhraseError(e.message || 'Could not reach server. Check your connection and retry.');
+    } finally {
+      setPhraseLoading(false);
+      fetchingRef.current = false;
+    }
+  }, []);
+
+  const submitChallengePhrase = useCallback(async () => {
+    if (!phraseInput.trim()) { setPhraseError('Please type the phrase shown above.'); return; }
+    if (!phraseSessionId)    { setPhraseError('No active session. Please retry.'); return; }
+    setPhraseSubmitting(true); setPhraseError('');
+    try {
+      const r = await fetch('/api/liveness/complete', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({session_id: phraseSessionId, challenge_response: phraseInput.trim()}),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.detail || 'Challenge validation failed.');
+      setPhase('passed');
+      onDone({passed: true, token: data.liveness_token});
+    } catch(e) {
+      const msg = e.message || 'Incorrect phrase. Please try again.';
+      setPhraseError(msg);
+      if (msg.toLowerCase().includes('expired')) { setPhraseInput(''); fetchChallengePhrase(); }
+    } finally { setPhraseSubmitting(false); }
+  }, [phraseSessionId, phraseInput, onDone, fetchChallengePhrase]);
+
+  const startChallenge = useCallback(async () => {
+    setPhase('challenge_phrase'); setPhraseInput(''); setPhraseError('');
+    await fetchChallengePhrase();
+  }, [fetchChallengePhrase]);
+
+  if (phase === 'passed') return html`
+    <div class="liveness-done" role="status">
+      <i class="fas fa-check-circle" style="font-size:2.5rem;color:#22c55e;margin-bottom:12px;display:block" aria-hidden="true"></i>
+      <p style="color:#22c55e;font-weight:700;font-size:1rem">Identity Verified</p>
+      <p style="color:#64748b;font-size:.82rem;margin-top:4px">Challenge phrase confirmed. Your identity is verified.</p>
+    </div>`;
+
+  if (phase === 'challenge_phrase') return html`
+    <div class="liveness-card">
+      <p style="font-weight:700;font-size:1rem;color:#fff;margin-bottom:4px">
+        <i class="fas fa-shield-alt" style="color:var(--gold);margin-right:6px" aria-hidden="true"></i>Server Challenge Verification
+      </p>
+      <p style="font-size:.82rem;color:#94a3b8;margin-bottom:18px">
+        Type the exact phrase displayed below — include every letter, digit and special character.
+      </p>
+      ${phraseLoading ? html`
+        <div style="text-align:center;padding:28px 0">
+          <i class="fas fa-spinner fa-spin" style="font-size:1.8rem;color:var(--gold);display:block;margin-bottom:10px" aria-hidden="true"></i>
+          <p style="color:#94a3b8;font-size:.85rem">Generating secure challenge phrase…</p>
+        </div>` :
+      phraseText ? html`
+        <div>
+          <div style="background:rgba(255,215,0,.07);border:2px solid rgba(255,215,0,.35);border-radius:10px;padding:18px 20px;text-align:center;margin-bottom:18px" aria-live="polite">
+            <p style="font-size:.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">Your one-time challenge phrase</p>
+            <p style="font-size:1.35rem;font-weight:800;letter-spacing:3px;color:#f5b800;font-family:monospace;word-break:break-all">${phraseText}</p>
+          </div>
+          <p style="font-size:.8rem;color:#94a3b8;margin-bottom:10px">Type it exactly — letters, digits <em>and</em> special characters (case-insensitive):</p>
+          <input type="text" value=${phraseInput}
+            onInput=${e => setPhraseInput(e.target.value)}
+            onKeyDown=${e => { if (e.key === 'Enter' && !phraseSubmitting) submitChallengePhrase(); }}
+            placeholder="e.g. EAGLE@4-LION#72"
+            autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
+            style="width:100%;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:12px 14px;color:#fff;font-size:1rem;font-family:monospace;letter-spacing:2px;text-transform:uppercase;outline:none;margin-bottom:${phraseError ? '8px' : '14px'}"/>
+          ${phraseError ? html`<p style="color:#f87171;font-size:.82rem;margin-bottom:12px" role="alert"><i class="fas fa-exclamation-triangle" aria-hidden="true"></i> ${phraseError}</p>` : ''}
+          <button class="btn btn-gold btn-full" onClick=${submitChallengePhrase} disabled=${phraseSubmitting || !phraseInput.trim()}>
+            ${phraseSubmitting
+              ? html`<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Verifying…`
+              : html`<i class="fas fa-check-circle" aria-hidden="true"></i> Confirm Phrase`}
+          </button>
+        </div>` :
+      html`
+        <div style="text-align:center;padding:14px 0">
+          ${phraseError ? html`<p style="color:#f87171;font-size:.85rem;margin-bottom:16px" role="alert"><i class="fas fa-exclamation-triangle" aria-hidden="true"></i> ${phraseError}</p>` : ''}
+          <button class="btn btn-gold" onClick=${fetchChallengePhrase}><i class="fas fa-redo" aria-hidden="true"></i> Retry</button>
+        </div>`}
+    </div>`;
+
+  return html`
+    <div class="liveness-card">
+      <p style="font-weight:700;font-size:1rem;color:#fff;margin-bottom:4px">
+        <i class="fas fa-shield-alt" style="color:var(--gold);margin-right:6px" aria-hidden="true"></i>Identity Verification
+      </p>
+      <p style="font-size:.82rem;color:#94a3b8;margin-bottom:18px">
+        Our server will generate a unique one-time challenge phrase containing uppercase letters, digits and special characters. Type it exactly to verify your identity.
+      </p>
+      <div style="text-align:center;padding:20px 0 4px">
+        <p style="font-size:.8rem;color:#64748b;margin-bottom:16px">
+          <i class="fas fa-lock" style="color:var(--gold)" aria-hidden="true"></i> The phrase combines letters, numbers and symbols for enhanced security.
+        </p>
+        <button class="btn btn-gold" onClick=${startChallenge}>
+          <i class="fas fa-shield-alt" aria-hidden="true"></i> Start Identity Check
+        </button>
+      </div>
+    </div>`;
+}
+
+/* ─── EMAIL VERIFY OVERLAY ───────────────────────────────────────────────────── */
+function EmailVerifyOverlay({email, code, onCode, onVerify, onResend, submitting, resending, error, success}) {
+  const inputRef = useRef(null);
+  useEffect(() => { if (inputRef.current) inputRef.current.focus(); }, []);
+  if (success) return html`
+    <div class="ev-overlay" role="dialog" aria-modal="true" aria-label="Email verified">
+      <div class="ev-box">
+        <div class="ev-icon done"><i class="fas fa-check-circle" aria-hidden="true"></i></div>
+        <h2 style="color:#22c55e;font-size:1.3rem;font-weight:700;margin-bottom:8px">Email Verified!</h2>
+        <p style="color:#94a3b8;font-size:.88rem">Redirecting you to sign in…</p>
+      </div>
+    </div>`;
+  return html`
+    <div class="ev-overlay" role="dialog" aria-modal="true" aria-label="Verify your email">
+      <div class="ev-box">
+        <div class="ev-icon"><i class="fas fa-envelope-open-text" aria-hidden="true"></i></div>
+        <h2 style="color:#fff;font-size:1.2rem;font-weight:700;margin-bottom:8px">Verify Your Email</h2>
+        <p style="color:#94a3b8;font-size:.85rem;margin-bottom:20px">
+          We sent a 6-digit code to<br/><strong style="color:#f5b800">${email}</strong>
+        </p>
+        <input ref=${inputRef} class="ev-otp-input" type="text" inputmode="numeric" maxlength="6"
+          placeholder="000000" autocomplete="one-time-code" value=${code}
+          aria-label="6-digit verification code"
+          onInput=${e => onCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+          onKeyDown=${e => { if (e.key === 'Enter' && code.length === 6 && !submitting) onVerify(); }}/>
+        ${error ? html`<p style="color:#f87171;font-size:.82rem;margin:10px 0 0" role="alert"><i class="fas fa-exclamation-triangle" aria-hidden="true"></i> ${error}</p>` : ''}
+        <button onClick=${onVerify} disabled=${code.length !== 6 || submitting}
+          style="margin-top:20px;width:100%;max-width:260px;padding:13px;border-radius:8px;border:none;background:#f5b800;color:#1e1e2f;font-size:.92rem;font-weight:700;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+          ${submitting
+            ? html`<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Verifying…`
+            : html`<i class="fas fa-check-circle" aria-hidden="true"></i> Verify Email`}
+        </button>
+        <p style="font-size:.8rem;color:#64748b;margin-top:16px">
+          Didn't get the code?${' '}
+          <button type="button" onClick=${onResend} disabled=${resending}
+            style="background:none;border:none;color:#f5b800;cursor:pointer;font-size:.8rem;font-weight:600;padding:0;font-family:inherit">
+            ${resending ? 'Sending…' : 'Resend code'}
+          </button>
+        </p>
+      </div>
+    </div>`;
+}
+
+/* ─── STEP 1 — CHOOSE ROLE ───────────────────────────────────────────────────── */
+function Step1({selectedRole, setSelectedRole, onNext}) {
+  return html`
+    <div>
+      <p class="page-title">Join EnejiStats</p>
+      <p class="page-sub">Select your role to get started</p>
+      <div class="role-grid" role="radiogroup" aria-label="Select your role">
+        ${ROLE_DEFS.map(role => html`
+          <div key=${role.id}
+            class=${'role-card' + (selectedRole === role.id ? ' selected' : '')}
+            onClick=${() => setSelectedRole(role.id)}
+            role="radio"
+            aria-checked=${selectedRole === role.id}
+            tabIndex="0"
+            onKeyDown=${e => e.key === 'Enter' && setSelectedRole(role.id)}>
+            <div class="check" aria-hidden="true"><i class="fas fa-check" style="font-size:.7rem"></i></div>
+            <span class="role-icon" aria-hidden="true">${role.icon}</span>
+            <h3>${role.label}</h3>
+            <p>${role.desc}</p>
+          </div>`)}
+      </div>
+      <button class="btn btn-gold btn-full" disabled=${!selectedRole} onClick=${onNext}>
+        Continue <i class="fas fa-arrow-right" aria-hidden="true"></i>
+      </button>
+    </div>`;
+}
+
+/* ─── STEP 2 — YOUR DETAILS ──────────────────────────────────────────────────── */
+function Step2({role, d, set, onNext, onBack, legalAccepted, setLegalAccepted, legalRecord, setLegalRecord, posMap, playerLevels, countries, allPositions}) {
+  const [showLegal, setShowLegal] = useState(false);
+
+  const handleLegalAccept = useCallback(async (rendered) => {
+    const now = new Date().toISOString();
+    let record = { accepted: true, accepted_at: now, version: '2.0' };
+    if (rendered) {
+      try {
+        const phs   = getTemplatePlaceholders(d, role);
+        const [th, ph] = await Promise.all([
+          hashContent(rendered.termsText  || rendered.termsHtml  || ''),
+          hashContent(rendered.privText   || rendered.privHtml   || ''),
+        ]);
+        record = {
+          ...record,
+          terms: {
+            version:       '2.0',
+            accepted:      true,
+            accepted_at:   now,
+            rendered_html: rendered.termsHtml  || '',
+            rendered_text: (rendered.termsText || '').trim(),
+            hash_sha256:   th,
+          },
+          privacy: {
+            version:       '2.0',
+            accepted:      true,
+            accepted_at:   now,
+            rendered_html: rendered.privHtml   || '',
+            rendered_text: (rendered.privText  || '').trim(),
+            hash_sha256:   ph,
+          },
+          signer: {
+            full_name:  phs.fullName,
+            email:      phs.email,
+            phone:      phs.phone,
+            user_type:  phs.userType,
+            category:   phs.userCategory,
+            business:   phs.businessName !== 'N/A' ? phs.businessName : undefined,
+          },
+          device: {
+            user_agent: navigator.userAgent,
+            platform:   navigator.platform || '',
+            language:   navigator.language || '',
+            timezone:   Intl.DateTimeFormat().resolvedOptions().timeZone || '',
+          },
+        };
+      } catch(_) {}
+    }
+    setLegalRecord(record);
+    setLegalAccepted(true);
+    setShowLegal(false);
+  }, [d, role, setLegalAccepted, setLegalRecord]);
+  const label = ROLE_DEFS.find(r => r.id === role)?.label || role;
+  const roleForm = () => {
+    switch (role) {
+      case 'player':     return html`<${PlayerFields} d=${d} set=${set} posMap=${posMap} playerLevels=${playerLevels} countries=${countries} allPositions=${allPositions}/>`;
+      case 'club':       return html`<${ClubFields} d=${d} set=${set} countries=${countries}/>`;
+      case 'scout':      return html`<${ScoutFields} d=${d} set=${set} countries=${countries}/>`;
+      case 'agent':      return html`<${AgentFields} d=${d} set=${set} countries=${countries}/>`;
+      case 'dco':        return html`<${DCOFields} d=${d} set=${set} countries=${countries}/>`;
+      case 'supervisor': return html`<${SupervisorFields} d=${d} set=${set} countries=${countries}/>`;
+      default:           return null;
+    }
+  };
+  return html`
+    <div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+        <span style="font-size:1.8rem" aria-hidden="true">${ROLE_DEFS.find(r => r.id === role)?.icon}</span>
+        <div>
+          <p class="form-heading" style="margin:0">Registering as: ${label}</p>
+          <p style="font-size:.78rem;color:#64748b">Fields marked <span style="color:#ef4444" aria-label="required">*</span> are required</p>
+        </div>
+      </div>
+
+      <${CommonFields} d=${d} set=${set} role=${role}/>
+      ${roleForm()}
+
+      <div class="consent-block">
+        <p class="consent-title">Consent & Agreements</p>
+        <div style="display:flex;align-items:flex-start;gap:10px">
+          <input type="checkbox" id="cb-legal" checked=${legalAccepted}
+            style="width:16px;height:16px;margin-top:3px;accent-color:var(--primary);flex-shrink:0"
+            onChange=${e => { if (e.target.checked) setShowLegal(true); else setLegalAccepted(false); }}/>
+          <label for="cb-legal" style="font-size:.88rem;color:#cbd5e1;cursor:pointer;line-height:1.5">
+            I have read and accept the
+            <button type="button" style="background:none;border:none;color:#f5b800;cursor:pointer;padding:0;text-decoration:underline;font-size:.88rem;font-family:inherit"
+              onClick=${e => { e.preventDefault(); setShowLegal(true); }}>
+              Terms of Service & Privacy Policy
+            </button>
+            ${legalAccepted
+              ? html`<i class="fas fa-check-circle" style="color:#22c55e;margin-left:6px" aria-label="Accepted" aria-hidden="true"></i>`
+              : html`<span style="color:#ef4444;font-size:.74rem;display:block;margin-top:2px" role="status">Required before proceeding</span>`}
+          </label>
+        </div>
+        <p style="font-size:.74rem;color:#64748b;margin-top:8px;padding-left:26px">
+          By checking above you confirm you have read both our Terms of Service and Privacy Policy.
+          <button type="button" style="background:none;border:none;color:#94a3b8;cursor:pointer;padding:0;font-size:.74rem;text-decoration:underline;font-family:inherit"
+            onClick=${e => { e.preventDefault(); window.open('/privacy-terms.html', '_blank'); }}>
+            Open in new tab
+          </button>
+        </p>
+      </div>
+
+      <${DocOverlay}
+        open=${showLegal}
+        title="Terms of Service & Privacy Policy"
+        fetchUrl="privacy-terms.html"
+        formData=${d}
+        role=${role}
+        onClose=${() => setShowLegal(false)}
+        onAccept=${handleLegalAccept}/>
+
+      <div class="btn-group">
+        <button class="btn btn-outline" onClick=${onBack}><i class="fas fa-arrow-left" aria-hidden="true"></i> Back</button>
+        <button class="btn btn-gold" onClick=${onNext} disabled=${!legalAccepted || (role === 'club' && !d.clubOfficeGps) || ((role === 'scout' || role === 'agent') && !d.gps)}>Next <i class="fas fa-arrow-right" aria-hidden="true"></i></button>
+      </div>
+    </div>`;
+}
+
+/* ─── STEP 3 — LIVENESS & REVIEW ────────────────────────────────────────────── */
+function Step3({role, d, onBack, onSubmit, submitting, submitError, countries}) {
+  const [livenessPassed, setLivenessPassed] = useState(false);
+  const [livenessToken,  setLivenessToken]  = useState(null);
+  const [showConfirm,    setShowConfirm]    = useState(false);
+
+  const openConfirm = () => {
+    if (!livenessPassed) { showToast('Complete liveness verification first', 'error'); return; }
+    setShowConfirm(true);
+  };
+  const closeConfirm = () => { if (!submitting) setShowConfirm(false); };
+
+  return html`
+    <div>
+      <p class="form-heading">Identity Challenge & Review</p>
+      <${LivenessCheck} onDone=${result => { setLivenessPassed(true); setLivenessToken(result?.token || null); }}/>
+      <div style="margin-top:24px">
+        <p style="font-size:.78rem;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:14px">Review Your Information</p>
+        <${ReviewSection} role=${role} d=${d} onEdit=${onBack} countries=${countries}/>
+      </div>
+      <div class="note-card" style="margin-bottom:24px">
+        <p><strong>Once registered:</strong></p>
+        <ul>
+          <li>Check your email for a verification link.</li>
+          <li>Club, Data-Collection Officer, and Supervisor accounts require admin review before full access.</li>
+          <li>Your identity was verified via a secure, server-issued challenge phrase — no camera required.</li>
+        </ul>
+      </div>
+      ${!showConfirm && submitError ? html`
+        <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:12px;margin-bottom:16px;font-size:.88rem;color:#f87171" role="alert">
+          <i class="fas fa-exclamation-triangle" aria-hidden="true"></i> ${submitError}
+        </div>` : ''}
+      <div class="btn-group">
+        <button class="btn btn-outline" onClick=${onBack} disabled=${submitting}>
+          <i class="fas fa-arrow-left" aria-hidden="true"></i> Back
+        </button>
+        <button class="btn btn-gold" disabled=${!livenessPassed || submitting} onClick=${openConfirm}>
+          <i class="fas fa-user-check" aria-hidden="true"></i> Create My Account
+        </button>
+      </div>
+      ${showConfirm ? html`
+        <${ConfirmSubmitModal}
+          role=${role}
+          email=${d.email || ''}
+          onCancel=${closeConfirm}
+          onConfirm=${() => onSubmit(livenessToken)}
+          submitting=${submitting}
+          submitError=${submitError}/>` : ''}
+    </div>`;
+}
+
+/* ─── CONFIRM-SUBMIT MODAL ───────────────────────────────────────────────────── */
+function ConfirmSubmitModal({role, email, onCancel, onConfirm, submitting, submitError}) {
+  const roleLabel = ROLE_DEFS.find(r => r.id === role)?.label || role;
+
+  const reviewNote = {
+    club:       'Club accounts require admin review before full platform access is granted. You will be notified once approved.',
+    dco:        'DCO accounts will be reviewed and assigned by a Supervisor before you can collect match data. You will be notified once approved.',
+    supervisor: 'Supervisor accounts will be reviewed by the admin team before you can oversee DCOs. You will be notified once approved.',
+  }[role];
+
+  const verifiedNote = {
+    player:     'your player profile will be live and visible to clubs and scouts on the platform',
+    club:       'your club registration will be submitted for admin review',
+    scout:      'you will be able to start scouting and filing match reports on the platform',
+    agent:      'your agent profile will be visible to players and clubs on the platform',
+    dco:        'your DCO application will be submitted for Supervisor review and assignment',
+    supervisor: 'your Supervisor application will be submitted for admin review',
+  }[role] || 'your account will be activated';
+
+  useEffect(() => {
+    const onKey = e => { if (e.key === 'Escape' && !submitting) onCancel(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [submitting, onCancel]);
+
+  return html`
+    <div class="csm-overlay" role="dialog" aria-modal="true" aria-label="Confirm registration"
+      onClick=${e => { if (e.target === e.currentTarget && !submitting) onCancel(); }}>
+      <div class="csm-card">
+        <div class="csm-head">
+          <div style="width:62px;height:62px;border-radius:50%;background:rgba(245,184,0,.12);border:2px solid rgba(245,184,0,.5);display:flex;align-items:center;justify-content:center;margin:0 auto 14px">
+            <i class="fas fa-paper-plane" style="font-size:1.55rem;color:#f5b800" aria-hidden="true"></i>
+          </div>
+          <h2 style="color:#fff;font-size:1.18rem;font-weight:700;margin-bottom:8px">
+            Ready to submit your registration?
+          </h2>
+          <p style="color:#94a3b8;font-size:.85rem;margin:0;line-height:1.6">
+            Your <strong style="color:#f5b800">${roleLabel}</strong> account will be created and a verification email
+            will be sent to <strong style="color:#f5b800">${email || 'your email address'}</strong>.
+          </p>
+        </div>
+        <div class="csm-body">
+          <div class="csm-next-box">
+            <p style="font-size:.78rem;color:#4ade80;font-weight:700;margin-bottom:9px">
+              <i class="fas fa-list-check" aria-hidden="true"></i>&nbsp; What will happen next?
+            </p>
+            <ol style="font-size:.82rem;color:#94a3b8;line-height:1.95;padding-left:18px;margin:0">
+              <li>
+                A <strong style="color:#e2e8f0">verification link</strong> will be sent to
+                <strong style="color:#f5b800">${email || 'your email address'}</strong>
+              </li>
+              <li>Click <em style="color:#e2e8f0">Verify My Email</em> — it will open in a new tab</li>
+              <li>Once verified, <span style="color:#e2e8f0">${verifiedNote}</span></li>
+              <li>Return here and sign in to access your dashboard</li>
+            </ol>
+          </div>
+          ${reviewNote ? html`
+            <div class="csm-review-note">
+              <i class="fas fa-clock" style="color:#f5b800;margin-right:6px" aria-hidden="true"></i>
+              <strong style="color:#f5b800">Pending Review —</strong> ${reviewNote}
+            </div>` : ''}
+          <p class="csm-expiry">
+            <i class="fas fa-hourglass-half" aria-hidden="true"></i>&nbsp;
+            The verification link will expire in <strong style="color:#94a3b8">24 hours</strong>.
+            Check your spam folder if it doesn't arrive.
+          </p>
+          ${submitError ? html`
+            <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:12px;margin-top:14px;font-size:.85rem;color:#f87171;line-height:1.5" role="alert">
+              <i class="fas fa-exclamation-triangle" aria-hidden="true"></i> ${submitError}
+            </div>` : ''}
+        </div>
+        <div class="csm-foot">
+          <button class="btn btn-outline" onClick=${onCancel} disabled=${submitting}
+            aria-label="Cancel and go back to review">
+            <i class="fas fa-times" aria-hidden="true"></i> Cancel
+          </button>
+          <button class="btn btn-gold" onClick=${onConfirm} disabled=${submitting}
+            aria-label="Confirm and submit registration">
+            ${submitting
+              ? html`<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Creating account…`
+              : html`<i class="fas fa-paper-plane" aria-hidden="true"></i> Confirm & Submit`}
+          </button>
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ─── SUCCESS PAGE ───────────────────────────────────────────────────────────── */
+function SuccessPage({role, userData}) {
+  const label = ROLE_DEFS.find(r => r.id === role)?.label || role;
+  const email = userData?.email || '';
+  return html`
+    <div style="text-align:center;padding:40px 20px">
+      <div style="width:84px;height:84px;border-radius:50%;background:rgba(34,197,94,.12);border:3px solid #22c55e;display:flex;align-items:center;justify-content:center;margin:0 auto 22px" role="img" aria-label="Success">
+        <i class="fas fa-envelope-open-text" style="font-size:2.2rem;color:#22c55e" aria-hidden="true"></i>
+      </div>
+      <h2 style="color:#fff;font-size:1.55rem;margin-bottom:12px">Check Your Email!</h2>
+      <p style="color:#94a3b8;margin-bottom:8px">
+        Your <strong style="color:#f5b800">${label}</strong> account has been created successfully.
+      </p>
+      <p style="color:#94a3b8;font-size:.88rem;margin-bottom:8px">
+        A <strong style="color:#e2e8f0">verification link</strong> has been sent to
+        ${email ? html`<strong style="color:#f5b800">${email}</strong>` : 'your email address'}.
+      </p>
+      <p style="color:#94a3b8;font-size:.84rem;margin-bottom:24px">
+        Click the link in that email to activate your account. The link expires in <strong style="color:#e2e8f0">24 hours</strong>.
+      </p>
+      <div style="background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.25);border-radius:10px;padding:16px 20px;margin:0 auto 24px;max-width:380px;text-align:left">
+        <p style="font-size:.8rem;color:#4ade80;font-weight:700;margin-bottom:8px">
+          <i class="fas fa-info-circle" aria-hidden="true"></i> What happens next?
+        </p>
+        <ol style="font-size:.82rem;color:#94a3b8;line-height:1.9;padding-left:18px;margin:0">
+          <li>Open the verification email in your inbox (check spam too)</li>
+          <li>Click <em style="color:#e2e8f0">Verify My Email</em> — it opens in a new tab</li>
+          <li>Once verified you will receive a welcome email with your account details</li>
+          <li>Return here and sign in to access your dashboard</li>
+        </ol>
+      </div>
+      <a href="/login.html" class="btn btn-gold btn-full" style="max-width:300px;margin:0 auto 12px;display:flex">
+        <i class="fas fa-sign-in-alt" aria-hidden="true"></i> Go to Sign In
+      </a>
+      <p style="font-size:.76rem;color:#475569;margin-top:12px">
+        Didn't receive it? Check your spam folder or contact
+        <a href="mailto:enejistats@gmail.com">enejistats@gmail.com</a>
+      </p>
+    </div>`;
+}
+
+/* ─── ROOT APP ───────────────────────────────────────────────────────────────── */
+function App() {
+  const [step,          setStep]         = useState(1);
+  const [role,          setRole]         = useState(null);
+  const [formData,      setFormData]     = useState({country: 'NG'});
+  const [legalAccepted, setLegal]        = useState(false);
+  const [legalRecord,   setLegalRecord] = useState(null);
+  const [submitting,    setSubmitting]   = useState(false);
+  const [submitError,   setSubmitError]  = useState('');
+  const [success,       setSuccess]      = useState(false);
+  const [userData,      setUserData]     = useState(null);
+  const [otpState,      setOtpState]     = useState(null);
+  const [otpCode,       setOtpCode]      = useState('');
+  const [otpError,      setOtpError]     = useState('');
+  const [otpSubmitting, setOtpSubmitting] = useState(false);
+  const [otpResending,  setOtpResending]  = useState(false);
+  const [otpSuccess,    setOtpSuccess]    = useState(false);
+
+  const { posMap, playerLevels, countries, allPositions } = usePlatformConfig();
+  const set = useCallback((field, value) => setFormData(prev => ({...prev, [field]: value})), []);
+
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const r = p.get('role');
+    if (r && ROLE_DEFS.some(x => x.id === r)) { setRole(r); setStep(2); }
+  }, []);
+
+  const buildPayload = useCallback(livenessToken => {
+    const d = formData;
+    const base = {
+      role,
+      email:             d.email,
+      password:          d.password,
+      phone:             d.phone,
+      whatsapp:          d.samePhone ? d.phone : d.whatsapp,
+      country:           d.country,
+      state:             d.state,
+      lga:               d.lga,
+      liveness_verified: true,
+      liveness_token:    livenessToken || ('lv_' + Date.now().toString(36)),
+      gps_lat:           d.gps?.lat,
+      gps_lng:           d.gps?.lng,
+      terms_accepted_at:  legalRecord ? (legalRecord.accepted_at || new Date().toISOString()) : new Date().toISOString(),
+      legal_acceptance:   legalRecord || { accepted: true, accepted_at: new Date().toISOString(), version: '2.0' },
+    };
+    switch (role) {
+      case 'player':
+        return { ...base,
+          player_level:        d.playerLevel,
+          first_name:          d.firstName,
+          middle_name:         d.middleName,
+          last_name:           d.lastName,
+          dob:                 d.dob,
+          dob_visible:         d.dobVisible || false,
+          gender:              d.gender,
+          height:              d.height,
+          weight:              d.weight,
+          nationality:         d.nationality,
+          dominant_foot:       d.dominantFoot,
+          position_category:   d.positionCategory,
+          preferred_position:  d.preferredPosition,
+          secondary_positions: d.secondaryPositions || [],
+          club_id:             d.clubId,
+          current_club:        d.currentClub,
+          detailed_address:    d.detailedAddress,
+        };
+      case 'club':
+        return { ...base,
+          full_name:             d.fullName,
+          club_level:            d.clubLevel,
+          club_name:             d.clubName,
+          club_nickname:         d.clubNickname,
+          city:                  d.city || '',
+          founded:               d.founded,
+          stadium:               d.primaryGround ? (d.primaryGround.venue_name || d.primaryGround.name || '') : '',
+          stadium_address:       d.stadiumAddress || (d.primaryGround ? (d.primaryGround.full_address || d.primaryGround.address || '') : ''),
+          stadium_gps_lat:       d.primaryGround ? (d.primaryGround.gps_lat || (d.primaryGround.gps && d.primaryGround.gps.lat) || null) : null,
+          stadium_gps_lng:       d.primaryGround ? (d.primaryGround.gps_lng || (d.primaryGround.gps && d.primaryGround.gps.lng) || null) : null,
+          primary_ground_id:     d.primaryGround ? (d.primaryGround._id || d.primaryGround.venue_id || '') : '',
+          club_office_gps_lat:   d.clubOfficeGps?.lat || null,
+          club_office_gps_lng:   d.clubOfficeGps?.lng || null,
+          has_secondary_stadium: !!d.secondaryGround,
+          stadium2:              d.secondaryGround ? (d.secondaryGround.venue_name || d.secondaryGround.name || '') : '',
+          stadium2_address:      d.secondaryGround ? (d.secondaryGround.full_address || '') : '',
+          stadium_gps2_lat:      d.secondaryGround ? (d.secondaryGround.gps_lat || (d.secondaryGround.gps && d.secondaryGround.gps.lat) || null) : null,
+          stadium_gps2_lng:      d.secondaryGround ? (d.secondaryGround.gps_lng || (d.secondaryGround.gps && d.secondaryGround.gps.lng) || null) : null,
+          secondary_ground_id:   d.secondaryGround ? (d.secondaryGround._id || d.secondaryGround.venue_id || '') : '',
+          club_email:            d.clubEmail,
+          club_phone:            d.clubPhone,
+          website:               d.website,
+          is_registered:         d.isRegistered || '',
+          cac_number:            d.isRegistered === 'registered' ? (d.cacNumber || '') : '',
+        };
+      case 'scout':
+        return { ...base,
+          full_name:        d.fullName,
+          dob:              d.dob,
+          nationality:      d.nationality,
+          gender:           d.gender,
+          affiliation_type: d.affiliationType,
+          affiliated_club:  d.affiliatedClub,
+          role_in_org:      d.roleInOrg,
+          operating_region: d.operatingRegion,
+          years_experience: d.yearsExperience,
+          specialization:   d.specialization,
+          linkedin:         d.linkedin,
+          instagram:        d.instagram,
+          bio:              d.bio,
+          detailed_address: d.detailedAddress,
+        };
+      case 'agent':
+        return { ...base,
+          full_name: d.agentType === 'individual'
+            ? ([d.firstName, d.lastName].filter(Boolean).join(' ') || d.fullName)
+            : (d.agencyName || d.fullName),
+          account_type:            d.agentType,
+          dob:                     d.dob,
+          nationality:             d.nationality,
+          gender:                  d.gender,
+          fifa_license:            d.fifaLicense,
+          agency_name:             d.agencyName,
+          registration_number:     d.registrationNumber,
+          country_of_registration: d.countryOfRegistration,
+          website:                 d.website,
+          instagram:               d.instagram,
+          linkedin:                d.linkedin,
+          years_experience:        d.yearsExperience,
+          bio:                     d.bio,
+          detailed_address:        d.detailedAddress,
+        };
+      case 'dco':
+        return { ...base,
+          full_name:        d.fullName,
+          dob:              d.dob,
+          gender:           d.gender,
+          languages:        (d.languages || []).join(', '),
+          education_level:  d.educationLevel,
+          applicant_type:   'dco',
+          detailed_address: d.detailedAddress,
+        };
+      case 'supervisor':
+        return { ...base,
+          full_name:           d.fullName,
+          dob:                 d.dob,
+          gender:              d.gender,
+          languages:           (d.languages || []).join(', '),
+          states_of_operation: d.statesOfOp || [],
+          years_experience:    d.yearsExperience,
+          education_level:     d.educationLevel,
+          applicant_type:      'supervisor',
+          detailed_address:    d.detailedAddress,
+        };
+      default:
+        return base;
+    }
+  }, [role, formData]);
+
+  const handleVerifyOtp = useCallback(async () => {
+    if (!otpState || otpCode.length !== 6) return;
+    setOtpSubmitting(true); setOtpError('');
+    try {
+      const r = await fetch('/api/auth/verify-registration-otp', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({user_id: otpState.user_id, role: otpState.role, otp: otpCode}),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || 'Verification failed. Please try again.');
+      setOtpSuccess(true);
+      showToast('Email verified! Welcome to EnejiStats.', 'success');
+      setTimeout(() => {
+        setOtpState(null); setOtpSuccess(false); setOtpCode('');
+        setUserData(otpState); setSuccess(true);
+      }, 1500);
+    } catch(e) {
+      setOtpError(e.message || 'Invalid code. Please try again.');
+    } finally { setOtpSubmitting(false); }
+  }, [otpState, otpCode]);
+
+  const handleResendOtp = useCallback(async () => {
+    if (!otpState) return;
+    setOtpResending(true); setOtpError('');
+    try {
+      const r = await fetch('/api/auth/resend-registration-otp', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({user_id: otpState.user_id, role: otpState.role}),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || 'Could not resend code.');
+      showToast('New code sent to your email.', 'info');
+      setOtpCode('');
+    } catch(e) {
+      setOtpError(e.message || 'Could not resend code. Please wait and try again.');
+    } finally { setOtpResending(false); }
+  }, [otpState]);
+
+  const handleSubmit = useCallback(async livenessToken => {
+    setSubmitting(true); setSubmitError('');
+    {
+      const d = formData;
+      if (!d.country) {
+        setSubmitError('Country is required. Please select your country.');
+        setSubmitting(false); return;
+      }
+      if (!d.state) {
+        setSubmitError('State / Region is required. Please select your state.');
+        setSubmitting(false); return;
+      }
+      if (!d.lga) {
+        setSubmitError('LGA / Local area is required. Please select your local area.');
+        setSubmitting(false); return;
+      }
+      if (role !== 'club' && !(d.detailedAddress || '').trim()) {
+        setSubmitError('Street / detailed address is required.');
+        setSubmitting(false); return;
+      }
+      if (role === 'club' && !d.primaryGround) {
+        setSubmitError('Primary Ground is required — select a registered venue from the Club form.');
+        setSubmitting(false); return;
+      }
+      if (role === 'club' && !d.city) {
+        setSubmitError('City / District is required. Please enter the city or district name in the Location section.');
+        setSubmitting(false); return;
+      }
+      // Stadium address is now auto-sourced from the selected venue record — no manual validation needed.
+      if (role === 'club' && !d.clubOfficeGps) {
+        setSubmitError('Club Office / Location GPS is required. Please capture your GPS coordinates.');
+        setSubmitting(false); return;
+      }
+      if ((role === 'scout' || role === 'agent' || role === 'dco' || role === 'supervisor') && !d.gps) {
+        setSubmitError('GPS location is required. Please capture your GPS coordinates.');
+        setSubmitting(false); return;
+      }
+    }
+    const payload = buildPayload(livenessToken);
+    const fd = new FormData();
+    Object.entries(payload).forEach(([k, v]) => {
+      if (v != null) fd.append(k, Array.isArray(v) || typeof v === 'object' ? JSON.stringify(v) : v);
+    });
+    if (formData.profilePhoto) fd.append('photo', formData.profilePhoto);
+    if (formData.logo)         fd.append('logo',  formData.logo);
+    if (formData.cv)           fd.append('cv',    formData.cv);
+    try {
+      const r = await fetch('/api/auth/register', {method: 'POST', body: fd, credentials: 'include'});
+      let data;
+      try { data = await r.json(); } catch { data = {}; }
+      if (!r.ok) throw new Error(data.detail || data.message || 'Registration failed. Please try again.');
+      if (data.requires_otp) {
+        setOtpState({user_id: data.user_id, role: data.role, email: data.email, name: data.name});
+        setOtpCode(''); setOtpError(''); setOtpSuccess(false);
+        showToast('Account created! Enter the 6-digit code sent to your email.', 'success');
+      } else {
+        setUserData(data); setSuccess(true);
+        showToast('Account created! Please verify your email to continue.', 'success');
+      }
+    } catch(err) {
+      setSubmitError(err.message || 'Something went wrong — please try again.');
+    } finally { setSubmitting(false); }
+  }, [buildPayload, formData]);
+
+  const renderContent = () => {
+    if (success) return html`<${SuccessPage} role=${role} userData=${userData}/>`;
+    switch (step) {
+      case 1: return html`<${Step1} selectedRole=${role} setSelectedRole=${setRole} onNext=${() => setStep(2)}/>`;
+      case 2: return html`<${Step2} role=${role} d=${formData} set=${set}
+                  onNext=${() => setStep(3)} onBack=${() => setStep(1)}
+                  legalAccepted=${legalAccepted} setLegalAccepted=${setLegal}
+                  legalRecord=${legalRecord} setLegalRecord=${setLegalRecord}
+                  posMap=${posMap} playerLevels=${playerLevels} countries=${countries} allPositions=${allPositions}/>`;
+      case 3: return html`<${Step3} role=${role} d=${formData}
+                  onBack=${() => setStep(2)} onSubmit=${handleSubmit}
+                  submitting=${submitting} submitError=${submitError} countries=${countries}/>`;
+    }
+  };
+
+  return html`
+    <div>
+      ${otpState ? html`<${EmailVerifyOverlay}
+        email=${otpState.email}
+        code=${otpCode}
+        onCode=${c => { setOtpCode(c); setOtpError(''); }}
+        onVerify=${handleVerifyOtp}
+        onResend=${handleResendOtp}
+        submitting=${otpSubmitting}
+        resending=${otpResending}
+        error=${otpError}
+        success=${otpSuccess}
+      />` : null}
+      <${SiteHeader}/>
+      <div class="auth-layout">
+        <aside class="brand-panel" aria-label="Platform features">
+          <${Logo} size=${36}/>
+          <h2>Africa's Trusted<br/>Football Data Platform</h2>
+          <p>Join thousands of players, clubs, scouts, and agents using verified data to connect talent with opportunity across Africa.</p>
+          <ul class="bp-features">
+            ${[
+              ['chart-line',   'Data-driven player statistics'],
+              ['shield-alt',   'Verified identities & liveness check'],
+              ['globe-africa', 'Pan-African talent network'],
+              ['handshake',    'Secure agent-player connections'],
+              ['trophy',       'Leaderboards & rankings'],
+              ['lock',         'Your data, always protected'],
+            ].map(([ic, txt], i) => html`
+              <li key=${i}><i class=${'fas fa-' + ic} aria-hidden="true"></i><span dangerouslySetInnerHTML=${{__html: txt}}></span></li>`)}
+          </ul>
+          <p class="tagline">"Tracking talent with precision, integrity and reliability."</p>
+        </aside>
+        <div class="form-panel">
+          <div class="form-card">
+            ${!success ? html`<${StepIndicator} current=${step - 1}/>` : null}
+            ${renderContent()}
+            ${!success ? html`
+  <div class="auth-links">
+    <span class="auth-links-text">Already have an account?</span>
+    <a href="/login.html" class="auth-link">Sign in</a>
+    <span class="auth-divider" aria-hidden="true"></span>
+    <a href="/forgot-password.html" class="auth-link">Forgot password?</a>
+  </div>` : ''}
+          </div>
+        </div>
+      </div>
+      <${SiteFooter}/>
+      <${ToastContainer}/>
+    </div>`;
+}
+
+render(html`<${App}/>`, document.getElementById('app'));
+})();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/sw.js', {scope: '/'})
+      .then(function(reg) {
+        reg.addEventListener('updatefound', function() {
+          var nw = reg.installing;
+          if (nw) nw.addEventListener('statechange', function() {
+            if (nw.state === 'installed' && navigator.serviceWorker.controller) nw.postMessage({type: 'SKIP_WAITING'});
+          });
+        });
+      })
+      .catch(function(err) { console.warn('SW registration failed (non-fatal):', err); });
+    navigator.serviceWorker.addEventListener('controllerchange', function() { window.location.reload(); });
+  });
+}
+</script>
+</body>
+</html>

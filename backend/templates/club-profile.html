@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Club Profile — EnejiStats</title>
+  <meta name="description" content="View verified club statistics, squad, and match history on EnejiStats."/>
+  <script src="https://unpkg.com/preact@10.19.3/dist/preact.umd.js"></script>
+  <script src="https://unpkg.com/preact@10.19.3/hooks/dist/hooks.umd.js"></script>
+  <script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --primary:#004aad;--primary-light:#0066cc;--gold:#f5b800;--header-bg:#162060;--dark-bg:#1e1e2f;--page-bg:#0f172a;
+      --success:#22c55e;--warning:#f59e0b;--danger:#ef4444;--muted:#94a3b8;--line:rgba(255,255,255,0.08);
+      --radius:12px;--font:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
+    }
+    html{scroll-behavior:smooth}
+    body{font-family:var(--font);background:var(--page-bg);color:#e2e8f0;line-height:1.6;overflow-x:hidden}
+    a{text-decoration:none;color:inherit}
+    ul{list-style:none}
+    .container{max-width:1100px;margin:0 auto;padding:0 1rem}
+
+    /* HEADER */
+    .site-header{position:sticky;top:0;z-index:1000;background:var(--header-bg)}
+    .header-stripe{height:4px;background:var(--gold)}
+    .header-inner{display:flex;align-items:center;justify-content:space-between;height:82px;padding:0 1rem;max-width:1200px;margin:0 auto;overflow:visible}
+    .nav-desktop{display:none;gap:0.25rem;align-items:center}
+    @media(min-width:769px){.nav-desktop{display:flex}}
+    .nav-desktop a{color:rgba(255,255,255,0.8);font-size:0.88rem;font-weight:500;padding:0.4rem 0.6rem;border-radius:6px;transition:color 0.2s}
+    .nav-desktop a:hover,.nav-desktop a.active{color:#fff;background:rgba(255,255,255,0.1)}
+    .btn-nav{background:var(--gold);color:#0f172a!important;padding:0.45rem 1rem!important;border-radius:8px;font-weight:700!important}
+    .hamburger{display:flex;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:4px}
+    @media(min-width:769px){.hamburger{display:none}}
+    .hamburger span{display:block;width:22px;height:2px;background:#fff;border-radius:2px}
+    .mobile-nav{display:none;position:fixed;inset:0;background:var(--header-bg);z-index:2000;flex-direction:column;padding:1.5rem;gap:0.25rem}
+    .mobile-nav.open{display:flex}
+    .mobile-nav-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem}
+    .mobile-nav a{color:rgba(255,255,255,0.85);font-size:1.05rem;font-weight:500;padding:0.8rem;border-radius:8px;display:block}
+    .mobile-nav a:hover{background:rgba(255,255,255,0.1);color:#fff}
+    .close-btn{background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer}
+    .dropdown{position:relative}
+    .dropdown-menu{display:none;position:absolute;top:calc(100%+6px);left:0;background:#1e1e2f;border:1px solid var(--line);border-radius:10px;min-width:160px;overflow:hidden;z-index:200}
+    .dropdown:hover .dropdown-menu{display:block}
+    .dropdown-menu a{display:block;padding:0.65rem 1rem;color:rgba(255,255,255,0.8);font-size:0.88rem}
+    .dropdown-menu a:hover{background:rgba(255,255,255,0.08);color:#fff}
+
+    /* HERO */
+    .profile-hero{background:linear-gradient(135deg,var(--header-bg),#0d1b3e);border-bottom:4px solid var(--gold);padding:2.5rem 0}
+    .hero-grid{display:grid;grid-template-columns:1fr;gap:1.5rem;align-items:center}
+    @media(min-width:700px){.hero-grid{grid-template-columns:auto 1fr}}
+    .club-badge{width:120px;height:120px;border-radius:12px;background:rgba(255,255,255,0.08);border:3px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:2.5rem;font-weight:700;color:var(--gold);overflow:hidden;flex-shrink:0;margin:0 auto}
+    @media(min-width:700px){.club-badge{margin:0}}
+    .club-badge img{width:100%;height:100%;object-fit:contain;background:rgba(255,255,255,0.05)}
+    .club-info h1{font-size:clamp(1.3rem,3.5vw,2rem);font-weight:800;color:#fff;margin-bottom:0.5rem;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap}
+    .verified-badge{background:rgba(0,74,173,0.3);color:#93c5fd;padding:0.2rem 0.65rem;border-radius:20px;font-size:0.72rem;font-weight:700;border:1px solid rgba(0,74,173,0.5);display:inline-flex;align-items:center;gap:0.3rem}
+    .hero-meta-row{display:flex;flex-wrap:wrap;gap:1rem;margin:0.5rem 0 1rem;font-size:0.85rem;color:rgba(255,255,255,0.7)}
+    .hero-meta-row span{display:flex;align-items:center;gap:0.4rem}
+    .hero-stats-grid{display:flex;gap:1.25rem;flex-wrap:wrap}
+    .hs{text-align:center;background:rgba(255,255,255,0.06);border-radius:8px;padding:0.75rem 1.25rem;min-width:70px}
+    .hs-val{font-size:1.5rem;font-weight:900;color:var(--gold);line-height:1}
+    .hs-label{font-size:0.68rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-top:0.3rem}
+    .hero-actions{display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:1rem}
+    .btn-sm-gold{background:var(--gold);color:#0f172a;padding:0.5rem 1rem;border-radius:7px;font-weight:700;font-size:0.85rem;transition:opacity 0.2s}
+    .btn-sm-gold:hover{opacity:0.9}
+    .btn-sm-outline{background:transparent;border:1px solid rgba(255,255,255,0.25);color:#fff;padding:0.5rem 1rem;border-radius:7px;font-weight:600;font-size:0.85rem;transition:all 0.2s}
+    .btn-sm-outline:hover{border-color:#fff}
+
+    /* CONTENT */
+    .content-wrap{padding:2rem 0 3rem}
+    .content-grid{display:grid;grid-template-columns:1fr;gap:1.5rem}
+    @media(min-width:900px){.content-grid{grid-template-columns:280px 1fr}}
+
+    /* INFO CARD */
+    .info-card{background:var(--dark-bg);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin-bottom:1.5rem}
+    .card-head{background:rgba(0,0,0,0.2);padding:0.85rem 1.25rem;font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:0.5rem}
+    .card-head i{color:var(--gold)}
+    .info-rows .info-row{display:flex;justify-content:space-between;padding:0.7rem 1.25rem;border-bottom:1px solid var(--line);font-size:0.85rem;align-items:center}
+    .info-rows .info-row:last-child{border-bottom:none}
+    .info-row-label{color:var(--muted)}
+    .info-row-val{font-weight:600;text-align:right}
+
+    /* SEASON STATS */
+    .stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;margin-bottom:1.5rem}
+    @media(min-width:500px){.stat-grid{grid-template-columns:repeat(4,1fr)}}
+    .stat-card{background:var(--dark-bg);border:1px solid var(--line);border-radius:var(--radius);padding:1.25rem;text-align:center}
+    .stat-val{font-size:2rem;font-weight:900;color:var(--gold)}
+    .stat-label{font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-top:0.3rem}
+
+    /* TABS */
+    .tabs-bar{display:flex;gap:0.25rem;border-bottom:1px solid var(--line);margin-bottom:1.5rem;overflow-x:auto}
+    .tab-btn{background:none;border:none;cursor:pointer;font-weight:600;font-size:0.9rem;color:var(--muted);padding:0.7rem 1rem;border-bottom:3px solid transparent;transition:all 0.2s;white-space:nowrap}
+    .tab-btn.active{color:var(--gold);border-bottom-color:var(--gold)}
+
+    /* SQUAD TABLE */
+    .squad-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem}
+    @media(min-width:500px){.squad-grid{grid-template-columns:repeat(3,1fr)}}
+    @media(min-width:768px){.squad-grid{grid-template-columns:repeat(4,1fr)}}
+    .squad-card{background:var(--dark-bg);border:1px solid var(--line);border-radius:var(--radius);padding:1rem;text-align:center;cursor:pointer;transition:border-color 0.2s,transform 0.2s}
+    .squad-card:hover{border-color:var(--gold);transform:translateY(-3px)}
+    .squad-avatar{width:50px;height:50px;border-radius:50%;background:var(--header-bg);border:2px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:700;color:var(--gold);margin:0 auto 0.5rem;overflow:hidden}
+    .squad-avatar img{width:100%;height:100%;object-fit:cover}
+    .squad-name{font-size:0.82rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .squad-pos{font-size:0.72rem;color:var(--muted);margin-top:0.15rem}
+    .squad-no{font-size:0.75rem;color:var(--gold);font-weight:700}
+
+    /* MATCH TABLE */
+    .match-table-wrap{background:var(--dark-bg);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;overflow-x:auto}
+    .match-table{width:100%;border-collapse:collapse;min-width:480px}
+    .match-table th{padding:0.7rem 1rem;font-size:0.72rem;text-transform:uppercase;color:var(--muted);text-align:left;background:rgba(0,0,0,0.2);border-bottom:1px solid var(--line)}
+    .match-table td{padding:0.7rem 1rem;border-bottom:1px solid var(--line);font-size:0.85rem;vertical-align:middle}
+    .match-table tr:last-child td{border-bottom:none}
+    .result-badge{display:inline-block;width:24px;height:24px;border-radius:50%;text-align:center;line-height:24px;font-size:0.72rem;font-weight:700}
+    .result-w{background:rgba(34,197,94,0.2);color:#22c55e;border:1px solid rgba(34,197,94,0.4)}
+    .result-d{background:rgba(245,158,11,0.2);color:#f59e0b;border:1px solid rgba(245,158,11,0.4)}
+    .result-l{background:rgba(239,68,68,0.2);color:#ef4444;border:1px solid rgba(239,68,68,0.4)}
+
+    /* PAGINATION */
+    .pagination{display:flex;justify-content:center;gap:0.4rem;margin-top:1.5rem;flex-wrap:wrap}
+    .page-btn{width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:7px;border:1px solid var(--line);background:var(--dark-bg);cursor:pointer;font-weight:600;color:#e2e8f0;font-size:0.85rem;transition:all 0.2s}
+    .page-btn:hover:not(:disabled){border-color:var(--gold);color:var(--gold)}
+    .page-btn.active{background:var(--gold);color:#0f172a;border-color:var(--gold)}
+    .page-btn:disabled{opacity:0.4;cursor:not-allowed}
+
+    /* PAYWALL */
+    .paywall-card{background:rgba(245,184,0,0.08);border:1px solid rgba(245,184,0,0.3);border-radius:var(--radius);padding:2rem;text-align:center;margin-top:1.5rem}
+    .paywall-card h3{font-size:1.1rem;margin-bottom:0.5rem}
+    .paywall-card p{color:var(--muted);font-size:0.9rem;margin-bottom:1.25rem}
+
+    /* SKELETON */
+    .skeleton{background:linear-gradient(90deg,#1e1e2f 25%,#2a2a40 50%,#1e1e2f 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:6px}
+    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+    /* NOT FOUND */
+    .not-found{text-align:center;padding:6rem 1rem}
+    .not-found i{font-size:4rem;color:var(--muted);margin-bottom:1.5rem;display:block}
+
+    /* FOOTER */
+    .site-footer{background:#0a0a14;border-top:1px solid var(--line);padding:3.5rem 1rem 1.5rem}
+    .footer-grid{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr;gap:2.5rem}
+    @media(min-width:600px){.footer-grid{grid-template-columns:1fr 1fr}}
+    @media(min-width:992px){.footer-grid{grid-template-columns:1.6fr 1fr 1fr 1fr}}
+    .footer-col h4{color:#fff;font-size:0.85rem;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:1rem}
+    .footer-col p,.footer-col ul a{font-size:0.85rem;color:var(--muted)}
+    .footer-col ul li{margin-bottom:0.6rem}
+    .footer-col ul a:hover{color:var(--gold)}
+    .footer-bottom{max-width:1200px;margin:2rem auto 0;padding-top:1.25rem;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:space-between;font-size:0.78rem;color:var(--muted)}
+    .footer-bottom a{color:var(--muted)}.footer-bottom a:hover{color:var(--gold)}
+  
+/* EnejiStats faded palette background */
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse at 20% 30%,rgba(0,74,173,0.05) 0%,transparent 60%),
+             radial-gradient(ellipse at 80% 70%,rgba(245,184,0,0.05) 0%,transparent 60%),
+             radial-gradient(ellipse at 50% 100%,rgba(0,74,173,0.03) 0%,transparent 50%);}
+
+/* Share Card Modal */
+.share-modal-overlay{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.72);display:flex;align-items:center;justify-content:center;padding:1rem}
+.share-modal{background:#162060;border:2px solid #f5b800;border-radius:16px;width:100%;max-width:480px;padding:1.5rem;position:relative;box-shadow:0 24px 64px rgba(0,0,0,0.6)}
+.share-modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem}
+.share-modal-title{color:#fff;font-weight:800;font-size:1.05rem;letter-spacing:0.5px}
+.share-modal-close{background:rgba(255,255,255,0.1);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center}
+.share-modal-close:hover{background:rgba(255,255,255,0.2)}
+#shareCanvas{width:100%;border-radius:10px;display:block}
+.share-btns{display:flex;gap:0.75rem;margin-top:1.1rem;flex-wrap:wrap}
+.share-btn{flex:1;min-width:120px;padding:0.65rem 1rem;border-radius:8px;border:none;cursor:pointer;font-weight:700;font-size:0.88rem;display:flex;align-items:center;justify-content:center;gap:0.4rem;transition:opacity 0.15s}
+.share-btn:hover{opacity:0.88}
+.share-btn-gold{background:#f5b800;color:#0f172a}
+.share-btn-outline{background:transparent;border:1.5px solid #f5b800;color:#f5b800}
+.share-btn-native{background:#004aad;color:#fff}
+.share-link-row{margin-top:0.9rem;display:flex;gap:0.5rem}
+.share-link-input{flex:1;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);color:#fff;border-radius:7px;padding:0.5rem 0.75rem;font-size:0.82rem;outline:none}
+.share-copied{color:#f5b800;font-size:0.8rem;font-weight:700;margin-top:0.4rem;min-height:1.2rem}
+
+    @media(max-width:480px){
+      .container{padding:0 0.75rem}
+      .header-inner{height:66px;padding:0 0.75rem}
+      .hero h1{font-size:clamp(1.4rem,7vw,2.2rem)}
+      .section,.section-alt{padding:2.5rem 0}
+      .btn,.btn-nav,.btn-gold{min-height:44px}
+      .mobile-nav a{min-height:44px;display:flex;align-items:center}
+      .footer-grid{gap:1.5rem}
+      .footer-bottom{flex-direction:column;gap:0.4rem}
+    }
+    @media(max-width:360px){
+      .container{padding:0 0.5rem}
+      .header-inner{padding:0 0.5rem}
+    }
+  </style>
+  <link rel="stylesheet" href="/static/css/eneji-branding.css"/>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(function(){
+  'use strict';
+  const {h,render}=preact;
+  const {useState,useEffect}=preactHooks;
+  const html=htm.bind(h);
+  const year=new Date().getFullYear();
+
+  function Logo(){
+    return html`<a href="/" style=${{textDecoration:'none',display:'inline-block',verticalAlign:'middle'}}>
+      <img src="/static/images/eneji-stats-branding.png" alt="EnejiStats" class="eneji-logo-img"/>
+    </a>`;
+  }
+
+  function Header(){
+    const [open,setOpen]=useState(false);
+    return html`<header class="site-header">
+      <div class="header-stripe"/>
+      <div class="header-inner">
+        <${Logo}/>
+        <nav class="nav-desktop">
+          <a href="/">Home</a><a href="/about.html">About</a>
+          <div class="dropdown">
+            <a href="#" class="active">Stats Area <i class="fas fa-chevron-down" style="font-size:0.65rem"/></a>
+            <div class="dropdown-menu"><a href="/browse.html">Browse</a></div>
+          </div>
+          <a href="/leaderboard.html">Leaderboard</a>
+          <a href="/competitions.html">Competitions &amp; Trials</a>
+          <a href="/pricing.html">Pricing</a><a href="/contact.html">Contact</a>
+          <a href="/register.html" class="btn-nav">Register / Sign In</a>
+        </nav>
+        <button class="hamburger" onClick=${()=>setOpen(true)}><span/><span/><span/></button>
+      </div>
+      <div class=${'mobile-nav'+(open?' open':'')}>
+        <div class="mobile-nav-top"><${Logo}/><button class="close-btn" onClick=${()=>setOpen(false)}><i class="fas fa-times"/></button></div>
+        <a href="/" onClick=${()=>setOpen(false)}>Home</a>
+        <a href="/about.html" onClick=${()=>setOpen(false)}>About</a>
+        <a href="/browse.html" onClick=${()=>setOpen(false)}>Browse</a>
+        <a href="/leaderboard.html" onClick=${()=>setOpen(false)}>Leaderboard</a>
+        <a href="/competitions.html" onClick=${()=>setOpen(false)}>Competitions &amp; Trials</a>
+        <a href="/pricing.html" onClick=${()=>setOpen(false)}>Pricing</a>
+        <a href="/contact.html" onClick=${()=>setOpen(false)}>Contact</a>
+        <a href="/register.html" style="color:var(--gold);font-weight:700" onClick=${()=>setOpen(false)}>Register / Sign In</a>
+      </div>
+    </header>`;
+  }
+
+  function Footer(){
+    return html`<footer class="site-footer">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <${Logo}/>
+          <p style="margin-top:0.75rem">Nigeria's trusted football data platform. Tracking talent with precision, integrity and reliability.</p>
+        </div>
+        <div class="footer-col"><h4>Quick Links</h4><ul>
+          <li><a href="/">Home</a></li><li><a href="/browse.html">Browse</a></li>
+          <li><a href="/leaderboard.html">Leaderboard</a></li><li><a href="/pricing.html">Pricing</a></li>
+          <li><a href="/contact.html">Contact</a></li><li><a href="/register.html">Register</a></li>
+        </ul></div>
+        <div class="footer-col"><h4>For Users</h4><ul>
+          <li><a href="/browse.html">Player Stats</a></li><li><a href="/browse.html?type=clubs">Club Stats</a></li>
+          <li><a href="/register.html?role=dco">Become a Data Scout</a></li>
+        </ul></div>
+        <div class="footer-col"><h4>Connect</h4><ul>
+          <li><a href="mailto:enejistats@gmail.com"><i class="fas fa-envelope" style="width:16px"/> enejistats@gmail.com</a></li>
+        </ul></div>
+      </div>
+      <div class="footer-bottom">
+        <span>© ${year} EnejiStats. All rights reserved.</span>
+        <span><a href="/terms.html">Terms</a> · <a href="/privacy.html">Privacy</a></span>
+      </div>
+    </footer>`;
+  }
+
+  const SAMPLE_CLUB={id:'sample',name:'Shooting Stars FC',city:'Ibadan',state:'Oyo',country:'Nigeria',founded:1956,league:'NPFL',category:'Professional',coach:'Gbenga Ogunbote',capacity:25000,colours:'Green & White',verified:true,website:'shootingstarsfc.ng',
+    season:{wins:14,draws:4,losses:5,goals_for:40,goals_against:22,points:46,matches:23,clean_sheets:8},
+    squad:[
+      {id:1,name:'Wasiu Alalade',position:'Goalkeeper',number:1,nationality:'Nigerian'},
+      {id:2,name:'Tunde Adeniji',position:'Defender',number:5,nationality:'Nigerian'},
+      {id:3,name:'Babatunde Ojo',position:'Defender',number:4,nationality:'Nigerian'},
+      {id:4,name:'Samuel Adesola',position:'Midfielder',number:8,nationality:'Nigerian'},
+      {id:5,name:'Emeka Okafor',position:'Striker',number:9,nationality:'Nigerian'},
+      {id:6,name:'Rotimi Amos',position:'Midfielder',number:10,nationality:'Nigerian'},
+      {id:7,name:'Adeyinka Omosola',position:'Forward',number:11,nationality:'Nigerian'},
+      {id:8,name:'Festus Bello',position:'Defender',number:3,nationality:'Nigerian'},
+    ],
+    matches:[
+      {id:1,date:'2026-06-14',opponent:'Enyimba FC',location:'Home',competition:'NPFL',result:'W',score:'2-1',goals_for:2,goals_against:1},
+      {id:2,date:'2026-06-07',opponent:'Rivers United',location:'Away',competition:'NPFL',result:'D',score:'1-1',goals_for:1,goals_against:1},
+      {id:3,date:'2026-05-31',opponent:'Kano Pillars',location:'Home',competition:'NPFL',result:'W',score:'3-0',goals_for:3,goals_against:0},
+      {id:4,date:'2026-05-24',opponent:'Akwa United',location:'Away',competition:'NPFL',result:'W',score:'2-0',goals_for:2,goals_against:0},
+      {id:5,date:'2026-05-17',opponent:'Plateau United',location:'Home',competition:'NPFL',result:'L',score:'0-2',goals_for:0,goals_against:2},
+    ]
+  };
+
+  function App(){
+    const [club,setClub]=useState(null);
+    const [loading,setLoading]=useState(true);
+    const [error,setError]=useState(false);
+    const [activeTab,setActiveTab]=useState('overview');
+    const [squad,setSquad]=useState([]);
+    const [matches,setMatches]=useState([]);
+    const isLoggedIn=!!localStorage.getItem('enejistats_token');
+
+    useEffect(()=>{
+      const params=new URLSearchParams(window.location.search);
+      const id=params.get('id');
+      if(!id){setClub(SAMPLE_CLUB);setSquad(SAMPLE_CLUB.squad);setMatches(SAMPLE_CLUB.matches);setLoading(false);return;}
+      const load=async()=>{
+        setLoading(true);
+        try{
+          const res=await fetch('/api/public/clubs/'+id);
+          if(!res.ok)throw new Error();
+          const json=await res.json();
+          setClub(json);
+          const [sq,mt]=await Promise.allSettled([
+            fetch('/api/public/clubs/'+id+'/squad').then(r=>r.json()),
+            fetch('/api/public/clubs/'+id+'/matches').then(r=>r.json()),
+          ]);
+          if(sq.status==='fulfilled')setSquad(sq.value.data||sq.value||[]);
+          if(mt.status==='fulfilled')setMatches(mt.value.data||mt.value||[]);
+        }catch(e){
+          setError(true);
+        }finally{setLoading(false);}
+      };
+      load();
+    },[]);
+
+    const fmtDate=d=>{try{return new Date(d).toLocaleDateString('en-NG',{day:'numeric',month:'short'});}catch(e){return d;}};
+
+    if(loading)return html`<div><${Header}/>
+      <div class="profile-hero"><div class="container hero-grid">
+        <div class="skeleton" style="width:100px;height:100px;border-radius:12px"/>
+        <div><div class="skeleton" style="width:220px;height:28px;margin-bottom:0.75rem"/>
+          <div class="skeleton" style="width:300px;height:16px;margin-bottom:0.5rem"/>
+          <div class="skeleton" style="width:250px;height:16px"/></div>
+      </div></div>
+      <${Footer}/></div>`;
+
+    if(error)return html`<div><${Header}/>
+      <div class="not-found container">
+        <i class="fas fa-shield-slash"/>
+        <h2>Club not found</h2>
+        <p style="color:var(--muted);margin:0.75rem 0 1.5rem">This club profile does not exist or has been removed.</p>
+        <a href="/browse.html?type=clubs" class="btn-sm-gold">Browse Clubs</a>
+      </div>
+      <${Footer}/></div>`;
+
+    const c=club;
+    const season=c.season||{};
+    const W=season.wins||0,D=season.draws||0,L=season.losses||0,total=W+D+L||1;
+    const winPct=Math.round(W/total*100);
+
+    return html`<div>
+      <${Header}/>
+
+      <div class="profile-hero">
+        <div class="container hero-grid">
+          <div class="club-badge">
+            ${c.badge_url||c.badge?html`<img src=${c.badge_url||c.badge} alt=${c.name} onError=${e=>e.target.style.display='none'}/>`:(c.name||'?')[0]}
+          </div>
+          <div class="club-info">
+            <h1>
+              ${c.name}
+              ${c.verified&&html`<span class="verified-badge"><i class="fas fa-circle-check"/> Verified</span>`}
+            </h1>
+            <div class="hero-meta-row">
+              <span><i class="fas fa-location-dot"/> ${c.city||'—'}, ${c.state||'—'}</span>
+              <span><i class="fas fa-layer-group"/> ${c.league||c.category||'—'}</span>
+              ${c.founded&&html`<span><i class="fas fa-calendar"/> Est. ${c.founded}</span>`}
+              ${c.coach&&html`<span><i class="fas fa-user-tie"/> ${c.coach}</span>`}
+            </div>
+            <div class="hero-stats-grid">
+              <div class="hs"><div class="hs-val">${season.points||0}</div><div class="hs-label">Points</div></div>
+              <div class="hs"><div class="hs-val">${W}</div><div class="hs-label">Wins</div></div>
+              <div class="hs"><div class="hs-val">${D}</div><div class="hs-label">Draws</div></div>
+              <div class="hs"><div class="hs-val">${L}</div><div class="hs-label">Losses</div></div>
+              <div class="hs"><div class="hs-val">${winPct}%</div><div class="hs-label">Win Rate</div></div>
+            </div>
+            <div class="hero-actions">
+              <a href="/browse.html?type=clubs" class="btn-sm-outline"><i class="fas fa-arrow-left"/> Back to Browse</a>
+              <button class="btn-sm-gold" style="cursor:pointer;border:none;padding:0.45rem 1rem;border-radius:6px;font-weight:700;font-size:0.82rem;display:inline-flex;align-items:center;gap:0.4rem" onClick=${()=>window.openShareModal({type:"club",name:c.name,sub:(c.league||c.category||"")+" · "+(c.city||"")+(c.state?", "+c.state:""),photo:c.badge_url||c.badge||null,verified:!!c.verified,rating:null,initials:(c.name||"?")[0].toUpperCase(),stats:[{val:W,label:"Wins"},{val:D,label:"Draws"},{val:L,label:"Losses"},{val:season.points||0,label:"Points"}]})}><i class="fas fa-share-nodes"/> Share Profile</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="content-wrap">
+        <div class="container content-grid">
+          <!-- SIDEBAR -->
+          <div>
+            <div class="info-card">
+              <div class="card-head"><i class="fas fa-shield-halved"/> Club Info</div>
+              <div class="info-rows">
+                ${[
+                  ['City',c.city||'—'],['State',c.state||'—'],['League',c.league||'—'],
+                  ['Category',c.category||'—'],['Founded',c.founded||'—'],
+                  ['Head Coach',c.coach||'—'],['Stadium Capacity',c.capacity?c.capacity.toLocaleString():'—'],
+                  ['Club Colours',c.colours||'—'],
+                ].map(([l,v])=>html`<div class="info-row"><span class="info-row-label">${l}</span><span class="info-row-val">${v}</span></div>`)}
+              </div>
+            </div>
+
+            <div class="info-card">
+              <div class="card-head"><i class="fas fa-chart-bar"/> Season Record</div>
+              <div class="info-rows">
+                <div class="info-row"><span class="info-row-label">Goals For</span><span class="info-row-val" style="color:var(--success)">${season.goals_for||0}</span></div>
+                <div class="info-row"><span class="info-row-label">Goals Against</span><span class="info-row-val" style="color:var(--danger)">${season.goals_against||0}</span></div>
+                <div class="info-row"><span class="info-row-label">Goal Difference</span><span class="info-row-val">+${(season.goals_for||0)-(season.goals_against||0)}</span></div>
+                <div class="info-row"><span class="info-row-label">Clean Sheets</span><span class="info-row-val">${season.clean_sheets||0}</span></div>
+                <div class="info-row"><span class="info-row-label">Matches Played</span><span class="info-row-val">${season.matches||0}</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- MAIN -->
+          <div>
+            <div class="tabs-bar">
+              ${[['overview','Overview','fa-chart-line'],['squad','Squad','fa-users'],['matches','Matches','fa-futbol']].map(([id,label,icon])=>html`
+                <button key=${id} class=${'tab-btn'+(activeTab===id?' active':'')} onClick=${()=>setActiveTab(id)}>
+                  <i class=${'fas '+icon}/> ${label}
+                </button>`)}
+            </div>
+
+            ${activeTab==='overview'&&html`<div>
+              <div class="stat-grid">
+                ${[
+                  ['Goals For',season.goals_for||0],['Goals Against',season.goals_against||0],
+                  ['Clean Sheets',season.clean_sheets||0],['Win Rate',winPct+'%'],
+                ].map(([l,v])=>html`<div class="stat-card"><div class="stat-val">${v}</div><div class="stat-label">${l}</div></div>`)}
+              </div>
+              <div class="info-card">
+                <div class="card-head"><i class="fas fa-trophy"/> Form Guide</div>
+                <div style="padding:1.25rem;display:flex;gap:0.4rem;flex-wrap:wrap">
+                  ${matches.slice(0,10).map((m,i)=>{
+                    const cls=m.result==='W'?'result-w':m.result==='L'?'result-l':'result-d';
+                    return html`<span key=${i} class=${'result-badge '+cls} title=${m.opponent+' '+m.score}>${m.result}</span>`;
+                  })}
+                </div>
+              </div>
+            </div>`}
+
+            ${activeTab==='squad'&&html`<div>
+              ${squad.length===0?html`<div style="text-align:center;padding:3rem;color:var(--muted)"><i class="fas fa-users" style="font-size:2.5rem;margin-bottom:1rem;display:block"/>No squad data available.</div>`:
+              html`<div class="squad-grid">
+                ${squad.map(player=>html`<div key=${player.id} class="squad-card" onClick=${()=>window.location.href='/player-profile.html?id='+player.id}>
+                  <div class="squad-avatar">
+                    ${player.photo_url?html`<img src=${player.photo_url} alt=${player.name} onError=${e=>e.target.style.display='none'}/>`:(player.name||'?')[0]}
+                  </div>
+                  <div class="squad-no">#${player.number||'—'}</div>
+                  <div class="squad-name">${player.name}</div>
+                  <div class="squad-pos">${player.position||'—'}</div>
+                </div>`)}
+              </div>`}
+              ${!isLoggedIn&&html`<div class="paywall-card">
+                <h3><i class="fas fa-lock" style="color:var(--gold)"/> Full Squad Details Locked</h3>
+                <p>Register free to view full squad stats, contact information, and more.</p>
+                <a href="/register.html" class="btn-sm-gold">Get Started Free</a>
+              </div>`}
+            </div>`}
+
+            ${activeTab==='matches'&&html`<div>
+              <div class="match-table-wrap">
+                <table class="match-table">
+                  <thead><tr><th>Date</th><th>Opponent</th><th>H/A</th><th>Comp.</th><th>Result</th><th>Score</th></tr></thead>
+                  <tbody>
+                    ${matches.length===0?html`<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:2rem">No match history available.</td></tr>`:
+                    matches.map(m=>{
+                      const cls=m.result==='W'?'result-w':m.result==='L'?'result-l':'result-d';
+                      return html`<tr key=${m.id}>
+                        <td style="white-space:nowrap;color:var(--muted)">${fmtDate(m.date)}</td>
+                        <td><strong>${m.opponent||'—'}</strong></td>
+                        <td style="color:var(--muted);font-size:0.8rem">${m.location||'—'}</td>
+                        <td style="color:var(--muted);font-size:0.8rem">${m.competition||'—'}</td>
+                        <td><span class=${'result-badge '+cls}>${m.result||'?'}</span></td>
+                        <td style="font-weight:700">${m.score||'—'}</td>
+                      </tr>`;
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              ${!isLoggedIn&&html`<div class="paywall-card">
+                <h3><i class="fas fa-lock" style="color:var(--gold)"/> Full Match Stats Locked</h3>
+                <p>Sign in to view detailed match reports, player ratings per game, and more.</p>
+                <a href="/register.html" class="btn-sm-gold">Get Started Free</a>
+              </div>`}
+            </div>`}
+          </div>
+        </div>
+      </div>
+      <${Footer}/>
+    </div>`;
+  }
+
+  render(html`<${App}/>`,document.getElementById('app'));
+})();
+
+/* EnejiStats Share Card */
+(function(){
+  var _overlay=null;
+  function closeShare(){if(_overlay){_overlay.remove();_overlay=null;}}
+
+  function roundRect(c,x,y,w,h,r){
+    c.beginPath();c.moveTo(x+r,y);c.lineTo(x+w-r,y);c.quadraticCurveTo(x+w,y,x+w,y+r);
+    c.lineTo(x+w,y+h-r);c.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+    c.lineTo(x+r,y+h);c.quadraticCurveTo(x,y+h,x,y+h-r);
+    c.lineTo(x,y+r);c.quadraticCurveTo(x,y,x+r,y);c.closePath();
+  }
+
+  function drawCard(canvas,data,imgEl){
+    var dpr=Math.min(window.devicePixelRatio||1,2);
+    var W=480,H=270;
+    canvas.width=W*dpr;canvas.height=H*dpr;
+    canvas.style.width=W+'px';canvas.style.height=H+'px';
+    var c=canvas.getContext('2d');
+    c.scale(dpr,dpr);
+
+    /* Background */
+    var bg=c.createLinearGradient(0,0,W,H);
+    bg.addColorStop(0,'#0a1535');bg.addColorStop(1,'#162060');
+    c.fillStyle=bg;c.fillRect(0,0,W,H);
+
+    /* Subtle gold glow */
+    var glow=c.createRadialGradient(W*0.8,H*0.8,10,W*0.8,H*0.8,200);
+    glow.addColorStop(0,'rgba(245,184,0,0.09)');glow.addColorStop(1,'rgba(0,0,0,0)');
+    c.fillStyle=glow;c.fillRect(0,0,W,H);
+
+    /* Gold top stripe */
+    c.fillStyle='#f5b800';c.fillRect(0,0,W,5);
+
+    /* Photo circle */
+    var cx=75,cy=125,r=54;
+    c.save();
+    c.beginPath();c.arc(cx,cy,r,0,Math.PI*2);
+    c.fillStyle='#1e2d60';c.fill();
+    c.strokeStyle='#f5b800';c.lineWidth=3;c.stroke();
+    if(imgEl&&imgEl.naturalWidth>0){
+      try{
+        c.clip();
+        var s=Math.min(imgEl.naturalWidth,imgEl.naturalHeight);
+        var sx=(imgEl.naturalWidth-s)/2,sy=(imgEl.naturalHeight-s)/2;
+        c.drawImage(imgEl,sx,sy,s,s,cx-r,cy-r,r*2,r*2);
+      }catch(e){}
+    } else {
+      c.fillStyle='#f5b800';c.font='bold 34px Arial';
+      c.textAlign='center';c.textBaseline='middle';
+      c.fillText(data.initials||'?',cx,cy+2);
+    }
+    c.restore();
+
+    /* Verified badge */
+    if(data.verified){
+      c.save();
+      c.fillStyle='#f5b800';c.beginPath();c.arc(cx+r-4,cy-r+5,9,0,Math.PI*2);c.fill();
+      c.fillStyle='#0d1b3e';c.font='bold 11px Arial';c.textAlign='center';c.textBaseline='middle';
+      c.fillText('✓',cx+r-4,cy-r+5);
+      c.restore();
+    }
+
+    /* Logo top-right */
+    c.save();
+    var lx=W-10;
+    c.textBaseline='alphabetic';c.textAlign='right';
+    /* Ball */
+    var bx=W-54,by=19;
+    var ballGrad=c.createRadialGradient(bx+1,by-1,0.5,bx,by,6);
+    ballGrad.addColorStop(0,'#1a4fa0');ballGrad.addColorStop(1,'#f5b800');
+    c.fillStyle=ballGrad;c.beginPath();c.arc(bx,by,5,0,Math.PI*2);c.fill();
+    /* Text */
+    c.font='bold 14px Arial';
+    c.fillStyle='#fff';c.fillText('Ene',W-66,32);
+    c.fillStyle='#fff';c.fillText('ȷı',W-44,32);
+    c.fillStyle='#f5b800';c.fillText('Stats',W-8,32);
+    c.restore();
+
+    /* Name */
+    var rx=146;
+    c.fillStyle='#ffffff';
+    var fsize=22;
+    c.font='bold '+fsize+'px Arial';
+    while(c.measureText(data.name||'').width>W-rx-16&&fsize>14){
+      fsize--;c.font='bold '+fsize+'px Arial';
+    }
+    c.textAlign='left';c.textBaseline='alphabetic';
+    c.fillText(data.name||'',rx,55);
+
+    /* Subtitle */
+    c.font='12px Arial';c.fillStyle='rgba(255,255,255,0.7)';
+    var sub=data.sub||'';
+    if(c.measureText(sub).width>W-rx-16)sub=sub.slice(0,Math.floor(sub.length*(W-rx-16)/c.measureText(sub).width)-3)+'...';
+    c.fillText(sub,rx,76);
+
+    /* Stats boxes */
+    var stats=data.stats||[];
+    var bw=62,bh=46,gap=8,sy2=100;
+    stats.forEach(function(st,i){
+      var bxs=rx+i*(bw+gap);
+      c.fillStyle='rgba(245,184,0,0.13)';
+      roundRect(c,bxs,sy2,bw,bh,7);c.fill();
+      c.strokeStyle='rgba(245,184,0,0.3)';c.lineWidth=1;
+      roundRect(c,bxs,sy2,bw,bh,7);c.stroke();
+      c.fillStyle='#f5b800';c.font='bold 19px Arial';
+      c.textAlign='center';c.textBaseline='alphabetic';
+      c.fillText(String(st.val),bxs+bw/2,sy2+28);
+      c.fillStyle='rgba(255,255,255,0.6)';c.font='9px Arial';
+      c.fillText(st.label,bxs+bw/2,sy2+41);
+    });
+
+    /* Rating badge */
+    if(data.rating!=null){
+      var rbx=rx+stats.length*(bw+gap);
+      c.fillStyle='#004aad';
+      roundRect(c,rbx,sy2,bw,bh,7);c.fill();
+      c.strokeStyle='#f5b800';c.lineWidth=1.5;
+      roundRect(c,rbx,sy2,bw,bh,7);c.stroke();
+      c.fillStyle='#f5b800';c.font='bold 19px Arial';c.textAlign='center';
+      c.fillText(typeof data.rating==='number'?data.rating.toFixed(1):String(data.rating),rbx+bw/2,sy2+28);
+      c.fillStyle='rgba(255,255,255,0.6)';c.font='9px Arial';
+      c.fillText('Rating',rbx+bw/2,sy2+41);
+    }
+
+    /* Bottom URL bar */
+    c.fillStyle='rgba(0,0,0,0.42)';c.fillRect(0,H-32,W,32);
+    c.font='11px Arial';c.fillStyle='rgba(245,184,0,0.85)';
+    c.textAlign='left';c.textBaseline='middle';
+    c.fillText('enejistats.com',12,H-16);
+    c.fillStyle='rgba(255,255,255,0.55)';c.textAlign='right';
+    var url=window.location.href;if(url.length>58)url=url.slice(0,55)+'...';
+    c.fillText(url,W-12,H-16);
+  }
+
+  window.openShareModal=function(data){
+    closeShare();
+    var label=data.type==='club'?'Club':'Player';
+    var hasNative=!!navigator.share;
+    _overlay=document.createElement('div');
+    _overlay.className='share-modal-overlay';
+    _overlay.innerHTML='<div class="share-modal">'
+      +'<div class="share-modal-head">'
+        +'<span class="share-modal-title"><i class="fas fa-share-nodes"></i>&nbsp;Share '+label+' Profile</span>'
+        +'<button class="share-modal-close" id="shareClose">&times;</button>'
+      +'</div>'
+      +'<canvas id="shareCanvas"></canvas>'
+      +'<div class="share-btns">'
+        +'<button class="share-btn share-btn-gold" id="shareDlBtn"><i class="fas fa-download"></i>&nbsp;Download Card</button>'
+        +(hasNative?'<button class="share-btn share-btn-native" id="shareNativeBtn"><i class="fas fa-share"></i>&nbsp;Share</button>':'')
+        +'<button class="share-btn share-btn-outline" id="shareCopyBtn"><i class="fas fa-link"></i>&nbsp;Copy Link</button>'
+      +'</div>'
+      +'<div class="share-link-row">'
+        +'<input class="share-link-input" id="shareLinkIn" readonly/>'
+      +'</div>'
+      +'<div class="share-copied" id="shareCopiedMsg"></div>'
+    +'</div>';
+    _overlay.addEventListener('click',function(e){if(e.target===_overlay)closeShare();});
+    document.body.appendChild(_overlay);
+
+    var canvas=document.getElementById('shareCanvas');
+    var linkIn=document.getElementById('shareLinkIn');
+    var copiedMsg=document.getElementById('shareCopiedMsg');
+    linkIn.value=window.location.href;
+
+    document.getElementById('shareClose').onclick=closeShare;
+
+    /* Draw card */
+    if(data.photo){
+      var img=new Image();img.crossOrigin='anonymous';
+      img.onload=function(){drawCard(canvas,data,img);};
+      img.onerror=function(){drawCard(canvas,data,null);};
+      img.src=data.photo;
+    } else {drawCard(canvas,data,null);}
+
+    /* Download */
+    document.getElementById('shareDlBtn').onclick=function(){
+      var a=document.createElement('a');
+      a.download='enejistats-'+data.type+'-profile.png';
+      a.href=canvas.toDataURL('image/png');a.click();
+    };
+
+    /* Native share */
+    if(hasNative){
+      document.getElementById('shareNativeBtn').onclick=function(){
+        canvas.toBlob(function(blob){
+          var file=new File([blob],'enejistats-profile.png',{type:'image/png'});
+          navigator.share({title:'EnejiStats Profile',url:window.location.href,files:[file]})
+            .catch(function(){navigator.share({title:'EnejiStats Profile',url:window.location.href}).catch(function(){});});
+        });
+      };
+    }
+
+    /* Copy link */
+    document.getElementById('shareCopyBtn').onclick=function(){
+      if(navigator.clipboard){
+        navigator.clipboard.writeText(window.location.href).then(function(){
+          copiedMsg.textContent='✓ Link copied to clipboard!';
+          setTimeout(function(){copiedMsg.textContent='';},2500);
+        });
+      } else {
+        linkIn.select();document.execCommand('copy');
+        copiedMsg.textContent='✓ Copied!';
+        setTimeout(function(){copiedMsg.textContent='';},2500);
+      }
+    };
+  };
+})();
+
+</script>
+</body>
+</html>

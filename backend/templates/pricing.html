@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Pricing — EnejiStats</title>
+  <meta name="description" content="Choose the EnejiStats plan that fits your role. Players, clubs, scouts, agents — transparent pricing with no hidden fees."/>
+  <script src="https://unpkg.com/preact@10.19.3/dist/preact.umd.js"></script>
+  <script src="https://unpkg.com/preact@10.19.3/hooks/dist/hooks.umd.js"></script>
+  <script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --primary:#004aad;--primary-light:#0066cc;--gold:#f5b800;--header-bg:#162060;--dark-bg:#1e1e2f;--page-bg:#0f172a;
+      --success:#22c55e;--warning:#f59e0b;--danger:#ef4444;--muted:#94a3b8;--line:rgba(255,255,255,0.08);
+      --radius:12px;--font:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
+    }
+    html{scroll-behavior:smooth}
+    body{font-family:var(--font);background:var(--page-bg);color:#e2e8f0;line-height:1.6;overflow-x:hidden}
+    a{text-decoration:none;color:inherit}
+    ul{list-style:none}
+    .container{max-width:1200px;margin:0 auto;padding:0 1rem}
+
+    /* HEADER */
+    .site-header{position:sticky;top:0;z-index:1000;background:var(--header-bg)}
+    .header-stripe{height:4px;background:var(--gold)}
+    .header-inner{display:flex;align-items:center;justify-content:space-between;height:82px;padding:0 1rem;max-width:1200px;margin:0 auto;overflow:visible}
+    .nav-desktop{display:none;gap:0.25rem;align-items:center}
+    @media(min-width:769px){.nav-desktop{display:flex}}
+    .nav-desktop a{color:rgba(255,255,255,0.8);font-size:0.88rem;font-weight:500;padding:0.4rem 0.6rem;border-radius:6px;transition:color 0.2s}
+    .nav-desktop a:hover,.nav-desktop a.active{color:#fff;background:rgba(255,255,255,0.1)}
+    .btn-nav{background:var(--gold);color:#0f172a!important;padding:0.45rem 1rem!important;border-radius:8px;font-weight:700!important}
+    .hamburger{display:flex;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:4px}
+    @media(min-width:769px){.hamburger{display:none}}
+    .hamburger span{display:block;width:22px;height:2px;background:#fff;border-radius:2px}
+    .mobile-nav{display:none;position:fixed;inset:0;background:var(--header-bg);z-index:2000;flex-direction:column;padding:1.5rem;gap:0.25rem}
+    .mobile-nav.open{display:flex}
+    .mobile-nav-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem}
+    .mobile-nav a{color:rgba(255,255,255,0.85);font-size:1.05rem;font-weight:500;padding:0.8rem;border-radius:8px;display:block}
+    .mobile-nav a:hover{background:rgba(255,255,255,0.1);color:#fff}
+    .close-btn{background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer}
+    .dropdown{position:relative}
+    .dropdown-menu{display:none;position:absolute;top:calc(100%+6px);left:0;background:#1e1e2f;border:1px solid var(--line);border-radius:10px;min-width:160px;overflow:hidden;z-index:200}
+    .dropdown:hover .dropdown-menu{display:block}
+    .dropdown-menu a{display:block;padding:0.65rem 1rem;color:rgba(255,255,255,0.8);font-size:0.88rem}
+    .dropdown-menu a:hover{background:rgba(255,255,255,0.08);color:#fff}
+
+    /* HERO */
+    .hero{background:linear-gradient(135deg,var(--header-bg),#0d1b3e);color:#fff;padding:4rem 1rem 3.5rem;text-align:center;border-bottom:4px solid var(--gold)}
+    .hero h1{font-size:clamp(1.6rem,4vw,2.5rem);font-weight:800;margin-bottom:0.5rem}
+    .hero p{color:rgba(255,255,255,0.75);font-size:1rem;max-width:540px;margin:0 auto}
+
+    /* TOGGLE */
+    .billing-toggle{display:flex;align-items:center;gap:0.75rem;justify-content:center;margin-top:2rem;font-size:0.9rem;color:var(--muted)}
+    .toggle-switch{position:relative;display:inline-block;width:44px;height:24px}
+    .toggle-switch input{opacity:0;width:0;height:0}
+    .toggle-slider{position:absolute;cursor:pointer;inset:0;background:rgba(255,255,255,0.1);border-radius:24px;transition:0.3s}
+    .toggle-slider::before{content:'';position:absolute;width:18px;height:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:0.3s}
+    input:checked+.toggle-slider{background:var(--gold)}
+    input:checked+.toggle-slider::before{transform:translateX(20px)}
+    .save-badge{background:rgba(34,197,94,0.2);color:#22c55e;border:1px solid rgba(34,197,94,0.4);padding:0.15rem 0.5rem;border-radius:20px;font-size:0.72rem;font-weight:700;margin-left:0.25rem}
+
+    /* ROLE TABS */
+    .role-tabs{display:flex;justify-content:center;gap:0.5rem;flex-wrap:wrap;padding:2rem 1rem 0;border-bottom:1px solid var(--line);max-width:1200px;margin:0 auto}
+    .role-tab{padding:0.6rem 1.25rem;background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:8px 8px 0 0;cursor:pointer;font-weight:600;font-size:0.9rem;color:var(--muted);transition:all 0.2s;display:flex;align-items:center;gap:0.4rem;border-bottom:none}
+    .role-tab:hover{color:#fff;background:rgba(255,255,255,0.08)}
+    .role-tab.active{background:var(--dark-bg);color:var(--gold);border-color:var(--gold);border-bottom:1px solid var(--dark-bg);margin-bottom:-1px;position:relative;z-index:1}
+
+    /* PLANS */
+    .plans-section{padding:3rem 0}
+    .plans-grid{display:grid;grid-template-columns:1fr;gap:1.5rem}
+    @media(min-width:600px){.plans-grid{grid-template-columns:1fr 1fr}}
+    @media(min-width:900px){.plans-grid{grid-template-columns:repeat(3,1fr)}}
+    .plan-card{background:var(--dark-bg);border:1px solid var(--line);border-radius:var(--radius);padding:2rem;display:flex;flex-direction:column;position:relative;transition:transform 0.2s,border-color 0.2s}
+    .plan-card:hover{transform:translateY(-4px);border-color:rgba(245,184,0,0.4)}
+    .plan-card.featured{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}
+    .popular-badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--gold);color:#0f172a;padding:0.25rem 1rem;border-radius:20px;font-size:0.75rem;font-weight:800;white-space:nowrap;text-transform:uppercase;letter-spacing:0.05em}
+    .plan-name{font-size:1.1rem;font-weight:800;text-transform:capitalize;color:#fff;margin-bottom:0.25rem}
+    .plan-desc{font-size:0.82rem;color:var(--muted);margin-bottom:1.25rem;min-height:2.5em}
+    .plan-price{margin-bottom:1.25rem}
+    .plan-price-main{font-size:2rem;font-weight:900;color:var(--gold);line-height:1}
+    .plan-price-period{font-size:0.85rem;font-weight:400;color:var(--muted)}
+    .plan-price-free{font-size:2rem;font-weight:900;color:var(--success)}
+    .plan-original{font-size:0.82rem;color:var(--muted);text-decoration:line-through;margin-top:0.1rem}
+    .plan-features{flex:1;margin-bottom:1.75rem}
+    .plan-feature{display:flex;align-items:flex-start;gap:0.5rem;font-size:0.85rem;margin-bottom:0.6rem;line-height:1.4}
+    .plan-feature.inc i{color:var(--success)}
+    .plan-feature.exc i{color:var(--muted)}
+    .plan-feature.exc span{color:var(--muted)}
+    .btn-plan{width:100%;padding:0.8rem;border-radius:8px;font-weight:700;font-size:0.95rem;cursor:pointer;border:none;font-family:inherit;transition:all 0.2s}
+    .btn-plan-gold{background:var(--gold);color:#0f172a}
+    .btn-plan-gold:hover{opacity:0.9}
+    .btn-plan-outline{background:transparent;border:2px solid var(--gold);color:var(--gold)}
+    .btn-plan-outline:hover{background:rgba(245,184,0,0.1)}
+    .btn-plan:disabled{opacity:0.55;cursor:not-allowed}
+
+    /* TOKENS */
+    .tokens-section{padding:3rem 0;background:rgba(255,255,255,0.02);border-top:1px solid var(--line)}
+    .section-title{font-size:clamp(1.3rem,3vw,1.8rem);font-weight:800;text-align:center;margin-bottom:0.5rem}
+    .section-sub{color:var(--muted);text-align:center;margin-bottom:2.5rem;font-size:0.9rem}
+    .tokens-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem}
+    @media(min-width:600px){.tokens-grid{grid-template-columns:repeat(4,1fr)}}
+    .token-card{background:var(--dark-bg);border:1px solid var(--line);border-radius:var(--radius);padding:1.5rem;text-align:center;transition:border-color 0.2s,transform 0.2s;cursor:pointer}
+    .token-card:hover{border-color:var(--gold);transform:translateY(-3px)}
+    .token-amount{font-size:1.6rem;font-weight:900;color:var(--gold);margin-bottom:0.25rem}
+    .token-label{font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:0.75rem}
+    .token-price{font-size:1rem;font-weight:700;color:#fff;margin-bottom:0.25rem}
+    .token-bonus{font-size:0.72rem;color:var(--success);font-weight:600}
+
+    /* TOPUP */
+    .topup-section{padding:3rem 0;border-top:1px solid var(--line)}
+    .topup-grid{display:grid;grid-template-columns:1fr;gap:1.25rem}
+    @media(min-width:600px){.topup-grid{grid-template-columns:repeat(3,1fr)}}
+    @media(min-width:900px){.topup-grid{grid-template-columns:repeat(4,1fr)}}
+    .topup-card{background:var(--dark-bg);border:1px solid var(--line);border-radius:var(--radius);padding:1.5rem;text-align:center;transition:border-color 0.2s,transform 0.2s}
+    .topup-card:hover{border-color:var(--gold);transform:translateY(-3px)}
+    .topup-name{font-weight:700;font-size:0.95rem;margin-bottom:0.5rem}
+    .topup-price{font-size:1.25rem;font-weight:900;color:var(--gold);margin-bottom:0.25rem}
+    .topup-desc{font-size:0.78rem;color:var(--muted);margin-bottom:1rem}
+    .btn-topup{background:var(--gold);color:#0f172a;border:none;width:100%;padding:0.6rem;border-radius:7px;font-weight:700;font-size:0.85rem;cursor:pointer;transition:opacity 0.2s;font-family:inherit}
+    .btn-topup:hover{opacity:0.9}
+
+    /* COMPARISON TABLE */
+    .compare-section{padding:3rem 0;border-top:1px solid var(--line)}
+    .compare-wrap{overflow-x:auto}
+    .compare-table{width:100%;border-collapse:collapse;min-width:640px}
+    .compare-table th{padding:0.85rem 1rem;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted);text-align:left;background:rgba(0,0,0,0.2);border-bottom:2px solid var(--gold)}
+    .compare-table th:not(:first-child){text-align:center}
+    .compare-table td{padding:0.8rem 1rem;border-bottom:1px solid var(--line);font-size:0.88rem;vertical-align:middle}
+    .compare-table td:not(:first-child){text-align:center}
+    .compare-table tr:last-child td{border-bottom:none}
+    .compare-table tr:hover td{background:rgba(255,255,255,0.02)}
+    .chk-y{color:var(--success)}.chk-n{color:var(--muted)}
+
+    /* FAQ */
+    .faq-section{padding:3rem 0;background:rgba(255,255,255,0.02);border-top:1px solid var(--line)}
+    .faq-list{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:0.75rem}
+    .faq-item{background:var(--dark-bg);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+    .faq-q{width:100%;text-align:left;background:none;border:none;padding:1rem 1.25rem;font-size:0.92rem;font-weight:600;color:#e2e8f0;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:1rem;font-family:inherit}
+    .faq-q:hover{color:var(--gold)}
+    .faq-q i{color:var(--gold);flex-shrink:0;transition:transform 0.3s}
+    .faq-q.open i{transform:rotate(180deg)}
+    .faq-a{padding:0 1.25rem 1rem;color:var(--muted);font-size:0.88rem;line-height:1.65;display:none}
+    .faq-a.open{display:block}
+
+    /* TOAST */
+    .toast-container{position:fixed;top:1rem;right:1rem;z-index:9999;display:flex;flex-direction:column;gap:0.5rem}
+    .toast{padding:0.8rem 1.2rem;border-radius:8px;color:#fff;font-size:0.9rem;max-width:300px;box-shadow:0 4px 20px rgba(0,0,0,0.4);animation:slideIn 0.3s ease;display:flex;align-items:center;gap:0.5rem}
+    .toast.success{background:var(--success)}.toast.error{background:var(--danger)}.toast.info{background:var(--primary)}
+    @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+    /* SKELETON */
+    .skeleton{background:linear-gradient(90deg,#1e1e2f 25%,#2a2a40 50%,#1e1e2f 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:6px}
+    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+    /* FOOTER */
+    .site-footer{background:#0a0a14;border-top:1px solid var(--line);padding:3.5rem 1rem 1.5rem}
+    .footer-grid{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr;gap:2.5rem}
+    @media(min-width:600px){.footer-grid{grid-template-columns:1fr 1fr}}
+    @media(min-width:992px){.footer-grid{grid-template-columns:1.6fr 1fr 1fr 1fr}}
+    .footer-col h4{color:#fff;font-size:0.85rem;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:1rem}
+    .footer-col p,.footer-col ul a{font-size:0.85rem;color:var(--muted)}
+    .footer-col ul li{margin-bottom:0.6rem}
+    .footer-col ul a:hover{color:var(--gold)}
+    .footer-bottom{max-width:1200px;margin:2rem auto 0;padding-top:1.25rem;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:space-between;font-size:0.78rem;color:var(--muted)}
+    .footer-bottom a{color:var(--muted)}.footer-bottom a:hover{color:var(--gold)}
+  
+    @media(max-width:480px){
+      .container{padding:0 0.75rem}
+      .header-inner{height:66px;padding:0 0.75rem}
+      .hero h1{font-size:clamp(1.4rem,7vw,2.2rem)}
+      .section,.section-alt{padding:2.5rem 0}
+      .btn,.btn-nav,.btn-gold{min-height:44px}
+      .mobile-nav a{min-height:44px;display:flex;align-items:center}
+      .footer-grid{gap:1.5rem}
+      .footer-bottom{flex-direction:column;gap:0.4rem}
+    }
+    @media(max-width:360px){
+      .container{padding:0 0.5rem}
+      .header-inner{padding:0 0.5rem}
+    }
+  </style>
+  <link rel="stylesheet" href="/static/css/eneji-branding.css"/>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(function(){
+  'use strict';
+  const {h,render}=preact;
+  const {useState,useEffect}=preactHooks;
+  const html=htm.bind(h);
+  const year=new Date().getFullYear();
+  const fmt=n=>'₦'+Number(n).toLocaleString('en-NG',{maximumFractionDigits:0});
+
+  function Logo(){
+    return html`<a href="/" style=${{textDecoration:'none',display:'inline-block',verticalAlign:'middle'}}>
+      <img src="/static/images/eneji-stats-branding.png" alt="EnejiStats" class="eneji-logo-img"/>
+    </a>`;
+  }
+
+  function Header(){
+    const [open,setOpen]=useState(false);
+    return html`<header class="site-header">
+      <div class="header-stripe"/>
+      <div class="header-inner">
+        <${Logo}/>
+        <nav class="nav-desktop">
+          <a href="/">Home</a><a href="/about.html">About</a>
+          <div class="dropdown">
+            <a href="#">Stats Area <i class="fas fa-chevron-down" style="font-size:0.65rem"/></a>
+            <div class="dropdown-menu"><a href="/browse.html">Browse</a></div>
+          </div>
+          <a href="/leaderboard.html">Leaderboard</a>
+          <a href="/competitions.html">Competitions &amp; Trials</a>
+          <a href="/pricing.html" class="active">Pricing</a>
+          <a href="/contact.html">Contact</a>
+          <a href="/register.html" class="btn-nav">Register / Sign In</a>
+        </nav>
+        <button class="hamburger" onClick=${()=>setOpen(true)}><span/><span/><span/></button>
+      </div>
+      <div class=${'mobile-nav'+(open?' open':'')}>
+        <div class="mobile-nav-top"><${Logo}/><button class="close-btn" onClick=${()=>setOpen(false)}><i class="fas fa-times"/></button></div>
+        <a href="/" onClick=${()=>setOpen(false)}>Home</a>
+        <a href="/about.html" onClick=${()=>setOpen(false)}>About</a>
+        <a href="/browse.html" onClick=${()=>setOpen(false)}>Browse</a>
+        <a href="/leaderboard.html" onClick=${()=>setOpen(false)}>Leaderboard</a>
+        <a href="/competitions.html" onClick=${()=>setOpen(false)}>Competitions &amp; Trials</a>
+        <a href="/pricing.html" class="active" onClick=${()=>setOpen(false)}>Pricing</a>
+        <a href="/contact.html" onClick=${()=>setOpen(false)}>Contact</a>
+        <a href="/register.html" style="color:var(--gold);font-weight:700" onClick=${()=>setOpen(false)}>Register / Sign In</a>
+      </div>
+    </header>`;
+  }
+
+  function Footer(){
+    return html`<footer class="site-footer">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <${Logo}/>
+          <p style="margin-top:0.75rem">Nigeria's trusted football data platform. Tracking talent with precision, integrity and reliability.</p>
+        </div>
+        <div class="footer-col"><h4>Quick Links</h4><ul>
+          <li><a href="/">Home</a></li><li><a href="/about.html">About</a></li>
+          <li><a href="/pricing.html">Pricing</a></li><li><a href="/leaderboard.html">Leaderboard</a></li>
+          <li><a href="/contact.html">Contact</a></li><li><a href="/register.html">Register</a></li>
+        </ul></div>
+        <div class="footer-col"><h4>For Users</h4><ul>
+          <li><a href="/browse.html">Player Stats</a></li><li><a href="/browse.html?type=clubs">Club Stats</a></li>
+          <li><a href="/register.html?role=dco">Become a Data Scout</a></li>
+          <li><a href="/register.html?role=scout">Become a Scout</a></li>
+        </ul></div>
+        <div class="footer-col"><h4>Connect</h4><ul>
+          <li><a href="mailto:enejistats@gmail.com"><i class="fas fa-envelope" style="width:16px"/> enejistats@gmail.com</a></li>
+          <li><span style="color:var(--muted)"><i class="fas fa-location-dot" style="width:16px"/> Lagos, Nigeria</span></li>
+        </ul></div>
+      </div>
+      <div class="footer-bottom">
+        <span>© ${year} EnejiStats. All rights reserved.</span>
+        <span><a href="/terms.html">Terms</a> · <a href="/privacy.html">Privacy</a> · <a href="/cookies.html">Cookies</a></span>
+      </div>
+    </footer>`;
+  }
+
+  const FALLBACK_TOPUPS=[
+    {id:'su1',name:'Single Stat Request',price:500,description:'1 match stats report from a DCO.'},
+    {id:'su5',name:'5-Report Bundle',price:2200,description:'5 match stat reports. Save ₦300.'},
+    {id:'su10',name:'10-Report Bundle',price:4000,description:'10 match stat reports. Save ₦1,000.'},
+    {id:'express',name:'Express Processing',price:800,description:'24hr guaranteed turnaround on any stat request.'},
+  ];
+
+  const FAQ_ITEMS=[
+    {q:'What are tokens used for?',a:'Tokens are the in-platform currency used to request match statistics. The token cost depends on the relevant role and level/action.'},
+    {q:'Can I cancel my subscription anytime?',a:'Yes. You can cancel your subscription at any time from your dashboard. Your subscription benefits remain active until the end of the billing period.'},
+    {q:'Do unused tokens roll over?',a:'Yes. Tokens do not expire and roll over month to month. They remain in your account until you use them.'},
+    {q:'What payment methods do you accept?',a:'Payments are processed through the EnejiStats Flutterwave integration. Available payment methods are determined by the configured gateway.'},
+    {q:'Is there a free trial?',a:'The available subscription tiers and their prices are loaded from the live EnejiStats pricing configuration.'},
+    {q:'Can I switch between plans?',a:'Plan changes are handled through the authenticated account/dashboard payment flow.'},
+  ];
+
+  const COMPARE_ROWS=[
+    {feature:'Public profile page',player:true,club:true,scout:true,agent:true},
+    {feature:'Leaderboard ranking',player:true,club:true,scout:false,agent:false},
+    {feature:'Verified badge',player:'Plan dependent',club:'Plan dependent',scout:'Plan dependent',agent:'Plan dependent'},
+    {feature:'Token discounts',player:'Plan dependent',club:'Plan dependent',scout:'Plan dependent',agent:'Plan dependent'},
+    {feature:'PDF report export',player:'Plan dependent',club:'Plan dependent',scout:'Plan dependent',agent:'Plan dependent'},
+    {feature:'Analytics dashboard',player:false,club:'Plan dependent',scout:'Plan dependent',agent:'Plan dependent'},
+    {feature:'Priority support',player:'Plan dependent',club:'Plan dependent',scout:'Plan dependent',agent:'Plan dependent'},
+  ];
+
+  function CheckCell({val}){
+    if(val===true)return html`<i class="fas fa-check chk-y"/>`;
+    if(val===false)return html`<i class="fas fa-minus chk-n"/>`;
+    return html`<span style="color:var(--gold);font-size:0.8rem;font-weight:600">${val}</span>`;
+  }
+
+  const roleLabels=[
+    {id:'player',label:'Players',icon:'fa-futbol'},
+    {id:'club',label:'Clubs',icon:'fa-shield-halved'},
+    {id:'scout',label:'Scouts',icon:'fa-binoculars'},
+    {id:'agent',label:'Agents',icon:'fa-handshake'},
+  ];
+
+  const LEVELS=[
+    {id:'professional',label:'Professional'},
+    {id:'semi_professional',label:'Semi-Professional'},
+    {id:'academy',label:'Academy'},
+    {id:'university',label:'University'},
+    {id:'local',label:'Local'},
+    {id:'other',label:'Other'},
+  ];
+
+  function normalisePlan(p){
+    return {
+      id:p.id||p.plan_id||p.key||('plan-'+Math.random().toString(36).slice(2)),
+      key:p.key||p.plan_key||'',
+      name:p.name||p.title||p.key||'Plan',
+      price:Number(p.price??p.amount??0),
+      months:Number(p.months||1),
+      discount:p.discount||'',
+      popular:!!(p.popular||p.featured),
+      description:p.description||'',
+      features:Array.isArray(p.features)?p.features.map(f=>typeof f==='string'?{text:f,inc:true}:f):[],
+    };
+  }
+
+  function normalisePackage(p){
+    return {
+      id:p.id||p.package_id||p.key||('token-'+Math.random().toString(36).slice(2)),
+      amount:Number(p.tokens??p.amount??0),
+      price:Number(p.price??0),
+      bonus:p.bonus_tokens?'+ '+p.bonus_tokens+' bonus':(p.bonus||null),
+      label:p.label||'',
+    };
+  }
+
+  function App(){
+    const [roleTab,setRoleTab]=useState('player');
+    const [level,setLevel]=useState('professional');
+    const [pricing,setPricing]=useState(null);
+    const [topups,setTopups]=useState(null);
+    const [openFaq,setOpenFaq]=useState(null);
+    const [toasts,setToasts]=useState([]);
+    const [processing,setProcessing]=useState(null);
+    const [loading,setLoading]=useState(true);
+    const [loadError,setLoadError]=useState('');
+
+    const addToast=(message,type='info')=>{
+      const id=Date.now()+Math.random();
+      setToasts(t=>[...t,{id,message,type}]);
+      setTimeout(()=>setToasts(t=>t.filter(x=>x.id!==id)),5000);
+    };
+
+    const country=(new URLSearchParams(window.location.search).get('country')||'NG').trim().toUpperCase();
+
+    useEffect(()=>{
+      let cancelled=false;
+      const load=async()=>{
+        setLoading(true);setLoadError('');
+        try{
+          const res=await fetch('/api/config/pricing?country='+encodeURIComponent(country),{credentials:'same-origin',headers:{Accept:'application/json'}});
+          if(!res.ok)throw new Error('Pricing API returned '+res.status);
+          const data=await res.json();
+          if(!data||typeof data!=='object')throw new Error('Invalid pricing response');
+          if(!cancelled){setPricing(data);setTopups(Array.isArray(data.topup_packages)?data.topup_packages:null);}
+        }catch(e){
+          if(!cancelled){setLoadError('Live pricing could not be loaded. Please refresh and try again.');setTopups(FALLBACK_TOPUPS);}
+        }finally{if(!cancelled)setLoading(false);}
+      };
+      load();
+      return()=>{cancelled=true;};
+    },[country]);
+
+    useEffect(()=>{
+      const params=new URLSearchParams(window.location.search);
+      if(params.get('payment')!=='complete')return;
+      const transactionId=params.get('transaction_id')||params.get('transaction_id'.toString());
+      const txRef=params.get('tx_ref')||sessionStorage.getItem('enejistats_pending_tx_ref');
+      if(!transactionId||!txRef)return;
+      fetch('/api/public/payments/verify',{
+        method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({transaction_id:transactionId,tx_ref:txRef})
+      }).then(async r=>({ok:r.ok,data:await r.json()})).then(({data})=>{
+        if(data.verified)addToast('Payment verified successfully.','success');
+        else addToast('Payment could not be verified. Please contact support if you were charged.','error');
+        sessionStorage.removeItem('enejistats_pending_tx_ref');
+      }).catch(()=>addToast('Payment verification could not be completed. Please contact support if you were charged.','error'));
+    },[]);
+
+    const plansForRole=()=>{
+      if(!pricing)return [];
+      const source=pricing.subscription_plans?.[roleTab];
+      if(roleTab==='player'||roleTab==='club')return Array.isArray(source?.[level])?source[level].map(normalisePlan):[];
+      return Array.isArray(source)?source.map(normalisePlan):[];
+    };
+
+    const tokensForRole=()=>{
+      if(!pricing)return [];
+      const source=pricing.token_packages?.[roleTab];
+      if(roleTab==='player'||roleTab==='club')return Array.isArray(source?.[level])?source[level].map(normalisePackage):[];
+      return Array.isArray(source)?source.map(normalisePackage):[];
+    };
+
+    const handleCheckout=async(item,type='subscription')=>{
+      const token=localStorage.getItem('enejistats_token');
+      if(!token){addToast('Please register or sign in to continue.','info');setTimeout(()=>window.location.href='/register.html',1000);return;}
+      if(!item||!Number(item.price)||Number(item.price)<=0){addToast('This item is not available for online purchase.','error');return;}
+      setProcessing(item.id);
+      try{
+        const body={
+          amount:Number(item.price),
+          description:(item.name||item.label||`${item.amount||''} Tokens`)+' — '+type,
+          type:type==='tokens'?'token':type,
+          plan_id:item.id||null,
+          package_id:item.id||null,
+          role:roleTab,
+          level:(roleTab==='player'||roleTab==='club')?level:null,
+          plan_key:item.key||null,
+          tokens:Number(item.amount||0)||null,
+          email:localStorage.getItem('enejistats_email')||null,
+          name:localStorage.getItem('enejistats_name')||null,
+        };
+        const res=await fetch('/api/public/payments/initiate?country='+encodeURIComponent(country),{
+          method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(body)
+        });
+        const data=await res.json().catch(()=>({}));
+        if(!res.ok)throw new Error(data.detail||data.message||'Unable to start payment');
+        if(!data.link)throw new Error(data.message||'Payment gateway is not configured');
+        sessionStorage.setItem('enejistats_pending_tx_ref',data.tx_ref||'');
+        window.location.href=data.link;
+      }catch(e){
+        setProcessing(null);addToast(e.message||'Failed to start payment. Please try again.','error');
+      }
+    };
+
+    const activePlans=plansForRole();
+    const activeTokens=tokensForRole();
+    const activeTopups=Array.isArray(topups)?topups.map(t=>({id:t.id||t.package_id||Math.random(),name:t.name||t.label||'Package',price:Number(t.price||0),description:t.description||''})):[];
+
+    return html`<div>
+      <${Header}/>
+      <div class="toast-container">
+        ${toasts.map(t=>html`<div key=${t.id} class=${'toast '+t.type}><i class=${'fas '+(t.type==='success'?'fa-check-circle':'fa-info-circle')}/> ${t.message}</div>`)}
+      </div>
+
+      <section class="hero">
+        <h1><i class="fas fa-layer-group" style="color:var(--gold)"/> Simple, Transparent Pricing</h1>
+        <p>Live prices are loaded from the EnejiStats pricing service. Country: ${country}.</p>
+      </section>
+
+      <div class="role-tabs">
+        ${roleLabels.map(r=>html`<button key=${r.id} class=${'role-tab'+(roleTab===r.id?' active':'')} onClick=${()=>setRoleTab(r.id)}>
+          <i class=${'fas '+r.icon}/> ${r.label}
+        </button>`)}
+      </div>
+
+      ${(roleTab==='player'||roleTab==='club')&&html`<div class="container" style="padding-top:1.25rem">
+        <label style="display:block;max-width:360px;margin:0 auto;color:var(--muted);font-size:.85rem;font-weight:600">
+          ${roleTab==='player'?'Player':'Club'} level
+          <select value=${level} onChange=${e=>setLevel(e.target.value)} style="display:block;width:100%;margin-top:.4rem;background:var(--dark-bg);color:#fff;border:1px solid var(--line);border-radius:8px;padding:.7rem;font:inherit">
+            ${LEVELS.map(l=>html`<option value=${l.id}>${l.label}</option>`)}
+          </select>
+        </label>
+      </div>`}
+
+      <section class="plans-section">
+        <div class="container">
+          ${loading?html`<div style="text-align:center;color:var(--muted);padding:2rem"><i class="fas fa-spinner fa-spin"/> Loading live pricing…</div>`:
+            loadError?html`<div style="text-align:center;color:var(--danger);padding:2rem">${loadError}</div>`:
+            html`<div class="plans-grid">
+              ${activePlans.map(plan=>html`<div class=${'plan-card'+(plan.popular?' featured':'')} key=${plan.id}>
+                ${plan.popular&&html`<div class="popular-badge"><i class="fas fa-star"/> Popular</div>`}
+                <div class="plan-name">${plan.name}</div>
+                <div class="plan-desc">${plan.description||((roleTab==='player'||roleTab==='club')?`${LEVELS.find(x=>x.id===level)?.label||level} ${roleTab} subscription`:'EnejiStats '+roleTab+' subscription')}</div>
+                <div class="plan-price">
+                  <div class="plan-price-main">${fmt(plan.price)}<span class="plan-price-period">/${plan.months===12?'yr':plan.months===3?'3 mo':'mo'}</span></div>
+                  ${plan.discount&&html`<div class="token-bonus">${plan.discount}</div>`}
+                </div>
+                <div class="plan-features">
+                  ${plan.features.length?plan.features.map((f,i)=>html`<div key=${i} class=${'plan-feature '+(f.inc!==false?'inc':'exc')}><i class=${'fas '+(f.inc!==false?'fa-check':'fa-times')}/><span>${f.text||f}</span></div>`):html`<div class="plan-feature inc"><i class="fas fa-check"/><span>Access according to this subscription tier</span></div>`}
+                </div>
+                <button class=${'btn-plan '+(plan.popular?'btn-plan-gold':'btn-plan-outline')} onClick=${()=>handleCheckout({...plan,name:plan.name},'subscription')} disabled=${processing===plan.id}>
+                  ${processing===plan.id?html`<i class="fas fa-spinner fa-spin"/> Processing…`:'Subscribe Now'}
+                </button>
+              </div>`)}
+            </div>`}
+        </div>
+      </section>
+
+      <section class="tokens-section">
+        <div class="container">
+          <h2 class="section-title"><i class="fas fa-coins" style="color:var(--gold)"/> Token Packages</h2>
+          <p class="section-sub">Token packages are resolved from the same live pricing service.</p>
+          <div class="tokens-grid">
+            ${activeTokens.map(t=>html`<div key=${t.id} class="token-card" onClick=${()=>handleCheckout({...t,name:`${t.amount} Tokens`},'tokens')}>
+              <div class="token-amount">${t.amount}</div><div class="token-label">Tokens</div><div class="token-price">${fmt(t.price)}</div>
+              ${t.bonus&&html`<div class="token-bonus"><i class="fas fa-gift"/> ${t.bonus}</div>`}
+              ${t.label&&html`<div class="token-label" style="margin-top:.4rem">${t.label}</div>`}
+            </div>`)}
+          </div>
+        </div>
+      </section>
+
+      <section class="topup-section">
+        <div class="container">
+          <h2 class="section-title"><i class="fas fa-plus-circle" style="color:var(--gold)"/> Top-Up Packages</h2>
+          <p class="section-sub">One-time purchases loaded from the EnejiStats public top-up catalogue.</p>
+          <div class="topup-grid">
+            ${activeTopups.map(t=>html`<div key=${t.id} class="topup-card"><div class="topup-name">${t.name}</div><div class="topup-price">${fmt(t.price)}</div><div class="topup-desc">${t.description}</div><button class="btn-topup" onClick=${()=>handleCheckout({...t},'topup')}>Buy Now</button></div>`)}
+          </div>
+        </div>
+      </section>
+
+      <section class="compare-section"><div class="container"><h2 class="section-title">Full Feature Comparison</h2><div class="compare-wrap"><table class="compare-table"><thead><tr><th>Feature</th><th>Player</th><th>Club</th><th>Scout</th><th>Agent</th></tr></thead><tbody>${COMPARE_ROWS.map((row,i)=>html`<tr key=${i}><td style="font-weight:600">${row.feature}</td><td><${CheckCell} val=${row.player}/></td><td><${CheckCell} val=${row.club}/></td><td><${CheckCell} val=${row.scout}/></td><td><${CheckCell} val=${row.agent}/></td></tr>`)}</tbody></table></div></div></section>
+
+      <section class="faq-section"><div class="container"><h2 class="section-title">Pricing FAQ</h2><div class="faq-list">${FAQ_ITEMS.map((f,i)=>html`<div key=${i} class="faq-item"><button class=${'faq-q'+(openFaq===i?' open':'')} onClick=${()=>setOpenFaq(openFaq===i?null:i)}>${f.q}<i class=${'fas '+(openFaq===i?'fa-chevron-up':'fa-chevron-down')}/></button><div class=${'faq-a'+(openFaq===i?' open':'')}>${f.a}</div></div>`)}</div></div></section>
+      <${Footer}/>
+    </div>`;
+  }
+
+  render(html`<${App}/>`,document.getElementById('app'));
+})();
+</script>
+</body>
+</html>
