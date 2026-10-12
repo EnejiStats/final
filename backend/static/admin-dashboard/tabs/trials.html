@@ -1,0 +1,2086 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>EnejiStats — Trials</title>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
+<script>
+window.addEventListener('pageshow',function(e){
+  if(e.persisted){
+    fetch('/api/auth/me',{credentials:'include',cache:'no-store'})
+      .then(function(r){if(!r.ok)window.location.replace('/login');})
+      .catch(function(){window.location.replace('/login');});
+  }
+});
+</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+<script src="https://unpkg.com/preact@10/dist/preact.umd.js"></script>
+<script src="https://unpkg.com/preact@10/hooks/dist/hooks.umd.js"></script>
+<style>
+:root{
+  --primary:#004aad;--primary-light:#0066cc;--gold:#ffd700;
+  --dark:#1e1e2f;--dark2:#15192a;--dark3:#0f172a;
+  --success:#22c55e;--warning:#f59e0b;--danger:#ef4444;--info:#38bdf8;
+  --muted:#64748b;--text:#e2e8f0;--text2:#94a3b8;
+  --border:rgba(255,255,255,.08);--radius:12px;
+  --sidebar:260px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--dark3);color:var(--text);min-height:100vh;display:flex}
+.sidebar{width:var(--sidebar);background:var(--dark);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:200;transition:transform .3s}
+.sidebar-logo{padding:1.25rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.75rem}
+.logo-text{font-size:1.3rem;font-weight:900;letter-spacing:2px}
+.logo-text span{color:var(--gold)}
+.sidebar-nav{flex:1;overflow-y:auto;padding:.75rem 0}
+.nav-section{padding:.5rem 1rem .25rem;font-size:.65rem;font-weight:800;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:.75rem;padding:.65rem 1.25rem;color:var(--text2);font-size:.85rem;font-weight:600;cursor:pointer;transition:all .18s;border-left:3px solid transparent;text-decoration:none}
+.nav-item:hover{background:rgba(255,255,255,.05);color:var(--text);border-left-color:rgba(255,255,255,.2)}
+.nav-item.active{background:rgba(0,74,173,.15);color:#fff;border-left-color:var(--primary);font-weight:700}
+.nav-item i{width:18px;text-align:center;font-size:.9rem}
+.nav-badge{margin-left:auto;background:var(--danger);color:#fff;font-size:.6rem;font-weight:800;padding:1px 6px;border-radius:99px}
+.sidebar-footer{padding:1rem 1.25rem;border-top:1px solid var(--border)}
+.admin-info{display:flex;align-items:center;gap:.6rem}
+.admin-avatar{width:36px;height:36px;border-radius:50%;background:rgba(0,74,173,.3);display:flex;align-items:center;justify-content:center;color:var(--gold);font-weight:800;font-size:.85rem}
+.admin-name{font-size:.82rem;font-weight:700;color:var(--text)}
+.admin-role{font-size:.7rem;color:var(--muted)}
+.logout-btn{margin-left:auto;background:none;border:none;color:var(--danger);cursor:pointer;font-size:.9rem;padding:.25rem}
+.main{margin-left:var(--sidebar);flex:1;display:flex;flex-direction:column;min-height:100vh}
+.topbar{background:var(--dark);border-bottom:1px solid var(--border);padding:.85rem 1.5rem;display:flex;align-items:center;gap:1rem;position:sticky;top:0;z-index:100}
+.topbar-title{font-size:1rem;font-weight:800;color:#fff}
+.topbar-sub{font-size:.78rem;color:var(--muted)}
+.topbar-actions{margin-left:auto;display:flex;align-items:center;gap:.75rem}
+.icon-btn{background:rgba(255,255,255,.06);border:1.5px solid var(--border);color:var(--text2);width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.85rem;transition:all .18s}
+.icon-btn:hover{background:rgba(255,255,255,.12);color:#fff}
+.content{padding:1.5rem;flex:1}
+.page{display:none}
+.page.active{display:block}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem}
+@media(max-width:900px){.stat-grid{grid-template-columns:repeat(2,1fr)}}
+.stat-card{background:var(--dark);border:1px solid var(--border);border-radius:var(--radius);padding:1.1rem 1.25rem;border-top:3px solid var(--primary);transition:transform .18s}
+.stat-card:hover{transform:translateY(-2px)}
+.stat-card.s-gold{border-top-color:var(--gold)}
+.stat-card.s-ok{border-top-color:var(--success)}
+.stat-card.s-warn{border-top-color:var(--warning)}
+.stat-card.s-danger{border-top-color:var(--danger)}
+.stat-card.s-info{border-top-color:var(--info)}
+.stat-val{font-size:1.9rem;font-weight:900;color:#fff;line-height:1}
+.stat-lbl{font-size:.7rem;color:var(--muted);font-weight:700;margin-top:.25rem;text-transform:uppercase;letter-spacing:.5px}
+.stat-delta{font-size:.72rem;color:var(--success);margin-top:.35rem}
+.card{background:var(--dark);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem}
+.card-title{font-size:.88rem;font-weight:800;color:#fff;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
+.card-title i{color:var(--gold)}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.82rem}
+th{text-align:left;padding:.6rem .85rem;color:var(--muted);font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border)}
+td{padding:.75rem .85rem;border-bottom:1px solid rgba(255,255,255,.04);color:var(--text2);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+.badge{display:inline-block;font-size:.65rem;font-weight:800;padding:2px 8px;border-radius:99px;text-transform:uppercase;letter-spacing:.3px}
+.badge-active,.badge-success{background:rgba(34,197,94,.15);color:#4ade80}
+.badge-pending,.badge-warning{background:rgba(245,158,11,.15);color:#fbbf24}
+.badge-rejected,.badge-danger{background:rgba(239,68,68,.15);color:#f87171}
+.badge-info{background:rgba(56,189,248,.15);color:#7dd3fc}
+.badge-muted{background:rgba(100,116,139,.15);color:var(--muted)}
+.badge-trial{background:rgba(255,215,0,.15);color:var(--gold)}
+.badge-expired{background:rgba(239,68,68,.1);color:#f87171}
+.btn{display:inline-flex;align-items:center;gap:.35rem;padding:.5rem 1rem;border-radius:8px;font-weight:700;font-size:.8rem;cursor:pointer;border:none;font-family:inherit;transition:all .18s}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-light)}
+.btn-success{background:var(--success);color:#fff}
+.btn-success:hover{background:#16a34a}
+.btn-danger{background:rgba(239,68,68,.15);border:1.5px solid var(--danger);color:#f87171}
+.btn-danger:hover{background:var(--danger);color:#fff}
+.btn-warn{background:rgba(245,158,11,.15);border:1.5px solid var(--warning);color:#fbbf24}
+.btn-warn:hover{background:var(--warning);color:#fff}
+.btn-ghost{background:rgba(255,255,255,.06);border:1.5px solid var(--border);color:var(--text2)}
+.btn-ghost:hover{background:rgba(255,255,255,.12);color:#fff}
+.btn-sm{padding:.35rem .7rem;font-size:.75rem}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.filter-row{display:flex;gap:.65rem;flex-wrap:wrap;margin-bottom:1.1rem;align-items:center}
+.filter-tab{padding:.4rem .85rem;border-radius:7px;border:1.5px solid var(--border);background:rgba(255,255,255,.04);color:var(--muted);font-size:.78rem;font-weight:600;cursor:pointer;transition:all .18s}
+.filter-tab.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.filter-tab:hover:not(.active){border-color:var(--primary-light);color:#fff}
+.search-input{padding:.42rem .85rem;border-radius:7px;border:1.5px solid var(--border);background:rgba(255,255,255,.05);color:var(--text);font-size:.82rem;outline:none;font-family:inherit;min-width:200px}
+.search-input:focus{border-color:var(--primary)}
+.search-input::placeholder{color:#475569}
+select.search-input{cursor:pointer}
+.form-group{margin-bottom:1rem}
+.form-label{display:block;font-size:.75rem;font-weight:700;color:var(--muted);margin-bottom:.35rem;text-transform:uppercase;letter-spacing:.3px}
+.form-control{width:100%;padding:.6rem .85rem;background:rgba(255,255,255,.05);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:.85rem;font-family:inherit;outline:none}
+.form-control:focus{border-color:var(--primary)}
+.form-control::placeholder{color:#475569}
+textarea.form-control{resize:vertical;min-height:90px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+@media(max-width:600px){.form-grid{grid-template-columns:1fr}}
+.modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;opacity:0;pointer-events:none;transition:opacity .2s}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal-box{background:#1e293b;border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:1.75rem;max-width:540px;width:100%;transform:translateY(20px);transition:transform .2s}
+.modal-overlay.open .modal-box{transform:none}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.modal-title{font-size:1rem;font-weight:800;color:#fff}
+.modal-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.2rem;line-height:1}
+.modal-close:hover{color:#fff}
+.toast-container{position:fixed;bottom:1.5rem;right:1.5rem;z-index:99999;display:flex;flex-direction:column;gap:.5rem}
+.toast{background:#1e293b;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:.7rem 1rem;min-width:240px;max-width:360px;font-size:.83rem;color:var(--text);display:flex;align-items:center;gap:.55rem;box-shadow:0 8px 32px rgba(0,0,0,.4);animation:toastIn .2s ease}
+.toast.t-success{border-left:4px solid var(--success)}
+.toast.t-error{border-left:4px solid var(--danger)}
+.toast.t-info{border-left:4px solid var(--info)}
+.toast.t-warn{border-left:4px solid var(--warning)}
+@keyframes toastIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:none}}
+.pager{display:flex;align-items:center;gap:.4rem;margin-top:1rem}
+.pager-btn{padding:.35rem .65rem;border-radius:6px;border:1.5px solid var(--border);background:rgba(255,255,255,.04);color:var(--muted);font-size:.78rem;cursor:pointer}
+.pager-btn:hover{background:rgba(255,255,255,.1);color:#fff}
+.pager-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.pager-btn:disabled{opacity:.3;cursor:default}
+.receipt-img-wrap{border:2px solid var(--border);border-radius:10px;overflow:hidden;min-height:140px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.2);cursor:pointer}
+.receipt-img{width:100%;max-height:280px;object-fit:contain}
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:99999;display:flex;align-items:center;justify-content:center;cursor:zoom-out}
+.lightbox img{max-width:90vw;max-height:90vh;border-radius:8px;object-fit:contain}
+.lightbox-close{position:fixed;top:1rem;right:1.5rem;color:#fff;font-size:2rem;cursor:pointer;z-index:100000}
+.split-layout{display:grid;grid-template-columns:1fr 380px;gap:1.25rem}
+@media(max-width:1000px){.split-layout{grid-template-columns:1fr}}
+.sticky-panel{position:sticky;top:80px}
+.empty{text-align:center;padding:3rem 1rem;color:#475569}
+.empty i{font-size:2.5rem;opacity:.3;display:block;margin-bottom:.65rem}
+.loading{text-align:center;padding:2.5rem;color:var(--muted);font-size:.85rem}
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.section-title{font-size:.95rem;font-weight:800;color:#fff}
+.mono{font-family:monospace;font-size:.78rem}
+.gap-sm{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+.divider{height:1px;background:var(--border);margin:1rem 0}
+.text-success{color:var(--success)}
+.text-danger{color:var(--danger)}
+.text-warn{color:var(--warning)}
+.text-gold{color:var(--gold)}
+.text-muted{color:var(--muted)}
+.text-sm{font-size:.78rem}
+.fw700{font-weight:700}
+hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
+.user-confirm-card{background:rgba(0,74,173,.12);border:1.5px solid rgba(0,102,204,.35);border-radius:10px;padding:.85rem 1rem;margin-bottom:.75rem;display:none}
+.user-confirm-card.visible{display:block}
+.user-confirm-grid{display:grid;grid-template-columns:1fr 1fr;gap:.4rem .75rem;margin-top:.5rem;font-size:.8rem}
+.ucf-row{display:flex;flex-direction:column;gap:.1rem}
+.ucf-lbl{font-size:.6rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+.ucf-val{color:var(--text);font-weight:600;word-break:break-all}
+.act-item{display:flex;gap:.65rem;padding:.55rem 0;border-bottom:1px solid var(--border)}
+.act-item:last-child{border-bottom:none}
+.act-icon{width:28px;height:28px;border-radius:50%;background:rgba(0,74,173,.25);color:var(--primary-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.7rem;margin-top:.1rem}
+.act-icon.act-ok{background:rgba(34,197,94,.2);color:#4ade80}
+.act-icon.act-warn{background:rgba(245,158,11,.2);color:#fbbf24}
+.act-icon.act-info{background:rgba(56,189,248,.2);color:#7dd3fc}
+.act-icon.act-danger{background:rgba(239,68,68,.2);color:#f87171}
+.act-title{font-weight:700;font-size:.8rem;color:var(--text)}
+.act-desc{font-size:.73rem;color:var(--muted);margin-top:.1rem}
+.act-time{font-size:.63rem;color:var(--muted);margin-top:.15rem}
+.ops-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.85rem;margin-bottom:1.25rem}
+@media(max-width:900px){.ops-grid{grid-template-columns:repeat(2,1fr)}}
+.ops-card{background:var(--dark);border:1px solid var(--border);border-radius:var(--radius);padding:.9rem 1rem;border-top:3px solid var(--muted);transition:transform .18s}
+.ops-card:hover{transform:translateY(-2px)}
+.ops-card.s-warn{border-top-color:var(--warning)}
+.ops-card.s-ok{border-top-color:var(--success)}
+.ops-card.s-info{border-top-color:var(--info)}
+.ops-card.s-danger{border-top-color:var(--danger)}
+.ops-val{font-size:1.6rem;font-weight:900;color:#fff;line-height:1}
+.ops-lbl{font-size:.67rem;color:var(--muted);font-weight:700;margin-top:.2rem;text-transform:uppercase;letter-spacing:.5px}
+.ops-sub{font-size:.68rem;color:var(--muted);margin-top:.3rem}
+.coll-hdr{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:.6rem 0;border-bottom:1px solid var(--border);margin-bottom:.75rem}
+.coll-hdr:hover .coll-label{color:#fff}
+.coll-label{font-size:.85rem;font-weight:800;color:var(--text);display:flex;align-items:center;gap:.5rem}
+.coll-label i{color:var(--gold)}
+.coll-chevron{color:var(--muted);font-size:.85rem;transition:transform .2s}
+.coll-chevron.open{transform:rotate(180deg)}
+.tok-entity-confirm{background:rgba(0,74,173,.1);border:1.5px solid rgba(0,102,204,.25);border-radius:10px;padding:.85rem 1rem;display:none;margin-bottom:.75rem}
+.tok-entity-confirm.visible{display:block}
+.tok-entity-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem .75rem;margin-top:.5rem;font-size:.8rem}
+.approval-two-col{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+@media(max-width:900px){.approval-two-col{grid-template-columns:1fr}}
+.tok-filter-bar{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:.55rem;padding:.75rem .9rem;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px;margin-bottom:.9rem}
+.tok-filter-bar label{font-size:.6rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:.25rem;display:block}
+.tok-filter-input{width:100%;padding:.38rem .65rem;background:rgba(255,255,255,.05);border:1.5px solid var(--border);border-radius:7px;color:var(--text);font-size:.8rem;font-family:inherit;outline:none}
+.tok-filter-input:focus{border-color:var(--primary)}
+.tok-filter-input::placeholder{color:#475569}
+.th-dt{display:flex;flex-direction:column;gap:.08rem}
+.th-date{font-weight:700;font-size:.8rem;color:var(--text)}
+.th-time{font-size:.68rem;color:var(--muted)}
+.acct-filter-bar{display:flex;gap:.55rem;flex-wrap:wrap;padding:.75rem .9rem;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px;margin-bottom:.9rem;align-items:flex-end}
+.acct-filter-group{display:flex;flex-direction:column;gap:.2rem;min-width:140px}
+.acct-filter-group label{font-size:.6rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.acct-tag{display:inline-flex;align-items:center;gap:.25rem;padding:.18rem .5rem;border-radius:5px;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+.acct-tag-stats{background:rgba(56,189,248,.12);color:#7dd3fc}
+.acct-tag-heatmap{background:rgba(99,102,241,.15);color:#a5b4fc}
+.acct-tag-match{background:rgba(245,158,11,.12);color:#fbbf24}
+.acct-tag-bio{background:rgba(34,197,94,.12);color:#4ade80}
+.acct-tag-sub{background:rgba(0,74,173,.18);color:#93c5fd}
+.acct-tag-purchase{background:rgba(255,215,0,.12);color:#fde68a}
+.acct-tag-admin{background:rgba(239,68,68,.12);color:#f87171}
+.acct-tag-bgcheck{background:rgba(168,85,247,.12);color:#d8b4fe}
+.acct-tag-assignment{background:rgba(20,184,166,.12);color:#5eead4}
+.acct-tag-payout{background:rgba(249,115,22,.12);color:#fdba74}
+.acct-tag-other{background:rgba(100,116,139,.12);color:var(--muted)}
+.uid-badge{font-family:monospace;font-weight:700;font-size:.78rem;padding:.15rem .45rem;border-radius:5px;background:rgba(255,255,255,.06);color:var(--text2);border:1px solid var(--border)}
+.acct-summary-strip{display:flex;gap:1.25rem;flex-wrap:wrap;padding:.65rem .9rem;background:rgba(0,0,0,.15);border-radius:8px;margin-bottom:.75rem;font-size:.8rem}
+.acct-sum-item{display:flex;align-items:center;gap:.4rem;font-weight:700}
+.tok-history-summary{display:none;gap:1.5rem;padding:.75rem 1rem;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;margin-bottom:.85rem;align-items:center;flex-wrap:wrap}
+.ths-item{display:flex;flex-direction:column;align-items:center;gap:.15rem}
+.ths-val{font-size:1.15rem;font-weight:900;color:#fff}
+.ths-lbl{font-size:.6rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+@media print{
+  body *{visibility:hidden}
+  #acct-print-area,#acct-print-area *{visibility:visible}
+  #acct-print-area{position:fixed;inset:0;background:#fff;color:#000;padding:1.5rem;overflow:auto}
+  .no-print{display:none!important}
+  table{border-collapse:collapse;width:100%;font-size:10px}
+  th,td{border:1px solid #ccc;padding:4px 6px}
+  th{background:#f0f0f0;font-weight:bold}
+}
+#acct-print-header{display:none}
+
+
+
+
+
+.sub-confirm-card{background:rgba(0,74,173,.12);border:1.5px solid rgba(0,102,204,.3);border-radius:10px;padding:.85rem 1rem;margin-bottom:.75rem;display:none}
+.sub-confirm-card.visible{display:block}
+.sub-confirm-grid{display:grid;grid-template-columns:1fr 1fr;gap:.4rem .75rem;margin-top:.5rem;font-size:.8rem}
+.avail-scouts-grid-wrap{padding:.5rem 0}
+</style>
+<style id="external-tab-layout">
+/* External tab canvas: presentation-only layer. Original Preact logic and APIs remain intact. */
+:root{--tab-gutter:clamp(.75rem,2vw,1.5rem);--tab-gap:clamp(.75rem,1.5vw,1rem)}
+html,body{width:100%;min-width:0;overflow-x:hidden}body{display:block;overflow-y:auto}
+#app-root{width:100%;min-height:100vh}#app-root>div{display:block!important;width:100%!important;min-width:0}
+#app-root>div>.sidebar,#app-root>.sidebar{display:none!important}
+#app-root>div>.main{display:flex!important;flex-direction:column;margin-left:0!important;width:100%!important;min-width:0;min-height:100vh}
+#app-root>div>.main>.topbar{display:none!important}
+#app-root>div>.main>.content{display:block;width:100%;max-width:none;min-width:0;padding:var(--tab-gutter)}
+#app-root>div>.main>.content>.page{display:none!important;width:100%;max-width:none;min-width:0;margin:0}
+#app-root>div>.main>.content>.page#page-trials{display:block!important}
+#app-root>div>.main>.content>.page>*{min-width:0;max-width:none}
+#app-root .card,#app-root .stat-card,#app-root .ops-card,#app-root .pmt-card,#app-root .sreq-card,#app-root .mc-card{width:100%;min-width:0}
+#app-root .stat-grid,#app-root .ops-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr))!important;gap:var(--tab-gap);width:100%;align-items:stretch}
+#app-root .stat-card,#app-root .ops-card{height:100%}
+#app-root .split-layout,#app-root .mc-grid{grid-template-columns:minmax(0,1.5fr) minmax(280px,.8fr);gap:var(--tab-gap);width:100%;align-items:start}
+#app-root .split-layout>*,#app-root .mc-grid>*{min-width:0;width:100%}
+#app-root .form-grid,#app-root .mc-form-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:var(--tab-gap);width:100%}
+#app-root .form-grid>*,#app-root .mc-form-grid>*{min-width:0}
+#app-root .tok-filter-bar{grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:.65rem;width:100%}
+#app-root .acct-filter-bar{width:100%;gap:.65rem}#app-root .acct-filter-group{flex:1 1 180px;min-width:0}
+#app-root .filter-row,#app-root .sreq-filter-row{width:100%;gap:.6rem;align-items:center}
+#app-root .filter-row>*{min-width:0}#app-root .search-input,#app-root .form-control,#app-root .tok-filter-input{max-width:100%;min-width:0}
+#app-root .tbl-wrap{width:100%;max-width:100%;overflow-x:auto}#app-root table{width:100%;min-width:640px}
+#app-root .payment-cards-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:var(--tab-gap);width:100%}
+#app-root .pmt-card{height:100%}#app-root .pmt-card-body{min-width:0}#app-root .pmt-info-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr))}
+#app-root .sreq-detail-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr));width:100%}#app-root .sreq-card-body{min-width:0}
+#app-root .mc-metrics{grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));width:100%}#app-root .mc-form-grid .wide{grid-column:1/-1}
+#app-root .mc-venue-results,#app-root .mc-suggestions,#app-root .mc-supervisor-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));width:100%}
+#app-root .pager{flex-wrap:wrap;width:100%}#app-root img{max-width:100%;height:auto}#app-root input,#app-root select,#app-root textarea{max-width:100%;min-width:0}
+#app-root .section-header,#app-root .mc-header{gap:.75rem;flex-wrap:wrap;width:100%}#app-root .section-header>*{min-width:0}
+@media(max-width:1100px){#app-root .split-layout,#app-root .mc-grid{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:700px){#app-root>div>.main>.content{padding:.75rem}#app-root .stat-grid,#app-root .ops-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}#app-root .split-layout,#app-root .mc-grid{grid-template-columns:minmax(0,1fr)}#app-root .filter-row,#app-root .sreq-filter-row{align-items:stretch}#app-root .filter-row>*{flex:1 1 145px}}
+@media(max-width:480px){#app-root .stat-grid,#app-root .ops-grid{grid-template-columns:minmax(0,1fr)!important}#app-root .payment-cards-grid{grid-template-columns:minmax(0,1fr)}#app-root .pmt-info-grid{grid-template-columns:minmax(0,1fr)}#app-root table{min-width:560px}}
+</style>
+</head>
+<body>
+<div id="app-root"></div>
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+'use strict';
+const { h, render } = preact;
+const { useState, useEffect, useRef, useCallback, useMemo } = preactHooks;
+
+// ═══════════════════════════════════════════════════════════
+// GLOBAL STATE
+// ═══════════════════════════════════════════════════════════
+var _token = null;
+var _authed = false;
+var _currentPage = 'overview';
+var _adminName = 'Admin';
+var _adminRole = '';
+var _badgeReceipts = 0;
+var _badgePayments = 0;
+
+var _usersPage=1, _subAdminPage=1, _rcPage=1, _subsPage=1, _trialsPage=1;
+var _payoutsPage=1, _statsPage=1, _asgnPage=1, _bgcPage=1, _supPage=1;
+var _tokPage=1, _accountingPage=1, _monPage=1;
+var _pmtPage=1;
+const PAGE_SIZE=15, PMT_PAGE_SIZE=12, ACCT_PAGE_SIZE=20;
+
+var _allReceipts=[], _selectedReceipt=null, _receiptFilter='pending_review', _receiptAction=null;
+var _allSupport=[], _selectedTicket=null;
+var _allPayments=[], _pmtHidden=new Set(), _pmtTypeFilter='all';
+var _pmtActionTxRef=null, _pmtActionType=null;
+var _tokHistoryAll=[], _accountingAll=[], _accountingFiltered=[], _accountingPage=1;
+var _statsAllReqs=[], _expandedStats=new Set();
+var _statsTab='pending', _statsStateFilter='', _statsDateFrom='', _statsDateTo='', _statsSearchQuery='';
+var _subActionUid=null, _subCancelUid=null, _subGrantUser=null;
+var _payoutFilter='', _payoutActionId=null, _payoutActionType=null;
+var _suspendUid=null, _suspendAction=null;
+var _tokCreditUser=null, _tokDebitUser=null, _tokEntityData=null;
+var _selectedAssignScout=null, _availableScoutsList=[];
+var _sreqRejectRid=null;
+
+var _setCurrentPage = function(){};
+var _setAuthed = function(){};
+var _setBadgeReceipts = function(){};
+var _setBadgePayments = function(){};
+var _setAdminName = function(){};
+var _setAdminRole = function(){};
+
+// ═══════════════════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════════════════
+var _debounceTimers={};
+function debounce(fn, delay){
+  return function(){
+    var key=fn.toString().slice(0,40);
+    clearTimeout(_debounceTimers[key]);
+    _debounceTimers[key]=setTimeout(fn, delay);
+  };
+}
+
+function fmt(iso){
+  if(!iso) return '—';
+  try{ var d=new Date(iso); if(isNaN(d.getTime())) return iso; return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); }catch(e){ return iso; }
+}
+function fmtDt(iso){
+  if(!iso) return '—';
+  try{ var d=new Date(iso); if(isNaN(d.getTime())) return iso; return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}); }catch(e){ return iso; }
+}
+function fmtAmt(v){
+  var n=parseFloat(v)||0;
+  return '₦'+n.toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+function toast(msg, type){
+  type=type||'info';
+  var el=document.createElement('div');
+  el.className='toast t-'+(type==='error'?'error':type==='success'?'success':type==='warn'?'warn':'info');
+  var icon=type==='success'?'fa-check-circle':type==='error'?'fa-times-circle':type==='warn'?'fa-exclamation-circle':'fa-info-circle';
+  var color=type==='success'?'#4ade80':type==='error'?'#f87171':type==='warn'?'#fbbf24':'#7dd3fc';
+  el.innerHTML='<i class="fas '+icon+'" style="color:'+color+'"></i><span>'+msg+'</span>';
+  el.onclick=function(){el.remove();};
+  var container=document.getElementById('toast-container');
+  if(container){ container.appendChild(el); setTimeout(function(){ el.remove(); },4500); }
+}
+
+function openModal(id){ var el=document.getElementById(id); if(el) el.classList.add('open'); }
+function closeModal(id){ var el=document.getElementById(id); if(el) el.classList.remove('open'); }
+function openLightbox(src){
+  if(!src){toast('No image available','warn');return;}
+  var img=document.getElementById('lightbox-img'); if(img) img.src=src;
+  var lb=document.getElementById('lightbox'); if(lb) lb.style.display='flex';
+}
+function closeLightbox(){ var lb=document.getElementById('lightbox'); if(lb) lb.style.display='none'; }
+
+function toggleCollapsible(bodyId, chevId){
+  var body=document.getElementById(bodyId); var chev=document.getElementById(chevId);
+  if(!body) return;
+  var isOpen=body.style.display!=='none';
+  body.style.display=isOpen?'none':'';
+  if(chev){ chev.classList.toggle('open',!isOpen); }
+}
+
+function renderPager(containerId, currentPage, totalPages, onPageChange){
+  var el=document.getElementById(containerId); if(!el) return;
+  if(totalPages<=1){el.innerHTML='';return;}
+  var pages=[];
+  if(currentPage>1) pages.push('<button class="pager-btn" onclick="('+onPageChange.toString()+')('+(currentPage-1)+')">&#8249;</button>');
+  var start=Math.max(1,currentPage-2); var end=Math.min(totalPages,currentPage+2);
+  for(var i=start;i<=end;i++){ pages.push('<button class="pager-btn'+(i===currentPage?' active':'')+'" onclick="('+onPageChange.toString()+')('+i+')">'+i+'</button>'); }
+  if(currentPage<totalPages) pages.push('<button class="pager-btn" onclick="('+onPageChange.toString()+')('+(currentPage+1)+')">&#8250;</button>');
+  el.innerHTML=pages.join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+// API
+// ═══════════════════════════════════════════════════════════
+async function api(method, path, body, isForm){
+  var opts={method:method,credentials:'include',headers:{}};
+  if(_token) opts.headers['Authorization']='Bearer '+_token;
+  if(body){
+    if(isForm){ opts.body=body; }
+    else{ opts.headers['Content-Type']='application/json'; opts.body=JSON.stringify(body); }
+  }
+  var res=await fetch(path,opts);
+  if(res.status===401){ handleLogout(); throw new Error('Unauthorized'); }
+  if(!res.ok){
+    var errText=await res.text(); var errMsg=errText;
+    try{ errMsg=JSON.parse(errText).message||errText; }catch(e){}
+    throw new Error(errMsg||res.statusText);
+  }
+  var ct=res.headers.get('content-type')||'';
+  if(!ct.includes('application/json')) return {};
+  try{ return await res.json(); }catch(e){ return {}; }
+}
+
+// ═══════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════
+async function doLogin(email, password){
+  try{
+    var d=await api('POST','/api/admin/login',{email,password});
+    var tok=d.token||d.access_token||d.accessToken;
+    if(!tok) throw new Error('No token in response');
+    _token=tok; _authed=true;
+    sessionStorage.setItem('adm_token',tok);
+    _setAuthed(true);
+    loadAdminProfile();
+    navigateTo('overview');
+    toast('Logged in successfully','success');
+  }catch(e){ toast('Login failed: '+e.message,'error'); }
+}
+
+async function loadAdminProfile(){
+  try{
+    var d=await api('GET','/api/admin/me');
+    var name=d.name||d.admin_name||d.email||'Admin';
+    var role=d.role||d.type||'admin';
+    _adminName=name; _adminRole=role;
+    _setAdminName(name); _setAdminRole(role);
+  }catch(e){}
+}
+
+async function handleLogout(){
+  try{ await fetch('/api/auth/logout',{method:'POST',credentials:'include'}); }catch(e){}
+  _token=null; _authed=false;
+  try{ sessionStorage.clear(); }catch(e){}
+  try{ localStorage.clear(); }catch(e){}
+  window.location.replace('/login');
+}
+
+const PAGE_TITLES = {
+  'overview':      'Overview',
+  'users':         'Users & Players',
+  'sub-admins':    'Sub-Admins',
+  'receipts':      'Payment Receipts',
+  'subscriptions': 'Subscriptions',
+  'trials':        'Trial Management',
+  'tokens':        'Token Management',
+  'dco-tier':      'DCO Tiers',
+  'messages':      'Broadcasts',
+  'support':       'Support Tickets',
+  'settings':      'Pricing & Settings',
+};
+const PAGE_SUBS = {
+  'overview':      'Platform at a glance',
+  'users':         'Manage all user accounts',
+  'sub-admins':    'Manage admin access',
+  'receipts':      'Review payment proofs',
+  'subscriptions': 'Active and expired plans',
+  'trials':        'Trial accounts and expirations',
+  'tokens':        'Token credits and history',
+  'dco-tier':      'Data scout tier management',
+  'messages':      'Send platform-wide broadcasts',
+  'support':       'Handle user support requests',
+  'settings':      'Pricing configuration',
+};
+function navigateTo(page){ _currentPage=page; _setCurrentPage(page); loadPage(page); }
+
+// ═══════════════════════════════════════════════════════════
+// PAGE LOADER
+// ═══════════════════════════════════════════════════════════
+function loadPage(page){
+  switch(page){
+    case 'overview':      loadOverview(); break;
+    case 'users':         loadUsers(); loadPlayerMonitoring(); loadPendingApprovals(); break;
+    case 'sub-admins':    loadSubAdmins(); break;
+    case 'receipts':      loadReceipts(); break;
+    case 'subscriptions': loadSubscriptions(); break;
+    case 'trials':        loadTrials(); break;
+    case 'tokens':        loadTokens(); break;
+    case 'dco-tier':      loadDcoTiers(); break;
+    case 'messages':      loadMessages(); break;
+    case 'support':       loadSupport(); break;
+    case 'settings':      loadSettings(); break;
+  }
+}
+function refreshCurrentPage(){ loadPage(_currentPage); }
+
+// ═══════════════════════════════════════════════════════════
+// OVERVIEW
+// ═══════════════════════════════════════════════════════════
+async function loadOverview(){
+  try{
+    const [users, tokOv, payouts, rcpts, support] = await Promise.allSettled([
+      api('GET','/api/admin/users?limit=1'),
+      api('GET','/api/admin/tokens/overview'),
+      api('GET','/api/admin/payout-requests?status=pending&limit=1'),
+      api('GET','/api/admin/payment-receipts?status=pending_review&limit=200'),
+      api('GET','/api/admin/support/tickets?status=open&limit=1'),
+    ]);
+    if(users.status==='fulfilled') document.getElementById('ov-users').textContent=Number(users.value.total||0).toLocaleString();
+    if(tokOv.status==='fulfilled') document.getElementById('ov-tokens').textContent=Number(tokOv.value.total_tokens_in_circulation||0).toLocaleString();
+    const pendingRc=(rcpts.status==='fulfilled')?(rcpts.value.receipts||rcpts.value.intents||rcpts.value.results||[]).length:0;
+    document.getElementById('ov-pending-receipts').textContent=pendingRc;
+    var bdgR=document.getElementById('badge-receipts'); if(bdgR){ bdgR.textContent=pendingRc||''; _setBadgeReceipts(pendingRc); }
+    if(support.status==='fulfilled') document.getElementById('ov-support').textContent=support.value.total||0;
+    const activeSubs=await api('GET','/api/admin/subscriptions?status=active&limit=1').catch(()=>({total:0}));
+    document.getElementById('ov-active-subs').textContent=activeSubs.total||0;
+    const po=await api('GET','/api/admin/payout-requests?status=pending').catch(()=>({payouts:[]}));
+    document.getElementById('ov-payout').textContent=(po.payouts||[]).length;
+    const dcos=await api('GET','/api/admin/users?type=dco&limit=1').catch(()=>({total:0}));
+    document.getElementById('ov-dco').textContent=dcos.total||0;
+    const sr=await api('GET','/api/admin/stats-requests/all?limit=1').catch(()=>({total:0}));
+    document.getElementById('ov-stats-req').textContent=sr.total||0;
+    const [pendingReqs,availScouts,completedToday,pendingUsers]=await Promise.allSettled([
+      api('GET','/api/admin/stats-requests/all?status=pending&limit=1'),
+      api('GET','/api/admin/users?type=dco&status=active&limit=1'),
+      api('GET','/api/admin/stats-requests/all?status=completed&limit=1'),
+      api('GET','/api/admin/users?status=pending&limit=1'),
+    ]);
+    if(pendingReqs.status==='fulfilled') document.getElementById('ov-ops-pending').textContent=pendingReqs.value.total||0;
+    if(availScouts.status==='fulfilled') document.getElementById('ov-ops-scouts').textContent=availScouts.value.total||0;
+    if(completedToday.status==='fulfilled') document.getElementById('ov-ops-completed').textContent=completedToday.value.total||0;
+    if(pendingUsers.status==='fulfilled') document.getElementById('ov-ops-pending-users').textContent=pendingUsers.value.total||0;
+    const rrEl=document.getElementById('ov-receipts-list');
+    if(rcpts.status==='fulfilled'){
+      const list=(rcpts.value.receipts||rcpts.value.intents||rcpts.value.results||[]).slice(0,5);
+      if(!list.length){ rrEl.innerHTML='<p class="text-sm text-muted">No pending receipts.</p>'; }
+      else{ rrEl.innerHTML=list.map(r=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--border)"><div><div class="fw700 text-sm">${r.user_name||r.user_id||'—'}</div><div class="text-muted" style="font-size:.7rem">${r.tx_ref||''}</div></div><div class="gap-sm"><span class="badge badge-${r.status==='pending_review'?'warning':'active'}">${r.status||'pending'}</span><span class="fw700 text-sm text-gold">${fmtAmt(r.amount)}</span></div></div>`).join(''); }
+    }
+    const bEl=document.getElementById('ov-broadcasts-list');
+    const br=await api('GET','/api/admin/messages/history?limit=5').catch(()=>({messages:[]}));
+    const blist=br.messages||[];
+    if(!blist.length){ bEl.innerHTML='<p class="text-sm text-muted">No broadcasts yet.</p>'; }
+    else{ bEl.innerHTML=blist.map(b=>`<div style="padding:.5rem 0;border-bottom:1px solid var(--border)"><div class="fw700 text-sm">${b.title||'—'}</div><div class="text-muted" style="font-size:.72rem">To: ${b.target||'all'} • ${fmt(b.sent_at)}</div></div>`).join(''); }
+    loadOverviewActivities();
+  }catch(e){ toast('Failed to load overview: '+e.message,'error'); }
+}
+
+async function loadOverviewActivities(){
+  const el=document.getElementById('ov-activities-list'); if(!el) return;
+  try{
+    const [reqs,assigns]=await Promise.allSettled([
+      api('GET','/api/admin/stats-requests/all?limit=8&sort=newest'),
+      api('GET','/api/admin/assignments?limit=5'),
+    ]);
+    const activities=[];
+    if(reqs.status==='fulfilled'){ (reqs.value.requests||[]).slice(0,5).forEach(r=>{ const ico=r.status==='completed'?'act-ok':r.status==='assigned'?'act-info':r.status==='rejected'?'act-danger':'act-warn'; const icn=r.status==='completed'?'fa-check':r.status==='assigned'?'fa-user-check':r.status==='rejected'?'fa-times':'fa-clock'; activities.push({icon:icn,cls:ico,title:'Stats Request — '+(r.status||'pending'),desc:(r.club_name||r.club_id||'Club')+' · '+(r.scope||'match stats'),time:r.created_at||r.updated_at}); }); }
+    if(assigns.status==='fulfilled'){ (assigns.value.assignments||[]).slice(0,3).forEach(a=>{ activities.push({icon:'fa-tasks',cls:'act-info',title:'Assignment Created',desc:'Scout '+(a.assigned_dco_id||a.assigned_supervisor_id||'—')+' assigned',time:a.created_at}); }); }
+    activities.sort((a,b)=>new Date(b.time||0)-new Date(a.time||0));
+    if(!activities.length){ el.innerHTML='<p class="text-sm text-muted">No recent activities.</p>'; return; }
+    el.innerHTML=activities.slice(0,7).map(a=>`<div class="act-item"><div class="act-icon ${a.cls}"><i class="fas ${a.icon}"></i></div><div><div class="act-title">${a.title}</div><div class="act-desc">${a.desc}</div><div class="act-time">${fmtDt(a.time)}</div></div></div>`).join('');
+  }catch(e){ el.innerHTML='<p class="text-sm text-muted">Could not load activities.</p>'; }
+}
+
+// ═══════════════════════════════════════════════════════════
+// USERS
+// ═══════════════════════════════════════════════════════════
+async function loadUsers(){
+  const search=document.getElementById('users-search').value;
+  const type=document.getElementById('users-type').value;
+  const status=document.getElementById('users-status').value;
+  const tbody=document.getElementById('users-tbody');
+  tbody.innerHTML='<tr><td colspan="6" class="loading">Loading…</td></tr>';
+  try{
+    const qs=new URLSearchParams({page:_usersPage,limit:PAGE_SIZE});
+    if(search) qs.set('search',search); if(type) qs.set('type',type); if(status) qs.set('status',status);
+    const d=await api('GET',`/api/admin/users?${qs}`);
+    const users=d.users||[];
+    if(!users.length){tbody.innerHTML='<tr><td colspan="6" class="empty">No users found.</td></tr>';return;}
+    tbody.innerHTML=users.map(u=>{ const name=u.name||u.club_name||`${u.firstName||''} ${u.lastName||''}`.trim()||u.email||'—'; const uid=u.player_id||u.club_id||u.user_id||u.dco_id||u._id||'—'; const role=u.type||u.role||'—'; const st=u.status||(u.is_active===false?'inactive':'active'); return `<tr><td><div class="fw700">${name}</div><div class="text-muted mono">${u.email||''}</div></td><td><span class="badge badge-info">${role}</span></td><td class="mono text-sm">${uid}</td><td><span class="badge badge-${st==='active'?'active':st==='suspended'?'danger':'muted'}">${st}</span>${(u.verified||u.is_verified||u.email_verified)?'<span class="badge badge-success" style="margin-left:.25rem;font-size:.55rem">✓ Verified</span>':''}</td><td class="text-sm text-muted">${fmt(u.created_at)}</td><td><div class="gap-sm"><button class="btn btn-sm btn-ghost" onclick="openUserAction('${uid}','${name.replace(/'/g,"\\'")}','${role}')"><i class="fas fa-ellipsis-v"></i> Actions</button></div></td></tr>`; }).join('');
+    renderPager('users-pager',_usersPage,Math.ceil((d.total||users.length)/PAGE_SIZE),function(p){_usersPage=p;loadUsers();});
+  }catch(e){ tbody.innerHTML=`<tr><td colspan="6" class="text-danger text-sm" style="padding:1rem">Error: ${e.message}</td></tr>`; }
+}
+
+function openUserAction(uid, name, role){
+  document.getElementById('uam-title').textContent='Actions — '+name;
+  document.getElementById('uam-body').innerHTML=`<p class="text-sm text-muted" style="margin-bottom:1rem"><span class="mono">${uid}</span> &nbsp;<span class="badge badge-info">${role||'user'}</span></p><div class="form-group"><label class="form-label">Token Credit / Debit</label><div class="gap-sm"><input class="form-control" id="ua-tok-amt" type="number" placeholder="Amount" style="width:110px;min-width:110px"/><input class="form-control" id="ua-tok-reason" placeholder="Reason" style="flex:1"/><button class="btn btn-success btn-sm" onclick="userTokenCredit('${uid}','${role}')">+ Credit</button><button class="btn btn-danger btn-sm" onclick="userTokenDebit('${uid}','${role}')">− Debit</button></div></div><div class="form-group"><label class="form-label">Send In-App Message</label><div class="gap-sm"><input class="form-control" id="ua-msg" placeholder="Message text…" style="flex:1"/><button class="btn btn-primary btn-sm" onclick="userMessage('${uid}')">Send</button></div></div><hr/><div class="gap-sm" style="flex-wrap:wrap"><button class="btn btn-success btn-sm" onclick="userAction('${uid}','activate')"><i class="fas fa-check"></i> Activate</button><button class="btn btn-warn btn-sm" onclick="openSuspendModal('${uid}','${name}','suspend')"><i class="fas fa-ban"></i> Suspend</button><button class="btn btn-ghost btn-sm" onclick="userAction('${uid}','unsuspend')"><i class="fas fa-unlock"></i> Unsuspend</button><button class="btn btn-ghost btn-sm" onclick="userAction('${uid}','verify')"><i class="fas fa-badge-check"></i> Verify Email</button><button class="btn btn-danger btn-sm" onclick="openSuspendModal('${uid}','${name}','delete')"><i class="fas fa-trash"></i> Delete</button></div>`;
+  openModal('users-action-modal');
+}
+
+async function userAction(uid, action, body){
+  try{ await api('POST',`/api/admin/users/${uid}/${action}`,body||{}); toast('Action "'+action+'" applied successfully','success'); closeModal('users-action-modal'); closeModal('suspend-modal'); loadUsers(); }catch(e){ toast('Error: '+e.message,'error'); }
+}
+
+function _resolveUserType(role){ const r=(role||'').toLowerCase(); if(r==='club') return 'club'; if(r==='scout') return 'scout'; if(r==='dco'||r==='data_scout'||r==='datascout') return 'dco'; if(r==='agent') return 'agent'; if(r==='supervisor') return 'supervisor'; return 'player'; }
+
+async function userTokenCredit(uid, role){ const amt=parseInt(document.getElementById('ua-tok-amt').value)||0; const reason=document.getElementById('ua-tok-reason').value||'Admin credit'; if(!amt){toast('Enter amount','warn');return;} try{ await api('POST',`/api/admin/users/${uid}/tokens/credit`,{amount:amt,reason,user_type:_resolveUserType(role)}); toast(amt+' tokens credited to '+uid,'success'); }catch(e){ toast('Error: '+e.message,'error'); } }
+async function userTokenDebit(uid, role){ const amt=parseInt(document.getElementById('ua-tok-amt').value)||0; const reason=document.getElementById('ua-tok-reason').value||'Admin debit'; if(!amt){toast('Enter amount','warn');return;} try{ await api('POST',`/api/admin/users/${uid}/tokens/debit`,{amount:amt,reason,user_type:_resolveUserType(role)}); toast(amt+' tokens debited from '+uid,'success'); }catch(e){ toast('Error: '+e.message,'error'); } }
+async function userMessage(uid){ const msg=document.getElementById('ua-msg').value.trim(); if(!msg){toast('Enter message','warn');return;} try{ await api('POST',`/api/admin/users/${uid}/message`,{message:msg}); toast('Message sent','success'); document.getElementById('ua-msg').value=''; }catch(e){ toast('Error: '+e.message,'error'); } }
+
+function openSuspendModal(uid, name, action){
+  _suspendUid=uid; _suspendAction=action;
+  const isDelete=(action==='delete');
+  document.getElementById('suspend-modal-title').textContent=isDelete?'Delete User':'Suspend User';
+  document.getElementById('suspend-modal-desc').textContent=isDelete?`Permanently delete ${name}? All data will be removed. This cannot be undone.`:`Suspend ${name}? They will lose platform access until unsuspended.`;
+  document.getElementById('suspend-confirm-btn').className='btn '+(isDelete?'btn-danger':'btn-warn');
+  document.getElementById('suspend-confirm-btn').textContent=isDelete?'Delete User':'Suspend User';
+  openModal('suspend-modal');
+}
+
+async function executeSuspendAction(){
+  if(!_suspendUid||!_suspendAction) return;
+  const reason=document.getElementById('suspend-reason').value;
+  const action=_suspendAction==='delete'?'delete':'suspend';
+  try{ await api('POST',`/api/admin/users/${_suspendUid}/${action}`,{reason}); toast('User '+action+'ed','success'); closeModal('suspend-modal'); closeModal('users-action-modal'); loadUsers(); }catch(e){ toast('Error: '+e.message,'error'); }
+}
+
+async function loadPlayerMonitoring(){
+  const tbody=document.getElementById('monitoring-tbody'); if(!tbody) return;
+  tbody.innerHTML='<tr><td colspan="7" class="loading">Loading…</td></tr>';
+  const search=(document.getElementById('mon-search')||{}).value||'';
+  try{
+    const qs=new URLSearchParams({page:_monPage,limit:PAGE_SIZE,type:'player'});
+    if(search) qs.set('search',search);
+    const d=await api('GET',`/api/admin/users?${qs}`);
+    const list=d.users||[];
+    if(!list.length){tbody.innerHTML='<tr><td colspan="7" class="empty">No players found.</td></tr>';return;}
+    tbody.innerHTML=list.map(p=>{ const name=p.name||`${p.firstName||''} ${p.lastName||''}`.trim()||p.email||'—'; const uid=p.player_id||p.user_id||p._id||'—'; const st=p.status||(p.is_active===false?'inactive':'active'); const tokens=p.token_balance||p.tokens||0; const requests=p.total_requests||p.stats_requests||0; return `<tr><td><div class="fw700">${name}</div><div class="text-muted mono" style="font-size:.7rem">${p.email||''}</div></td><td class="mono text-sm">${uid}</td><td><span class="badge badge-${st==='active'?'active':st==='suspended'?'danger':'muted'}">${st}</span></td><td class="fw700 text-gold">${Number(tokens).toLocaleString()}</td><td>${requests>0?'<span style="font-weight:700;color:var(--info)">'+requests+'</span>':'—'}</td><td class="text-muted text-sm">${p.scouted_by||p.assigned_scout||'—'}</td><td class="text-sm text-muted">${fmt(p.created_at)}</td></tr>`; }).join('');
+    renderPager('monitoring-pager',_monPage,Math.ceil((d.total||list.length)/PAGE_SIZE),function(p){_monPage=p;loadPlayerMonitoring();});
+  }catch(e){ tbody.innerHTML=`<tr><td colspan="7" class="text-danger text-sm" style="padding:1rem">Error: ${e.message}</td></tr>`; }
+}
+
+async function loadPendingApprovals(){
+  const scoutsEl=document.getElementById('pending-scouts-list'); const playersEl=document.getElementById('pending-players-list');
+  if(scoutsEl) scoutsEl.innerHTML='<div class="loading">Loading…</div>';
+  if(playersEl) playersEl.innerHTML='<div class="loading">Loading…</div>';
+  try{
+    const [scouts,players]=await Promise.allSettled([
+      api('GET','/api/admin/pending-scouts').catch(()=>api('GET','/api/admin/users?type=scout&status=pending&limit=20')),
+      api('GET','/api/admin/pending-players').catch(()=>api('GET','/api/admin/users?type=player&status=pending&limit=20')),
+    ]);
+    if(scoutsEl){ const sList=scouts.status==='fulfilled'?(scouts.value.scouts||scouts.value.users||scouts.value.data||[]):[];  if(!sList.length){ scoutsEl.innerHTML='<p class="text-sm text-muted" style="padding:.5rem 0"><i class="fas fa-check-circle text-success"></i> No pending scout approvals.</p>'; } else{ scoutsEl.innerHTML=`<div class="tbl-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Date</th><th>Action</th></tr></thead><tbody>${sList.slice(0,10).map(s=>{const sid=s._id||s.user_id||s.scout_id||'';const name=s.name||s.full_name||`${s.firstName||''} ${s.lastName||''}`.trim()||'—';return `<tr><td class="fw700">${name}</td><td class="text-sm text-muted">${s.email||'—'}</td><td class="text-sm text-muted">${fmt(s.created_at)}</td><td><div class="gap-sm"><button class="btn btn-sm btn-success" onclick="approvePendingUser('${sid}','scout')"><i class="fas fa-check"></i> Approve</button><button class="btn btn-sm btn-danger" onclick="rejectPendingUser('${sid}','scout')">Reject</button></div></td></tr>`;}).join('')}</tbody></table></div>`; } }
+    if(playersEl){ const pList=players.status==='fulfilled'?(players.value.players||players.value.users||players.value.data||[]):[];  if(!pList.length){ playersEl.innerHTML='<p class="text-sm text-muted" style="padding:.5rem 0"><i class="fas fa-check-circle text-success"></i> No pending player approvals.</p>'; } else{ playersEl.innerHTML=`<div class="tbl-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Date</th><th>Action</th></tr></thead><tbody>${pList.slice(0,10).map(p=>{const pid=p._id||p.user_id||p.player_id||'';const name=p.name||p.full_name||`${p.firstName||''} ${p.lastName||''}`.trim()||'—';return `<tr><td class="fw700">${name}</td><td class="text-sm text-muted">${p.email||'—'}</td><td class="text-sm text-muted">${fmt(p.created_at)}</td><td><div class="gap-sm"><button class="btn btn-sm btn-success" onclick="approvePendingUser('${pid}','player')"><i class="fas fa-check"></i> Approve</button><button class="btn btn-sm btn-danger" onclick="rejectPendingUser('${pid}','player')">Reject</button></div></td></tr>`;}).join('')}</tbody></table></div>`; } }
+  }catch(e){}
+}
+
+async function approvePendingUser(id, type){ if(!id){toast('Invalid ID','warn');return;} try{ await api('POST',`/api/admin/${type==='scout'?'approve-scout':'approve-player'}/${id}`,{}).catch(()=>api('POST',`/api/admin/users/${id}/activate`,{})); toast(type+' approved','success'); loadPendingApprovals(); }catch(e){ toast('Error: '+e.message,'error'); } }
+async function rejectPendingUser(id, type){ if(!id){toast('Invalid ID','warn');return;} if(!confirm('Reject this '+type+'? They will be notified.')) return; try{ await api('POST',`/api/admin/${type==='scout'?'reject-scout':'reject-player'}/${id}`,{}).catch(()=>api('POST',`/api/admin/users/${id}/suspend`,{reason:'Application rejected'})); toast(type+' rejected','info'); loadPendingApprovals(); }catch(e){ toast('Error: '+e.message,'error'); } }
+
+// ═══════════════════════════════════════════════════════════
+// SUB-ADMINS
+// ═══════════════════════════════════════════════════════════
+async function loadSubAdmins(){
+  const tbody=document.getElementById('subadmins-tbody');
+  tbody.innerHTML='<tr><td colspan="5" class="loading">Loading…</td></tr>';
+  try{
+    const d=await api('GET',`/api/admin/sub-admins?page=${_subAdminPage}&limit=${PAGE_SIZE}`);
+    const list=d.admins||d.sub_admins||[];
+    if(!list.length){tbody.innerHTML='<tr><td colspan="5" class="empty">No sub-admins.</td></tr>';return;}
+    tbody.innerHTML=list.map(a=>`<tr><td class="fw700">${a.name||'—'}</td><td class="text-muted">${a.email||'—'}</td><td><span class="badge badge-${a.status==='active'?'active':'muted'}">${a.status||'active'}</span></td><td class="text-sm text-muted">${fmt(a.created_at)}</td><td><button class="btn btn-sm btn-danger" onclick="deleteSubAdmin('${a._id||a.user_id}')">Remove</button></td></tr>`).join('');
+  }catch(e){ tbody.innerHTML=`<tr><td colspan="5" class="text-danger text-sm" style="padding:1rem">Error: ${e.message}</td></tr>`; }
+}
+
+function openCreateSubAdmin(){ document.getElementById('sa-name').value=''; document.getElementById('sa-email').value=''; document.getElementById('sa-password').value=''; openModal('create-subadmin-modal'); }
+async function createSubAdmin(){ const name=document.getElementById('sa-name').value.trim(); const email=document.getElementById('sa-email').value.trim(); const password=document.getElementById('sa-password').value; if(!name||!email||!password){toast('All fields required','warn');return;} try{ await api('POST','/api/admin/sub-admins',{name,email,password}); toast('Sub-admin created','success'); closeModal('create-subadmin-modal'); loadSubAdmins(); }catch(e){ toast('Error: '+e.message,'error'); } }
+async function deleteSubAdmin(id){ if(!confirm('Remove this sub-admin?')) return; try{ await api('DELETE',`/api/admin/sub-admins/${id}`); toast('Sub-admin removed','info'); loadSubAdmins(); }catch(e){ toast('Error: '+e.message,'error'); } }
+
+// ═══════════════════════════════════════════════════════════
+// RECEIPTS
+// ═══════════════════════════════════════════════════════════
+function setReceiptFilter(el, status){ document.querySelectorAll('#page-receipts .filter-tab').forEach(b=>b.classList.remove('active')); el.classList.add('active'); _receiptFilter=status; _rcPage=1; loadReceipts(); }
+
+async function loadReceipts(){
+  const listEl=document.getElementById('receipts-list'); listEl.innerHTML='<div class="loading">Loading…</div>';
+  try{
+    const status=_receiptFilter==='all'?'':_receiptFilter;
+    const qs=new URLSearchParams({page:_rcPage,limit:PAGE_SIZE*2}); if(status) qs.set('status',status);
+    const d=await api('GET',`/api/admin/payment-receipts?${qs}`);
+    _allReceipts=d.receipts||d.intents||d.results||[];
+    const pending=_allReceipts.filter(r=>r.status==='pending_review').length;
+    const approved=_allReceipts.filter(r=>r.status==='active'||r.status==='approved').length;
+    const rejected=_allReceipts.filter(r=>r.status==='rejected').length;
+    const value=_allReceipts.filter(r=>r.status==='active'||r.status==='approved').reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+    const se=function(id,v){ var e=document.getElementById(id); if(e) e.textContent=v; };
+    se('rc-pending',pending); se('rc-approved',approved); se('rc-rejected',rejected); se('rc-value',fmtAmt(value));
+    renderReceipts();
+  }catch(e){ listEl.innerHTML=`<div class="empty text-danger"><i class="fas fa-exclamation-triangle"></i><p>Error: ${e.message}</p></div>`; }
+}
+
+function renderReceipts(){
+  const listEl=document.getElementById('receipts-list');
+  const search=((document.getElementById('receipts-search')||{}).value||'').toLowerCase();
+  let list=_allReceipts;
+  if(search) list=list.filter(r=>[r.user_id,r.user_name,r.tx_ref,r.user_ref].filter(Boolean).join(' ').toLowerCase().includes(search));
+  if(!list.length){listEl.innerHTML='<div class="empty"><i class="fas fa-receipt"></i><p>No receipts found.</p></div>';return;}
+  listEl.innerHTML=list.map(r=>{ const isSelected=_selectedReceipt&&_selectedReceipt.tx_ref===r.tx_ref; const stClr=r.status==='active'||r.status==='approved'?'var(--success)':r.status==='rejected'?'var(--danger)':'var(--warning)'; return `<div class="card" style="margin-bottom:.65rem;cursor:pointer;border-left:4px solid ${stClr};${isSelected?'background:rgba(255,215,0,.04)':''}" onclick="selectReceipt('${(r.tx_ref||'').replace(/'/g,"\\'")}')"><div style="display:flex;justify-content:space-between;align-items:center"><div><div class="fw700 text-sm">${r.user_name||r.user_id||'—'}</div><div class="text-muted mono" style="font-size:.7rem">${r.tx_ref||'—'}</div><div class="text-muted" style="font-size:.7rem;margin-top:.2rem">${fmt(r.created_at||r.receipt_uploaded_at)}</div></div><div style="text-align:right"><span class="badge badge-${r.status==='active'||r.status==='approved'?'active':r.status==='rejected'?'danger':'warning'}">${r.status||'pending'}</span><div class="fw700 text-gold" style="margin-top:.35rem">${fmtAmt(r.amount)}</div></div></div></div>`; }).join('');
+}
+
+async function selectReceipt(txRef){
+  _selectedReceipt=_allReceipts.find(r=>r.tx_ref===txRef)||null;
+  renderReceipts(); renderReceiptDetail();
+  try{ const full=await api('GET',`/api/admin/payment-receipts/${txRef}`); if(full&&_selectedReceipt) Object.assign(_selectedReceipt,full); else if(full) _selectedReceipt=full; renderReceiptDetail(); }catch(e){}
+}
+
+function renderReceiptDetail(){
+  const panel=document.getElementById('receipt-detail-panel');
+  if(!_selectedReceipt){ panel.innerHTML='<div class="card"><div class="empty"><i class="fas fa-receipt"></i><p>Select a receipt to review</p></div></div>'; return; }
+  const r=_selectedReceipt;
+  const imgSrc=r.receipt_url||(r.receipt_data?'data:'+(r.receipt_data_type||'image/jpeg')+';base64,'+r.receipt_data:'');
+  const txRef=(r.tx_ref||'').replace(/'/g,"\\'");
+  panel.innerHTML=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem"><div class="fw700">${r.user_name||r.user_id||'—'}</div><span class="badge badge-${r.status==='active'||r.status==='approved'?'active':r.status==='rejected'?'danger':'warning'}">${r.status||'pending'}</span></div><div style="font-size:.8rem;margin-bottom:.75rem"><div style="display:flex;justify-content:space-between;padding:.3rem 0;border-bottom:1px solid var(--border)"><span class="text-muted">Amount</span><span class="fw700 text-gold">${fmtAmt(r.amount)}</span></div><div style="display:flex;justify-content:space-between;padding:.3rem 0;border-bottom:1px solid var(--border)"><span class="text-muted">Tx Ref</span><span class="mono" style="font-size:.7rem">${r.tx_ref||'—'}</span></div><div style="display:flex;justify-content:space-between;padding:.3rem 0;border-bottom:1px solid var(--border)"><span class="text-muted">User Ref</span><span class="mono" style="font-size:.7rem">${r.user_ref||r.user_payment_ref||'—'}</span></div><div style="display:flex;justify-content:space-between;padding:.3rem 0"><span class="text-muted">Date</span><span>${fmtDt(r.created_at||r.receipt_uploaded_at)}</span></div></div><div class="receipt-img-wrap" onclick="openLightbox('${imgSrc}')" style="margin-bottom:.75rem">${imgSrc?`<img class="receipt-img" src="${imgSrc}" alt="Receipt"/>`:'<div class="text-muted text-sm"><i class="fas fa-image" style="font-size:2rem;display:block;margin-bottom:.5rem"></i>No image</div>'}</div><div class="gap-sm">${(r.status==='pending_review'||r.status==='pending')?`<button class="btn btn-success btn-sm" style="flex:1;justify-content:center" onclick="receiptAction('${txRef}','approve')"><i class="fas fa-check"></i> Approve</button><button class="btn btn-danger btn-sm" style="flex:1;justify-content:center" onclick="receiptAction('${txRef}','reject')"><i class="fas fa-times"></i> Reject</button>`:(r.status==='active'||r.status==='approved')?'<span class="text-success text-sm"><i class="fas fa-check-circle"></i> Approved</span>':'<span class="text-danger text-sm"><i class="fas fa-times-circle"></i> Rejected</span>'}</div></div>`;
+}
+
+function receiptAction(txRef, action){
+  _receiptAction={txRef,action};
+  document.getElementById('rcm-title').textContent=action==='approve'?'Approve Receipt':'Reject Receipt';
+  document.getElementById('rcm-desc').textContent=action==='approve'?'Approving this receipt will activate the subscription or token credit. Confirm?':'Rejecting will notify the user. Are you sure?';
+  document.getElementById('rcm-confirm-btn').className='btn '+(action==='approve'?'btn-success':'btn-danger');
+  document.getElementById('rcm-confirm-btn').textContent=action==='approve'?'Approve':'Reject';
+  document.getElementById('rcm-note').value='';
+  openModal('receipt-confirm-modal');
+}
+
+async function executeReceiptAction(){
+  if(!_receiptAction) return;
+  const {txRef,action}=_receiptAction; const note=document.getElementById('rcm-note').value;
+  closeModal('receipt-confirm-modal');
+  try{ await api('POST',`/api/admin/payment-receipts/${txRef}/${action}`,{note,reason:note}); toast(action==='approve'?'Receipt approved':'Receipt rejected','success'); _receiptAction=null; loadReceipts(); _selectedReceipt=null; renderReceiptDetail(); }catch(e){ toast('Error: '+e.message,'error'); }
+}
+
+// ═══════════════════════════════════════════════════════════
+// SUBSCRIPTIONS
+// ═══════════════════════════════════════════════════════════
+async function loadSubscriptions(){
+  const status=document.getElementById('subs-status').value; const type=document.getElementById('subs-type').value;
+  const tbody=document.getElementById('subs-tbody'); tbody.innerHTML='<tr><td colspan="6" class="loading">Loading…</td></tr>';
+  try{
+    const qs=new URLSearchParams({page:_subsPage,limit:PAGE_SIZE}); if(status) qs.set('status',status); if(type) qs.set('user_type',type);
+    const d=await api('GET',`/api/admin/subscriptions?${qs}`); const list=d.subscriptions||[];
+    if(!list.length){tbody.innerHTML='<tr><td colspan="6" class="empty">No subscriptions found.</td></tr>';return;}
+    tbody.innerHTML=list.map(s=>`<tr><td class="mono text-sm">${s.user_id||'—'}</td><td><span class="badge badge-info">${s.user_type||s.role||'—'}</span></td><td>${(s.plan||'—').toUpperCase().replace(/_/g,' ')}</td><td><span class="badge badge-${s.status==='active'?'active':s.status==='trialing'?'trial':s.status==='cancelled'?'danger':'expired'}">${s.status||'—'}</span></td><td class="text-sm ${new Date(s.expires_at)<new Date()?'text-danger':''}">${fmt(s.expires_at)}</td><td><div class="gap-sm"><button class="btn btn-sm btn-ghost" onclick="openSubExtend('${s.user_id}')"><i class="fas fa-calendar-plus"></i> Extend</button><button class="btn btn-sm btn-danger" onclick="openSubCancel('${s.user_id}')"><i class="fas fa-times"></i> Cancel</button></div></td></tr>`).join('');
+    renderPager('subs-pager',_subsPage,Math.ceil((d.total||list.length)/PAGE_SIZE),function(p){_subsPage=p;loadSubscriptions();});
+  }catch(e){ tbody.innerHTML=`<tr><td colspan="6" class="text-danger text-sm" style="padding:1rem">Error: ${e.message}</td></tr>`; }
+}
+
+function openSubExtend(uid){ _subActionUid=uid; document.getElementById('sem-uid').textContent=uid; document.getElementById('sem-days').value=''; openModal('sub-extend-modal'); }
+async function executeSubExtend(){ const days=parseInt(document.getElementById('sem-days').value)||0; if(!days){toast('Enter days to extend','warn');return;} try{ await api('POST',`/api/admin/subscriptions/${_subActionUid}/extend`,{days}); toast('Subscription extended by '+days+' days','success'); closeModal('sub-extend-modal'); loadSubscriptions(); }catch(e){ toast('Error: '+e.message,'error'); } }
+function openSubCancel(uid){ _subCancelUid=uid; document.getElementById('scm-uid').textContent=uid; openModal('sub-cancel-modal'); }
+async function executeSubCancel(){ try{ await api('POST',`/api/admin/subscriptions/${_subCancelUid}/cancel`,{}); toast('Subscription cancelled','info'); closeModal('sub-cancel-modal'); loadSubscriptions(); }catch(e){ toast('Error: '+e.message,'error'); } }
+
+async function lookupSubUser(){
+  const uid=document.getElementById('sub-grant-uid').value.trim(); if(!uid){toast('Enter a User ID','warn');return;}
+  try{
+    let user=null;
+    try{ const d=await api('GET',`/api/admin/users/${uid}`); user=d.user||d; }
+    catch(e2){ const d=await api('GET',`/api/admin/users?search=${encodeURIComponent(uid)}&limit=1`); user=(d.users||[])[0]||null; }
+    if(!user) throw new Error('User not found');
+    const name=user.name||user.club_name||`${user.firstName||''} ${user.lastName||''}`.trim()||user.email||'—';
+    const role=(user.type||user.role||'').toLowerCase();
+    const actualId=user.player_id||user.club_id||user.user_id||user.dco_id||user._id||uid;
+    document.getElementById('sub-confirm-name').textContent=name; document.getElementById('sub-confirm-email').textContent=user.email||'—'; document.getElementById('sub-confirm-role').textContent=role||'—'; document.getElementById('sub-confirm-id').textContent=actualId;
+    document.getElementById('sub-confirm-card').classList.add('visible'); document.getElementById('sub-grant-form').style.display='';
+    _subGrantUser=user; toast('User confirmed: '+name,'success');
+  }catch(e){ document.getElementById('sub-confirm-card').classList.remove('visible'); document.getElementById('sub-grant-form').style.display='none'; toast('User not found: '+e.message,'error'); }
+}
+
+function cancelSubLookup(){ document.getElementById('sub-grant-uid').value=''; document.getElementById('sub-confirm-card').classList.remove('visible'); document.getElementById('sub-grant-form').style.display='none'; _subGrantUser=null; }
+
+async function grantSubscription(){
+  if(!_subGrantUser){toast('Look up a user first','warn');return;}
+  const uid=document.getElementById('sub-confirm-id').textContent; const plan=document.getElementById('sub-grant-plan').value; const days=parseInt(document.getElementById('sub-grant-days').value)||30; const note=document.getElementById('sub-grant-note').value||'Admin grant';
+  try{ await api('POST','/api/admin/subscriptions/grant',{user_id:uid,plan,days,note}); toast('Subscription granted','success'); cancelSubLookup(); loadSubscriptions(); }catch(e){ toast('Error: '+e.message,'error'); }
+}
+
+async function sendTrialWarnings(){ try{ await api('POST','/api/admin/subscriptions/send-trial-warnings',{}); toast('Trial warning emails sent','success'); }catch(e){ toast('Error: '+e.message,'error'); } }
+
+// ═══════════════════════════════════════════════════════════
+// TRIALS
+// ═══════════════════════════════════════════════════════════
+async function loadTrials(){
+  const tbody=document.getElementById('trials-tbody'); tbody.innerHTML='<tr><td colspan="6" class="loading">Loading…</td></tr>';
+  try{
+    const qs=new URLSearchParams({page:_trialsPage,limit:PAGE_SIZE});
+    const d=await api('GET',`/api/admin/subscriptions?status=trialing&${qs}`).catch(()=>({subscriptions:[],total:0}));
+    const list=d.subscriptions||[];
+    if(!list.length){
+      const d2=await api('GET',`/api/admin/subscriptions/receipts?status=pending&limit=${PAGE_SIZE}`).catch(()=>({intents:[]}));
+      const list2=d2.intents||[];
+      if(!list2.length){tbody.innerHTML='<tr><td colspan="6" class="empty">No trial records found.</td></tr>';return;}
+      tbody.innerHTML=list2.map(s=>`<tr><td class="mono text-sm">${s.user_id||'—'}</td><td><span class="badge badge-info">${s.role||'—'}</span></td><td>${(s.plan||'—').toUpperCase()}</td><td><span class="badge badge-warning">pending</span></td><td class="text-sm text-muted">${fmt(s.created_at)}</td><td class="text-sm text-muted">${fmt(s.expires_at)}</td></tr>`).join('');
+      return;
+    }
+    tbody.innerHTML=list.map(s=>`<tr><td class="mono text-sm">${s.user_id||'—'}</td><td><span class="badge badge-info">${s.user_type||s.role||'—'}</span></td><td>${(s.plan||'trial').toUpperCase()}</td><td><span class="badge badge-trial">trialing</span></td><td class="text-sm text-muted">${fmt(s.created_at)}</td><td class="text-sm text-muted">${fmt(s.expires_at)}</td></tr>`).join('');
+    renderPager('trials-pager',_trialsPage,Math.ceil((d.total||list.length)/PAGE_SIZE),function(p){_trialsPage=p;loadTrials();});
+  }catch(e){ tbody.innerHTML=`<tr><td colspan="6" class="text-danger text-sm" style="padding:1rem">Error: ${e.message}</td></tr>`; }
+}
+
+// ═══════════════════════════════════════════════════════════
+// TOKENS
+// ═══════════════════════════════════════════════════════════
+async function loadTokens(){
+  try{
+    const d=await api('GET','/api/admin/tokens/overview');
+    document.getElementById('tok-player').textContent=Number(d.total_player_tokens||0).toLocaleString();
+    document.getElementById('tok-club').textContent=Number(d.total_club_tokens||0).toLocaleString();
+    document.getElementById('tok-scout').textContent=Number(d.total_scout_tokens||d.scout_tokens||0).toLocaleString();
+    document.getElementById('tok-agent').textContent=Number(d.total_agent_tokens||d.agent_tokens||0).toLocaleString();
+    document.getElementById('tok-total').textContent=Number(d.total_tokens_in_circulation||0).toLocaleString();
+    loadTokenHistory(); loadAccounting();
+  }catch(e){ toast('Failed to load tokens: '+e.message,'error'); }
+}
+
+async function loadTokenHistory(){
+  const tbody=document.getElementById('tok-history-tbody'); if(!tbody) return;
+  tbody.innerHTML='<tr><td colspan="7" class="loading">Loading…</td></tr>';
+  try{
+    const d=await api('GET','/api/admin/tokens/history?limit=500&sort=desc').catch(()=>api('GET','/api/admin/tokens/history?limit=500'));
+    let txns=(d.transactions||d.history||d.data||[]);
+    txns.sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
+    _tokHistoryAll=txns; _tokPage=1; applyTokHistoryFilter();
+  }catch(e){ tbody.innerHTML=`<tr><td colspan="7" class="text-danger text-sm" style="padding:1rem">Failed to load history: ${e.message}</td></tr>`; }
+}
+
+function resetTokHistoryFilters(){ ['tok-filter-uid','tok-filter-date-from','tok-filter-date-to','tok-filter-time-from','tok-filter-time-to'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';}); ['tok-filter-type','tok-filter-role','tok-filter-sort'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=id==='tok-filter-sort'?'newest':'';}); _tokPage=1; applyTokHistoryFilter(); }
+
+function _fmtDateCell(iso){ if(!iso) return '<div class="th-dt"><span class="th-date">—</span></div>'; try{ const d=new Date(iso); if(isNaN(d.getTime())) return '<div class="th-dt"><span class="th-date">—</span></div>'; return `<div class="th-dt"><span class="th-date">${d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}</span><span class="th-time">${d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span></div>`; }catch(e){ return '<div class="th-dt"><span class="th-date">—</span></div>'; } }
+function _roleLabel(r){ const map={player:'Player',club:'Club',scout:'Scout',dco:'DCO',supervisor:'Supervisor',agent:'Agent',admin:'Admin'}; return map[(r||'').toLowerCase()]||(r||'—'); }
+
+function applyTokHistoryFilter(){
+  const uid=((document.getElementById('tok-filter-uid')||{}).value||'').toLowerCase().trim();
+  const type=(document.getElementById('tok-filter-type')||{}).value||'';
+  const role=(document.getElementById('tok-filter-role')||{}).value||'';
+  const dateFrom=(document.getElementById('tok-filter-date-from')||{}).value||'';
+  const dateTo=(document.getElementById('tok-filter-date-to')||{}).value||'';
+  const timeFrom=(document.getElementById('tok-filter-time-from')||{}).value||'';
+  const timeTo=(document.getElementById('tok-filter-time-to')||{}).value||'';
+  const sort=(document.getElementById('tok-filter-sort')||{}).value||'newest';
+  let list=_tokHistoryAll.filter(t=>{
+    if(type&&(t.type||'').toLowerCase()!==type) return false;
+    if(role&&(t.user_role||t.role||'').toLowerCase()!==role) return false;
+    if(uid){const hay=[(t.user_id||''),(t.user_name||''),(t.name||'')].join(' ').toLowerCase();if(!hay.includes(uid)) return false;}
+    if(dateFrom||dateTo||timeFrom||timeTo){ const d=new Date(t.created_at||0); if(isNaN(d.getTime())) return false; if(dateFrom&&d<new Date(dateFrom+'T00:00:00')) return false; if(dateTo&&d>new Date(dateTo+'T23:59:59')) return false; if(timeFrom){const [h,m]=timeFrom.split(':').map(Number);if(d.getHours()<h||(d.getHours()===h&&d.getMinutes()<m)) return false;} if(timeTo){const [h,m]=timeTo.split(':').map(Number);if(d.getHours()>h||(d.getHours()===h&&d.getMinutes()>m)) return false;} }
+    return true;
+  });
+  list=[...list];
+  if(sort==='oldest') list.sort((a,b)=>new Date(a.created_at||0)-new Date(b.created_at||0));
+  else if(sort==='amount_desc') list.sort((a,b)=>(b.amount||0)-(a.amount||0));
+  else if(sort==='amount_asc') list.sort((a,b)=>(a.amount||0)-(b.amount||0));
+  else list.sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
+  const totalCredits=list.filter(t=>t.type==='credit').reduce((s,t)=>s+(t.amount||0),0);
+  const totalDebits=list.filter(t=>t.type==='debit').reduce((s,t)=>s+(t.amount||0),0);
+  const net=totalCredits-totalDebits;
+  const sumEl=document.getElementById('tok-history-summary');
+  if(sumEl){ sumEl.style.display=list.length?'flex':'none'; const s=function(id){return document.getElementById(id);}; if(s('th-sum-count')) s('th-sum-count').textContent=list.length.toLocaleString(); if(s('th-sum-credits')) s('th-sum-credits').textContent=Number(totalCredits).toLocaleString(); if(s('th-sum-debits')) s('th-sum-debits').textContent=Number(totalDebits).toLocaleString(); if(s('th-sum-net')) s('th-sum-net').textContent=(net>=0?'+':'')+Number(net).toLocaleString(); }
+  const totalPages=Math.max(1,Math.ceil(list.length/PAGE_SIZE));
+  if(_tokPage>totalPages) _tokPage=1;
+  const paged=list.slice((_tokPage-1)*PAGE_SIZE,_tokPage*PAGE_SIZE);
+  const tbody=document.getElementById('tok-history-tbody'); if(!tbody) return;
+  if(!list.length){ tbody.innerHTML='<tr><td colspan="7" class="empty"><i class="fas fa-search"></i> No transactions match the current filters.</td></tr>'; document.getElementById('tok-history-pager').innerHTML=''; return; }
+  tbody.innerHTML=paged.map(t=>{ const isCredit=(t.type||'').toLowerCase()==='credit'; const amt=Number(t.amount||0); const role=_roleLabel(t.user_role||t.role||''); const uid=t.user_id||'—'; const balAfter=t.balance_after!=null?Number(t.balance_after).toLocaleString():'—'; return `<tr><td>${_fmtDateCell(t.created_at)}</td><td><span class="uid-badge">${uid}</span></td><td><span class="badge badge-info" style="font-size:.63rem">${role}</span></td><td><span class="badge badge-${isCredit?'active':'danger'}" style="display:inline-flex;align-items:center;gap:.25rem"><i class="fas fa-${isCredit?'plus':'minus'}"></i> ${isCredit?'Credit':'Debit'}</span></td><td class="fw700 ${isCredit?'text-success':'text-danger'}" style="font-size:.9rem;text-align:right">${isCredit?'+':'−'}${amt.toLocaleString()}</td><td style="max-width:200px;white-space:normal;font-size:.78rem;color:var(--text2)">${t.reason||t.description||'—'}</td><td class="mono text-sm" style="color:var(--gold)">${balAfter}</td></tr>`; }).join('');
+  renderPager('tok-history-pager',_tokPage,totalPages,function(p){_tokPage=p;applyTokHistoryFilter();});
+}
+
+function _classifyActivity(t){ const r=((t.reason||t.description||t.activity_type||t.action||'').toLowerCase()); if(/stats.*(track|request)|stat_request|stats_req|scouting.report/.test(r)) return 'stats_tracking'; if(/heatmap|heat.map/.test(r)) return 'heatmap_tracking'; if(/match.request|match_req/.test(r)) return 'match_request'; if(/bio|registr|dco.reg|on.?board|profile.creat/.test(r)) return 'bio_registration'; if(/subscri|sub_|plan.activ|plan.grant|renewal/.test(r)) return 'subscription'; if(/token.purch|purchase|bought|top.?up|recharge/.test(r)) return 'token_purchase'; if(/admin.credit|admin.grant|manual.credit/.test(r)) return 'admin_credit'; if(/admin.debit|admin.remov|manual.debit/.test(r)) return 'admin_debit'; if(/background|bg.check|verification/.test(r)) return 'background_check'; if(/assign|payout|earni|disburs|commission/.test(r)) return 'assignment'; if((t.type||'').toLowerCase()==='credit'&&!r) return 'admin_credit'; if((t.type||'').toLowerCase()==='debit'&&!r) return 'admin_debit'; return 'other'; }
+const _activityMeta={ stats_tracking:{label:'Stats Tracking',cls:'acct-tag-stats',icon:'fa-chart-bar'}, heatmap_tracking:{label:'Heatmap Tracking',cls:'acct-tag-heatmap',icon:'fa-fire'}, match_request:{label:'Match Request',cls:'acct-tag-match',icon:'fa-futbol'}, bio_registration:{label:'Bio & Registration',cls:'acct-tag-bio',icon:'fa-id-badge'}, subscription:{label:'Subscription',cls:'acct-tag-sub',icon:'fa-crown'}, token_purchase:{label:'Token Purchase',cls:'acct-tag-purchase',icon:'fa-coins'}, admin_credit:{label:'Admin Credit',cls:'acct-tag-admin',icon:'fa-plus-circle'}, admin_debit:{label:'Admin Debit',cls:'acct-tag-admin',icon:'fa-minus-circle'}, background_check:{label:'Background Check',cls:'acct-tag-bgcheck',icon:'fa-search'}, assignment:{label:'Assignment / Payout',cls:'acct-tag-assignment',icon:'fa-tasks'}, other:{label:'Other',cls:'acct-tag-other',icon:'fa-circle'} };
+function _fmtUserId(uid, role){ if(!uid||uid==='—') return '—'; if(/^(ES|DCO|SCT|CLB|AGT|SUP|ADM)-/i.test(uid)) return uid; const r=(role||'').toLowerCase(); const prefix=r==='dco'?'DCO':r==='supervisor'?'SUP':r==='scout'?'SCT':r==='club'?'CLB':r==='agent'?'AGT':r==='admin'?'ADM':'ES'; const suffix=uid.replace(/[^a-zA-Z0-9]/g,'').slice(-6).toUpperCase(); return `${prefix}-${suffix}`; }
+
+async function loadAccounting(){
+  const tbody=document.getElementById('acct-tbody'); if(!tbody) return;
+  tbody.innerHTML='<tr><td colspan="8" class="loading"><span class="spinner"></span> Loading full accounting ledger…</td></tr>';
+  try{
+    const [histMain,histCredit,histDebit]=await Promise.allSettled([
+      api('GET','/api/admin/tokens/history?limit=1000&sort=desc'),
+      api('GET','/api/admin/tokens/history?type=credit&limit=500'),
+      api('GET','/api/admin/tokens/history?type=debit&limit=500'),
+    ]);
+    const seen=new Set(); const rows=[];
+    const addTxns=arr=>{ (arr||[]).forEach(t=>{ const key=t._id||t.id||t.transaction_id||(t.user_id+'|'+t.created_at+'|'+t.amount); if(seen.has(key)) return; seen.add(key); rows.push(t); }); };
+    if(histMain.status==='fulfilled') addTxns(histMain.value.transactions||histMain.value.history||histMain.value.data||[]);
+    if(histCredit.status==='fulfilled') addTxns(histCredit.value.transactions||histCredit.value.history||histCredit.value.data||[]);
+    if(histDebit.status==='fulfilled') addTxns(histDebit.value.transactions||histDebit.value.history||histDebit.value.data||[]);
+    rows.sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
+    _accountingAll=rows; _accountingPage=1; applyAcctFilter();
+  }catch(e){ tbody.innerHTML=`<tr><td colspan="8" class="text-danger text-sm" style="padding:1rem">Error: ${e.message}</td></tr>`; }
+}
+
+function resetAcctFilters(){ ['acct-filter-query','acct-filter-date-from','acct-filter-date-to'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';}); ['acct-filter-role','acct-filter-activity','acct-filter-dir'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';}); _accountingPage=1; applyAcctFilter(); }
+
+function applyAcctFilter(){
+  const query=((document.getElementById('acct-filter-query')||{}).value||'').toLowerCase().trim();
+  const role=(document.getElementById('acct-filter-role')||{}).value||'';
+  const activity=(document.getElementById('acct-filter-activity')||{}).value||'';
+  const dir=(document.getElementById('acct-filter-dir')||{}).value||'';
+  const dateFrom=(document.getElementById('acct-filter-date-from')||{}).value||'';
+  const dateTo=(document.getElementById('acct-filter-date-to')||{}).value||'';
+  let list=_accountingAll.filter(t=>{ if(dir&&(t.type||'').toLowerCase()!==dir) return false; if(role&&(t.user_role||t.role||'').toLowerCase()!==role) return false; if(activity&&_classifyActivity(t)!==activity) return false; if(query){ const uid=t.user_id||'';const name=t.user_name||t.name||'';const desc=t.reason||t.description||'';const hay=[uid,name,desc,_fmtUserId(uid,t.user_role||t.role)].join(' ').toLowerCase();if(!hay.includes(query)) return false; } if(dateFrom){const d=new Date(t.created_at||0);if(isNaN(d.getTime())||d<new Date(dateFrom+'T00:00:00')) return false;} if(dateTo){const d=new Date(t.created_at||0);if(isNaN(d.getTime())||d>new Date(dateTo+'T23:59:59')) return false;} return true; });
+  _accountingFiltered=list; renderAcctTable(list);
+}
+
+function renderAcctTable(list){
+  const totalPages=Math.max(1,Math.ceil(list.length/ACCT_PAGE_SIZE));
+  if(_accountingPage>totalPages) _accountingPage=1;
+  const paged=list.slice((_accountingPage-1)*ACCT_PAGE_SIZE,_accountingPage*ACCT_PAGE_SIZE);
+  const tbody=document.getElementById('acct-tbody'); if(!tbody) return;
+  if(!list.length){ tbody.innerHTML='<tr><td colspan="8" class="empty"><i class="fas fa-search"></i> No records match the current filters.</td></tr>'; var pg=document.getElementById('acct-pager');if(pg) pg.innerHTML=''; return; }
+  const totalCredits=list.filter(t=>(t.type||'').toLowerCase()==='credit').reduce((s,t)=>s+(t.amount||0),0);
+  const totalDebits=list.filter(t=>(t.type||'').toLowerCase()==='debit').reduce((s,t)=>s+(t.amount||0),0);
+  var sc=function(id){return document.getElementById(id);};
+  if(sc('acct-summary-count')) sc('acct-summary-count').textContent=list.length.toLocaleString();
+  if(sc('acct-summary-credits')) sc('acct-summary-credits').textContent=Number(totalCredits).toLocaleString()+' tok';
+  if(sc('acct-summary-debits')) sc('acct-summary-debits').textContent=Number(totalDebits).toLocaleString()+' tok';
+  if(sc('acct-summary-net')) sc('acct-summary-net').textContent=(totalCredits-totalDebits>=0?'+':'')+Number(totalCredits-totalDebits).toLocaleString()+' tok';
+  if(sc('acct-summary-strip')) sc('acct-summary-strip').style.display='flex';
+  tbody.innerHTML=paged.map(t=>{ const isCredit=(t.type||'').toLowerCase()==='credit'; const amt=Number(t.amount||0); const rawRole=(t.user_role||t.role||''); const role=_roleLabel(rawRole); const uid=t.user_id||'—'; const formattedId=_fmtUserId(uid,rawRole); const actKey=_classifyActivity(t); const actMeta=_activityMeta[actKey]||_activityMeta.other; const name=t.user_name||t.name||'—'; const ref=t._id||t.transaction_id||t.reference||'—'; const refShort=typeof ref==='string'?ref.slice(-14):ref; const dateStr=t.created_at?new Date(t.created_at).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—'; return `<tr><td>${dateStr}</td><td><span class="uid-badge">${formattedId}</span></td><td class="fw700" style="font-size:.8rem">${name}</td><td><span class="badge badge-info" style="font-size:.6rem">${role}</span></td><td><span class="acct-tag ${actMeta.cls}"><i class="fas ${actMeta.icon}"></i> ${actMeta.label}</span></td><td><span class="badge badge-${isCredit?'active':'danger'}" style="font-size:.65rem">${isCredit?'Credit':'Debit'}</span></td><td class="fw700 ${isCredit?'text-success':'text-danger'}" style="text-align:right">${isCredit?'+':'−'}${amt.toLocaleString()}</td><td><span class="mono text-muted" style="font-size:.68rem" title="${ref}">${refShort}</span></td></tr>`; }).join('');
+  renderPager('acct-pager',_accountingPage,totalPages,function(p){_accountingPage=p;renderAcctTable(_accountingFiltered.length?_accountingFiltered:_accountingAll);});
+}
+
+function printAccounting(){
+  const printDateEl=document.getElementById('acct-print-date'); if(printDateEl) printDateEl.textContent=new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const printHeaderEl=document.getElementById('acct-print-header'); if(printHeaderEl) printHeaderEl.style.display='block';
+  const list=_accountingFiltered.length?_accountingFiltered:_accountingAll; const savedPage=_accountingPage;
+  const tbody=document.getElementById('acct-tbody');
+  if(tbody&&list.length){ tbody.innerHTML=list.map(t=>{ const isCredit=(t.type||'').toLowerCase()==='credit'; const amt=Number(t.amount||0); const rawRole=(t.user_role||t.role||''); const role=_roleLabel(rawRole); const uid=t.user_id||'—'; const formattedId=_fmtUserId(uid,rawRole); const actKey=_classifyActivity(t); const actMeta=_activityMeta[actKey]||_activityMeta.other; const name=t.user_name||t.name||'—'; const ref=t._id||t.transaction_id||t.reference||'—'; const dateStr=t.created_at?new Date(t.created_at).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—'; return `<tr><td>${dateStr}</td><td>${formattedId}</td><td>${name}</td><td>${role}</td><td>${actMeta.label}</td><td>${isCredit?'Credit':'Debit'}</td><td style="text-align:right">${isCredit?'+':'−'}${amt.toLocaleString()}</td><td>${typeof ref==='string'?ref.slice(-14):ref}</td></tr>`; }).join(''); }
+  window.print();
+  setTimeout(function(){ if(printHeaderEl) printHeaderEl.style.display='none'; _accountingPage=savedPage; renderAcctTable(_accountingFiltered.length?_accountingFiltered:_accountingAll); },1500);
+}
+
+async function lookupTokenUser(side){
+  const uidEl=document.getElementById('tok-'+side+'-uid'); const uid=(uidEl&&uidEl.value||'').trim(); if(!uid){toast('Enter a User ID first','warn');return;}
+  const cardEl=document.getElementById('tok-'+side+'-confirm-card');
+  try{
+    let user=null;
+    try{ const d=await api('GET',`/api/admin/users/${uid}`); user=d.user||d; }
+    catch(e2){ const d=await api('GET',`/api/admin/users?search=${encodeURIComponent(uid)}&limit=1`); const list=d.users||[]; if(!list.length) throw new Error('User not found'); user=list[0]; }
+    const name=user.name||user.club_name||`${user.firstName||''} ${user.lastName||''}`.trim()||user.email||'—';
+    const role=(user.type||user.role||'').toLowerCase();
+    const actualId=user.player_id||user.club_id||user.user_id||user.dco_id||user._id||uid;
+    document.getElementById('tok-'+side+'-confirm-name').textContent=name; document.getElementById('tok-'+side+'-confirm-email').textContent=user.email||'—'; document.getElementById('tok-'+side+'-confirm-role').textContent=role||'—'; document.getElementById('tok-'+side+'-confirm-id').textContent=actualId;
+    cardEl.classList.add('visible');
+    const typeSel=document.getElementById('tok-'+side+'-type'); if(typeSel) typeSel.value=_resolveUserType(role);
+    if(side==='credit') _tokCreditUser=user; else _tokDebitUser=user;
+    toast('User confirmed: '+name+' ('+role+')','success');
+  }catch(e){ if(cardEl) cardEl.classList.remove('visible'); toast('User not found: '+e.message,'error'); }
+}
+
+async function creditTokens(){ const uid=document.getElementById('tok-credit-uid').value.trim(); const amt=parseInt(document.getElementById('tok-credit-amt').value)||0; const reason=document.getElementById('tok-credit-reason').value||'Admin credit'; const type=document.getElementById('tok-credit-type').value; if(!uid||!amt){toast('User ID and amount required','warn');return;} try{ await api('POST','/api/admin/tokens/credit',{user_id:uid,amount:amt,reason,user_type:type}); toast(amt+' tokens credited to '+uid,'success'); document.getElementById('tok-credit-uid').value=''; document.getElementById('tok-credit-amt').value=''; document.getElementById('tok-credit-reason').value=''; document.getElementById('tok-credit-confirm-card').classList.remove('visible'); _tokCreditUser=null; loadTokens(); }catch(e){ toast('Error: '+e.message,'error'); } }
+async function debitTokens(){ const uid=document.getElementById('tok-debit-uid').value.trim(); const amt=parseInt(document.getElementById('tok-debit-amt').value)||0; const reason=document.getElementById('tok-debit-reason').value||'Admin debit'; const type=document.getElementById('tok-debit-type').value; if(!uid||!amt){toast('User ID and amount required','warn');return;} try{ await api('POST','/api/admin/tokens/debit',{user_id:uid,amount:amt,reason,user_type:type}); toast(amt+' tokens debited from '+uid,'success'); document.getElementById('tok-debit-uid').value=''; document.getElementById('tok-debit-amt').value=''; document.getElementById('tok-debit-reason').value=''; document.getElementById('tok-debit-confirm-card').classList.remove('visible'); _tokDebitUser=null; loadTokens(); }catch(e){ toast('Error: '+e.message,'error'); } }
+
+async function searchTokenEntity(){
+  const query=(document.getElementById('tok-entity-query')||{}).value?.trim()||''; const type=(document.getElementById('tok-entity-type')||{}).value||'player';
+  if(!query){toast('Enter an ID or name to search','warn');return;}
+  const card=document.getElementById('tok-entity-confirm-card');
+  try{
+    let entity=null;
+    try{ const d=await api('GET',`/api/admin/users/${encodeURIComponent(query)}`); entity=d.user||d; }
+    catch(e2){ const d=await api('GET',`/api/admin/users?search=${encodeURIComponent(query)}&type=${type}&limit=1`); entity=(d.users||[])[0]||null; }
+    if(!entity){ try{ const d=await api('GET',`/api/admin/entity-details/${type}/${encodeURIComponent(query)}`); entity=d.entity||d.user||d; }catch(e3){} }
+    if(!entity) throw new Error('Entity not found');
+    _tokEntityData=entity;
+    const name=entity.name||entity.club_name||`${entity.firstName||''} ${entity.lastName||''}`.trim()||entity.email||'—';
+    const uid=entity.player_id||entity.club_id||entity.user_id||entity.dco_id||entity._id||query;
+    const balance=entity.token_balance||entity.tokens||(entity.wallet&&entity.wallet.tokens)||0;
+    document.getElementById('tok-ent-name').textContent=name; document.getElementById('tok-ent-id').textContent=uid; document.getElementById('tok-ent-type').textContent=(entity.type||entity.role||type).toUpperCase(); document.getElementById('tok-ent-balance').textContent=Number(balance).toLocaleString()+' tokens'; document.getElementById('tok-ent-email').textContent=entity.email||'—'; document.getElementById('tok-ent-status').innerHTML='<span class="badge badge-'+((entity.status||'active')==='active'?'active':'muted')+'">'+((entity.status||'active'))+'</span>';
+    document.getElementById('tok-ent-amt').value=''; document.getElementById('tok-ent-reason').value='';
+    card.classList.add('visible'); toast('Entity found: '+name,'success');
+  }catch(e){ card.classList.remove('visible'); _tokEntityData=null; toast('Not found: '+e.message,'error'); }
+}
+
+function clearTokenEntitySearch(){ document.getElementById('tok-entity-confirm-card').classList.remove('visible'); document.getElementById('tok-entity-query').value=''; _tokEntityData=null; }
+
+async function creditTokensFromEntity(){
+  if(!_tokEntityData){toast('Search for an entity first','warn');return;}
+  const amt=parseInt(document.getElementById('tok-ent-amt').value)||0; const reason=document.getElementById('tok-ent-reason').value||'Admin credit';
+  if(!amt){toast('Enter an amount to credit','warn');return;}
+  const uid=_tokEntityData.player_id||_tokEntityData.club_id||_tokEntityData.user_id||_tokEntityData.dco_id||_tokEntityData._id||''; const userType=_resolveUserType(_tokEntityData.type||_tokEntityData.role||'player');
+  try{ await api('POST','/api/admin/tokens/credit',{user_id:uid,amount:amt,reason,user_type:userType}); toast(amt+' tokens credited successfully','success'); const balEl=document.getElementById('tok-ent-balance'); if(balEl){ const cur=parseInt(balEl.textContent)||0; balEl.textContent=Number(cur+amt).toLocaleString()+' tokens'; } document.getElementById('tok-ent-amt').value=''; loadTokenHistory(); }catch(e){ toast('Error: '+e.message,'error'); }
+}
+
+// ═══════════════════════════════════════════════════════════
+// DCO TIERS
+// ═══════════════════════════════════════════════════════════
+async function loadDcoTiers(){
+  const tbody=document.getElementById('tier-tbody'); tbody.innerHTML='<tr><td colspan="6" class="loading">Loading…</td></tr>';
+  try{
+    const d=await api('GET','/api/admin/tier-management');
+    const counts=d.tier_counts||{};
+    document.getElementById('tier1-count').textContent=counts.tier_1||counts['tier 1']||counts['Tier 1']||0;
+    document.getElementById('tier2-count').textContent=counts.tier_2||counts['tier 2']||counts['Tier 2']||0;
+    document.getElementById('tier3-count').textContent=counts.tier_3||counts['tier 3']||counts['Tier 3']||0;
+    const list=d.dcos||[];
+    if(!list.length){tbody.innerHTML='<tr><td colspan="6" class="empty">No DCOs found.</td></tr>';return;}
+    tbody.innerHTML=list.map(dco=>`<tr><td class="fw700">${dco.name||'—'}</td><td class="mono text-sm">${dco.user_id||dco._id||'—'}</td><td><span class="badge badge-info">${dco.role||'dco'}</span></td><td class="fw700">${dco.tier||'Tier 1'}</td><td><span class="badge badge-${dco.status==='available'?'active':'muted'}">${dco.status||'—'}</span></td><td><div class="gap-sm"><button class="btn btn-sm btn-success" onclick="changeTier('${dco.user_id||dco._id}','upgrade')"><i class="fas fa-arrow-up"></i></button><button class="btn btn-sm btn-warn" onclick="changeTier('${dco.user_id||dco._id}','downgrade')"><i class="fas fa-arrow-down"></i></button></div></td></tr>`).join('');
+  }catch(e){ tbody.innerHTML=`<tr><td colspan="6" class="text-danger text-sm" style="padding:1rem">Error: ${e.message}</td></tr>`; }
+}
+
+async function changeTier(id, direction){ try{ const d=await api('PATCH',`/api/admin/data-scouts/${id}/tier`,{direction}); toast('Tier changed to '+d.tier,'success'); loadDcoTiers(); }catch(e){ toast('Error: '+e.message,'error'); } }
+
+// ═══════════════════════════════════════════════════════════
+// MESSAGES (BROADCASTS)
+// ═══════════════════════════════════════════════════════════
+async function loadMessages(){
+  const el=document.getElementById('msg-history-list'); el.innerHTML='<div class="loading">Loading…</div>';
+  try{
+    const d=await api('GET','/api/admin/messages/history?limit=20'); const list=d.messages||[];
+    if(!list.length){el.innerHTML='<div class="empty"><i class="fas fa-bullhorn"></i>No broadcasts yet.</div>';return;}
+    el.innerHTML=list.map(m=>`<div style="padding:.65rem 0;border-bottom:1px solid var(--border)"><div class="fw700 text-sm">${m.title||'—'}</div><div class="text-muted" style="font-size:.78rem;margin:.2rem 0">${m.body||''}</div><div class="text-muted" style="font-size:.7rem">Target: <strong>${m.target||'all'}</strong> • ${fmtDt(m.sent_at)}</div></div>`).join('');
+  }catch(e){ el.innerHTML=`<div class="empty text-danger">Error: ${e.message}</div>`; }
+}
+
+async function sendBroadcast(){
+  const title=document.getElementById('msg-title').value.trim(); const body=document.getElementById('msg-body').value.trim(); const target=document.getElementById('msg-target').value;
+  if(!title||!body){toast('Title and message required','warn');return;}
+  try{ await api('POST','/api/admin/messages/send',{title,message:body,target_group:target}); toast('Broadcast sent!','success'); document.getElementById('msg-title').value=''; document.getElementById('msg-body').value=''; loadMessages(); }catch(e){ toast('Error: '+e.message,'error'); }
+}
+
+// ═══════════════════════════════════════════════════════════
+// SUPPORT TICKETS
+// ═══════════════════════════════════════════════════════════
+async function loadSupport(){
+  const status=document.getElementById('sup-status').value; const search=(document.getElementById('sup-search').value||'').toLowerCase();
+  const listEl=document.getElementById('sup-list'); listEl.innerHTML='<div class="loading">Loading…</div>';
+  try{
+    const qs=new URLSearchParams({page:_supPage,limit:PAGE_SIZE}); if(status) qs.set('status',status);
+    const d=await api('GET',`/api/admin/support/tickets?${qs}`); _allSupport=d.tickets||[];
+    renderSupportList(search);
+    renderPager('sup-pager',_supPage,Math.ceil((d.total||_allSupport.length)/PAGE_SIZE),function(p){_supPage=p;loadSupport();});
+  }catch(e){ listEl.innerHTML=`<div class="empty text-danger"><i class="fas fa-exclamation-triangle"></i>Error: ${e.message}</div>`; }
+}
+
+// ─── REPLACE renderSupportList ENTIRELY ──────────────────────────────────
+function renderSupportList(searchTerm) {
+  const listEl = document.getElementById('sup-list');
+  const search = (searchTerm || '').toLowerCase();
+  const filtered = _allSupport.filter(t => {
+    if (!search) return true;
+    return (
+      (t.subject      || '').toLowerCase().includes(search) ||
+      (t.user_id      || '').toLowerCase().includes(search) ||
+      (t.ticket_id    || '').toLowerCase().includes(search) ||
+      (t.user_role    || t.role || '').toLowerCase().includes(search)
+    );
+  });
+
+  if (!filtered.length) {
+    listEl.innerHTML = '<div class="empty"><i class="fas fa-headset"></i>No tickets found.</div>';
+    return;
+  }
+
+  listEl.innerHTML = filtered.map(t => {
+    const st      = t.status || 'open';
+    const stClr   = st === 'open' ? 'var(--danger)' : st === 'in_progress' ? 'var(--warning)' : 'var(--success)';
+    const stBadge = st === 'open' ? 'danger' : st === 'in_progress' ? 'warning' : 'active';
+    const isSelected = _selectedTicket && _selectedTicket.ticket_id === t.ticket_id;
+    const role = t.user_role || t.role || '';
+    const roleBadge = role
+      ? `<span class="badge badge-info" style="font-size:.6rem;padding:.12rem .38rem;text-transform:capitalize">${role}</span>`
+      : '';
+    return `
+      <div class="card" onclick="selectTicket('${t.ticket_id}')"
+           style="margin-bottom:.65rem;cursor:pointer;border-left:4px solid ${stClr};${isSelected ? 'border-color:var(--gold);background:rgba(255,215,0,.04)' : ''}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.35rem">
+          <div style="flex:1;min-width:0">
+            <div class="fw700 text-sm" style="margin-bottom:.2rem">${t.subject || t.reason || 'Support Request'}</div>
+            <div style="display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;font-size:.7rem">
+              <span class="text-muted mono">${t.ticket_id || '—'}</span>
+              <span class="text-muted">•</span>
+              <span class="mono" style="color:var(--text)">${t.user_id || t.email || '—'}</span>
+              ${roleBadge}
+            </div>
+          </div>
+          <span class="badge badge-${stBadge}" style="flex-shrink:0;margin-left:.5rem">${st.replace(/_/g, ' ')}</span>
+        </div>
+        <div class="text-muted" style="font-size:.72rem"><i class="fas fa-clock"></i> ${fmtDt(t.created_at)}</div>
+      </div>`;
+  }).join('');
+}
+
+async function selectTicket(ticketId){
+  const ticket=_allSupport.find(t=>t.ticket_id===ticketId)||null;
+  _selectedTicket=ticket; renderSupportList(''); renderSupportDetail();
+  try{ const d=await api('GET',`/api/admin/support/tickets/${ticketId}`); _selectedTicket=d.ticket||ticket; renderSupportDetail(d.messages||[]); }catch(e){ toast('Failed to load ticket messages: '+e.message,'error'); }
+}
+
+function renderSupportDetail(messages){
+  const panel=document.getElementById('sup-detail-panel');
+  if(!_selectedTicket){panel.innerHTML='<div class="card"><div class="empty"><i class="fas fa-headset"></i><p>Select a ticket to view</p></div></div>';return;}
+  const t=_selectedTicket; const st=t.status||'open'; const msgs=messages||[];
+  panel.innerHTML=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem"><div><div class="fw700" style="font-size:.95rem">${t.subject||t.reason||'Support Request'}</div><div class="text-muted mono" style="font-size:.72rem;margin-top:.2rem">${t.ticket_id||'—'}</div></div><span class="badge badge-${st==='open'?'danger':st==='in_progress'?'warning':'active'}">${st.replace(/_/g,' ').toUpperCase()}</span></div><div style="font-size:.8rem;margin-bottom:.75rem"><div style="display:flex;justify-content:space-between;padding:.35rem 0;border-bottom:1px solid var(--border)"><span class="text-muted">User</span><span class="mono">${t.user_id||t.email||'—'}</span></div><div style="display:flex;justify-content:space-between;padding:.35rem 0;border-bottom:1px solid var(--border)"><span class="text-muted">Role</span><span>${t.user_role||t.role||'—'}</span></div><div style="display:flex;justify-content:space-between;padding:.35rem 0"><span class="text-muted">Opened</span><span>${fmtDt(t.created_at)}</span></div></div><div style="margin-bottom:.75rem"><div class="text-muted" style="font-size:.68rem;font-weight:700;text-transform:uppercase;margin-bottom:.4rem">Status</div><div class="gap-sm"><button class="btn btn-sm btn-ghost ${st==='open'?'btn-primary':''}" onclick="updateTicketStatus('${t.ticket_id}','open')">Open</button><button class="btn btn-sm btn-ghost ${st==='in_progress'?'btn-warn':''}" onclick="updateTicketStatus('${t.ticket_id}','in_progress')">In Progress</button><button class="btn btn-sm btn-ghost ${st==='closed'?'btn-success':''}" onclick="updateTicketStatus('${t.ticket_id}','closed')">Close</button></div></div>${msgs.length?`<div style="background:rgba(0,0,0,.15);border-radius:8px;padding:.75rem;max-height:240px;overflow-y:auto;margin-bottom:.75rem">${msgs.map(m=>{const isAdmin=(m.sender_role==='admin'||m.sender_id==='admin');return `<div style="margin-bottom:.65rem;${isAdmin?'text-align:right':''}"><div style="display:inline-block;max-width:85%;background:${isAdmin?'rgba(0,74,173,.25)':'rgba(255,255,255,.06)'};border-radius:8px;padding:.45rem .7rem;text-align:left"><div class="text-muted" style="font-size:.65rem;margin-bottom:.2rem">${isAdmin?'Admin ('+(m.sender_name||'Admin')+')':m.sender_id||'User'} • ${fmtDt(m.created_at)}</div><div style="font-size:.82rem">${m.message||''}</div></div></div>`;}).join('')}</div>`:'<p class="text-sm text-muted" style="margin-bottom:.75rem">No messages yet.</p>'}<div><div class="text-muted" style="font-size:.68rem;font-weight:700;text-transform:uppercase;margin-bottom:.4rem">Reply</div><textarea class="form-control" id="sup-reply-text" rows="3" placeholder="Type your reply…" style="margin-bottom:.5rem"></textarea><button class="btn btn-primary btn-sm" onclick="adminSupportReply('${t.ticket_id}')"><i class="fas fa-paper-plane"></i> Send Reply</button></div></div>`;
+}
+
+async function adminSupportReply(ticketId){ const textarea=document.getElementById('sup-reply-text'); const msg=textarea?textarea.value:''; if(!msg.trim()){toast('Enter a reply message','warn');return;} try{ await api('POST',`/api/admin/support/tickets/${ticketId}/reply`,{message:msg.trim()}); toast('Reply sent','success'); selectTicket(ticketId); }catch(e){ toast('Error: '+e.message,'error'); } }
+async function updateTicketStatus(ticketId, status){ try{ await api('PATCH',`/api/admin/support/tickets/${ticketId}/status`,{status}); toast('Ticket marked as '+status.replace(/_/g,' '),'success'); if(_selectedTicket) _selectedTicket.status=status; renderSupportList(''); selectTicket(ticketId); loadSupport(); }catch(e){ toast('Error: '+e.message,'error'); } }
+
+// ═══════════════════════════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════════════════════════
+// ─── REPLACE loadSettings ENTIRELY ───────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PRICING SETTINGS — helpers shared across all tabs
+// ─────────────────────────────────────────────────────────────────────────────
+
+let _pricingConfig = null; // cached after first load
+
+async function loadPricingConfig(force) {
+  try {
+    if (!_pricingConfig || force) {
+      _pricingConfig = await api('GET', '/api/admin/pricing/config');
+    }
+    return _pricingConfig;
+  } catch (e) {
+    toast('Could not load pricing config: ' + (e.message || e), 'error');
+    return null;
+  }
+}
+
+async function savePricingConfig(patch) {
+  try {
+    const res = await api('PATCH', '/api/admin/pricing/config', patch);
+    _pricingConfig = null; // invalidate cache
+    toast('Pricing saved', 'success');
+    return res;
+  } catch (e) {
+    toast('Save failed: ' + (e.message || e), 'error');
+    return null;
+  }
+}
+
+    function loadSettings() {
+    loadPricingConfig(true).then(function(d) {
+      if (!d) return;
+      var giv = function(id, val) { var el = document.getElementById(id); if (el) el.value = val || ''; };
+      var tok = d.token_packages || {};
+      giv('set-t10',  tok.t10  || 500);
+      giv('set-t50',  tok.t50  || 2000);
+      giv('set-t100', tok.t100 || 3500);
+      giv('set-t500', tok.t500 || 15000);
+      var sub = d.subscription_pricing || {};
+      ['player','club','scout','agent','dco','supervisor'].forEach(function(role) {
+        giv('set-' + role + '-monthly', sub[role + '_monthly']  || '');
+        giv('set-' + role + '-6month',  sub[role + '_6month']   || '');
+        giv('set-' + role + '-annual',  sub[role + '_annual']   || '');
+      });
+      var dco = d.dco_rates || {};
+      ['tier1','tier2','tier3'].forEach(function(t) {
+        ['professional','semi_professional','academy','university','local','club'].forEach(function(lvl) {
+          giv('dco-' + t + '-' + lvl, (dco[t] || {})[lvl] || '');
+        });
+      });
+      var sup = d.supervisor_rates || {};
+      ['tier1','tier2','tier3'].forEach(function(t) {
+        ['professional','semi_professional','academy','university','local','club'].forEach(function(lvl) {
+          giv('sup-' + t + '-' + lvl, (sup[t] || {})[lvl] || '');
+        });
+      });
+    });
+    }
+
+    function saveSettings() {
+    var iv  = function(id, def) { var el = document.getElementById(id); return parseInt((el ? el.value : '') || def) || def; };
+    var tierObj = function(prefix) {
+      var obj = {};
+      ['tier1','tier2','tier3'].forEach(function(t) {
+        obj[t] = {};
+        ['professional','semi_professional','academy','university','local','club'].forEach(function(lvl) {
+          obj[t][lvl] = iv(prefix + '-' + t + '-' + lvl, 0);
+        });
+      });
+      return obj;
+    };
+    var payload = {
+      token_packages: { t10: iv('set-t10',500), t50: iv('set-t50',2000), t100: iv('set-t100',3500), t500: iv('set-t500',15000) },
+      subscription_pricing: {},
+      dco_rates: tierObj('dco'),
+      supervisor_rates: tierObj('sup'),
+    };
+    ['player','club','scout','agent','dco','supervisor'].forEach(function(r) {
+      payload.subscription_pricing[r + '_monthly'] = iv('set-' + r + '-monthly', 0);
+      payload.subscription_pricing[r + '_6month']  = iv('set-' + r + '-6month',  0);
+      payload.subscription_pricing[r + '_annual']  = iv('set-' + r + '-annual',  0);
+    });
+    savePricingConfig(payload);
+    }
+
+    async function applyBulkMultiplier() {
+    var roleEl = document.getElementById('bulk-role');
+    var el     = document.getElementById('bulk-multiplier');
+    var role   = roleEl ? roleEl.value : '';
+    if (!role) { toast('Select a role first', 'error'); return; }
+    var multiplier = parseFloat(el ? el.value : 1);
+    if (!multiplier || multiplier <= 0 || multiplier > 20) {
+      toast('Enter a valid multiplier (0.01 – 20)', 'error'); return;
+    }
+    try {
+      var preview = await api('POST', '/api/admin/pricing/bulk-preview', { role: role, multiplier: multiplier });
+      if (!preview || !preview.changes) { toast('Preview failed — no changes returned', 'error'); return; }
+      var count = Object.keys(preview.changes).length;
+      var confirmed = confirm('Apply ×' + multiplier + ' to all ' + role + ' prices (' + count + ' price points)? This cannot be undone automatically.');
+      if (!confirmed) return;
+      await api('POST', '/api/admin/pricing/bulk-apply', { role: role, multiplier: multiplier });
+      _pricingConfig = null;
+      toast('Bulk ×' + multiplier + ' applied to ' + role + ' prices', 'success');
+      loadSettings();
+    } catch (e) {
+      toast('Bulk apply failed: ' + (e.message || e), 'error');
+    }
+    }
+
+    async function loadCountriesTab() {
+    try {
+      var data = await api('GET', '/api/admin/pricing/countries');
+      var sel  = document.getElementById('country-select');
+      if (!sel) return;
+      var countries = data.countries || [];
+      sel.innerHTML = '<option value="">Select country…</option>';
+      countries.forEach(function(c) {
+        var opt = document.createElement('option');
+        opt.value = c.code;
+        opt.textContent = c.name + ' (' + c.code + ')';
+        sel.appendChild(opt);
+      });
+    } catch (e) {
+      toast('Could not load countries', 'error');
+    }
+    }
+
+    async function onCountrySelect(code) {
+    if (!code) return;
+    try {
+      var data = await api('GET', '/api/admin/pricing/countries');
+      var countries = data.countries || [];
+      var c = countries.find(function(x) { return x.code === code; });
+      if (!c) return;
+      var mEl = document.getElementById('country-multiplier');
+      var rEl = document.getElementById('country-region');
+      if (mEl) mEl.value = c.multiplier || 1.0;
+      // c.regions is an array of region names this country belongs to
+      var regionText = (c.regions && c.regions.length) ? c.regions.join(', ') : 'No region';
+      var overrideText = c.is_overridden ? ' • custom override' : ' • default (×' + (c.default || 1) + ')';
+      if (rEl) rEl.textContent = regionText + overrideText;
+      // Show adjusted sample prices computed client-side from subscription config
+      var sample = document.getElementById('country-sample-prices');
+      if (sample) {
+        var mult = c.multiplier || 1.0;
+        loadPricingConfig().then(function(cfg) {
+          if (!cfg) { sample.innerHTML = '<span style="color:var(--muted)">Could not load base prices.</span>'; return; }
+          var sub = cfg.subscription_pricing || {};
+          var rows = ['player', 'club', 'scout', 'agent', 'dco', 'supervisor'].map(function(role) {
+            var monthly = Math.round((sub[role + '_monthly'] || 0) * mult / 50) * 50;
+            var annual  = Math.round((sub[role + '_annual']  || 0) * mult / 50) * 50;
+            return '<tr><td style="text-transform:capitalize">' + role + '</td>' +
+                   '<td>₦' + monthly.toLocaleString() + '</td>' +
+                   '<td>₦' + annual.toLocaleString()  + '</td></tr>';
+          }).join('');
+          sample.innerHTML = '<table style="width:100%;font-size:.78rem;border-collapse:collapse">' +
+            '<thead><tr><th style="text-align:left;padding:.25rem .4rem;background:rgba(255,255,255,.04)">Role</th>' +
+            '<th style="padding:.25rem .4rem;background:rgba(255,255,255,.04)">Monthly (₦)</th>' +
+            '<th style="padding:.25rem .4rem;background:rgba(255,255,255,.04)">Annual (₦)</th></tr></thead>' +
+            '<tbody>' + rows + '</tbody></table>';
+        });
+      }
+    } catch (e) {
+      toast('Could not load country data', 'error');
+    }
+    }
+
+    async function saveCountryMultiplier() {
+    var selEl = document.getElementById('country-select');
+    var mEl   = document.getElementById('country-multiplier');
+    if (!selEl || !selEl.value) { toast('Select a country first', 'error'); return; }
+    var code = selEl.value;
+    var multiplier = parseFloat(mEl ? mEl.value : 1);
+    if (!multiplier || multiplier <= 0) { toast('Invalid multiplier', 'error'); return; }
+    try {
+      await api('PATCH', '/api/admin/pricing/country/' + code, { multiplier: multiplier });
+      toast(code + ' multiplier updated to ×' + multiplier, 'success');
+    } catch (e) {
+      toast('Save failed: ' + (e.message || e), 'error');
+    }
+    }
+
+    async function resetCountryMultiplier() {
+    var selEl = document.getElementById('country-select');
+    if (!selEl || !selEl.value) { toast('Select a country first', 'error'); return; }
+    var code = selEl.value;
+    if (!confirm('Reset ' + code + ' to default multiplier?')) return;
+    try {
+      await api('DELETE', '/api/admin/pricing/country/' + code);
+      toast(code + ' reset to default', 'success');
+      onCountrySelect(code);
+    } catch (e) {
+      toast('Reset failed: ' + (e.message || e), 'error');
+    }
+    }
+
+    async function loadRegionsTab() {
+    try {
+      var data = await api('GET', '/api/admin/pricing/regions');
+      var container = document.getElementById('regions-container');
+      if (!container) return;
+      var regions = data.regions || [];
+      container.innerHTML = regions.map(function(r) {
+        // r.region = name, r.avg_multiplier = float, r.countries = [{code,name,multiplier,is_overridden}]
+        var countryNames = (r.countries || []).slice(0, 4).map(function(c) { return c.name || c.code; });
+        var moreCount   = (r.countries || []).length - 4;
+        var safeName    = (r.region || '').replace(/'/g, "\\'");
+        return '<div class="region-row" style="display:grid;grid-template-columns:1fr 130px 80px;gap:.5rem;align-items:center;margin-bottom:.6rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)">' +
+          '<div><strong style="font-size:.82rem">' + (r.region || '') + '</strong>' +
+            '<div style="font-size:.7rem;color:var(--muted)">' +
+              countryNames.join(', ') + (moreCount > 0 ? ' … +' + moreCount + ' more' : '') +
+              ' &nbsp;<span style="color:var(--muted);font-size:.68rem">avg ×' + (r.avg_multiplier || 1).toFixed(2) + '</span>' +
+            '</div></div>' +
+          '<input class="form-control" id="rgn-mult-' + safeName + '" type="number" step="0.01" min="0.01" value="' + (r.avg_multiplier || 1.0) + '" style="font-size:.82rem">' +
+          '<button class="btn btn-sm btn-primary" onclick="saveRegionMultiplier(\'' + safeName + '\')">Apply</button>' +
+        '</div>';
+      }).join('');
+    } catch (e) {
+      toast('Could not load regions', 'error');
+    }
+}
+    async function saveRegionMultiplier(regionId) {
+    var el = document.getElementById('rgn-mult-' + regionId);
+    var multiplier = parseFloat(el ? el.value : 1);
+    if (!multiplier || multiplier <= 0) { toast('Invalid multiplier', 'error'); return; }
+    // API: PATCH /api/admin/pricing/region/{region_name} (spaces become dashes in URL)
+    var regionPath = encodeURIComponent(regionId.replace(/ /g, '-'));
+    try {
+      await api('PATCH', '/api/admin/pricing/region/' + regionPath, { multiplier: multiplier, force_all: false });
+      toast('Region updated to ×' + multiplier, 'success');
+    } catch (e) {
+      toast('Save failed: ' + (e.message || e), 'error');
+    }
+    }
+
+    
+function Sidebar({ currentPage, adminName, adminRole, badgeReceipts }) {
+  return h('div', { className: 'sidebar' },
+    h('div', { className: 'sidebar-logo' },
+      h('div', { className: 'logo-text' }, 'ENEJI', h('span', null, 'STATS'))
+    ),
+    h('nav', { className: 'sidebar-nav' },
+      h('div', { className: 'nav-section' }, 'Overview'),
+      h('div', { className: 'nav-item'+(currentPage==='overview'?' active':''), onClick: ()=>navigateTo('overview') }, h('i',{className:'fas fa-chart-pie'}), h('span',null,'Dashboard')),
+      h('div', { className: 'nav-section' }, 'Users'),
+      h('div', { className: 'nav-item'+(currentPage==='users'?' active':''), onClick: ()=>navigateTo('users') }, h('i',{className:'fas fa-users'}), h('span',null,'All Users')),
+      h('div', { className: 'nav-item'+(currentPage==='sub-admins'?' active':''), onClick: ()=>navigateTo('sub-admins') }, h('i',{className:'fas fa-user-shield'}), h('span',null,'Sub-Admins')),
+      h('div', { className: 'nav-section' }, 'Subscriptions'),
+      h('div', { className: 'nav-item'+(currentPage==='subscriptions'?' active':''), onClick: ()=>navigateTo('subscriptions') }, h('i',{className:'fas fa-credit-card'}), h('span',null,'Subscriptions')),
+      h('div', { className: 'nav-item'+(currentPage==='trials'?' active':''), onClick: ()=>navigateTo('trials') }, h('i',{className:'fas fa-hourglass-half'}), h('span',null,'Trials')),
+      h('div', { className: 'nav-item'+(currentPage==='receipts'?' active':''), onClick: ()=>navigateTo('receipts') }, h('i',{className:'fas fa-receipt'}), h('span',null,'Payment Receipts'), badgeReceipts?h('span',{className:'nav-badge',id:'badge-receipts'},badgeReceipts):h('span',{className:'nav-badge',id:'badge-receipts',style:'display:none'})),
+      h('div', { className: 'nav-section' }, 'Finance'),
+      h('div', { className: 'nav-item'+(currentPage==='tokens'?' active':''), onClick: ()=>navigateTo('tokens') }, h('i',{className:'fas fa-coins'}), h('span',null,'Tokens')),
+      h('a', { className: 'nav-item', href: '/admin-dashboard?page=payments' }, h('i',{className:'fas fa-credit-card'}), h('span',null,'Payment Center')),
+      h('div', { className: 'nav-section' }, 'Operations'),
+      h('div', { className: 'nav-item'+(currentPage==='dco-tier'?' active':''), onClick: ()=>navigateTo('dco-tier') }, h('i',{className:'fas fa-layer-group'}), h('span',null,'DCO Tiers')),
+      h('a', { className: 'nav-item', href: '/admin-dashboard?page=payouts' }, h('i',{className:'fas fa-wallet'}), h('span',null,'Payouts')),
+      h('a', { className: 'nav-item', href: '/admin-dashboard?page=stats-requests' }, h('i',{className:'fas fa-chart-bar'}), h('span',null,'Stats Requests')),
+      h('a', { className: 'nav-item', href: '/admin-dashboard?page=assignments' }, h('i',{className:'fas fa-tasks'}), h('span',null,'Scout Assignments')),
+      h('a', { className: 'nav-item', href: '/admin-dashboard?page=bg-checks' }, h('i',{className:'fas fa-user-check'}), h('span',null,'Background Checks')),
+      h('div', { className: 'nav-section' }, 'Communication'),
+      h('div', { className: 'nav-item'+(currentPage==='messages'?' active':''), onClick: ()=>navigateTo('messages') }, h('i',{className:'fas fa-bullhorn'}), h('span',null,'Broadcasts')),
+      h('div', { className: 'nav-item'+(currentPage==='support'?' active':''), onClick: ()=>navigateTo('support') }, h('i',{className:'fas fa-headset'}), h('span',null,'Support Tickets')),
+      h('div', { className: 'nav-section' }, 'Platform'),
+      h('div', { className: 'nav-item'+(currentPage==='settings'?' active':''), onClick: ()=>navigateTo('settings') }, h('i',{className:'fas fa-cog'}), h('span',null,'Settings')),
+      h('a', { className: 'nav-item', href: '/admin-dashboard?page=banks' }, h('i',{className:'fas fa-university'}), h('span',null,'Bank Accounts'))
+    ),
+    h('div', { className: 'sidebar-footer' },
+      h('div', { className: 'admin-info' },
+        h('div', { className: 'admin-avatar' }, (adminName||'A').charAt(0).toUpperCase()),
+        h('div', null,
+          h('div', { className: 'admin-name', id: 'admin-name-display' }, adminName||'Admin'),
+          h('div', { className: 'admin-role' }, adminRole||'Super Admin')
+        ),
+        h('button', { className: 'logout-btn', onClick: handleLogout, title: 'Logout' }, h('i', { className: 'fas fa-sign-out-alt' }))
+      )
+    )
+  );
+}
+
+function Dashboard({ currentPage, adminName, adminRole, badgeReceipts }) {
+  return h('div', { style: 'display:flex;width:100%' },
+    h(Sidebar, { currentPage, adminName, adminRole, badgeReceipts }),
+    h('div', { className: 'main' },
+      h('div', { className: 'topbar' },
+        h('div', null,
+          h('div', { className: 'topbar-title' }, PAGE_TITLES[currentPage]||'Dashboard'),
+          h('div', { className: 'topbar-sub' }, PAGE_SUBS[currentPage]||'')
+        ),
+        h('div', { className: 'topbar-actions' },
+          h('button', { className: 'icon-btn', title: 'Notifications' }, h('i', { className: 'fas fa-bell' })),
+          h('button', { className: 'icon-btn', onClick: refreshCurrentPage, title: 'Refresh' }, h('i', { className: 'fas fa-sync-alt' }))
+        )
+      ),
+      h('div', { className: 'content' },
+        h(PageOverview, { active: currentPage==='overview' }),
+        h(PageUsers, { active: currentPage==='users' }),
+        h(PageSubAdmins, { active: currentPage==='sub-admins' }),
+        h(PageReceipts, { active: currentPage==='receipts' }),
+        h(PageSubscriptions, { active: currentPage==='subscriptions' }),
+        h(PageTrials, { active: currentPage==='trials' }),
+        h(PageTokens, { active: currentPage==='tokens' }),
+        h(PageDcoTier, { active: currentPage==='dco-tier' }),
+        h(PageMessages, { active: currentPage==='messages' }),
+        h(PageSupport, { active: currentPage==='support' }),
+        h(PageSettings, { active: currentPage==='settings' })
+      )
+    ),
+    h(AllModals, null),
+    h('div', { id: 'lightbox', style: 'display:none', className: 'lightbox', onClick: closeLightbox },
+      h('span', { className: 'lightbox-close', onClick: closeLightbox }, '×'),
+      h('img', { id: 'lightbox-img', src: '', alt: 'Receipt' })
+    ),
+    h('div', { id: 'acct-print-header', style: 'display:none' },
+      h('h2', null, 'EnejiStats — Accounting Ledger'),
+      h('div', null, 'Generated: ', h('span', { id: 'acct-print-date' }))
+    )
+  );
+}
+
+// ── PAGE COMPONENTS ──
+function PageOverview({ active }) {
+  return h('div', { className: 'page'+(active?' active':''), id: 'page-overview' },
+    h('div', { className: 'stat-grid' },
+      h('div',{className:'stat-card s-gold'},h('div',{className:'stat-val',id:'ov-users'},'—'),h('div',{className:'stat-lbl'},h('i',{className:'fas fa-users'}),' Total Users')),
+      h('div',{className:'stat-card s-ok'},h('div',{className:'stat-val',id:'ov-active-subs'},'—'),h('div',{className:'stat-lbl'},h('i',{className:'fas fa-crown'}),' Active Subscriptions')),
+      h('div',{className:'stat-card s-warn'},h('div',{className:'stat-val',id:'ov-pending-receipts'},'—'),h('div',{className:'stat-lbl'},h('i',{className:'fas fa-receipt'}),' Pending Receipts')),
+      h('div',{className:'stat-card s-info'},h('div',{className:'stat-val',id:'ov-tokens'},'—'),h('div',{className:'stat-lbl'},h('i',{className:'fas fa-coins'}),' Tokens in Circulation')),
+      h('div',{className:'stat-card s-danger'},h('div',{className:'stat-val',id:'ov-payout'},'—'),h('div',{className:'stat-lbl'},h('i',{className:'fas fa-wallet'}),' Pending Payouts')),
+      h('div',{className:'stat-card'},h('div',{className:'stat-val',id:'ov-dco'},'—'),h('div',{className:'stat-lbl'},h('i',{className:'fas fa-user-tie'}),' Data Scouts')),
+      h('div',{className:'stat-card s-ok'},h('div',{className:'stat-val',id:'ov-stats-req'},'—'),h('div',{className:'stat-lbl'},h('i',{className:'fas fa-chart-bar'}),' Stats Requests')),
+      h('div',{className:'stat-card s-warn'},h('div',{className:'stat-val',id:'ov-support'},'—'),h('div',{className:'stat-lbl'},h('i',{className:'fas fa-headset'}),' Open Tickets'))
+    ),
+    h('div', { className: 'ops-grid' },
+      h('div',{className:'ops-card s-warn'},h('div',{className:'ops-val',id:'ov-ops-pending'},'—'),h('div',{className:'ops-lbl'},'Pending Requests'),h('div',{className:'ops-sub'},'Stats requests awaiting assignment')),
+      h('div',{className:'ops-card s-info'},h('div',{className:'ops-val',id:'ov-ops-scouts'},'—'),h('div',{className:'ops-lbl'},'Available Scouts'),h('div',{className:'ops-sub'},'DCOs / supervisors available')),
+      h('div',{className:'ops-card s-ok'},h('div',{className:'ops-val',id:'ov-ops-completed'},'—'),h('div',{className:'ops-lbl'},'Completed Today'),h('div',{className:'ops-sub'},'Stats requests completed today')),
+      h('div',{className:'ops-card s-danger'},h('div',{className:'ops-val',id:'ov-ops-pending-users'},'—'),h('div',{className:'ops-lbl'},'Pending Approvals'),h('div',{className:'ops-sub'},'Scouts & players awaiting approval'))
+    ),
+    h('div', { style: 'display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.25rem' },
+      h('div',{className:'card'},h('div',{className:'card-title'},h('i',{className:'fas fa-receipt'}),' Recent Receipts'),h('div',{id:'ov-receipts-list'},h('p',{className:'text-sm text-muted'},'Loading…'))),
+      h('div',{className:'card'},h('div',{className:'card-title'},h('i',{className:'fas fa-bullhorn'}),' Recent Broadcasts'),h('div',{id:'ov-broadcasts-list'},h('p',{className:'text-sm text-muted'},'Loading…'))),
+      h('div',{className:'card'},h('div',{className:'card-title'},h('i',{className:'fas fa-stream'}),' Recent Activities'),h('div',{id:'ov-activities-list'},h('p',{className:'text-sm text-muted'},'Loading…')))
+    )
+  );
+}
+
+function PageUsers({ active }) {
+  return h('div', { className: 'page'+(active?' active':''), id: 'page-users' },
+    h('div', { className: 'filter-row' },
+      h('input',{className:'search-input',id:'users-search',placeholder:'Search name, email, ID…',onInput:()=>{_usersPage=1;debounce(loadUsers,400)();}}),
+      h('select',{className:'search-input',id:'users-type',onChange:()=>{_usersPage=1;loadUsers();}},
+        h('option',{value:''},'All Types'),h('option',{value:'player'},'Players'),h('option',{value:'club'},'Clubs'),h('option',{value:'scout'},'Scouts'),h('option',{value:'dco'},'DCOs'),h('option',{value:'supervisor'},'Supervisors'),h('option',{value:'admin'},'Admins')
+      ),
+      h('select',{className:'search-input',id:'users-status',onChange:()=>{_usersPage=1;loadUsers();}},
+        h('option',{value:''},'All Status'),h('option',{value:'active'},'Active'),h('option',{value:'suspended'},'Suspended'),h('option',{value:'inactive'},'Inactive')
+      ),
+      h('button',{className:'btn btn-ghost btn-sm',onClick:()=>{_usersPage=1;loadUsers();}},h('i',{className:'fas fa-sync-alt'}))
+    ),
+    h('div',{className:'card'},
+      h('div',{className:'tbl-wrap'},
+        h('table',null,
+          h('thead',null,h('tr',null,h('th',null,'User'),h('th',null,'Role'),h('th',null,'ID'),h('th',null,'Status'),h('th',null,'Joined'),h('th',null,'Actions'))),
+          h('tbody',{id:'users-tbody'},h('tr',null,h('td',{colSpan:6,className:'loading'},'Loading…')))
+        )
+      ),
+      h('div',{className:'pager',id:'users-pager'})
+    ),
+    h('div',{className:'card',style:'margin-top:1.25rem'},
+      h('div',{className:'coll-hdr',onClick:()=>toggleCollapsible('approvals-body','approvals-chevron')},
+        h('div',{className:'coll-label'},h('i',{className:'fas fa-user-check'}),' Pending Approvals'),
+        h('i',{className:'fas fa-chevron-down coll-chevron open',id:'approvals-chevron'})
+      ),
+      h('div',{id:'approvals-body'},
+        h('div',{className:'approval-two-col'},
+          h('div',null,
+            h('div',{style:'font-size:.75rem;font-weight:800;color:var(--info);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.65rem;display:flex;align-items:center;gap:.4rem'},h('i',{className:'fas fa-user-tie'}),' Pending Scouts',h('button',{className:'btn btn-ghost btn-sm',style:'margin-left:auto',onClick:loadPendingApprovals},h('i',{className:'fas fa-sync-alt'}))),
+            h('div',{id:'pending-scouts-list'},h('div',{className:'loading'},'Loading…'))
+          ),
+          h('div',null,
+            h('div',{style:'font-size:.75rem;font-weight:800;color:var(--gold);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.65rem;display:flex;align-items:center;gap:.4rem'},h('i',{className:'fas fa-running'}),' Pending Players',h('button',{className:'btn btn-ghost btn-sm',style:'margin-left:auto',onClick:loadPendingApprovals},h('i',{className:'fas fa-sync-alt'}))),
+            h('div',{id:'pending-players-list'},h('div',{className:'loading'},'Loading…'))
+          )
+        )
+      )
+    ),
+    h('div',{className:'card',style:'margin-top:1.25rem'},
+      h('div',{className:'coll-hdr',onClick:()=>toggleCollapsible('monitoring-body','monitoring-chevron')},
+        h('div',{className:'coll-label'},h('i',{className:'fas fa-chart-line'}),' Player Monitoring'),
+        h('i',{className:'fas fa-chevron-down coll-chevron open',id:'monitoring-chevron'})
+      ),
+      h('div',{id:'monitoring-body'},
+        h('div',{className:'filter-row',style:'margin-bottom:.85rem'},
+          h('input',{className:'search-input',id:'mon-search',placeholder:'Search players…',style:'min-width:200px',onInput:()=>debounce(loadPlayerMonitoring,400)()}),
+          h('select',{className:'search-input',id:'mon-sort',onChange:()=>{_monPage=1;loadPlayerMonitoring();}},h('option',{value:'recent'},'Most Recent'),h('option',{value:'tokens'},'Most Tokens'),h('option',{value:'requests'},'Most Requests')),
+          h('button',{className:'btn btn-ghost btn-sm',onClick:()=>{_monPage=1;loadPlayerMonitoring();}},h('i',{className:'fas fa-sync-alt'}))
+        ),
+        h('div',{className:'tbl-wrap'},
+          h('table',null,
+            h('thead',null,h('tr',null,h('th',null,'Player'),h('th',null,'ID'),h('th',null,'Status'),h('th',null,'Tokens'),h('th',null,'Requests'),h('th',null,'Scouted By'),h('th',null,'Joined'))),
+            h('tbody',{id:'monitoring-tbody'},h('tr',null,h('td',{colSpan:7,className:'loading'},'Loading…')))
+          )
+        ),
+        h('div',{className:'pager',id:'monitoring-pager'})
+      )
+    )
+  );
+}
+
+function PageSubAdmins({ active }) {
+  return h('div', { className: 'page'+(active?' active':''), id: 'page-sub-admins' },
+    h('div',{className:'filter-row'},
+      h('button',{className:'btn btn-primary btn-sm',onClick:openCreateSubAdmin},h('i',{className:'fas fa-plus'}),' Create Sub-Admin'),
+      h('button',{className:'btn btn-ghost btn-sm',onClick:loadSubAdmins},h('i',{className:'fas fa-sync-alt'}))
+    ),
+    h('div',{className:'card'},
+      h('div',{className:'card-title'},h('i',{className:'fas fa-user-shield'}),' Sub-Admins'),
+      h('div',{className:'tbl-wrap'},
+        h('table',null,
+          h('thead',null,h('tr',null,h('th',null,'Name'),h('th',null,'Email'),h('th',null,'Status'),h('th',null,'Created'),h('th',null,'Actions'))),
+          h('tbody',{id:'subadmins-tbody'},h('tr',null,h('td',{colSpan:5,className:'loading'},'Loading…')))
+        )
+      )
+    )
+  );
+}
+
+function PageReceipts({ active }) {
+  return h('div', { className: 'page'+(active?' active':''), id: 'page-receipts' },
+    h('div',{className:'stat-grid',style:'grid-template-columns:repeat(4,1fr)'},
+      h('div',{className:'stat-card s-warn'},h('div',{className:'stat-val',id:'rc-pending'},'—'),h('div',{className:'stat-lbl'},'Pending Review')),
+      h('div',{className:'stat-card s-ok'},h('div',{className:'stat-val',id:'rc-approved'},'—'),h('div',{className:'stat-lbl'},'Approved')),
+      h('div',{className:'stat-card s-danger'},h('div',{className:'stat-val',id:'rc-rejected'},'—'),h('div',{className:'stat-lbl'},'Rejected')),
+      h('div',{className:'stat-card s-gold'},h('div',{className:'stat-val',id:'rc-value',style:'font-size:1.3rem'},'₦0'),h('div',{className:'stat-lbl'},'Approved Value'))
+    ),
+    h('div',{className:'filter-row'},
+      h('button',{className:'filter-tab active',onClick:function(e){setReceiptFilter(e.target,'pending_review');}},'Pending Review'),
+      h('button',{className:'filter-tab',onClick:function(e){setReceiptFilter(e.target,'active');}},'Approved'),
+      h('button',{className:'filter-tab',onClick:function(e){setReceiptFilter(e.target,'rejected');}},'Rejected'),
+      h('button',{className:'filter-tab',onClick:function(e){setReceiptFilter(e.target,'all');}},'All'),
+      h('input',{className:'search-input',id:'receipts-search',placeholder:'Search receipts…',onInput:()=>renderReceipts()}),
+      h('button',{className:'btn btn-ghost btn-sm',onClick:loadReceipts},h('i',{className:'fas fa-sync-alt'}))
+    ),
+    h('div',{className:'split-layout'},
+      h('div',{id:'receipts-list'},h('div',{className:'loading'},'Loading…')),
+      h('div',{className:'sticky-panel',id:'receipt-detail-panel'},
+        h('div',{className:'card'},h('div',{className:'empty'},h('i',{className:'fas fa-receipt'}),h('p',null,'Select a receipt to review')))
+      )
+    )
+  );
+}
+
+function PageSubscriptions({ active }) {
+  return h('div', { className: 'page'+(active?' active':''), id: 'page-subscriptions' },
+    h('div',{className:'filter-row'},
+      h('select',{className:'search-input',id:'subs-status',onChange:()=>{_subsPage=1;loadSubscriptions();}},h('option',{value:''},'All Status'),h('option',{value:'active'},'Active'),h('option',{value:'expired'},'Expired'),h('option',{value:'cancelled'},'Cancelled'),h('option',{value:'trialing'},'Trialing')),
+      h('select',{className:'search-input',id:'subs-type',onChange:()=>{_subsPage=1;loadSubscriptions();}},h('option',{value:''},'All Types'),h('option',{value:'player'},'Player'),h('option',{value:'club'},'Club'),h('option',{value:'scout'},'Scout'),h('option',{value:'agent'},'Agent')),
+      h('button',{className:'btn btn-ghost btn-sm',onClick:()=>{_subsPage=1;loadSubscriptions();}},h('i',{className:'fas fa-sync-alt'}))
+    ),
+    h('div',{className:'card'},
+      h('div',{className:'card-title'},h('i',{className:'fas fa-crown'}),' Active Subscriptions'),
+      h('div',{className:'tbl-wrap'},h('table',null,h('thead',null,h('tr',null,h('th',null,'User ID'),h('th',null,'Type'),h('th',null,'Plan'),h('th',null,'Status'),h('th',null,'Expires'),h('th',null,'Actions'))),h('tbody',{id:'subs-tbody'},h('tr',null,h('td',{colSpan:6,className:'loading'},'Loading…'))))),
+      h('div',{className:'pager',id:'subs-pager'})
+    ),
+    h('div',{className:'card',style:'margin-top:1.25rem'},
+      h('div',{className:'card-title'},h('i',{className:'fas fa-gift'}),' Grant Subscription'),
+      h('div',{className:'form-group'},
+        h('label',{className:'form-label'},'User ID'),
+        h('div',{className:'gap-sm'},
+          h('input',{className:'form-control',id:'sub-grant-uid',placeholder:'Enter User ID…',style:'flex:1'}),
+          h('button',{className:'btn btn-ghost',onClick:lookupSubUser},h('i',{className:'fas fa-search'}),' Lookup')
+        )
+      ),
+      h('div',{className:'sub-confirm-card',id:'sub-confirm-card'},
+        h('div',{style:'font-size:.7rem;font-weight:800;color:var(--success);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.4rem'},h('i',{className:'fas fa-id-card'}),' User Confirmed'),
+        h('div',{className:'sub-confirm-grid'},
+          h('div',{className:'ucf-row'},h('span',{className:'ucf-lbl'},'Name'),h('span',{className:'ucf-val',id:'sub-confirm-name'},'—')),
+          h('div',{className:'ucf-row'},h('span',{className:'ucf-lbl'},'Email'),h('span',{className:'ucf-val',id:'sub-confirm-email'},'—')),
+          h('div',{className:'ucf-row'},h('span',{className:'ucf-lbl'},'Role'),h('span',{className:'ucf-val',id:'sub-confirm-role'},'—')),
+          h('div',{className:'ucf-row'},h('span',{className:'ucf-lbl'},'User ID'),h('span',{className:'ucf-val mono',id:'sub-confirm-id'},'—'))
+        )
+      ),
+      h('div',{id:'sub-grant-form',style:'display:none'},
+        h('div',{className:'form-grid'},
+          h('div',{className:'form-group',style:'margin-bottom:0'},h('label',{className:'form-label'},'Plan'),h('select',{className:'form-control',id:'sub-grant-plan'},h('option',{value:'player_monthly'},'Player Monthly'),h('option',{value:'player_6month'},'Player 6-Month'),h('option',{value:'club_monthly'},'Club Monthly'),h('option',{value:'club_6month'},'Club 6-Month'),h('option',{value:'scout_monthly'},'Scout Monthly'),h('option',{value:'scout_6month'},'Scout 6-Month'),h('option',{value:'agent_monthly'},'Agent Monthly'),h('option',{value:'agent_6month'},'Agent 6-Month'))),
+          h('div',{className:'form-group',style:'margin-bottom:0'},h('label',{className:'form-label'},'Duration (days)'),h('input',{className:'form-control',id:'sub-grant-days',type:'number',value:'30',min:'1',max:'3650',placeholder:'30'})),
+          h('div',{className:'form-group',style:'margin-bottom:0'},h('label',{className:'form-label'},'Note (optional)'),h('input',{className:'form-control',id:'sub-grant-note',placeholder:'e.g. Admin override'}))
+        ),
+        h('div',{className:'gap-sm',style:'margin-top:.75rem'},
+          h('button',{className:'btn btn-success',onClick:grantSubscription},h('i',{className:'fas fa-crown'}),' Grant Subscription'),
+          h('button',{className:'btn btn-ghost',onClick:cancelSubLookup},h('i',{className:'fas fa-times'}),' Clear')
+        )
+      )
+    )
+  );
+}
+
+function PageTrials({ active }) {
+  return h('div', { className: 'page'+(active?' active':''), id: 'page-trials' },
+    h('div',{className:'filter-row'},
+      h('button',{className:'btn btn-warn btn-sm',onClick:sendTrialWarnings},h('i',{className:'fas fa-envelope'}),' Send Trial Warning Emails'),
+      h('button',{className:'btn btn-ghost btn-sm',onClick:loadTrials},h('i',{className:'fas fa-sync-alt'}))
+    ),
+    h('div',{className:'card'},
+      h('div',{className:'card-title'},h('i',{className:'fas fa-hourglass-half'}),' Trial Subscriptions'),
+      h('div',{className:'tbl-wrap'},h('table',null,h('thead',null,h('tr',null,h('th',null,'User ID'),h('th',null,'Role'),h('th',null,'Plan'),h('th',null,'Status'),h('th',null,'Created'),h('th',null,'Expires'))),h('tbody',{id:'trials-tbody'},h('tr',null,h('td',{colSpan:6,className:'loading'},'Loading…'))))),
+      h('div',{className:'pager',id:'trials-pager'})
+    )
+  );
+}
+
+function PageTokens({ active }) {
+  return h('div', { className: 'page'+(active?' active':''), id: 'page-tokens' },
+    h('div',{className:'stat-grid',style:'grid-template-columns:repeat(5,1fr)'},
+      h('div',{className:'stat-card s-gold'},h('div',{className:'stat-val',id:'tok-player'},'—'),h('div',{className:'stat-lbl'},'Player Tokens')),
+      h('div',{className:'stat-card s-info'},h('div',{className:'stat-val',id:'tok-club'},'—'),h('div',{className:'stat-lbl'},'Club Tokens')),
+      h('div',{className:'stat-card s-ok'},h('div',{className:'stat-val',id:'tok-scout'},'—'),h('div',{className:'stat-lbl'},'Scout Tokens')),
+      h('div',{className:'stat-card s-warn'},h('div',{className:'stat-val',id:'tok-agent'},'—'),h('div',{className:'stat-lbl'},'Agent Tokens')),
+      h('div',{className:'stat-card'},h('div',{className:'stat-val',id:'tok-total'},'—'),h('div',{className:'stat-lbl'},'Total Circulation'))
+    ),
+    h('div',{className:'card',style:'margin-bottom:1.25rem'},
+      h('div',{className:'card-title'},h('i',{className:'fas fa-search-dollar'}),' Entity Token Search'),
+      h('p',{className:'text-sm text-muted',style:'margin-bottom:.85rem'},'Search for a player or club by ID or name to view their token balance and quickly issue a credit.'),
+      h('div',{className:'gap-sm',style:'margin-bottom:.75rem'},
+        h('select',{className:'form-control',id:'tok-entity-type',style:'max-width:150px;flex-shrink:0',onChange:clearTokenEntitySearch},h('option',{value:'player'},'Player'),h('option',{value:'club'},'Club'),h('option',{value:'scout'},'Scout'),h('option',{value:'agent'},'Agent')),
+        h('input',{className:'form-control',id:'tok-entity-query',placeholder:'Enter ID or name…',style:'flex:1',onKeyDown:e=>{if(e.key==='Enter')searchTokenEntity();}}),
+        h('button',{className:'btn btn-ghost',onClick:searchTokenEntity},h('i',{className:'fas fa-search'}),' Search'),
+        h('button',{className:'btn btn-ghost btn-sm',onClick:clearTokenEntitySearch,title:'Clear'},h('i',{className:'fas fa-times'}))
+      ),
+      h('div',{className:'tok-entity-confirm',id:'tok-entity-confirm-card'},
+        h('div',{style:'display:flex;align-items:flex-start;justify-content:space-between;gap:1rem'},
+          h('div',{style:'flex:1'},
+            h('div',{style:'font-size:.7rem;font-weight:800;color:var(--success);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.4rem'},h('i',{className:'fas fa-id-card'}),' Entity Found'),
+            h('div',{className:'tok-entity-grid'},
+              h('div',{className:'ucf-row'},h('span',{className:'ucf-lbl'},'Name'),h('span',{className:'ucf-val',id:'tok-ent-name'},'—')),
+              h('div',{className:'ucf-row'},h('span',{className:'ucf-lbl'},'ID'),h('span',{className:'ucf-val mono',id:'tok-ent-id'},'—')),
+              h('div',{className:'ucf-row'},h('span',{className:'ucf-lbl'},'Type'),h('span',{className:'ucf-val',id:'tok-ent-type'},'—')),
+              h('div',{className:'ucf-row'},h('span',{className:'ucf-lbl'},'Token Balance'),h('span',{className:'ucf-val text-gold',id:'tok-ent-balance'},'—')),
+              h('div',{className:'ucf-row'},h('span',{className:'ucf-lbl'},'Email'),h('span',{className:'ucf-val',id:'tok-ent-email'},'—')),
+              h('div',{className:'ucf-row'},h('span',{className:'ucf-lbl'},'Status'),h('span',{className:'ucf-val',id:'tok-ent-status'},'—'))
+            )
+          ),
+          h('div',{style:'display:flex;flex-direction:column;gap:.5rem;align-items:flex-end;min-width:200px'},
+            h('div',{className:'form-group',style:'margin-bottom:.4rem;width:100%'},h('label',{className:'form-label'},'Quick Credit Amount'),h('input',{className:'form-control',id:'tok-ent-amt',type:'number',placeholder:'e.g. 50',min:'1'})),
+            h('div',{className:'form-group',style:'margin-bottom:.4rem;width:100%'},h('label',{className:'form-label'},'Reason'),h('input',{className:'form-control',id:'tok-ent-reason',placeholder:'Admin credit'})),
+            h('button',{className:'btn btn-success btn-sm',style:'width:100%;justify-content:center',onClick:creditTokensFromEntity},h('i',{className:'fas fa-plus'}),' Credit Tokens')
+          )
+        )
+      )
+    ),
+    h('div',{style:'display:grid;grid-template-columns:1fr 1fr;gap:1.25rem'},
+      h('div',{className:'card'},
+        h('div',{className:'card-title'},h('i',{className:'fas fa-plus-circle'}),' Credit Tokens'),
+        h('div',{className:'form-group'},h('label',{className:'form-label'},'User ID'),h('div',{className:'gap-sm'},h('input',{className:'form-control',id:'tok-credit-uid',placeholder:'Enter User ID…',style:'flex:1'}),h('button',{className:'btn btn-ghost btn-sm',onClick:()=>lookupTokenUser('credit')},h('i',{className:'fas fa-search'})))),
+        h('div',{className:'user-confirm-card',id:'tok-credit-confirm-card'},h('div',{style:'font-size:.7rem;font-weight:800;color:var(--success);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.4rem'},h('i',{className:'fas fa-id-card'}),' User Confirmed'),h('div',{className:'user-confirm-grid'},h('div',{className:'ucf-row'},h('span',{className:'ucf-lbl'},'Name'),h('span',{className:'ucf-val',id:'tok-credit-confirm-name'},'—')),h('div',{className:'ucf-row'},h('span',{className:'ucf-lbl'},'Email'),h('span',{className:'ucf-val',id:'tok-credit-confirm-email'},'—')),h('div',{className:'ucf-row'},h('span',{className:'ucf-lbl'},'Role'),h('span',{className:'ucf-val',id:'tok-credit-confirm-role'},'—')),h('div',{className:'ucf-row'},h('span',{className:'ucf-lbl'},'User ID'),h('span',{className:'ucf-val mono',id:'tok-credit-confirm-id'},'—')))),
+        h('div',{className:'form-group'},h('label',{className:'form-label'},'User Type'),h('select',{className:'form-control',id:'tok-credit-type'},h('option',{value:'player'},'Player'),h('option',{value:'club'},'Club'),h('option',{value:'scout'},'Scout'),h('option',{value:'dco'},'DCO (Data Scout)'),h('option',{value:'agent'},'Agent'),h('option',{value:'supervisor'},'Supervisor'))),
+        h('div',{className:'form-group'},h('label',{className:'form-label'},'Amount'),h('input',{className:'form-control',id:'tok-credit-amt',type:'number',placeholder:'50'})),
+        h('div',{className:'form-group'},h('label',{className:'form-label'},'Reason'),h('input',{className:'form-control',id:'tok-credit-reason',placeholder:'Admin credit'})),
+        h('button',{className:'btn btn-success',onClick:creditTokens},h('i',{className:'fas fa-plus'}),' Credit Tokens')
+      ),
+      h('div',{className:'card'},
+        h('div',{className:'card-title'},h('i',{className:'fas fa-minus-circle'}),' Debit Tokens'),
+        h('div',{className:'form-group'},h('label',{className:'form-label'},'User ID'),h('div',{className:'gap-sm'},h('input',{className:'form-control',id:'tok-debit-uid',placeholder:'Enter User ID…',style:'flex:1'}),h('button',{className:'btn btn-ghost btn-sm',onClick:()=>lookupTokenUser('debit')},h('i',{className:'fas fa-search'})))),
+        h('div',{className:'user-confirm-card',id:'tok-debit-confirm-card'},h('div',{style:'font-size:.7rem;font-weight:800;color:var(--danger);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.4rem'},h('i',{className:'fas fa-id-card'}),' User Confirmed'),h('div',{className:'user-confirm-grid'},h('div',{className:'ucf-row'},h('span',{className:'ucf-lbl'},'Name'),h('span',{className:'ucf-val',id:'tok-debit-confirm-name'},'—')),h('div',{className:'ucf-row'},h('span',{className:'ucf-lbl'},'Email'),h('span',{className:'ucf-val',id:'tok-debit-confirm-email'},'—')),h('div',{className:'ucf-row'},h('span',{className:'ucf-lbl'},'Role'),h('span',{className:'ucf-val',id:'tok-debit-confirm-role'},'—')),h('div',{className:'ucf-row'},h('span',{className:'ucf-lbl'},'User ID'),h('span',{className:'ucf-val mono',id:'tok-debit-confirm-id'},'—')))),
+        h('div',{className:'form-group'},h('label',{className:'form-label'},'User Type'),h('select',{className:'form-control',id:'tok-debit-type'},h('option',{value:'player'},'Player'),h('option',{value:'club'},'Club'),h('option',{value:'scout'},'Scout'),h('option',{value:'dco'},'DCO (Data Scout)'),h('option',{value:'agent'},'Agent'),h('option',{value:'supervisor'},'Supervisor'))),
+        h('div',{className:'form-group'},h('label',{className:'form-label'},'Amount'),h('input',{className:'form-control',id:'tok-debit-amt',type:'number',placeholder:'10'})),
+        h('div',{className:'form-group'},h('label',{className:'form-label'},'Reason'),h('input',{className:'form-control',id:'tok-debit-reason',placeholder:'Admin debit'})),
+        h('button',{className:'btn btn-danger',onClick:debitTokens},h('i',{className:'fas fa-minus'}),' Debit Tokens')
+      )
+    ),
+    h('div',{className:'card',style:'margin-top:1.25rem'},
+      h('div',{style:'display:flex;align-items:center;justify-content:space-between;margin-bottom:.85rem'},
+        h('div',{className:'card-title',style:'margin-bottom:0'},h('i',{className:'fas fa-history'}),' Token Transaction History'),
+        h('div',{className:'gap-sm'},h('button',{className:'btn btn-ghost btn-sm',onClick:resetTokHistoryFilters},h('i',{className:'fas fa-times'}),' Reset'),h('button',{className:'btn btn-ghost btn-sm',onClick:()=>{_tokPage=1;loadTokenHistory();}},h('i',{className:'fas fa-sync-alt'}),' Refresh'))
+      ),
+      h('div',{className:'tok-filter-bar'},
+        h('div',null,h('label',null,'User ID / Name'),h('input',{className:'tok-filter-input',id:'tok-filter-uid',placeholder:'ES-001, DCO-002…',onInput:()=>debounce(applyTokHistoryFilter,350)()})),
+        h('div',null,h('label',null,'Transaction Type'),h('select',{className:'tok-filter-input',id:'tok-filter-type',onChange:applyTokHistoryFilter},h('option',{value:''},'Credits & Debits'),h('option',{value:'credit'},'Credits only'),h('option',{value:'debit'},'Debits only'))),
+        h('div',null,h('label',null,'User Role'),h('select',{className:'tok-filter-input',id:'tok-filter-role',onChange:applyTokHistoryFilter},h('option',{value:''},'All Roles'),h('option',{value:'player'},'Player'),h('option',{value:'club'},'Club'),h('option',{value:'scout'},'Scout'),h('option',{value:'dco'},'DCO'),h('option',{value:'agent'},'Agent'),h('option',{value:'supervisor'},'Supervisor'))),
+        h('div',null,h('label',null,'Date From'),h('input',{className:'tok-filter-input',id:'tok-filter-date-from',type:'date',onChange:applyTokHistoryFilter})),
+        h('div',null,h('label',null,'Date To'),h('input',{className:'tok-filter-input',id:'tok-filter-date-to',type:'date',onChange:applyTokHistoryFilter})),
+        h('div',null,h('label',null,'Time From'),h('input',{className:'tok-filter-input',id:'tok-filter-time-from',type:'time',onChange:applyTokHistoryFilter})),
+        h('div',null,h('label',null,'Time To'),h('input',{className:'tok-filter-input',id:'tok-filter-time-to',type:'time',onChange:applyTokHistoryFilter})),
+        h('div',null,h('label',null,'Sort By'),h('select',{className:'tok-filter-input',id:'tok-filter-sort',onChange:applyTokHistoryFilter},h('option',{value:'newest'},'Newest First'),h('option',{value:'oldest'},'Oldest First'),h('option',{value:'amount_desc'},'Amount ↓'),h('option',{value:'amount_asc'},'Amount ↑')))
+      ),
+      h('div',{className:'tok-history-summary',id:'tok-history-summary'},
+        h('div',{className:'ths-item'},h('div',{className:'ths-val',id:'th-sum-count'},'0'),h('div',{className:'ths-lbl'},'Total')),
+        h('div',{className:'ths-item'},h('div',{className:'ths-val text-success',id:'th-sum-credits'},'0'),h('div',{className:'ths-lbl'},'Credits')),
+        h('div',{className:'ths-item'},h('div',{className:'ths-val text-danger',id:'th-sum-debits'},'0'),h('div',{className:'ths-lbl'},'Debits')),
+        h('div',{className:'ths-item'},h('div',{className:'ths-val',id:'th-sum-net'},'0'),h('div',{className:'ths-lbl'},'Net'))
+      ),
+      h('div',{className:'tbl-wrap'},h('table',null,h('thead',null,h('tr',null,h('th',null,'Date & Time'),h('th',null,'User ID'),h('th',null,'Role'),h('th',null,'Type'),h('th',{style:'text-align:right'},'Amount'),h('th',null,'Reason'),h('th',null,'Balance After'))),h('tbody',{id:'tok-history-tbody'},h('tr',null,h('td',{colSpan:7,className:'loading'},'Loading…'))))),
+      h('div',{className:'pager',id:'tok-history-pager'})
+    ),
+    h('div',{className:'card',style:'margin-top:1.25rem'},
+      h('div',{style:'display:flex;align-items:center;justify-content:space-between;margin-bottom:.85rem'},
+        h('div',{className:'card-title',style:'margin-bottom:0'},h('i',{className:'fas fa-book'}),' Platform Accounting Ledger'),
+        h('div',{className:'gap-sm'},h('button',{className:'btn btn-ghost btn-sm',onClick:resetAcctFilters},h('i',{className:'fas fa-times'}),' Reset'),h('button',{className:'btn btn-ghost btn-sm',onClick:printAccounting},h('i',{className:'fas fa-print'}),' Print'),h('button',{className:'btn btn-ghost btn-sm',onClick:loadAccounting},h('i',{className:'fas fa-sync-alt'})))
+      ),
+      h('div',{className:'acct-filter-bar'},
+        h('div',{className:'acct-filter-group'},h('label',null,'Search'),h('input',{className:'tok-filter-input',id:'acct-filter-query',placeholder:'User ID, name, description…',onInput:()=>debounce(applyAcctFilter,350)()})),
+        h('div',{className:'acct-filter-group'},h('label',null,'Role'),h('select',{className:'tok-filter-input',id:'acct-filter-role',onChange:applyAcctFilter},h('option',{value:''},'All Roles'),h('option',{value:'player'},'Player'),h('option',{value:'club'},'Club'),h('option',{value:'scout'},'Scout'),h('option',{value:'dco'},'DCO'),h('option',{value:'agent'},'Agent'),h('option',{value:'supervisor'},'Supervisor'))),
+        h('div',{className:'acct-filter-group'},h('label',null,'Activity'),h('select',{className:'tok-filter-input',id:'acct-filter-activity',onChange:applyAcctFilter},h('option',{value:''},'All Activities'),h('option',{value:'stats_tracking'},'Stats Tracking'),h('option',{value:'heatmap_tracking'},'Heatmap'),h('option',{value:'match_request'},'Match Request'),h('option',{value:'bio_registration'},'Bio & Registration'),h('option',{value:'subscription'},'Subscription'),h('option',{value:'token_purchase'},'Token Purchase'),h('option',{value:'admin_credit'},'Admin Credit'),h('option',{value:'admin_debit'},'Admin Debit'),h('option',{value:'background_check'},'Background Check'),h('option',{value:'assignment'},'Assignment/Payout'))),
+        h('div',{className:'acct-filter-group'},h('label',null,'Direction'),h('select',{className:'tok-filter-input',id:'acct-filter-dir',onChange:applyAcctFilter},h('option',{value:''},'All'),h('option',{value:'credit'},'Credits'),h('option',{value:'debit'},'Debits'))),
+        h('div',{className:'acct-filter-group'},h('label',null,'Date From'),h('input',{className:'tok-filter-input',id:'acct-filter-date-from',type:'date',onChange:applyAcctFilter})),
+        h('div',{className:'acct-filter-group'},h('label',null,'Date To'),h('input',{className:'tok-filter-input',id:'acct-filter-date-to',type:'date',onChange:applyAcctFilter}))
+      ),
+      h('div',{className:'acct-summary-strip',id:'acct-summary-strip',style:'display:none'},
+        h('div',{className:'acct-sum-item'},h('span',{className:'text-muted'},'Records: '),h('span',{id:'acct-summary-count'},'0')),
+        h('div',{className:'acct-sum-item text-success'},'Credits: ',h('span',{id:'acct-summary-credits'},'0')),
+        h('div',{className:'acct-sum-item text-danger'},'Debits: ',h('span',{id:'acct-summary-debits'},'0')),
+        h('div',{className:'acct-sum-item'},'Net: ',h('span',{id:'acct-summary-net'},'0'))
+      ),
+      h('div',{className:'tbl-wrap'},h('table',null,h('thead',null,h('tr',null,h('th',null,'Date'),h('th',null,'User ID'),h('th',null,'Name'),h('th',null,'Role'),h('th',null,'Activity'),h('th',null,'Type'),h('th',{style:'text-align:right'},'Amount'),h('th',null,'Ref'))),h('tbody',{id:'acct-tbody'},h('tr',null,h('td',{colSpan:8,className:'loading'},'Loading…'))))),
+      h('div',{className:'pager',id:'acct-pager'})
+    )
+  );
+}
+
+function PageDcoTier({ active }) {
+  return h('div', { className: 'page'+(active?' active':''), id: 'page-dco-tier' },
+    h('div',{className:'stat-grid',style:'grid-template-columns:repeat(3,1fr)'},
+      h('div',{className:'stat-card'},h('div',{className:'stat-val',id:'tier1-count'},'—'),h('div',{className:'stat-lbl'},'Tier 1 — Entry')),
+      h('div',{className:'stat-card s-info'},h('div',{className:'stat-val',id:'tier2-count'},'—'),h('div',{className:'stat-lbl'},'Tier 2 — Standard')),
+      h('div',{className:'stat-card s-gold'},h('div',{className:'stat-val',id:'tier3-count'},'—'),h('div',{className:'stat-lbl'},'Tier 3 — Elite'))
+    ),
+    h('div',{className:'filter-row'},h('button',{className:'btn btn-ghost btn-sm',onClick:loadDcoTiers},h('i',{className:'fas fa-sync-alt'}))),
+    h('div',{className:'card'},
+      h('div',{className:'card-title'},h('i',{className:'fas fa-layer-group'}),' DCO Tier Management'),
+      h('div',{className:'tbl-wrap'},h('table',null,h('thead',null,h('tr',null,h('th',null,'Name'),h('th',null,'ID'),h('th',null,'Role'),h('th',null,'Tier'),h('th',null,'Status'),h('th',null,'Actions'))),h('tbody',{id:'tier-tbody'},h('tr',null,h('td',{colSpan:6,className:'loading'},'Loading…')))))
+    )
+  );
+}
+
+function PageMessages({ active }) {
+  return h('div', { className: 'page'+(active?' active':''), id: 'page-messages' },
+    h('div',{style:'display:grid;grid-template-columns:1fr 380px;gap:1.25rem'},
+      h('div',{className:'card'},
+        h('div',{className:'card-title'},h('i',{className:'fas fa-paper-plane'}),' Send Broadcast'),
+        h('div',{className:'form-group'},h('label',{className:'form-label'},'Title'),h('input',{className:'form-control',id:'msg-title',placeholder:'e.g. Platform Update'})),
+        h('div',{className:'form-group'},h('label',{className:'form-label'},'Message'),h('textarea',{className:'form-control',id:'msg-body',rows:'4',placeholder:'Enter broadcast message…'})),
+        h('div',{className:'form-group'},h('label',{className:'form-label'},'Target Audience'),h('select',{className:'form-control',id:'msg-target'},h('option',{value:'all'},'All Users'),h('option',{value:'players'},'Players Only'),h('option',{value:'clubs'},'Clubs Only'),h('option',{value:'scouts'},'Scouts Only'),h('option',{value:'dcos'},'DCOs Only'),h('option',{value:'agents'},'Agents Only'))),
+        h('button',{className:'btn btn-primary',onClick:sendBroadcast},h('i',{className:'fas fa-broadcast-tower'}),' Send Broadcast')
+      ),
+      h('div',{className:'card'},
+        h('div',{className:'card-title'},h('i',{className:'fas fa-history'}),' Broadcast History'),
+        h('div',{id:'msg-history-list'},h('div',{className:'loading'},'Loading…'))
+      )
+    )
+  );
+}
+
+function PageSupport({ active }) {
+  return h('div', { className: 'page'+(active?' active':''), id: 'page-support' },
+    h('div',{className:'filter-row'},
+      h('select',{className:'search-input',id:'sup-status',onChange:()=>{_supPage=1;loadSupport();}},h('option',{value:''},'All Status'),h('option',{value:'open'},'Open'),h('option',{value:'in_progress'},'In Progress'),h('option',{value:'closed'},'Closed')),
+      h('input',{className:'search-input',id:'sup-search',placeholder:'Search tickets…',onInput:()=>renderSupportList((document.getElementById('sup-search')||{}).value||'')}),
+      h('button',{className:'btn btn-ghost btn-sm',onClick:loadSupport},h('i',{className:'fas fa-sync-alt'}))
+    ),
+    h('div',{className:'split-layout'},
+      h('div',null,h('div',{id:'sup-list'},h('div',{className:'loading'},'Loading…')),h('div',{className:'pager',id:'sup-pager'})),
+      h('div',{className:'sticky-panel',id:'sup-detail-panel'},h('div',{className:'card'},h('div',{className:'empty'},h('i',{className:'fas fa-headset'}),h('p',null,'Select a ticket to view'))))
+    )
+  );
+}
+
+// ─── REPLACE PageSettings ENTIRELY ───────────────────────────────────────
+function PageSettings({ active }) {
+    var tabState = useState('subscription');
+    var tab = tabState[0]; var setTab = tabState[1];
+
+    useEffect(function() {
+      if (!active) return;
+      if (tab === 'subscription' || tab === 'tokens' || tab === 'rates') loadSettings();
+      else if (tab === 'country') loadCountriesTab();
+      else if (tab === 'regions') loadRegionsTab();
+    }, [active, tab]);
+
+    var Tabs = function() {
+      var tabs = [
+        { id: 'subscription', icon: 'fas fa-crown',       label: 'Subscriptions' },
+        { id: 'tokens',       icon: 'fas fa-coins',       label: 'Token Packages' },
+        { id: 'country',      icon: 'fas fa-globe-africa',label: 'Country Pricing' },
+        { id: 'regions',      icon: 'fas fa-map-marked-alt', label: 'Regions' },
+        { id: 'rates',        icon: 'fas fa-sitemap',     label: 'DCO / Supervisor' },
+      ];
+      return h('div', { style: 'display:flex;gap:.35rem;margin-bottom:1.25rem;flex-wrap:wrap;border-bottom:2px solid var(--border);padding-bottom:.6rem' },
+        tabs.map(function(t) {
+          return h('button', {
+            key: t.id,
+            className: 'btn btn-sm ' + (tab === t.id ? 'btn-primary' : 'btn-ghost'),
+            onClick: function() { setTab(t.id); },
+            style: 'font-size:.76rem',
+          }, h('i', { className: t.icon }), ' ', t.label);
+        })
+      );
+    };
+
+    var subRow = function(label, idPfx, defaults) {
+      return h('div', { style: 'margin-bottom:.85rem;padding-bottom:.85rem;border-bottom:1px solid var(--border)' },
+        h('div', { className: 'fw700 text-sm', style: 'margin-bottom:.5rem;color:var(--muted)' }, label),
+        h('div', { style: 'display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem' },
+          h('div', { className: 'form-group', style: 'margin-bottom:0' },
+            h('label', { className: 'form-label', style: 'font-size:.68rem' }, 'Monthly (₦)'),
+            h('input', { className: 'form-control', id: idPfx + '-monthly', type: 'number', placeholder: String(defaults[0]) })
+          ),
+          h('div', { className: 'form-group', style: 'margin-bottom:0' },
+            h('label', { className: 'form-label', style: 'font-size:.68rem' }, '6-Month (₦)'),
+            h('input', { className: 'form-control', id: idPfx + '-6month', type: 'number', placeholder: String(defaults[1]) })
+          ),
+          h('div', { className: 'form-group', style: 'margin-bottom:0' },
+            h('label', { className: 'form-label', style: 'font-size:.68rem' }, 'Annual (₦)'),
+            h('input', { className: 'form-control', id: idPfx + '-annual', type: 'number', placeholder: String(defaults[2]) })
+          )
+        )
+      );
+    };
+
+    var rateGrid = function(prefix, label) {
+      var tiers  = ['tier1','tier2','tier3'];
+      var levels = ['professional','semi_professional','academy','university','local','club'];
+      return h('div', { className: 'card', style: 'margin-bottom:1rem' },
+        h('div', { className: 'card-title' }, h('i', { className: 'fas fa-sitemap' }), ' ' + label + ' Rates (₦/request)'),
+        h('div', { style: 'overflow-x:auto' },
+          h('table', { style: 'width:100%;font-size:.73rem;border-collapse:collapse' },
+            h('thead', null,
+              h('tr', null,
+                h('th', { style: 'text-align:left;padding:.3rem .5rem;background:rgba(255,255,255,.04)' }, 'Tier'),
+                levels.map(function(lvl) {
+                  return h('th', { key: lvl, style: 'padding:.3rem .4rem;background:rgba(255,255,255,.04)' }, lvl.replace('_',' '));
+                })
+              )
+            ),
+            h('tbody', null,
+              tiers.map(function(t) {
+                return h('tr', { key: t },
+                  h('td', { style: 'padding:.3rem .5rem;font-weight:700;font-size:.72rem;color:var(--muted)' }, t.toUpperCase()),
+                  levels.map(function(lvl) {
+                    return h('td', { key: lvl, style: 'padding:.2rem .3rem' },
+                      h('input', {
+                        className: 'form-control',
+                        id: prefix + '-' + t + '-' + lvl,
+                        type: 'number',
+                        style: 'font-size:.72rem;padding:.2rem .35rem',
+                        placeholder: '0',
+                      })
+                    );
+                  })
+                );
+              })
+            )
+          )
+        )
+      );
+    };
+
+    var tabContent = function() {
+      if (tab === 'subscription') {
+        return h('div', null,
+          h('div', { className: 'card', style: 'margin-bottom:1rem;background:linear-gradient(135deg,#1a2a3a 0%,#0d1a27 100%);border:1px solid #2a4a6a' },
+            h('div', { className: 'card-title', style: 'color:#7ec8e3' }, h('i', { className: 'fas fa-magic' }), ' Bulk Price Adjustment'),
+            h('p', { style: 'font-size:.8rem;color:var(--muted);margin-bottom:.75rem' },
+              'Apply one multiplier to ALL subscription prices at once. Nigeria = ×1.0 baseline.'),
+            h('div', { style: 'display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.65rem;align-items:flex-end' },
+              h('div', { className: 'form-group', style: 'margin-bottom:0' },
+                h('label', { className: 'form-label' }, 'Role'),
+                h('select', { className: 'form-control', id: 'bulk-role' },
+                  h('option', { value: '' }, 'Select role…'),
+                  ['player','club','scout','agent','dco','supervisor'].map(function(r) {
+                    return h('option', { key: r, value: r, style: 'text-transform:capitalize' }, r);
+                  })
+                )
+              ),
+              h('div', { className: 'form-group', style: 'margin-bottom:0' },
+                h('label', { className: 'form-label' }, 'Multiplier ×'),
+                h('input', { className: 'form-control', id: 'bulk-multiplier', type: 'number', step: '0.01', min: '0.01', placeholder: '1.10' })
+              ),
+              h('div', { className: 'form-group', style: 'margin-bottom:0' },
+                h('label', { className: 'form-label' }, 'Note'),
+                h('input', { className: 'form-control', id: 'bulk-reason', type: 'text', placeholder: 'e.g. Q3 review' })
+              ),
+              h('button', { className: 'btn btn-warn', onClick: applyBulkMultiplier },
+                h('i', { className: 'fas fa-magic' }), ' Apply')
+            )
+          ),
+          h('div', { className: 'card' },
+            h('div', { className: 'card-title' }, h('i', { className: 'fas fa-crown' }), ' Subscription Prices (₦)'),
+            subRow('👤 Player',     'set-player',     [5000,  28500,  54000]),
+            subRow('🏥 Club',       'set-club',        [30000, 174000, 336000]),
+            subRow('🔍 Scout',      'set-scout',       [10000, 57000,  108000]),
+            subRow('🤝 Agent',      'set-agent',       [20000, 116400, 216000]),
+            subRow('📋 DCO',        'set-dco',         [12000, 68400,  129600]),
+            subRow('🏅 Supervisor', 'set-supervisor',  [25000, 145000, 270000]),
+            h('button', { className: 'btn btn-success', onClick: saveSettings },
+              h('i', { className: 'fas fa-save' }), ' Save Subscription Prices')
+          )
+        );
+      }
+
+      if (tab === 'tokens') {
+        return h('div', { className: 'card' },
+          h('div', { className: 'card-title' }, h('i', { className: 'fas fa-coins' }), ' Token Package Pricing (₦)'),
+          [['t10','10 Tokens','500'],['t50','50 Tokens','2000'],['t100','100 Tokens','3500'],['t500','500 Tokens','15000']].map(function(pkg) {
+            return h('div', { key: pkg[0], className: 'form-group' },
+              h('label', { className: 'form-label' }, pkg[1]),
+              h('input', { className: 'form-control', id: 'set-' + pkg[0], type: 'number', placeholder: pkg[2] })
+            );
+          }),
+          h('button', { className: 'btn btn-success', onClick: saveSettings },
+            h('i', { className: 'fas fa-save' }), ' Save Token Pricing')
+        );
+      }
+
+      if (tab === 'country') {
+        return h('div', null,
+          h('div', { className: 'card', style: 'margin-bottom:1rem' },
+            h('div', { className: 'card-title' }, h('i', { className: 'fas fa-globe-africa' }), ' Country Price Multiplier'),
+            h('p', { style: 'font-size:.8rem;color:var(--muted);margin-bottom:.75rem' },
+              'Nigeria (NG) = ×1.0 baseline. Other countries scale their prices by their multiplier.'),
+            h('div', { style: 'display:grid;grid-template-columns:2fr 1fr;gap:.75rem;align-items:flex-end;margin-bottom:.75rem' },
+              h('div', { className: 'form-group', style: 'margin-bottom:0' },
+                h('label', { className: 'form-label' }, 'Country'),
+                h('select', { className: 'form-control', id: 'country-select',
+                  onChange: function(e) { onCountrySelect(e.target.value); } },
+                  h('option', { value: '' }, 'Select country…')
+                )
+              ),
+              h('div', { className: 'form-group', style: 'margin-bottom:0' },
+                h('label', { className: 'form-label' }, 'Multiplier ×'),
+                h('input', { className: 'form-control', id: 'country-multiplier', type: 'number', step: '0.01', min: '0.1', placeholder: '1.00' })
+              )
+            ),
+            h('div', { style: 'font-size:.75rem;color:var(--muted);margin-bottom:.75rem', id: 'country-region' }),
+            h('div', { style: 'display:flex;gap:.5rem' },
+              h('button', { className: 'btn btn-success', onClick: saveCountryMultiplier },
+                h('i', { className: 'fas fa-save' }), ' Save Multiplier'),
+              h('button', { className: 'btn btn-ghost', onClick: resetCountryMultiplier },
+                h('i', { className: 'fas fa-undo' }), ' Reset Default')
+            )
+          ),
+          h('div', { className: 'card' },
+            h('div', { className: 'card-title' }, 'Sample Adjusted Prices'),
+            h('div', { id: 'country-sample-prices', style: 'font-size:.8rem;color:var(--muted)' },
+              'Select a country above to preview adjusted prices.')
+          )
+        );
+      }
+
+      if (tab === 'regions') {
+        return h('div', { className: 'card' },
+          h('div', { className: 'card-title' }, h('i', { className: 'fas fa-map-marked-alt' }), ' Region Pricing Multipliers'),
+          h('p', { style: 'font-size:.8rem;color:var(--muted);margin-bottom:1rem' },
+            'Regions apply a multiplier to all countries in the group. Individual country overrides take precedence.'),
+          h('div', { id: 'regions-container' },
+            h('div', { style: 'color:var(--muted);font-size:.8rem' }, 'Loading regions…')
+          )
+        );
+      }
+
+      if (tab === 'rates') {
+        return h('div', null,
+          rateGrid('dco', 'DCO'),
+          rateGrid('sup', 'Supervisor'),
+          h('button', { className: 'btn btn-success', onClick: saveSettings },
+            h('i', { className: 'fas fa-save' }), ' Save Rates')
+        );
+      }
+
+      return null;
+    };
+
+    return h('div', { className: 'page' + (active ? ' active' : ''), id: 'page-settings' },
+      h('div', { className: 'page-header' },
+        h('div', { className: 'page-title' }, h('i', { className: 'fas fa-sliders-h' }), ' Pricing & Settings')
+      ),
+      h(Tabs, null),
+      tabContent()
+    );
+    }
+    
+
+function AllModals() {
+  return h('div', null,
+    h('div',{className:'modal-overlay',id:'users-action-modal',onClick:function(e){if(e.target===this)closeModal('users-action-modal');}},
+      h('div',{className:'modal-box',style:'max-width:600px'},
+        h('div',{className:'modal-header'},h('div',{className:'modal-title',id:'uam-title'},'User Actions'),h('button',{className:'modal-close',onClick:()=>closeModal('users-action-modal')},'×')),
+        h('div',{id:'uam-body'})
+      )
+    ),
+    h('div',{className:'modal-overlay',id:'suspend-modal',onClick:function(e){if(e.target===this)closeModal('suspend-modal');}},
+      h('div',{className:'modal-box'},
+        h('div',{className:'modal-header'},h('div',{className:'modal-title',id:'suspend-modal-title'},'Suspend User'),h('button',{className:'modal-close',onClick:()=>closeModal('suspend-modal')},'×')),
+        h('p',{className:'text-sm text-muted',id:'suspend-modal-desc',style:'margin-bottom:1rem'},''),
+        h('div',{className:'form-group'},h('label',{className:'form-label'},'Reason (optional)'),h('input',{className:'form-control',id:'suspend-reason',placeholder:'Reason for action…'})),
+        h('div',{className:'gap-sm'},h('button',{className:'btn btn-warn',id:'suspend-confirm-btn',onClick:executeSuspendAction},'Confirm'),h('button',{className:'btn btn-ghost',onClick:()=>closeModal('suspend-modal')},'Cancel'))
+      )
+    ),
+    h('div',{className:'modal-overlay',id:'receipt-confirm-modal',onClick:function(e){if(e.target===this)closeModal('receipt-confirm-modal');}},
+      h('div',{className:'modal-box'},
+        h('div',{className:'modal-header'},h('div',{className:'modal-title',id:'rcm-title'},'Confirm Action'),h('button',{className:'modal-close',onClick:()=>closeModal('receipt-confirm-modal')},'×')),
+        h('p',{className:'text-sm text-muted',id:'rcm-desc',style:'margin-bottom:1rem'},''),
+        h('div',{className:'form-group'},h('label',{className:'form-label'},'Note (optional)'),h('input',{className:'form-control',id:'rcm-note',placeholder:'Optional note…'})),
+        h('div',{className:'gap-sm'},h('button',{className:'btn btn-success',id:'rcm-confirm-btn',onClick:executeReceiptAction},'Confirm'),h('button',{className:'btn btn-ghost',onClick:()=>closeModal('receipt-confirm-modal')},'Cancel'))
+      )
+    ),
+    h('div',{className:'modal-overlay',id:'sub-extend-modal',onClick:function(e){if(e.target===this)closeModal('sub-extend-modal');}},
+      h('div',{className:'modal-box'},
+        h('div',{className:'modal-header'},h('div',{className:'modal-title'},'Extend Subscription'),h('button',{className:'modal-close',onClick:()=>closeModal('sub-extend-modal')},'×')),
+        h('p',{className:'text-sm text-muted',style:'margin-bottom:1rem'},'User: ',h('span',{className:'mono fw700',id:'sem-uid'})),
+        h('div',{className:'form-group'},h('label',{className:'form-label'},'Days to Extend'),h('input',{className:'form-control',id:'sem-days',type:'number',placeholder:'e.g. 30',min:'1',max:'3650'})),
+        h('div',{className:'gap-sm'},h('button',{className:'btn btn-success',onClick:executeSubExtend},'Extend'),h('button',{className:'btn btn-ghost',onClick:()=>closeModal('sub-extend-modal')},'Cancel'))
+      )
+    ),
+    h('div',{className:'modal-overlay',id:'sub-cancel-modal',onClick:function(e){if(e.target===this)closeModal('sub-cancel-modal');}},
+      h('div',{className:'modal-box'},
+        h('div',{className:'modal-header'},h('div',{className:'modal-title'},'Cancel Subscription'),h('button',{className:'modal-close',onClick:()=>closeModal('sub-cancel-modal')},'×')),
+        h('p',{className:'text-sm text-muted',style:'margin-bottom:1rem'},'Cancel subscription for user: ',h('span',{className:'mono fw700',id:'scm-uid'})),
+        h('div',{className:'gap-sm'},h('button',{className:'btn btn-danger',onClick:executeSubCancel},'Cancel Subscription'),h('button',{className:'btn btn-ghost',onClick:()=>closeModal('sub-cancel-modal')},'Keep'))
+      )
+    ),
+    h('div',{className:'modal-overlay',id:'create-subadmin-modal',onClick:function(e){if(e.target===this)closeModal('create-subadmin-modal');}},
+      h('div',{className:'modal-box'},
+        h('div',{className:'modal-header'},h('div',{className:'modal-title'},'Create Sub-Admin'),h('button',{className:'modal-close',onClick:()=>closeModal('create-subadmin-modal')},'×')),
+        h('div',{className:'form-group'},h('label',{className:'form-label'},'Full Name'),h('input',{className:'form-control',id:'sa-name',placeholder:'e.g. John Okafor'})),
+        h('div',{className:'form-group'},h('label',{className:'form-label'},'Email Address'),h('input',{className:'form-control',id:'sa-email',type:'email',placeholder:'admin@example.com'})),
+        h('div',{className:'form-group'},h('label',{className:'form-label'},'Password'),h('input',{className:'form-control',id:'sa-password',type:'password',placeholder:'Strong password'})),
+        h('div',{className:'gap-sm'},h('button',{className:'btn btn-success',onClick:createSubAdmin},'Create Sub-Admin'),h('button',{className:'btn btn-ghost',onClick:()=>closeModal('create-subadmin-modal')},'Cancel'))
+      )
+    )
+  );
+}
+
+// ── ROOT APP ──
+// Read optional ?page=X from URL so cross-file deep-links land on the right tab
+var _VALID_PAGES_D1 = ['overview','users','sub-admins','subscriptions','trials','receipts','tokens','dco-tier','messages','support','settings'];
+var _urlPageD1 = new URLSearchParams(window.location.search).get('page')||'trials';
+var _initPage = _VALID_PAGES_D1.indexOf(_urlPageD1)>=0 ? _urlPageD1 : 'overview';
+
+function App() {
+  const [authed, setAuthed] = useState(false);
+  const [currentPage, setCurrentPage] = useState(_initPage);
+  const [adminName, setAdminName] = useState('Admin');
+  const [adminRole, setAdminRole] = useState('');
+  const [badgeReceipts, setBadgeReceipts] = useState(0);
+
+  useEffect(() => {
+    _setAuthed = setAuthed;
+    _setCurrentPage = setCurrentPage;
+    _setAdminName = setAdminName;
+    _setAdminRole = setAdminRole;
+    _setBadgeReceipts = setBadgeReceipts;
+    _setBadgePayments = function(){};
+  const saved = sessionStorage.getItem('adm_token');
+    if (saved) {
+      _token = saved; _authed = true;
+      setAuthed(true);
+      loadAdminProfile();
+      setTimeout(() => { navigateTo(_initPage); }, 50);
+    } else {
+      fetch('/api/admin/me', {credentials: 'include'}).then(function(res) {
+        if (!res.ok) throw new Error('not authed');
+        return res.json();
+      }).then(function(d) {
+        _authed = true; setAuthed(true);
+        var name = d.name || d.admin_name || d.email || 'Admin';
+        var role = d.role || d.type || 'admin';
+        _adminName = name; _adminRole = role;
+        _setAdminName(name); _setAdminRole(role);
+        setTimeout(function() { navigateTo(_initPage); }, 50);
+      }).catch(function() {});
+    }
+  }, []);
+  return h(Dashboard, { currentPage, adminName, adminRole, badgeReceipts });
+}
+
+render(h(App, null), document.getElementById('app-root'));
+</script>
+<script>window.__ENEJISTATS_TAB__={"file":"trials.html","page":"trials","label":"Trials","dashboard":1};</script>
+</body>
+</html>

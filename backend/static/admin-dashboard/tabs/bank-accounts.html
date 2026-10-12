@@ -1,0 +1,2219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>EnejiStats — Bank Accounts</title>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
+<script>
+window.addEventListener('pageshow',function(e){
+  if(e.persisted){
+    fetch('/api/auth/me',{credentials:'include',cache:'no-store'})
+      .then(function(r){if(!r.ok)window.location.replace('/login');})
+      .catch(function(){window.location.replace('/login');});
+  }
+});
+</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+<script src="https://unpkg.com/preact@10/dist/preact.umd.js"></script>
+<script src="https://unpkg.com/preact@10/hooks/dist/hooks.umd.js"></script>
+<style>
+:root{
+  --primary:#004aad;--primary-light:#0066cc;--gold:#ffd700;
+  --dark:#1e1e2f;--dark2:#15192a;--dark3:#0f172a;
+  --success:#22c55e;--warning:#f59e0b;--danger:#ef4444;--info:#38bdf8;
+  --muted:#64748b;--text:#e2e8f0;--text2:#94a3b8;
+  --border:rgba(255,255,255,.08);--radius:12px;
+  --sidebar:260px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--dark3);color:var(--text);min-height:100vh;display:flex}
+.sidebar{width:var(--sidebar);background:var(--dark);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:200;transition:transform .3s}
+.sidebar-logo{padding:1.25rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.75rem}
+.logo-text{font-size:1.3rem;font-weight:900;letter-spacing:2px}
+.logo-text span{color:var(--gold)}
+.sidebar-nav{flex:1;overflow-y:auto;padding:.75rem 0}
+.nav-section{padding:.5rem 1rem .25rem;font-size:.65rem;font-weight:800;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:.75rem;padding:.65rem 1.25rem;color:var(--text2);font-size:.85rem;font-weight:600;cursor:pointer;transition:all .18s;border-left:3px solid transparent;text-decoration:none}
+.nav-item:hover{background:rgba(255,255,255,.05);color:var(--text);border-left-color:rgba(255,255,255,.2)}
+.nav-item.active{background:rgba(0,74,173,.15);color:#fff;border-left-color:var(--primary);font-weight:700}
+.nav-item i{width:18px;text-align:center;font-size:.9rem}
+.nav-badge{margin-left:auto;background:var(--danger);color:#fff;font-size:.6rem;font-weight:800;padding:1px 6px;border-radius:99px}
+.sidebar-footer{padding:1rem 1.25rem;border-top:1px solid var(--border)}
+.admin-info{display:flex;align-items:center;gap:.6rem}
+.admin-avatar{width:36px;height:36px;border-radius:50%;background:rgba(0,74,173,.3);display:flex;align-items:center;justify-content:center;color:var(--gold);font-weight:800;font-size:.85rem}
+.admin-name{font-size:.82rem;font-weight:700;color:var(--text)}
+.admin-role{font-size:.7rem;color:var(--muted)}
+.logout-btn{margin-left:auto;background:none;border:none;color:var(--danger);cursor:pointer;font-size:.9rem;padding:.25rem}
+.main{margin-left:var(--sidebar);flex:1;display:flex;flex-direction:column;min-height:100vh}
+.topbar{background:var(--dark);border-bottom:1px solid var(--border);padding:.85rem 1.5rem;display:flex;align-items:center;gap:1rem;position:sticky;top:0;z-index:100}
+.topbar-title{font-size:1rem;font-weight:800;color:#fff}
+.topbar-sub{font-size:.78rem;color:var(--muted)}
+.topbar-actions{margin-left:auto;display:flex;align-items:center;gap:.75rem}
+.icon-btn{background:rgba(255,255,255,.06);border:1.5px solid var(--border);color:var(--text2);width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.85rem;transition:all .18s}
+.icon-btn:hover{background:rgba(255,255,255,.12);color:#fff}
+.content{padding:1.5rem;flex:1}
+.page{display:none}
+.page.active{display:block}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem}
+@media(max-width:900px){.stat-grid{grid-template-columns:repeat(2,1fr)}}
+.stat-card{background:var(--dark);border:1px solid var(--border);border-radius:var(--radius);padding:1.1rem 1.25rem;border-top:3px solid var(--primary);transition:transform .18s}
+.stat-card:hover{transform:translateY(-2px)}
+.stat-card.s-gold{border-top-color:var(--gold)}
+.stat-card.s-ok{border-top-color:var(--success)}
+.stat-card.s-warn{border-top-color:var(--warning)}
+.stat-card.s-danger{border-top-color:var(--danger)}
+.stat-card.s-info{border-top-color:var(--info)}
+.stat-val{font-size:1.9rem;font-weight:900;color:#fff;line-height:1}
+.stat-lbl{font-size:.7rem;color:var(--muted);font-weight:700;margin-top:.25rem;text-transform:uppercase;letter-spacing:.5px}
+.stat-delta{font-size:.72rem;color:var(--success);margin-top:.35rem}
+.card{background:var(--dark);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem}
+.card-title{font-size:.88rem;font-weight:800;color:#fff;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
+.card-title i{color:var(--gold)}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.82rem}
+th{text-align:left;padding:.6rem .85rem;color:var(--muted);font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border)}
+td{padding:.75rem .85rem;border-bottom:1px solid rgba(255,255,255,.04);color:var(--text2);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+.badge{display:inline-block;font-size:.65rem;font-weight:800;padding:2px 8px;border-radius:99px;text-transform:uppercase;letter-spacing:.3px}
+.badge-active,.badge-success{background:rgba(34,197,94,.15);color:#4ade80}
+.badge-pending,.badge-warning{background:rgba(245,158,11,.15);color:#fbbf24}
+.badge-rejected,.badge-danger{background:rgba(239,68,68,.15);color:#f87171}
+.badge-info{background:rgba(56,189,248,.15);color:#7dd3fc}
+.badge-muted{background:rgba(100,116,139,.15);color:var(--muted)}
+.badge-trial{background:rgba(255,215,0,.15);color:var(--gold)}
+.badge-expired{background:rgba(239,68,68,.1);color:#f87171}
+.btn{display:inline-flex;align-items:center;gap:.35rem;padding:.5rem 1rem;border-radius:8px;font-weight:700;font-size:.8rem;cursor:pointer;border:none;font-family:inherit;transition:all .18s}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-light)}
+.btn-success{background:var(--success);color:#fff}
+.btn-success:hover{background:#16a34a}
+.btn-danger{background:rgba(239,68,68,.15);border:1.5px solid var(--danger);color:#f87171}
+.btn-danger:hover{background:var(--danger);color:#fff}
+.btn-warn{background:rgba(245,158,11,.15);border:1.5px solid var(--warning);color:#fbbf24}
+.btn-warn:hover{background:var(--warning);color:#fff}
+.btn-ghost{background:rgba(255,255,255,.06);border:1.5px solid var(--border);color:var(--text2)}
+.btn-ghost:hover{background:rgba(255,255,255,.12);color:#fff}
+.btn-sm{padding:.35rem .7rem;font-size:.75rem}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.filter-row{display:flex;gap:.65rem;flex-wrap:wrap;margin-bottom:1.1rem;align-items:center}
+.filter-tab{padding:.4rem .85rem;border-radius:7px;border:1.5px solid var(--border);background:rgba(255,255,255,.04);color:var(--muted);font-size:.78rem;font-weight:600;cursor:pointer;transition:all .18s}
+.filter-tab.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.filter-tab:hover:not(.active){border-color:var(--primary-light);color:#fff}
+.search-input{padding:.42rem .85rem;border-radius:7px;border:1.5px solid var(--border);background:rgba(255,255,255,.05);color:var(--text);font-size:.82rem;outline:none;font-family:inherit;min-width:200px}
+.search-input:focus{border-color:var(--primary)}
+.search-input::placeholder{color:#475569}
+select.search-input{cursor:pointer}
+.form-group{margin-bottom:1rem}
+.form-label{display:block;font-size:.75rem;font-weight:700;color:var(--muted);margin-bottom:.35rem;text-transform:uppercase;letter-spacing:.3px}
+.form-control{width:100%;padding:.6rem .85rem;background:rgba(255,255,255,.05);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:.85rem;font-family:inherit;outline:none}
+.form-control:focus{border-color:var(--primary)}
+.form-control::placeholder{color:#475569}
+textarea.form-control{resize:vertical;min-height:90px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+@media(max-width:600px){.form-grid{grid-template-columns:1fr}}
+.modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;opacity:0;pointer-events:none;transition:opacity .2s}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal-box{background:#1e293b;border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:1.75rem;max-width:540px;width:100%;transform:translateY(20px);transition:transform .2s}
+.modal-overlay.open .modal-box{transform:none}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.modal-title{font-size:1rem;font-weight:800;color:#fff}
+.modal-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.2rem;line-height:1}
+.modal-close:hover{color:#fff}
+.toast-container{position:fixed;bottom:1.5rem;right:1.5rem;z-index:99999;display:flex;flex-direction:column;gap:.5rem}
+.toast{background:#1e293b;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:.7rem 1rem;min-width:240px;max-width:360px;font-size:.83rem;color:var(--text);display:flex;align-items:center;gap:.55rem;box-shadow:0 8px 32px rgba(0,0,0,.4);animation:toastIn .2s ease}
+.toast.t-success{border-left:4px solid var(--success)}
+.toast.t-error{border-left:4px solid var(--danger)}
+.toast.t-info{border-left:4px solid var(--info)}
+.toast.t-warn{border-left:4px solid var(--warning)}
+@keyframes toastIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:none}}
+.pager{display:flex;align-items:center;gap:.4rem;margin-top:1rem}
+.pager-btn{padding:.35rem .65rem;border-radius:6px;border:1.5px solid var(--border);background:rgba(255,255,255,.04);color:var(--muted);font-size:.78rem;cursor:pointer}
+.pager-btn:hover{background:rgba(255,255,255,.1);color:#fff}
+.pager-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.pager-btn:disabled{opacity:.3;cursor:default}
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:99999;display:flex;align-items:center;justify-content:center;cursor:zoom-out}
+.lightbox img{max-width:90vw;max-height:90vh;border-radius:8px;object-fit:contain}
+.lightbox-close{position:fixed;top:1rem;right:1.5rem;color:#fff;font-size:2rem;cursor:pointer;z-index:100000}
+.empty{text-align:center;padding:3rem 1rem;color:#475569}
+.empty i{font-size:2.5rem;opacity:.3;display:block;margin-bottom:.65rem}
+.loading{text-align:center;padding:2.5rem;color:var(--muted);font-size:.85rem}
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.section-title{font-size:.95rem;font-weight:800;color:#fff}
+.mono{font-family:monospace;font-size:.78rem}
+.gap-sm{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+.divider{height:1px;background:var(--border);margin:1rem 0}
+.text-success{color:var(--success)}
+.text-danger{color:var(--danger)}
+.text-warn{color:var(--warning)}
+.text-gold{color:var(--gold)}
+.text-muted{color:var(--muted)}
+.text-sm{font-size:.78rem}
+.fw700{font-weight:700}
+hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
+.payment-cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(390px,1fr));gap:1.15rem}
+@media(max-width:860px){.payment-cards-grid{grid-template-columns:1fr}}
+.pmt-card{background:var(--dark);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;transition:box-shadow .18s,transform .18s;display:flex;flex-direction:column}
+.pmt-card:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.35)}
+.pmt-card-hdr{padding:.75rem 1rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);gap:.5rem}
+.pmt-card-hdr-left{display:flex;align-items:center;gap:.5rem;flex:1;min-width:0}
+.pmt-card-hdr-right{display:flex;align-items:center;gap:.5rem;flex-shrink:0}
+.pmt-card-body{padding:.9rem 1rem;flex:1}
+.pmt-card-ftr{padding:.6rem 1rem;border-top:1px solid var(--border);display:flex;gap:.4rem;flex-wrap:wrap}
+.pmt-section-lbl{font-size:.6rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:.45rem;margin-top:.65rem;display:flex;align-items:center;gap:.3rem}
+.pmt-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem .75rem;font-size:.78rem}
+.pmt-info-row{display:flex;flex-direction:column;gap:.1rem}
+.pmt-info-lbl{font-size:.6rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+.pmt-info-val{color:var(--text);font-weight:600;word-break:break-all}
+.pmt-divider{height:1px;background:var(--border);margin:.6rem 0}
+.pmt-ref-box{background:rgba(0,0,0,.2);border-radius:7px;padding:.55rem .75rem;margin-bottom:.4rem}
+.pmt-ref-lbl{font-size:.58rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:.2rem}
+.pmt-ref-val{font-family:monospace;color:var(--gold);font-size:.75rem;word-break:break-all;font-weight:700}
+.pmt-ref-compare{display:flex;gap:.5rem;align-items:flex-start}
+.pmt-ref-compare>div{flex:1}
+.pmt-thumb-wrap{width:68px;height:52px;border-radius:6px;overflow:hidden;border:2px solid var(--border);cursor:pointer;transition:border-color .18s;background:rgba(0,0,0,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.pmt-thumb-wrap:hover{border-color:var(--gold)}
+.pmt-thumb{width:100%;height:100%;object-fit:cover}
+.pmt-no-img{font-size:.6rem;color:var(--muted);text-align:center;padding:.2rem}
+.pmt-amount-big{font-size:1rem;font-weight:900;color:var(--gold);line-height:1}
+.badge-awaiting{background:rgba(99,102,241,.15);color:#a5b4fc}
+.badge-pnr{background:rgba(239,68,68,.1);color:#fca5a5}
+.badge-token{background:rgba(255,215,0,.12);color:#fde68a}
+.badge-sub{background:rgba(0,74,173,.18);color:#93c5fd}
+.badge-player{background:rgba(56,189,248,.15);color:#7dd3fc}
+.badge-club{background:rgba(255,215,0,.12);color:#fde68a}
+.pmt-month-sel{padding:.38rem .75rem;border-radius:7px;border:1.5px solid var(--border);background:rgba(255,255,255,.05);color:var(--text);font-size:.78rem;outline:none;cursor:pointer;font-family:inherit}
+.pmt-month-sel:focus{border-color:var(--primary)}
+.pmt-empty{text-align:center;padding:3rem 1rem;color:#475569;background:var(--dark);border:1px solid var(--border);border-radius:var(--radius)}
+.pmt-empty i{font-size:2.5rem;opacity:.25;display:block;margin-bottom:.75rem}
+.pmt-cleanup-row{display:flex;gap:.4rem;flex-wrap:wrap}
+
+/* ── STATS REQUEST CARDS ── */
+.sreq-card{background:var(--dark);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:.75rem;overflow:hidden;border-left:3px solid var(--warning);transition:box-shadow .18s,transform .15s}
+.sreq-card:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(0,0,0,.3)}
+.sreq-card.s-assigned{border-left-color:var(--info)}
+.sreq-card.s-completed{border-left-color:var(--success)}
+.sreq-card.s-rejected{border-left-color:var(--danger)}
+.sreq-card-hdr{padding:.75rem 1rem;background:rgba(255,255,255,.03);display:flex;align-items:center;justify-content:space-between;cursor:pointer;gap:.5rem;user-select:none}
+.sreq-card-hdr:hover{background:rgba(255,255,255,.06)}
+.sreq-card-hdr-left{display:flex;align-items:center;gap:.55rem;flex:1;min-width:0;flex-wrap:wrap}
+.sreq-card-hdr-right{display:flex;align-items:center;gap:.55rem;flex-shrink:0}
+.sreq-card-body{padding:1rem;border-top:1px solid var(--border);display:none}
+.sreq-card-body.open{display:block}
+.sreq-detail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:.55rem;margin-bottom:.85rem}
+.sreq-chip{padding:.45rem .65rem;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px}
+.sreq-chip .rdlbl{font-size:.57rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+.sreq-chip .rdval{margin-top:.15rem;font-weight:600;font-size:.8rem;color:var(--text);word-break:break-all}
+.sreq-chip.chip-ref{background:rgba(0,74,173,.12);border-color:rgba(0,74,173,.3)}
+.sreq-chip.chip-ref .rdval{font-family:monospace;color:var(--gold);font-size:.78rem;font-weight:800}
+.sreq-expand-btn{color:var(--muted);font-size:.82rem;transition:transform .2s;flex-shrink:0}
+.sreq-expand-btn.open{transform:rotate(180deg)}
+.sreq-filter-row{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.85rem;align-items:center;padding:.65rem .85rem;background:rgba(255,255,255,.03);border-radius:8px;border:1px solid var(--border)}
+.sreq-notes-block{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:.65rem .85rem;margin-bottom:.85rem}
+.sreq-notes-block .rdlbl{font-size:.57rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-bottom:.3rem}
+.sreq-notes-block .rdval{font-size:.82rem;color:var(--text2);line-height:1.5}
+
+/* ── SCOUT GRID / CHIPS ── */
+.scout-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.6rem;margin:.65rem 0 1rem}
+.scout-chip{background:var(--dark3);border:2px solid var(--border);border-radius:10px;padding:.65rem .6rem;text-align:center;cursor:pointer;transition:all .18s}
+.scout-chip:hover{border-color:#0066cc;background:rgba(0,102,204,.08)}
+.scout-chip.sc-sel{border-color:var(--primary);background:rgba(0,74,173,.2)}
+.scout-chip.sc-busy{border-color:var(--warning);opacity:.75;cursor:default}
+.scout-chip.sc-avail{border-color:rgba(34,197,94,.4)}
+.scout-chip .scn{font-weight:700;font-size:.8rem;color:var(--text);margin-bottom:.2rem}
+.scout-chip .scl{font-size:.68rem;color:var(--muted)}
+.scout-chip .scs{font-size:.63rem;margin-top:.2rem;font-weight:700}
+.scout-chip.sc-busy .scs{color:var(--warning)}
+.scout-chip.sc-avail .scs{color:var(--success)}
+.scout-chip .sc-counts{font-size:.6rem;color:var(--muted);margin-top:.18rem;line-height:1.4}
+
+/* ── ACTIVITY ITEMS ── */
+.act-item{display:flex;gap:.65rem;padding:.55rem 0;border-bottom:1px solid var(--border)}
+.act-item:last-child{border-bottom:none}
+.act-icon{width:28px;height:28px;border-radius:50%;background:rgba(0,74,173,.25);color:var(--primary-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.7rem;margin-top:.1rem}
+.act-icon.act-ok{background:rgba(34,197,94,.2);color:#4ade80}
+.act-icon.act-warn{background:rgba(245,158,11,.2);color:#fbbf24}
+.act-icon.act-info{background:rgba(56,189,248,.2);color:#7dd3fc}
+.act-icon.act-danger{background:rgba(239,68,68,.2);color:#f87171}
+.act-title{font-weight:700;font-size:.8rem;color:var(--text)}
+.act-desc{font-size:.73rem;color:var(--muted);margin-top:.1rem}
+.act-time{font-size:.63rem;color:var(--muted);margin-top:.15rem}
+.ops-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.85rem;margin-bottom:1.25rem}
+@media(max-width:900px){.ops-grid{grid-template-columns:repeat(2,1fr)}}
+.ops-card{background:var(--dark);border:1px solid var(--border);border-radius:var(--radius);padding:.9rem 1rem;border-top:3px solid var(--muted);transition:transform .18s}
+.ops-card:hover{transform:translateY(-2px)}
+.ops-card.s-warn{border-top-color:var(--warning)}
+.ops-card.s-ok{border-top-color:var(--success)}
+.ops-card.s-info{border-top-color:var(--info)}
+.ops-card.s-danger{border-top-color:var(--danger)}
+.ops-val{font-size:1.6rem;font-weight:900;color:#fff;line-height:1}
+.ops-lbl{font-size:.67rem;color:var(--muted);font-weight:700;margin-top:.2rem;text-transform:uppercase;letter-spacing:.5px}
+.ops-sub{font-size:.68rem;color:var(--muted);margin-top:.3rem}
+.avail-scouts-grid-wrap{padding:.5rem 0}
+
+
+
+
+
+
+/* ── REQUEST DETAILS MODAL ── */
+.rd-grid{display:grid;grid-template-columns:1fr 1fr;gap:.65rem;margin-bottom:1rem}
+@media(max-width:500px){.rd-grid{grid-template-columns:1fr}}
+.rd-chip{padding:.5rem .75rem;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px}
+.rd-chip .rdlbl{font-size:.57rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+.rd-chip .rdval{margin-top:.2rem;font-weight:600;font-size:.82rem;color:var(--text);word-break:break-all}
+.rd-chip.chip-ref .rdval{font-family:monospace;color:var(--gold);font-weight:800}
+.rd-notes{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:.7rem .9rem;margin-top:.5rem}
+</style>
+<style id="external-tab-layout">
+/* External tab canvas: presentation-only layer. Original Preact logic and APIs remain intact. */
+:root{--tab-gutter:clamp(.75rem,2vw,1.5rem);--tab-gap:clamp(.75rem,1.5vw,1rem)}
+html,body{width:100%;min-width:0;overflow-x:hidden}body{display:block;overflow-y:auto}
+#app-root{width:100%;min-height:100vh}#app-root>div{display:block!important;width:100%!important;min-width:0}
+#app-root>div>.sidebar,#app-root>.sidebar{display:none!important}
+#app-root>div>.main{display:flex!important;flex-direction:column;margin-left:0!important;width:100%!important;min-width:0;min-height:100vh}
+#app-root>div>.main>.topbar{display:none!important}
+#app-root>div>.main>.content{display:block;width:100%;max-width:none;min-width:0;padding:var(--tab-gutter)}
+#app-root>div>.main>.content>.page{display:none!important;width:100%;max-width:none;min-width:0;margin:0}
+#app-root>div>.main>.content>.page#page-banks{display:block!important}
+#app-root>div>.main>.content>.page>*{min-width:0;max-width:none}
+#app-root .card,#app-root .stat-card,#app-root .ops-card,#app-root .pmt-card,#app-root .sreq-card,#app-root .mc-card{width:100%;min-width:0}
+#app-root .stat-grid,#app-root .ops-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr))!important;gap:var(--tab-gap);width:100%;align-items:stretch}
+#app-root .stat-card,#app-root .ops-card{height:100%}
+#app-root .split-layout,#app-root .mc-grid{grid-template-columns:minmax(0,1.5fr) minmax(280px,.8fr);gap:var(--tab-gap);width:100%;align-items:start}
+#app-root .split-layout>*,#app-root .mc-grid>*{min-width:0;width:100%}
+#app-root .form-grid,#app-root .mc-form-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:var(--tab-gap);width:100%}
+#app-root .form-grid>*,#app-root .mc-form-grid>*{min-width:0}
+#app-root .tok-filter-bar{grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:.65rem;width:100%}
+#app-root .acct-filter-bar{width:100%;gap:.65rem}#app-root .acct-filter-group{flex:1 1 180px;min-width:0}
+#app-root .filter-row,#app-root .sreq-filter-row{width:100%;gap:.6rem;align-items:center}
+#app-root .filter-row>*{min-width:0}#app-root .search-input,#app-root .form-control,#app-root .tok-filter-input{max-width:100%;min-width:0}
+#app-root .tbl-wrap{width:100%;max-width:100%;overflow-x:auto}#app-root table{width:100%;min-width:640px}
+#app-root .payment-cards-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:var(--tab-gap);width:100%}
+#app-root .pmt-card{height:100%}#app-root .pmt-card-body{min-width:0}#app-root .pmt-info-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr))}
+#app-root .sreq-detail-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr));width:100%}#app-root .sreq-card-body{min-width:0}
+#app-root .mc-metrics{grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));width:100%}#app-root .mc-form-grid .wide{grid-column:1/-1}
+#app-root .mc-venue-results,#app-root .mc-suggestions,#app-root .mc-supervisor-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));width:100%}
+#app-root .pager{flex-wrap:wrap;width:100%}#app-root img{max-width:100%;height:auto}#app-root input,#app-root select,#app-root textarea{max-width:100%;min-width:0}
+#app-root .section-header,#app-root .mc-header{gap:.75rem;flex-wrap:wrap;width:100%}#app-root .section-header>*{min-width:0}
+@media(max-width:1100px){#app-root .split-layout,#app-root .mc-grid{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:700px){#app-root>div>.main>.content{padding:.75rem}#app-root .stat-grid,#app-root .ops-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}#app-root .split-layout,#app-root .mc-grid{grid-template-columns:minmax(0,1fr)}#app-root .filter-row,#app-root .sreq-filter-row{align-items:stretch}#app-root .filter-row>*{flex:1 1 145px}}
+@media(max-width:480px){#app-root .stat-grid,#app-root .ops-grid{grid-template-columns:minmax(0,1fr)!important}#app-root .payment-cards-grid{grid-template-columns:minmax(0,1fr)}#app-root .pmt-info-grid{grid-template-columns:minmax(0,1fr)}#app-root table{min-width:560px}}
+</style>
+</head>
+<body>
+<div id="app-root"></div>
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+'use strict';
+const { h, render } = preact;
+const { useState, useEffect, useRef, useCallback, useMemo } = preactHooks;
+
+// ═══════════════════════════════════════════════════════════
+// GLOBAL STATE
+// ═══════════════════════════════════════════════════════════
+var _token = null;
+var _authed = false;
+var _currentPage = 'overview';
+var _adminName = 'Admin';
+var _adminRole = '';
+var _badgeReceipts = 0;
+var _badgePayments = 0;
+
+var _usersPage=1, _subAdminPage=1, _rcPage=1, _subsPage=1, _trialsPage=1;
+var _payoutsPage=1, _statsPage=1, _asgnPage=1, _bgcPage=1, _supPage=1;
+var _tokPage=1, _accountingPage=1, _monPage=1;
+var _pmtPage=1;
+const PAGE_SIZE=15, PMT_PAGE_SIZE=12, ACCT_PAGE_SIZE=20;
+
+var _allReceipts=[], _selectedReceipt=null, _receiptFilter='pending_review', _receiptAction=null;
+var _allSupport=[], _selectedTicket=null;
+var _allPayments=[], _pmtHidden=new Set(), _pmtTypeFilter='all';
+var _pmtActionTxRef=null, _pmtActionType=null;
+var _tokHistoryAll=[], _accountingAll=[], _accountingFiltered=[], _accountingPage=1;
+var _statsAllReqs=[], _expandedStats=new Set();
+var _statsTab='pending', _statsStateFilter='', _statsDateFrom='', _statsDateTo='', _statsSearchQuery='';
+let _adminLocSubregionSearch = ''; // used by loadStatsRequests LGA filter
+let _statsLocResetFn = null;       // set by StatsLocationFilters to reset its Preact state
+var _subActionUid=null, _subCancelUid=null, _subGrantUser=null;
+var _payoutFilter='', _payoutActionId=null, _payoutActionType=null;
+var _suspendUid=null, _suspendAction=null;
+var _tokCreditUser=null, _tokDebitUser=null, _tokEntityData=null;
+var _selectedAssignScout=null, _availableScoutsList=[];
+var _sreqRejectRid=null;
+var _viewDetailsRequest=null; // for the details modal
+
+var _setCurrentPage = function(){};
+var _setAuthed = function(){};
+var _setBadgeReceipts = function(){};
+var _setBadgePayments = function(){};
+var _setAdminName = function(){};
+var _setAdminRole = function(){};
+
+
+// ═══════════════════════════════════════════════════════════
+// LOCATION SYSTEM (ported from registration page)
+// ═══════════════════════════════════════════════════════════
+const COUNTRY_ADMIN = {
+  NG: { l1: 'State',    l1ph: 'Search state…',    l2: 'LGA',          l2ph: 'Search LGA…'          },
+  GH: { l1: 'Region',   l1ph: 'Search region…',   l2: 'District',     l2ph: 'Search district…'     },
+  ZA: { l1: 'Province', l1ph: 'Search province…', l2: 'Municipality', l2ph: 'Search municipality…' },
+  KE: { l1: 'County',   l1ph: 'Search county…',   l2: 'Ward',         l2ph: 'Search ward…'         },
+};
+const DEFAULT_ADMIN = { l1: 'State/Region', l1ph: 'Search state…', l2: 'LGA/District', l2ph: 'Search…' };
+function getAdminLabels(code) { return COUNTRY_ADMIN[code] || DEFAULT_ADMIN; }
+
+function useStates(countryCode) {
+  const [states,  setStates]  = useState([]);
+  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    if (!countryCode) { setStates([]); return; }
+    let cancelled = false;
+    setLoading(true);
+    fetch('/api/public/states?country_code=' + encodeURIComponent(countryCode))
+      .then(r => r.json())
+      .then(d => { if (!cancelled) setStates(d.states || []); })
+      .catch(() => { if (!cancelled) setStates([]); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [countryCode]);
+  return [states, loading];
+}
+
+function useLGAs(state) {
+  const [lgas,    setLgas]    = useState([]);
+  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    if (!state) { setLgas([]); return; }
+    let cancelled = false;
+    setLoading(true);
+    fetch('/api/public/lgas?state=' + encodeURIComponent(state))
+      .then(r => r.json())
+      .then(d => { if (!cancelled) setLgas(d.lgas || []); })
+      .catch(() => { if (!cancelled) setLgas([]); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [state]);
+  return [lgas, loading];
+}
+
+let _countriesCache = null;
+
+/* ── StatsLocationFilters — three searchable typeahead dropdowns for the
+      Stats Requests filter bar. Writes selections directly to the globals
+      _statsStateFilter and _adminLocSubregionSearch so that the existing
+      loadStatsRequests() filter logic continues to work unchanged.          ── */
+function StatsLocationFilters() {
+  const [countries,    setCountries]    = useState([]);
+  const [countryCode,  setCountryCode]  = useState('NG');
+  const [countryLabel, setCountryLabel] = useState('Nigeria');
+  const [countryOpen,  setCountryOpen]  = useState(false);
+  const [cSearch,      setCSearch]      = useState('');
+
+  const [stateVal,     setStateVal]     = useState('');
+  const [stateSearch,  setStateSearch]  = useState('');
+  const [stateOpen,    setStateOpen]    = useState(false);
+
+  const [lgaVal,       setLgaVal]       = useState('');
+  const [lgaSearch,    setLgaSearch]    = useState('');
+  const [lgaOpen,      setLgaOpen]      = useState(false);
+
+  const [states,  statesLoading] = useStates(countryCode);
+  const [lgas,    lgasLoading]   = useLGAs(stateVal);
+
+  const cRef = useRef(null);
+  const sRef = useRef(null);
+  const lRef = useRef(null);
+
+  // Load countries list (cached after first fetch)
+  useEffect(() => {
+    if (_countriesCache) { setCountries(_countriesCache); return; }
+    fetch('/api/public/countries')
+      .then(r => r.json())
+      .then(d => { const list = d.countries || []; _countriesCache = list; setCountries(list); })
+      .catch(() => {});
+  }, []);
+
+  // Register reset callback so clearStatsFilters() can reset our Preact state
+  useEffect(() => {
+    _statsLocResetFn = function() {
+      setCountryCode('NG'); setCountryLabel('Nigeria'); setCSearch('');
+      setStateVal('');  setStateSearch('');
+      setLgaVal('');    setLgaSearch('');
+      _statsStateFilter = ''; _adminLocSubregionSearch = '';
+    };
+    return function() { _statsLocResetFn = null; };
+  }, []);
+
+  // Keep globals in sync whenever selections change
+  useEffect(() => {
+    _statsStateFilter        = stateVal;
+    _adminLocSubregionSearch = lgaVal;
+  }, [stateVal, lgaVal]);
+
+  // Click-outside: close all dropdowns
+  useEffect(() => {
+    function onDown(e) {
+      if (cRef.current && !cRef.current.contains(e.target)) setCountryOpen(false);
+      if (sRef.current && !sRef.current.contains(e.target)) setStateOpen(false);
+      if (lRef.current && !lRef.current.contains(e.target)) setLgaOpen(false);
+    }
+    document.addEventListener('mousedown', onDown);
+    return function() { document.removeEventListener('mousedown', onDown); };
+  }, []);
+
+  const lbl = getAdminLabels(countryCode);
+
+  const filteredCountries = useMemo(() =>
+    (countries || []).filter(c => c.name.toLowerCase().includes(cSearch.toLowerCase())).slice(0, 50),
+    [countries, cSearch]);
+
+  const filteredStates = useMemo(() =>
+    states.filter(s => s.toLowerCase().includes(stateSearch.toLowerCase())).slice(0, 60),
+    [states, stateSearch]);
+
+  const filteredLgas = useMemo(() =>
+    lgas.filter(l => l.toLowerCase().includes(lgaSearch.toLowerCase())).slice(0, 50),
+    [lgas, lgaSearch]);
+
+  const ddStyle = 'position:absolute;z-index:300;background:var(--dark);border:1px solid var(--border);border-radius:8px;max-height:200px;overflow-y:auto;width:100%;top:calc(100% + 2px);left:0';
+  const itemStyle = 'padding:6px 12px;cursor:pointer;font-size:.82rem;color:var(--text)';
+
+  return h('div', { style: 'display:contents' },
+
+    // ── Country ──
+    h('div', { style: 'position:relative;min-width:130px', ref: cRef },
+      h('input', {
+        className: 'search-input',
+        placeholder: 'Country…',
+        value: cSearch || countryLabel,
+        onInput: function(e) {
+          setCSearch(e.target.value); setCountryLabel(''); setCountryCode('');
+          var hadFilter = !!(stateVal || lgaVal);
+          setStateVal(''); setStateSearch(''); setLgaVal(''); setLgaSearch('');
+          _statsStateFilter = ''; _adminLocSubregionSearch = '';
+          setCountryOpen(true);
+          if (hadFilter) applyStatsFilters();
+        },
+        onFocus: function() { setCSearch(''); setCountryOpen(true); },
+        style: 'width:100%'
+      }),
+      countryOpen && filteredCountries.length
+        ? h('div', { style: ddStyle },
+            filteredCountries.map(c =>
+              h('div', {
+                key: c.code,
+                style: itemStyle,
+                onMouseDown: function(e) {
+                  e.preventDefault();
+                  setCountryCode(c.code); setCountryLabel(c.name); setCSearch('');
+                  setStateVal(''); setStateSearch(''); setLgaVal(''); setLgaSearch('');
+                  _statsStateFilter = ''; _adminLocSubregionSearch = '';
+                  setCountryOpen(false);
+                  applyStatsFilters();
+                }
+              }, c.name, h('small', { style: 'color:var(--muted);margin-left:6px' }, c.code))
+            )
+          )
+        : null
+    ),
+
+    // ── State / Region ──
+    h('div', { style: 'position:relative;min-width:140px', ref: sRef },
+      h('input', {
+        className: 'search-input',
+        placeholder: statesLoading ? 'Loading…' : lbl.l1ph,
+        value: stateSearch,
+        disabled: statesLoading,
+        onInput: function(e) {
+          setStateSearch(e.target.value);
+          var hadState = !!stateVal;
+          if (hadState) { setStateVal(''); _statsStateFilter = ''; }
+          setLgaVal(''); setLgaSearch(''); _adminLocSubregionSearch = '';
+          setStateOpen(true);
+          if (hadState) applyStatsFilters();
+        },
+        onFocus: function() { if (!statesLoading) setStateOpen(true); },
+        style: 'width:100%'
+      }),
+      !statesLoading && stateOpen && filteredStates.length
+        ? h('div', { style: ddStyle },
+            filteredStates.map(s =>
+              h('div', {
+                key: s,
+                style: itemStyle,
+                onMouseDown: function(e) {
+                  e.preventDefault();
+                  setStateVal(s); setStateSearch(s);
+                  setLgaVal(''); setLgaSearch('');
+                  _statsStateFilter = s; _adminLocSubregionSearch = '';
+                  setStateOpen(false);
+                  applyStatsFilters();
+                }
+              }, s)
+            )
+          )
+        : null
+    ),
+
+    // ── LGA / Subregion ──
+    h('div', { style: 'position:relative;min-width:140px', ref: lRef },
+      h('input', {
+        className: 'search-input',
+        placeholder: lgasLoading ? 'Loading…' : lbl.l2ph,
+        value: lgaSearch,
+        disabled: lgasLoading,
+        onInput: function(e) {
+          setLgaSearch(e.target.value);
+          var hadLga = !!lgaVal;
+          if (hadLga) { setLgaVal(''); _adminLocSubregionSearch = ''; }
+          setLgaOpen(true);
+          if (hadLga) applyStatsFilters();
+        },
+        onFocus: function() { if (!lgasLoading) setLgaOpen(true); },
+        style: 'width:100%'
+      }),
+      !lgasLoading && lgaOpen && filteredLgas.length
+        ? h('div', { style: ddStyle },
+            filteredLgas.map(l =>
+              h('div', {
+                key: l,
+                style: itemStyle,
+                onMouseDown: function(e) {
+                  e.preventDefault();
+                  setLgaVal(l); setLgaSearch(l);
+                  _adminLocSubregionSearch = l;
+                  setLgaOpen(false);
+                  applyStatsFilters();
+                }
+              }, l)
+            )
+          )
+        : null
+    )
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════════════════
+var _debounceTimers={};
+function debounce(fn, delay){
+  return function(){
+    var key=fn.toString().slice(0,40);
+    clearTimeout(_debounceTimers[key]);
+    _debounceTimers[key]=setTimeout(fn, delay);
+  };
+}
+
+// Escape user-sourced strings before inserting into innerHTML
+function escHtml(v){
+  if(v===null||v===undefined||v==='') return '—';
+  return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+// Canonical request ID: prefer request_id then _id — matches original dashboard key strategy
+function canonicalRid(r){ return r.request_id||r._id||''; }
+
+function fmt(iso){
+  if(!iso) return '—';
+  try{ var d=new Date(iso); if(isNaN(d.getTime())) return iso; return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); }catch(e){ return iso; }
+}
+function fmtDt(iso){
+  if(!iso) return '—';
+  try{ var d=new Date(iso); if(isNaN(d.getTime())) return iso; return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}); }catch(e){ return iso; }
+}
+function fmtAmt(v){
+  var n=parseFloat(v)||0;
+  return '₦'+n.toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+function toast(msg, type){
+  type=type||'info';
+  var el=document.createElement('div');
+  el.className='toast t-'+(type==='error'?'error':type==='success'?'success':type==='warn'?'warn':'info');
+  var icon=type==='success'?'fa-check-circle':type==='error'?'fa-times-circle':type==='warn'?'fa-exclamation-circle':'fa-info-circle';
+  var color=type==='success'?'#4ade80':type==='error'?'#f87171':type==='warn'?'#fbbf24':'#7dd3fc';
+  el.innerHTML='<i class="fas '+icon+'" style="color:'+color+'"></i><span>'+msg+'</span>';
+  el.onclick=function(){el.remove();};
+  var container=document.getElementById('toast-container');
+  if(container){ container.appendChild(el); setTimeout(function(){ el.remove(); },4500); }
+}
+
+function openModal(id){ var el=document.getElementById(id); if(el) el.classList.add('open'); }
+function closeModal(id){ var el=document.getElementById(id); if(el) el.classList.remove('open'); }
+function openLightbox(src){
+  if(!src){toast('No image available','warn');return;}
+  var img=document.getElementById('lightbox-img'); if(img) img.src=src;
+  var lb=document.getElementById('lightbox'); if(lb) lb.style.display='flex';
+}
+function closeLightbox(){ var lb=document.getElementById('lightbox'); if(lb) lb.style.display='none'; }
+
+function renderPager(containerId, currentPage, totalPages, onPageChange){
+  var el=document.getElementById(containerId); if(!el) return;
+  if(totalPages<=1){el.innerHTML='';return;}
+  var pages=[];
+  if(currentPage>1) pages.push('<button class="pager-btn" onclick="('+onPageChange.toString()+')('+(currentPage-1)+')">&#8249;</button>');
+  var start=Math.max(1,currentPage-2); var end=Math.min(totalPages,currentPage+2);
+  for(var i=start;i<=end;i++){ pages.push('<button class="pager-btn'+(i===currentPage?' active':'')+'" onclick="('+onPageChange.toString()+')('+i+')">'+i+'</button>'); }
+  if(currentPage<totalPages) pages.push('<button class="pager-btn" onclick="('+onPageChange.toString()+')('+(currentPage+1)+')">&#8250;</button>');
+  el.innerHTML=pages.join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+// API
+// ═══════════════════════════════════════════════════════════
+async function api(method, path, body, isForm){
+  var opts={method:method,credentials:'include',headers:{}};
+  if(_token) opts.headers['Authorization']='Bearer '+_token;
+  if(body){
+    if(isForm){ opts.body=body; }
+    else{ opts.headers['Content-Type']='application/json'; opts.body=JSON.stringify(body); }
+  }
+  var res=await fetch(path,opts);
+  if(res.status===401){ handleLogout(); throw new Error('Unauthorized'); }
+  if(!res.ok){
+    var errText=await res.text(); var errMsg=errText;
+    try{ errMsg=JSON.parse(errText).message||JSON.parse(errText).detail||errText; }catch(e){}
+    throw new Error(errMsg||res.statusText);
+  }
+  var ct=res.headers.get('content-type')||'';
+  if(!ct.includes('application/json')) return {};
+  try{ return await res.json(); }catch(e){ return {}; }
+}
+
+// ═══════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════
+async function doLogin(email, password){
+  try{
+    var d=await api('POST','/api/admin/login',{email,password});
+    var tok=d.token||d.access_token||d.accessToken;
+    if(!tok) throw new Error('No token in response');
+    _token=tok; _authed=true;
+    sessionStorage.setItem('adm_token',tok);
+    _setAuthed(true);
+    loadAdminProfile();
+    navigateTo('overview');
+    toast('Logged in successfully','success');
+  }catch(e){ toast('Login failed: '+e.message,'error'); }
+}
+
+async function loadAdminProfile(){
+  try{
+    var d=await api('GET','/api/admin/me');
+    var name=d.name||d.admin_name||d.email||'Admin';
+    var role=d.role||d.type||'admin';
+    _adminName=name; _adminRole=role;
+    _setAdminName(name); _setAdminRole(role);
+  }catch(e){}
+}
+
+async function handleLogout(){
+  try{ await fetch('/api/auth/logout',{method:'POST',credentials:'include'}); }catch(e){}
+  _token=null; _authed=false;
+  try{ sessionStorage.clear(); }catch(e){}
+  try{ localStorage.clear(); }catch(e){}
+  window.location.replace('/login');
+}
+
+function navigateTo(page){
+  _currentPage=page; _setCurrentPage(page); loadPage(page);
+}
+
+// ═══════════════════════════════════════════════════════════
+// PAGE LOADER
+// ═══════════════════════════════════════════════════════════
+function loadPage(page){
+  switch(page){
+    case 'overview':      loadOverview(); break;
+    case 'payments':      loadPayments(); break;
+    case 'payouts':       loadPayouts(); break;
+    case 'stats-requests':loadStatsRequests(); break;
+    case 'assignments':   loadAssignments(); loadAvailableScouts(); break;
+    case 'bg-checks':     loadBgChecks(); break;
+    case 'banks':         loadBankDetails(); break;
+  }
+}
+function refreshCurrentPage(){ loadPage(_currentPage); }
+
+// ═══════════════════════════════════════════════════════════
+// OVERVIEW
+// ═══════════════════════════════════════════════════════════
+async function loadOverview(){
+  try{
+    const [users, tokOv, payouts, rcpts, support] = await Promise.allSettled([
+      api('GET','/api/admin/users?limit=1'),
+      api('GET','/api/admin/tokens/overview'),
+      api('GET','/api/admin/payout-requests?status=pending&limit=1'),
+      api('GET','/api/admin/payment-receipts?status=pending_review&limit=200'),
+      api('GET','/api/admin/support/tickets?status=open&limit=1'),
+    ]);
+    if(users.status==='fulfilled') document.getElementById('ov-users').textContent=Number(users.value.total||0).toLocaleString();
+    if(tokOv.status==='fulfilled') document.getElementById('ov-tokens').textContent=Number(tokOv.value.total_tokens_in_circulation||0).toLocaleString();
+    const pendingRc=(rcpts.status==='fulfilled')?(rcpts.value.receipts||rcpts.value.intents||rcpts.value.results||[]).length:0;
+    document.getElementById('ov-pending-receipts').textContent=pendingRc;
+    if(support.status==='fulfilled') document.getElementById('ov-support').textContent=support.value.total||0;
+    const activeSubs=await api('GET','/api/admin/subscriptions?status=active&limit=1').catch(()=>({total:0}));
+    document.getElementById('ov-active-subs').textContent=activeSubs.total||0;
+    const po=await api('GET','/api/admin/payout-requests?status=pending').catch(()=>({payouts:[]}));
+    const pendingPayouts=(po.payouts||[]).length;
+    document.getElementById('ov-payout').textContent=pendingPayouts;
+    var bdgP=document.getElementById('badge-payments'); if(bdgP){ bdgP.textContent=pendingPayouts||''; _setBadgePayments(pendingPayouts); }
+    const dcos=await api('GET','/api/admin/users?type=dco&limit=1').catch(()=>({total:0}));
+    document.getElementById('ov-dco').textContent=dcos.total||0;
+    const sr=await api('GET','/api/admin/stats-requests/all?limit=1').catch(()=>({total:0}));
+    document.getElementById('ov-stats-req').textContent=sr.total||0;
+    const [pendingReqs,availScouts,completedToday,pendingUsers]=await Promise.allSettled([
+      api('GET','/api/admin/stats-requests/all?status=pending&limit=1'),
+      api('GET','/api/admin/users?type=dco&status=active&limit=1'),
+      api('GET','/api/admin/stats-requests/all?status=completed&limit=1'),
+      api('GET','/api/admin/users?status=pending&limit=1'),
+    ]);
+    if(pendingReqs.status==='fulfilled') document.getElementById('ov-ops-pending').textContent=pendingReqs.value.total||0;
+    if(availScouts.status==='fulfilled') document.getElementById('ov-ops-scouts').textContent=availScouts.value.total||0;
+    if(completedToday.status==='fulfilled') document.getElementById('ov-ops-completed').textContent=completedToday.value.total||0;
+    if(pendingUsers.status==='fulfilled') document.getElementById('ov-ops-pending-users').textContent=pendingUsers.value.total||0;
+    const bEl=document.getElementById('ov-recent-payouts');
+    if(bEl&&po.payouts){ const list=(po.payouts||[]).slice(0,5); if(!list.length){bEl.innerHTML='<p class="text-sm text-muted">No pending payouts.</p>';} else{bEl.innerHTML=list.map(p=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--border)"><div><div class="fw700 text-sm">${p.user_id||p.dco_id||'—'}</div><div class="text-muted" style="font-size:.7rem">${p.payout_method||'bank'}</div></div><div class="gap-sm"><span class="badge badge-warning">pending</span><span class="fw700 text-sm text-gold">${fmtAmt(p.amount)}</span></div></div>`).join('');} }
+    loadOverviewActivities();
+  }catch(e){ toast('Failed to load overview: '+e.message,'error'); }
+}
+
+async function loadOverviewActivities(){
+  const el=document.getElementById('ov-activities-list'); if(!el) return;
+  try{
+    const [reqs,assigns]=await Promise.allSettled([
+      api('GET','/api/admin/stats-requests/all?limit=8&sort=newest'),
+      api('GET','/api/admin/assignments?limit=5'),
+    ]);
+    const activities=[];
+    if(reqs.status==='fulfilled'){ (reqs.value.requests||[]).slice(0,5).forEach(r=>{ const ico=r.status==='completed'?'act-ok':r.status==='assigned'?'act-info':r.status==='rejected'?'act-danger':'act-warn'; const icn=r.status==='completed'?'fa-check':r.status==='assigned'?'fa-user-check':r.status==='rejected'?'fa-times':'fa-clock'; const isPlayerReq=!!(r.player_name||r.player_id||r.jersey_number||(r.heatmap!==undefined)); const entityLabel=isPlayerReq?(r.player_name||r.player_id||'Player'):(r.club_name||r.club_id||'Club'); const reqTypeLabel=isPlayerReq?'Player Stats Request':'Club Stats Request'; activities.push({icon:icn,cls:ico,title:reqTypeLabel+' \u2014 '+escHtml(r.status||'pending'),desc:escHtml(entityLabel)+' \u00b7 '+escHtml((r.match_type||r.scope||'match stats').replace(/_/g,' ')),time:r.created_at||r.updated_at}); }); }
+    if(assigns.status==='fulfilled'){ (assigns.value.assignments||[]).slice(0,3).forEach(a=>{ activities.push({icon:'fa-tasks',cls:'act-info',title:'Assignment Created',desc:'Scout '+escHtml(a.assigned_dco_id||a.assigned_supervisor_id||'—')+' assigned',time:a.created_at}); }); }
+    activities.sort((a,b)=>new Date(b.time||0)-new Date(a.time||0));
+    if(!activities.length){ el.innerHTML='<p class="text-sm text-muted">No recent activities.</p>'; return; }
+    el.innerHTML=activities.slice(0,7).map(a=>`<div class="act-item"><div class="act-icon ${a.cls}"><i class="fas ${a.icon}"></i></div><div><div class="act-title">${a.title}</div><div class="act-desc">${a.desc}</div><div class="act-time">${fmtDt(a.time)}</div></div></div>`).join('');
+  }catch(e){ el.innerHTML='<p class="text-sm text-muted">Could not load activities.</p>'; }
+}
+
+// ═══════════════════════════════════════════════════════════
+// PAYMENTS
+// ═══════════════════════════════════════════════════════════
+function pmtMatchesTypeFilter(p, filter){
+  if(!filter||filter==='all') return true;
+  const t=(p.payment_type||p.type||p.intent_type||'').toLowerCase();
+  if(filter==='awaiting') return p.status==='awaiting_payment'||p.status==='pending';
+  if(filter==='pnr') return t==='payment_not_received'||p.status==='payment_not_received';
+  if(filter==='token') return t==='token'||t==='tokens'||t.includes('token');
+  if(filter==='sub') return t==='subscription'||t.includes('sub');
+  return true;
+}
+
+function pmtFilteredList(){ return (_allPayments||[]).filter(p=>!_pmtHidden.has(p.tx_ref||p._id)).filter(p=>pmtMatchesTypeFilter(p,_pmtTypeFilter)); }
+
+function pmtStatusBadgeClass(status){
+  if(!status) return 'badge-muted';
+  const s=status.toLowerCase();
+  if(s==='approved'||s==='active'||s==='completed') return 'badge-active';
+  if(s==='rejected') return 'badge-danger';
+  if(s==='pending_review'||s==='pending') return 'badge-warning';
+  if(s==='awaiting_payment') return 'badge-awaiting';
+  if(s==='payment_not_received') return 'badge-pnr';
+  return 'badge-muted';
+}
+
+function pmtStatusLabel(status){ if(!status) return 'Unknown'; return status.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()); }
+function pmtImgSrc(p){ return p.receipt_url||p.proof_url||p.payment_proof||(p.receipt_data?'data:'+(p.receipt_data_type||'image/jpeg')+';base64,'+p.receipt_data:'')||''; }
+
+function pmtTypeBadge(p){
+  const t=(p.payment_type||p.type||p.intent_type||'').toLowerCase();
+  if(t.includes('token')) return h('span',{className:'badge badge-token',style:'font-size:.6rem'},'TOKEN');
+  if(t.includes('sub')) return h('span',{className:'badge badge-sub',style:'font-size:.6rem'},'SUBSCRIPTION');
+  if(t==='payment_not_received') return h('span',{className:'badge badge-pnr',style:'font-size:.6rem'},'PNR');
+  return h('span',{className:'badge badge-muted',style:'font-size:.6rem'},t.toUpperCase()||'PAYMENT');
+}
+
+function pmtActionButtons(p){
+  const txRef=(p.tx_ref||p._id||'').replace(/'/g,"\\'");
+  const st=(p.status||'').toLowerCase();
+  const buttons=[];
+  if(st==='pending_review'||st==='pending'){ buttons.push(h('button',{className:'btn btn-sm btn-success',onClick:()=>openPmtAction(txRef,'approve')},h('i',{className:'fas fa-check'}),' Approve')); buttons.push(h('button',{className:'btn btn-sm btn-danger',onClick:()=>openPmtAction(txRef,'reject')},h('i',{className:'fas fa-times'}),' Reject')); }
+  else if(st==='awaiting_payment'){ buttons.push(h('button',{className:'btn btn-sm btn-warn',onClick:()=>openPmtAction(txRef,'mark_pnr')},'Mark PNR')); buttons.push(h('button',{className:'btn btn-sm btn-success',onClick:()=>openPmtAction(txRef,'confirm_payment')},'Confirm Paid')); }
+  if(st!=='approved'&&st!=='active'&&st!=='completed') { buttons.push(h('button',{className:'btn btn-sm btn-ghost',onClick:()=>{_pmtHidden.add(p.tx_ref||p._id);renderPaymentCards();}},h('i',{className:'fas fa-eye-slash'}),' Hide')); }
+  return buttons.length?h('div',{className:'pmt-card-ftr'},buttons):null;
+}
+
+function renderPaymentCard(p){
+  const txRef=p.tx_ref||p._id||'—'; const imgSrc=pmtImgSrc(p); const st=p.status||'unknown';
+  return h('div',{className:'pmt-card'},
+    h('div',{className:'pmt-card-hdr'},
+      h('div',{className:'pmt-card-hdr-left'},
+        pmtTypeBadge(p),
+        h('div',null,h('div',{className:'fw700',style:'font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px',title:p.user_name||p.user_id||'—'},p.user_name||p.user_id||'—'),h('div',{className:'mono text-muted',style:'font-size:.68rem'},p.user_id||'—'))
+      ),
+      h('div',{className:'pmt-card-hdr-right'},
+        h('div',{className:'pmt-amount-big'},fmtAmt(p.amount)),
+        h('span',{className:'badge '+pmtStatusBadgeClass(st),style:'font-size:.6rem'},pmtStatusLabel(st))
+      )
+    ),
+    h('div',{className:'pmt-card-body'},
+      h('div',{className:'pmt-section-lbl'},h('i',{className:'fas fa-fingerprint'}),' References'),
+      imgSrc
+        ? h('div',{className:'pmt-ref-compare'},
+            h('div',null,
+              h('div',{className:'pmt-ref-box'},h('div',{className:'pmt-ref-lbl'},'Tx Ref'),h('div',{className:'pmt-ref-val'},txRef)),
+              p.user_ref||p.user_payment_ref?h('div',{className:'pmt-ref-box'},h('div',{className:'pmt-ref-lbl'},'User Ref'),h('div',{className:'pmt-ref-val'},p.user_ref||p.user_payment_ref)):null
+            ),
+            h('div',{className:'pmt-thumb-wrap',onClick:()=>openLightbox(imgSrc)},h('img',{className:'pmt-thumb',src:imgSrc,alt:'Receipt',onError:function(e){e.target.style.display='none';e.target.parentNode.innerHTML='<div class="pmt-no-img"><i class="fas fa-image"></i><br/>No Image</div>';}}))
+          )
+        : h('div',null,h('div',{className:'pmt-ref-box'},h('div',{className:'pmt-ref-lbl'},'Tx Ref'),h('div',{className:'pmt-ref-val'},txRef)),p.user_ref||p.user_payment_ref?h('div',{className:'pmt-ref-box'},h('div',{className:'pmt-ref-lbl'},'User Ref'),h('div',{className:'pmt-ref-val'},p.user_ref||p.user_payment_ref)):null),
+      h('div',{className:'pmt-section-lbl'},h('i',{className:'fas fa-info-circle'}),' Details'),
+      h('div',{className:'pmt-info-grid'},
+        h('div',{className:'pmt-info-row'},h('div',{className:'pmt-info-lbl'},'Plan'),h('div',{className:'pmt-info-val'},(p.plan||p.subscription_plan||'—').toUpperCase())),
+        h('div',{className:'pmt-info-row'},h('div',{className:'pmt-info-lbl'},'Date'),h('div',{className:'pmt-info-val'},fmt(p.created_at||p.submitted_at))),
+        h('div',{className:'pmt-info-row'},h('div',{className:'pmt-info-lbl'},'Role'),h('div',{className:'pmt-info-val'},p.user_type||p.role||'—')),
+        h('div',{className:'pmt-info-row'},h('div',{className:'pmt-info-lbl'},'Channel'),h('div',{className:'pmt-info-val'},p.payment_channel||p.payment_method||'—'))
+      )
+    ),
+    pmtActionButtons(p)
+  );
+}
+
+function renderPaymentCards(){
+  const container=document.getElementById('pmt-cards-container'); if(!container) return;
+  const list=pmtFilteredList();
+  if(!list.length){ container.innerHTML=''; const empty=document.createElement('div'); empty.className='pmt-empty'; empty.innerHTML='<i class="fas fa-credit-card"></i><p>No payments match the current filter.</p>'; container.appendChild(empty); return; }
+  const totalPages=Math.max(1,Math.ceil(list.length/PMT_PAGE_SIZE));
+  if(_pmtPage>totalPages) _pmtPage=1;
+  const paged=list.slice((_pmtPage-1)*PMT_PAGE_SIZE,_pmtPage*PMT_PAGE_SIZE);
+  container.innerHTML='';
+  const grid=document.createElement('div'); grid.className='payment-cards-grid';
+  paged.forEach(p=>{ const el=document.createElement('div'); render(renderPaymentCard(p),el); grid.appendChild(el.firstChild||el); });
+  container.appendChild(grid);
+  renderPager('pmt-pager',_pmtPage,totalPages,function(p){_pmtPage=p;renderPaymentCards();});
+}
+
+function openPmtAction(txRef, action){
+  _pmtActionTxRef=txRef; _pmtActionType=action;
+  const titleMap={approve:'Approve Payment',reject:'Reject Payment',mark_pnr:'Mark as Payment Not Received',confirm_payment:'Confirm Payment Received'};
+  const bodyMap={approve:'Approve this payment and activate the subscription or token credit?',reject:'Reject this payment? The user will be notified.',mark_pnr:'Mark this payment as "Payment Not Received"? The user will be asked to retry.',confirm_payment:'Confirm that this payment has been received and activate the subscription?'};
+  document.getElementById('pmt-am-title').textContent=titleMap[action]||'Confirm';
+  document.getElementById('pmt-am-body').textContent=bodyMap[action]||'Are you sure?';
+  const reasonWrap=document.getElementById('pmt-am-reason-wrap');
+  if(reasonWrap) reasonWrap.style.display=(action==='reject'||action==='mark_pnr')?'':'none';
+  const btn=document.getElementById('pmt-am-btn');
+  if(btn){ btn.className='btn '+(action==='approve'||action==='confirm_payment'?'btn-success':action==='reject'?'btn-danger':'btn-warn'); btn.textContent='Confirm'; }
+  openModal('pmt-action-modal');
+}
+
+async function executePmtAction(){
+  if(!_pmtActionTxRef||!_pmtActionType) return;
+  const reason=(document.getElementById('pmt-am-reason')||{}).value||'';
+  closeModal('pmt-action-modal');
+  const endpointMap={approve:'approve',reject:'reject',mark_pnr:'mark-pnr',confirm_payment:'confirm-payment'};
+  const endpoint=endpointMap[_pmtActionType]||_pmtActionType;
+  try{
+    await api('POST',`/api/admin/payment-intents/${_pmtActionTxRef}/${endpoint}`,{reason})
+          .catch(()=>api('POST',`/api/admin/payments/${_pmtActionTxRef}/${endpoint}`,{reason}));
+    toast('Payment action executed','success');
+    _pmtActionTxRef=null; _pmtActionType=null;
+    loadPayments();
+  }catch(e){ toast('Error: '+e.message,'error'); }
+}
+
+async function loadPayments(){
+  const container=document.getElementById('pmt-cards-container');
+  if(container) container.innerHTML='<div class="loading"><span class="spinner"></span> Loading payments…</div>';
+  const monthSel=document.getElementById('pmt-month-filter');
+  const month=monthSel?monthSel.value:'';
+  try{
+    const qs=new URLSearchParams({limit:200});
+    if(month) qs.set('month',month);
+    const [intents,receipts,pnr]=await Promise.allSettled([
+      api('GET',`/api/admin/payment-intents?${qs}`),
+      api('GET',`/api/admin/payment-receipts?${qs}`),
+      api('GET',`/api/admin/payment-intents?status=payment_not_received&${qs}`),
+    ]);
+    const seen=new Set(); const all=[];
+    const addList=arr=>{ (arr||[]).forEach(p=>{ const key=p.tx_ref||p._id||''; if(key&&seen.has(key)) return; if(key) seen.add(key); all.push(p); }); };
+    if(intents.status==='fulfilled') addList(intents.value.intents||intents.value.payments||intents.value.results||[]);
+    if(receipts.status==='fulfilled') addList(receipts.value.receipts||receipts.value.results||[]);
+    if(pnr.status==='fulfilled') addList(pnr.value.intents||pnr.value.payments||[]);
+    all.sort((a,b)=>new Date(b.created_at||b.submitted_at||0)-new Date(a.created_at||a.submitted_at||0));
+    _allPayments=all; _pmtPage=1;
+    const pending=all.filter(p=>p.status==='pending_review'||p.status==='pending'||p.status==='awaiting_payment').length;
+    const approved=all.filter(p=>p.status==='active'||p.status==='approved'||p.status==='completed').length;
+    const rejected=all.filter(p=>p.status==='rejected').length;
+    const pnrCount=all.filter(p=>p.status==='payment_not_received').length;
+    const value=all.filter(p=>p.status==='active'||p.status==='approved'||p.status==='completed').reduce((s,p)=>s+(parseFloat(p.amount)||0),0);
+    const se=function(id,v){var e=document.getElementById(id);if(e)e.textContent=v;};
+    se('pmt-stat-pending',pending); se('pmt-stat-approved',approved); se('pmt-stat-rejected',rejected); se('pmt-stat-pnr',pnrCount); se('pmt-stat-value',fmtAmt(value));
+    var bdgP=document.getElementById('badge-payments'); if(bdgP){ bdgP.textContent=pending||''; _setBadgePayments(pending); }
+    renderPaymentCards();
+  }catch(e){ if(container) container.innerHTML=`<div class="pmt-empty"><i class="fas fa-exclamation-triangle"></i><p>Error loading payments: ${e.message}</p></div>`; }
+}
+
+// ═══════════════════════════════════════════════════════════
+// PAYOUTS
+// ═══════════════════════════════════════════════════════════
+function setPayoutFilter(el, status){
+  document.querySelectorAll('#page-payouts .filter-tab').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active'); _payoutFilter=status; _payoutsPage=1; loadPayouts();
+}
+
+// ─── REPLACE loadPayouts ENTIRELY ────────────���───────────────────────────
+async function loadPayouts() {
+  const container = document.getElementById('payouts-container');
+  if (container) container.innerHTML = '<div class="loading"><span class="spinner"></span> Loading payout requests…</div>';
+
+  try {
+    const qs = new URLSearchParams({ page: _payoutsPage, limit: PAGE_SIZE, role: 'dco,supervisor' });
+    if (_payoutFilter) qs.set('status', _payoutFilter);
+    const d    = await api('GET', `/api/admin/payout-requests?${qs}`);
+    // Client-side guard: only DCO + supervisor (covers backends without role filter support)
+    const list = (d.payouts || d.payout_requests || []).filter(p => {
+      const t = (p.user_type || p.role || '').toLowerCase();
+      return !t || t === 'dco' || t === 'supervisor';
+    });
+
+    if (!list.length) {
+      if (container) container.innerHTML = '<div class="empty"><i class="fas fa-wallet"></i><p>No payout requests found for DCO or Supervisor.</p></div>';
+      return;
+    }
+
+    const html = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1rem">
+      ${list.map(renderPayoutCard).join('')}
+    </div>`;
+    if (container) container.innerHTML = html;
+    renderPager('payouts-pager', _payoutsPage, Math.ceil((d.total || list.length) / PAGE_SIZE),
+      function(p) { _payoutsPage = p; loadPayouts(); });
+  } catch (e) {
+    if (container) container.innerHTML = `<div class="empty text-danger"><i class="fas fa-exclamation-triangle"></i><p>Error: ${e.message}</p></div>`;
+  }
+}
+
+// ─── ADD THIS NEW FUNCTION (place directly after loadPayouts) ─────────────
+function renderPayoutCard(p) {
+  const pid      = p.payout_id || p._id || '—';
+  const uid      = p.user_id   || p.dco_id || '—';
+  const role     = (p.user_type || p.role || 'dco').toLowerCase();
+  const isSup    = role === 'supervisor';
+  const roleLabel = isSup ? 'Supervisor' : 'DCO';
+  const roleColor = isSup ? 'var(--info)' : 'var(--warning)';
+  const st       = p.status || 'pending';
+  const stBadge  = st === 'approved' || st === 'paid' ? 'active' : st === 'rejected' ? 'danger' : 'warning';
+  const isPending = st === 'pending' || !p.status;
+
+  // Bank account snippet (last 4 digits)
+  const bank    = p.bank_details || p.bank || {};
+  const acctNum = bank.account_number || p.account_number || '';
+  const bankLine = acctNum
+    ? `${bank.bank_name || p.bank_name || 'Bank'} &nbsp;•&nbsp; ****${String(acctNum).slice(-4)}`
+    : (p.payout_method || p.method || 'Bank Transfer');
+
+  const extraRows = [
+    p.account_name || bank.account_name
+      ? `<div style="grid-column:1/-1"><div class="text-muted" style="font-size:.66rem;margin-bottom:.12rem">Account Name</div><div class="fw700 text-sm">${p.account_name || bank.account_name}</div></div>`
+      : '',
+    p.transaction_ref
+      ? `<div style="grid-column:1/-1"><div class="text-muted" style="font-size:.66rem;margin-bottom:.12rem">Tx Ref</div><div class="mono text-sm">${p.transaction_ref}</div></div>`
+      : '',
+    p.rejection_reason
+      ? `<div style="grid-column:1/-1"><div class="text-muted" style="font-size:.66rem;margin-bottom:.12rem">Rejection Reason</div><div class="text-danger text-sm">${p.rejection_reason}</div></div>`
+      : '',
+  ].join('');
+
+  const actions = isPending
+    ? `<button class="btn btn-sm btn-success" onclick="payoutAction('${pid}','approve')"><i class="fas fa-check"></i> Approve</button>
+       <button class="btn btn-sm btn-danger"  onclick="payoutAction('${pid}','reject')"><i class="fas fa-times"></i> Reject</button>`
+    : `<span class="text-muted text-sm" style="padding:.35rem 0">Processed — ${st}</span>`;
+
+  return `
+    <div class="pmt-card" style="border-left:3px solid ${roleColor}">
+      <div class="pmt-card-hdr">
+        <div class="pmt-card-hdr-left">
+          <i class="fas fa-wallet" style="color:${roleColor};font-size:.85rem"></i>
+          <span class="fw700 mono text-sm" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${pid}">${pid}</span>
+        </div>
+        <div class="pmt-card-hdr-right">
+          <span class="badge" style="background:${roleColor}22;color:${roleColor};border:1px solid ${roleColor}55;font-size:.62rem">${roleLabel}</span>
+          <span class="badge badge-${stBadge}">${st.charAt(0).toUpperCase() + st.slice(1)}</span>
+        </div>
+      </div>
+      <div class="pmt-card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.45rem .75rem;font-size:.78rem">
+          <div>
+            <div class="text-muted" style="font-size:.66rem;margin-bottom:.12rem">User ID</div>
+            <div class="mono fw700">${uid}</div>
+          </div>
+          <div>
+            <div class="text-muted" style="font-size:.66rem;margin-bottom:.12rem">Amount</div>
+            <div class="fw700 text-gold">${fmtAmt(p.amount)}</div>
+          </div>
+          <div>
+            <div class="text-muted" style="font-size:.66rem;margin-bottom:.12rem">Bank / Method</div>
+            <div class="mono text-sm">${bankLine}</div>
+          </div>
+          <div>
+            <div class="text-muted" style="font-size:.66rem;margin-bottom:.12rem">Requested</div>
+            <div>${fmtDt(p.created_at)}</div>
+          </div>
+          ${extraRows}
+        </div>
+      </div>
+      <div class="pmt-card-ftr">${actions}</div>
+    </div>`;
+}
+  
+function payoutAction(id, action){
+  _payoutActionId=id; _payoutActionType=action;
+  const isApprove=(action==='approve');
+  document.getElementById('pam-title').textContent=isApprove?'Approve Payout':'Reject Payout';
+  document.getElementById('pam-desc').textContent=isApprove?'Approve and process this payout? Ensure funds have been disbursed.':'Reject this payout request? The scout will be notified.';
+  document.getElementById('pam-label').textContent=isApprove?'Transaction Reference':'Rejection Reason';
+  document.getElementById('pam-input').placeholder=isApprove?'e.g. bank transfer ref':'e.g. Insufficient details';
+  document.getElementById('pam-confirm-btn').className='btn '+(isApprove?'btn-success':'btn-danger');
+  document.getElementById('pam-confirm-btn').textContent=isApprove?'Approve':'Reject';
+  document.getElementById('pam-input').value='';
+  openModal('payout-action-modal');
+}
+
+async function executePayout(){
+  if(!_payoutActionId||!_payoutActionType) return;
+  const ref=document.getElementById('pam-input').value;
+  closeModal('payout-action-modal');
+  try{
+    const body=_payoutActionType==='approve'?{transaction_ref:ref,reference:ref}:{reason:ref};
+    await api('POST',`/api/admin/payout-requests/${_payoutActionId}/${_payoutActionType}`,body);
+    toast('Payout '+_payoutActionType+'d successfully','success');
+    loadPayouts();
+  }catch(e){ toast('Error: '+e.message,'error'); }
+}
+
+// ═══════════════════════════════════════════════════════════
+// STATS REQUESTS
+// ═══════════════════════════════════════════════════════════
+function setStatsTab(el, tab){
+  document.querySelectorAll('#page-stats-requests .filter-tab').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active'); _statsTab=tab; _statsPage=1; loadStatsRequests();
+}
+
+function clearStatsFilters(){
+  _statsStateFilter=''; _statsDateFrom=''; _statsDateTo=''; _statsSearchQuery='';
+  _adminLocSubregionSearch='';
+  if(_statsLocResetFn) _statsLocResetFn();
+  const se=function(id){return document.getElementById(id);};
+  if(se('sreq-date-from')) se('sreq-date-from').value='';
+  if(se('sreq-date-to')) se('sreq-date-to').value='';
+  if(se('sreq-search')) se('sreq-search').value='';
+  loadStatsRequests();
+}
+
+function applyStatsFilters(){
+  const se=function(id){return document.getElementById(id);};
+  // _statsStateFilter and _adminLocSubregionSearch are set directly by StatsLocationFilters
+  _statsDateFrom=(se('sreq-date-from')||{}).value||'';
+  _statsDateTo=(se('sreq-date-to')||{}).value||'';
+  _statsSearchQuery=((se('sreq-search')||{}).value||'').toLowerCase().trim();
+  _statsPage=1; loadStatsRequests();
+}
+
+
+
+async function loadStatsRequests(){
+  const container=document.getElementById('sreqs-container'); if(!container) return;
+  container.innerHTML='<div class="loading">Loading…</div>';
+  try{
+    const qs=new URLSearchParams({page:_statsPage,limit:50});
+    if(_statsTab&&_statsTab!=='all') qs.set('status',_statsTab);
+    const d=await api('GET',`/api/admin/stats-requests/all?${qs}`);
+    let list=d.requests||d.stats_requests||[];
+    // venue_state filter (matches original: exact case-insensitive on venue_state||state)
+    if(_statsStateFilter) list=list.filter(r=>((r.venue_state||r.state||'').toLowerCase()===_statsStateFilter.toLowerCase()));
+    if(_adminLocSubregionSearch) list=list.filter(r=>((r.venue_lga||'').toLowerCase().includes(_adminLocSubregionSearch.toLowerCase())));
+    // date filter on created_at (matches original), with match_date fallback for player requests
+    if(_statsDateFrom) list=list.filter(r=>new Date(r.created_at||r.match_date||r.event_date||0)>=new Date(_statsDateFrom+'T00:00:00'));
+    if(_statsDateTo) list=list.filter(r=>new Date(r.created_at||r.match_date||r.event_date||0)<=new Date(_statsDateTo+'T23:59:59'));
+    // search: original fields (club_name, club_id, request_id, _id, scope, venue_state) + player fields
+    if(_statsSearchQuery) list=list.filter(r=>[r.club_name,r.club_id,r.player_name,r.player_id,r.request_id,r._id,r.venue_state,r.scope,r.match_type,r.home_team,r.away_team].filter(Boolean).join(' ').toLowerCase().includes(_statsSearchQuery));
+    _statsAllReqs=list;
+    if(!list.length){container.innerHTML='<div class="empty"><i class="fas fa-chart-bar"></i><p>No stats requests found.</p></div>';return;}
+    const cards=list.map(r=>renderStatsCard(r)).join('');
+    container.innerHTML=`<div id="sreqs-list">${cards}</div>`;
+  }catch(e){ container.innerHTML=`<div class="empty text-danger"><i class="fas fa-exclamation-triangle"></i><p>Error: ${e.message}</p></div>`; }
+}
+
+// ── Detect entity type ──
+function isPlayerRequest(r){
+  return !!(r.player_name||r.player_id||r.player_represents||r.jersey_number||(r.heatmap!==undefined&&r.heatmap!==null));
+}
+
+// ── Title-case helper — capitalises the first letter of every word ──
+function toTitleCase(str) {
+  if (!str || str === '—') return str;
+  return String(str).replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// ── Chip builder ──
+function chip(label, value, extraClass){
+  return `<div class="sreq-chip${extraClass?' '+extraClass:''}"><div class="rdlbl">${label}</div><div class="rdval">${value!==undefined&&value!==null&&value!==''?value:'—'}</div></div>`;
+}
+
+// ── Render a single stats request card (player or club) ──
+function renderStatsCard(r){
+  const rid = r.request_id||r._id||'';         // action key — matches original (no reference_id)
+  const refId = r.reference_id||r.request_id||r._id||'—'; // display only
+  const st = (r.status||'pending').toLowerCase();
+  const stClr = st==='completed'?'s-completed':st==='assigned'?'s-assigned':st==='rejected'?'s-rejected':'';
+  const isOpen = _expandedStats.has(rid);
+  const isPlayer = isPlayerRequest(r);
+
+  // Entity labels
+  const entityName = isPlayer
+    ? (r.player_name||r.player_id||'Unknown Player')
+    : (r.club_name||r.club_id||'Unknown Club');
+  const entityTypeBadge = isPlayer
+    ? `<span class="badge badge-player" style="font-size:.58rem"><i class="fas fa-running" style="margin-right:2px"></i>PLAYER</span>`
+    : `<span class="badge badge-token" style="font-size:.58rem"><i class="fas fa-shield-alt" style="margin-right:2px"></i>CLUB</span>`;
+  const statusBadgeClass = st==='completed'?'badge-active':st==='assigned'?'badge-info':st==='rejected'?'badge-danger':'badge-warning';
+
+  // ── Build detail chips — all API-sourced plain-text values passed through escHtml() ──
+  // Row 1: Reference + Entity ID + Status
+  const refChip = chip('Reference ID', `<span style="font-family:monospace;color:var(--gold);font-weight:800">${escHtml(refId)}</span>`, 'chip-ref');
+  const entityIdChip = isPlayer
+    ? chip('Player ID', escHtml(r.player_id||'—'))
+    : chip('Club ID', escHtml(r.club_id||'—'));
+  const statusChip = chip('Status', `<span class="badge ${statusBadgeClass}" style="font-size:.62rem">${escHtml(st.toUpperCase())}</span>`);
+
+  // Row 2: Match info
+  const matchDateChip = chip('Match Date', fmt(r.match_date||r.event_date));           // fmt() is date-only, safe
+  const matchTimeChip = chip('Match Time', escHtml(r.match_time||'—'));
+  const matchTypeChip = chip('Match Type', toTitleCase(escHtml((r.match_type||'—').replace(/_/g,' '))));
+  const homeTeamChip  = chip('Home Team',  toTitleCase(escHtml(r.home_team||r.homeTeam||'—')));
+  const awayTeamChip  = chip('Away Team',  toTitleCase(escHtml(r.away_team||r.awayTeam||'—')));
+
+  // Row 3: Player-specific OR Club-specific
+  let entitySpecificChips = '';
+  if(isPlayer){
+    entitySpecificChips =
+      chip('Jersey No.', escHtml(r.jersey_number||'—')) +
+      chip('Represents', escHtml(r.player_represents||r.club_role||'—')) +
+      chip('Heatmap', r.heatmap===true||r.heatmap==='true'
+        ?'<span class="badge badge-info" style="font-size:.58rem">YES</span>'
+        :'<span class="badge badge-muted" style="font-size:.58rem">NO</span>');
+  } else {
+    entitySpecificChips =
+      chip('Club Role', escHtml(r.club_role||'—')) +
+      chip('Jersey Color', escHtml(r.jersey_color||'—')) +
+      chip('Tracking Type', escHtml((r.tracking_type||'—').replace(/_/g,' ')));
+  }
+
+  // Row 4: Venue
+  const venueAddrChip    = chip('Venue Address', toTitleCase(escHtml(r.venue_address||r.venue||r.stadium||'—')));
+  const venueStateChip   = chip('Venue State',   toTitleCase(escHtml(r.venue_state||r.state||'—')));
+  const venueLGAChip     = chip('Venue LGA',     toTitleCase(escHtml(r.venue_lga||'—')));
+  const venueCountryChip = chip('Country',        toTitleCase(escHtml(r.venue_country||'Nigeria')));
+
+  // Row 5: Contact + Assignment + Submitted
+  const contactChip = chip('Contact Phone', escHtml(r.contact_phone||'—'));
+  const assignedScout = r.assigned_dco_id||r.assigned_supervisor_id||r.assigned_scout_name||'';
+  const assignedChip = chip('Assigned Scout',
+    assignedScout
+      ? `<span style="color:var(--success)">${escHtml(assignedScout)}</span>`
+      : '<span class="text-muted">Not Assigned</span>'
+  );
+  const submittedChip = chip('Submitted', fmtDt(r.created_at||r.submitted_at));       // fmtDt() is date-only, safe
+
+  // Notes block
+  const notes = r.notes||r.additional_notes||r.additionalNotes||'';
+  const notesBlock = notes
+    ? `<div class="sreq-notes-block"><div class="rdlbl"><i class="fas fa-sticky-note" style="margin-right:3px"></i>Notes</div><div class="rdval">${escHtml(notes)}</div></div>`
+    : '';
+
+  // Action buttons
+  const safeRid = rid.replace(/'/g,"\\'");
+  const safeState = (r.venue_state||r.state||'').replace(/'/g,"\\'");
+  const btnAssign = st==='pending'
+    ? `<button class="btn btn-sm btn-primary" onclick="openAssignModal('${safeRid}','${safeState}')"><i class="fas fa-user-plus"></i> Assign DCO</button>`
+    : '';
+  const btnComplete = st!=='completed'&&st!=='rejected'
+    ? `<button class="btn btn-sm btn-success" onclick="completeStatsRequest('${safeRid}')"><i class="fas fa-check"></i> Mark Complete</button>`
+    : '';
+  const btnReject = st==='pending'||st==='assigned'
+    ? `<button class="btn btn-sm btn-danger" onclick="openRejectModal('${safeRid}')"><i class="fas fa-times"></i> Reject</button>`
+    : '';
+  const btnView = `<button class="btn btn-sm btn-ghost" onclick="openRequestDetailsModal('${safeRid}')"><i class="fas fa-eye"></i> View Details</button>`;
+
+  return `<div class="sreq-card ${stClr}" id="sreq-card-${rid}">
+    <div class="sreq-card-hdr" onclick="toggleStatsCard('${safeRid}')">
+      <div class="sreq-card-hdr-left">
+        ${entityTypeBadge}
+        <span class="badge ${statusBadgeClass}">${escHtml(st)}</span>
+        <span style="font-weight:700;font-size:.85rem;color:var(--text)">${escHtml(entityName)}</span>
+        <span class="mono text-muted" style="font-size:.68rem">${escHtml(refId.slice(-12))}</span>
+      </div>
+      <div class="sreq-card-hdr-right">
+        <span class="text-muted text-sm">${fmt(r.match_date||r.event_date||r.created_at)}</span>
+        <i class="fas fa-chevron-down sreq-expand-btn${isOpen?' open':''}" id="sreq-chev-${rid}"></i>
+      </div>
+    </div>
+    <div class="sreq-card-body${isOpen?' open':''}" id="sreq-body-${rid}">
+      <div class="sreq-detail-grid">
+        ${refChip}
+        ${entityIdChip}
+        ${statusChip}
+        ${matchDateChip}
+        ${matchTimeChip}
+        ${matchTypeChip}
+        ${homeTeamChip}
+        ${awayTeamChip}
+        ${entitySpecificChips}
+        ${venueAddrChip}
+        ${venueStateChip}
+        ${venueLGAChip}
+        ${venueCountryChip}
+        ${contactChip}
+        ${assignedChip}
+        ${submittedChip}
+      </div>
+      ${notesBlock}
+      <div class="gap-sm">
+        ${btnAssign}
+        ${btnComplete}
+        ${btnReject}
+        ${btnView}
+      </div>
+    </div>
+  </div>`;
+}
+
+function toggleStatsCard(rid){
+  const body=document.getElementById('sreq-body-'+rid); const chev=document.getElementById('sreq-chev-'+rid);
+  if(!body) return;
+  const isOpen=_expandedStats.has(rid);
+  if(isOpen){ _expandedStats.delete(rid); body.classList.remove('open'); if(chev) chev.classList.remove('open'); }
+  else{ _expandedStats.add(rid); body.classList.add('open'); if(chev) chev.classList.add('open'); }
+}
+
+// ── View Details Modal ──
+function openRequestDetailsModal(rid){
+  const r = _statsAllReqs.find(x=>canonicalRid(x)===rid);
+  if(!r){ toast('Request not found','warn'); return; }
+  _viewDetailsRequest = r;
+
+  // Single canonical action ID used for ALL buttons — prefer request_id over reference_id
+  const actionId = canonicalRid(r);
+  const safeActionId = actionId.replace(/'/g,"\\'");
+
+  const isPlayer = isPlayerRequest(r);
+  const refId = r.reference_id||r.request_id||r._id||'—';
+  const entityName = isPlayer ? (r.player_name||r.player_id||'Unknown Player') : (r.club_name||r.club_id||'Unknown Club');
+  const st = (r.status||'pending').toLowerCase();
+  const statusBadgeClass = st==='completed'?'badge-active':st==='assigned'?'badge-info':st==='rejected'?'badge-danger':'badge-warning';
+
+  // rdChip escapes user-sourced values; pass pre-built HTML via second arg only for trusted formatting
+  function rdChip(label, value, isRef){
+    const displayVal = (value===null||value===undefined||value==='')?'—':value;
+    return `<div class="rd-chip${isRef?' chip-ref':''}"><div class="rdlbl">${escHtml(label)}</div><div class="rdval">${displayVal}</div></div>`;
+  }
+  // rdSafeChip: escapes the value itself (for plain API text fields)
+  function rdSafeChip(label, value){
+    return rdChip(label, escHtml(value||'—'));
+  }
+
+  let specificRows = '';
+  if(isPlayer){
+    specificRows = `
+      ${rdSafeChip('Jersey No.', r.jersey_number)}
+      ${rdSafeChip('Represents', r.player_represents||r.club_role)}
+      ${rdChip('Heatmap', r.heatmap===true||r.heatmap==='true'?'Yes':'No')}
+    `;
+  } else {
+    specificRows = `
+      ${rdSafeChip('Club Role', r.club_role)}
+      ${rdSafeChip('Jersey Color', r.jersey_color)}
+      ${rdSafeChip('Tracking Type', (r.tracking_type||'').replace(/_/g,' '))}
+    `;
+  }
+
+  const notes = r.notes||r.additional_notes||r.additionalNotes||'';
+  const notesHtml = notes ? `<div class="rd-notes"><div class="rdlbl" style="font-size:.57rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-bottom:.3rem"><i class="fas fa-sticky-note" style="margin-right:3px"></i>Additional Notes</div><div style="font-size:.83rem;color:var(--text2);line-height:1.5;white-space:pre-wrap">${escHtml(notes)}</div></div>` : '';
+
+  const bodyEl = document.getElementById('sreq-details-modal-body');
+  if(bodyEl){
+    bodyEl.innerHTML = `
+      <div style="margin-bottom:.75rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+        ${isPlayer?'<span class="badge badge-player"><i class="fas fa-running" style="margin-right:2px"></i>PLAYER REQUEST</span>':'<span class="badge badge-token"><i class="fas fa-shield-alt" style="margin-right:2px"></i>CLUB REQUEST</span>'}
+        <span class="badge ${statusBadgeClass}">${escHtml(st.toUpperCase())}</span>
+        <span style="font-weight:700;font-size:.9rem;color:var(--text)">${escHtml(entityName)}</span>
+      </div>
+      <div class="rd-grid">
+        ${rdChip('Reference ID', `<span style="font-family:monospace;color:var(--gold);font-weight:800">${escHtml(refId)}</span>`, true)}
+        ${isPlayer ? rdSafeChip('Player ID', r.player_id) : rdSafeChip('Club ID', r.club_id)}
+        ${rdChip('Match Date', fmt(r.match_date||r.event_date))}
+        ${rdSafeChip('Match Time', r.match_time)}
+        ${rdSafeChip('Match Type', toTitleCase((r.match_type||'').replace(/_/g,' ')))}
+        ${rdSafeChip('Home Team', toTitleCase(r.home_team||r.homeTeam))}
+        ${rdSafeChip('Away Team', toTitleCase(r.away_team||r.awayTeam))}
+        ${specificRows}
+        ${rdSafeChip('Venue Address', toTitleCase(r.venue_address||r.venue||r.stadium))}
+        ${rdSafeChip('Venue State', toTitleCase(r.venue_state||r.state))}
+        ${rdSafeChip('Venue LGA', toTitleCase(r.venue_lga))}
+        ${rdSafeChip('Country', toTitleCase(r.venue_country||'Nigeria'))}
+        ${rdSafeChip('Contact Phone', r.contact_phone)}
+        ${rdSafeChip('Assigned DCO', r.assigned_dco_id||r.assigned_supervisor_id||r.assigned_scout_name||'Not Assigned')}
+        ${rdChip('Submitted', fmtDt(r.created_at||r.submitted_at))}
+      </div>
+      ${notesHtml}
+      <div class="gap-sm" style="margin-top:1rem">
+        ${st==='pending'?`<button class="btn btn-sm btn-primary" onclick="openAssignModal('${safeActionId}','${(r.venue_state||r.state||'').replace(/'/g,"\\'")}');closeModal('sreq-details-modal')"><i class="fas fa-user-plus"></i> Assign DCO</button>`:''}
+        ${st!=='completed'&&st!=='rejected'?`<button class="btn btn-sm btn-success" onclick="completeStatsRequest('${safeActionId}');closeModal('sreq-details-modal')"><i class="fas fa-check"></i> Mark Complete</button>`:''}
+        ${st==='pending'||st==='assigned'?`<button class="btn btn-sm btn-danger" onclick="openRejectModal('${safeActionId}');closeModal('sreq-details-modal')"><i class="fas fa-times"></i> Reject</button>`:''}
+      </div>
+    `;
+  }
+  openModal('sreq-details-modal');
+}
+
+// ─── FULL REPLACEMENT — openAssignModal ──────────────────────────────────
+function openAssignModal(rid, venueState) {
+  const req = _statsAllReqs.find(x => canonicalRid(x) === rid) || {};
+  document.getElementById('assign-rid').value = rid;
+  document.getElementById('assign-venue-state').value = venueState || req.venue_state || req.state || '';
+  document.getElementById('assign-notes').value = '';
+
+  _selectedAssignScout = null;
+  _selectedAssignSupervisor = null;
+
+  openModal('assign-modal');
+  loadDCOsForAssignment(req);
+}
+
+// Track supervisor selection
+let _selectedAssignSupervisor = null;
+
+// ── Safe chip builder — uses DOM API, no innerHTML interpolation ──────────
+function _buildChipGrid(container, items, idField, onClick) {
+  container.innerHTML = '';
+  if (!items.length) {
+    const p = document.createElement('p');
+    p.className = 'text-sm text-muted';
+    p.textContent = 'No available users in this area.';
+    container.appendChild(p);
+    return;
+  }
+  const grid = document.createElement('div');
+  grid.className = 'scout-grid';
+  items.forEach(s => {
+    const sid      = s[idField] || s.user_id || s._id || '';
+    const rawName  = s.name || s.full_name || ((s.firstName||'')+' '+(s.lastName||'')).trim() || '—';
+    const tier     = s.tier || s.dco_tier || '';
+    const loc      = s.state || s.venue_state || '';
+    const conflict = s.conflict_reason || '';
+    const isBlocked = !!conflict;
+
+    const chip = document.createElement('div');
+    chip.className = `scout-chip ${isBlocked ? 'sc-busy' : 'sc-avail'}`;
+    chip.title = isBlocked ? conflict : rawName;   // title is text-only — safe
+
+    const nameDiv = document.createElement('div');
+    nameDiv.className = 'scn';
+    nameDiv.textContent = rawName;                 // textContent — XSS-safe
+
+    const sublDiv = document.createElement('div');
+    sublDiv.className = 'scl';
+    sublDiv.textContent = [tier, loc].filter(Boolean).join(' · ');
+
+    const stDiv = document.createElement('div');
+    stDiv.className = 'scs';
+    stDiv.textContent = isBlocked ? `⛔ ${conflict}` : 'Available';
+
+    chip.appendChild(nameDiv);
+    chip.appendChild(sublDiv);
+    chip.appendChild(stDiv);
+
+    if (!isBlocked) {
+      chip.addEventListener('click', () => onClick(sid, rawName, chip));
+    }
+    grid.appendChild(chip);
+  });
+  container.appendChild(grid);
+}
+
+// ─── FULL REPLACEMENT — loadScoutsForAssignment ──────────────────────────
+async function loadDCOsForAssignment(req) {
+  const dcoGrid   = document.getElementById('assign-dco-grid-wrap');
+  const supGrid   = document.getElementById('assign-supervisor-grid-wrap');
+  const dcoLoad   = document.getElementById('assign-dco-grid-loading');
+  const supLoad   = document.getElementById('assign-supervisor-grid-loading');
+  if (dcoLoad) dcoLoad.style.display = '';
+  if (supLoad) supLoad.style.display = '';
+
+  const country   = req.venue_country || 'Nigeria';
+  const state     = req.venue_state   || req.state || '';
+  const lga       = req.venue_lga     || '';
+  const matchDate = req.match_date    || req.event_date || '';
+  const matchTime = req.match_time    || '';
+
+  try {
+    const qs = new URLSearchParams({ country, limit: 50 });
+    if (state)     qs.set('state', state);
+    if (lga)       qs.set('lga', lga);
+    if (matchDate) qs.set('match_date', matchDate);
+    if (matchTime) qs.set('match_time', matchTime);
+
+    const [dcoRes, supRes] = await Promise.allSettled([
+      api('GET', `/api/admin/dco/available?${qs}&role=dco`),
+      api('GET', `/api/admin/dco/available?${qs}&role=supervisor`),
+    ]);
+
+    if (dcoLoad) dcoLoad.style.display = 'none';
+    if (supLoad) supLoad.style.display = 'none';
+
+    if (dcoGrid) {
+      const dcos = dcoRes.status === 'fulfilled' ? (dcoRes.value.dcos || dcoRes.value.users || []) : [];
+      _buildChipGrid(dcoGrid, dcos, 'dco_id', (sid, name, el) => {
+        document.querySelectorAll('#assign-dco-grid-wrap .scout-chip').forEach(c => c.classList.remove('sc-sel'));
+        el.classList.add('sc-sel');
+        _selectedAssignScout = { id: sid, name };
+        const input = document.getElementById('assign-id');
+        if (input) input.value = sid;
+        toast(name + ' (DCO) selected', 'info');
+      });
+    }
+
+    if (supGrid) {
+      const sups = supRes.status === 'fulfilled' ? (supRes.value.supervisors || supRes.value.users || []) : [];
+      _buildChipGrid(supGrid, sups, 'supervisor_id', (sid, name, el) => {
+        document.querySelectorAll('#assign-supervisor-grid-wrap .scout-chip').forEach(c => c.classList.remove('sc-sel'));
+        el.classList.add('sc-sel');
+        _selectedAssignSupervisor = { id: sid, name };
+        toast(name + ' (Supervisor) selected as monitor', 'info');
+      });
+    }
+  } catch (e) {
+    if (dcoLoad) dcoLoad.style.display = 'none';
+    if (supLoad) supLoad.style.display = 'none';
+    if (dcoGrid) { dcoGrid.innerHTML = ''; const p = document.createElement('p'); p.className = 'text-sm text-danger'; p.textContent = 'Failed to load DCOs.'; dcoGrid.appendChild(p); }
+  }
+}
+
+async function doAssign() {
+  const rid = document.getElementById('assign-rid').value;
+  const dcoId = (document.getElementById('assign-id') || {}).value || (_selectedAssignScout && _selectedAssignScout.id) || '';
+  const supId = _selectedAssignSupervisor ? _selectedAssignSupervisor.id : '';
+  const notes = (document.getElementById('assign-notes') || {}).value || '';
+
+  if (!rid || !dcoId) { toast('Select a DCO to assign', 'warn'); return; }
+
+  try {
+    const body = {
+      request_id: rid,
+      assignee_id: dcoId,
+      role: 'dco',
+      notes,
+      ...(supId ? { supervisor_id: supId } : {}),
+    };
+    await api('POST', `/api/admin/stats-requests/${rid}/assign`, body)
+      .catch(() => api('POST', '/api/admin/assignments', {
+        stats_request_id: rid,
+        assigned_dco_id: dcoId,
+        assigned_supervisor_id: supId || undefined,
+        notes,
+      }));
+    toast('DCO assigned successfully', 'success');
+    if (supId && _selectedAssignSupervisor) {
+      toast(_selectedAssignSupervisor.name + ' assigned as supervisor', 'info');
+    }
+    closeModal('assign-modal');
+    loadStatsRequests();
+    loadAssignments();
+  } catch (e) { toast('Error: ' + e.message, 'error'); }
+}
+
+function openRejectModal(rid){
+  _sreqRejectRid=rid;
+  document.getElementById('sreq-reject-rid').value=rid;
+  document.getElementById('sreq-reject-reason').value='';
+  openModal('sreq-reject-modal');
+}
+
+async function executeRejectRequest(){
+  const rid=document.getElementById('sreq-reject-rid').value;
+  const reason=document.getElementById('sreq-reject-reason').value;
+  if(!rid){toast('No request selected','warn');return;}
+  closeModal('sreq-reject-modal');
+  try{
+    await api('POST',`/api/admin/stats-requests/${rid}/reject`,{reason});
+    toast('Request rejected','info');
+    loadStatsRequests();
+    loadAssignments();
+  }catch(e){ toast('Error: '+e.message,'error'); }
+}
+
+async function completeStatsRequest(rid){
+  try{
+    await api('POST',`/api/admin/stats-requests/${rid}/complete`,{});
+    toast('Request marked complete','success');
+    loadStatsRequests();
+    loadAssignments();
+  }catch(e){ toast('Error: '+e.message,'error'); }
+}
+
+// ── Complete from assignment row (delegates to completeStatsRequest) ──
+async function completeAssignmentRow(requestId){
+  if(!requestId){toast('No request ID found','warn');return;}
+  await completeStatsRequest(requestId);
+}
+
+// ── View a request from assignment row ──
+function viewAssignmentRow(requestId){
+  // Find request in cached list
+  const r = _statsAllReqs.find(x=>canonicalRid(x)===requestId);  // uses request_id||_id, matching original
+  if(r){
+    openRequestDetailsModal(requestId);
+  } else {
+    // Load and open
+    api('GET',`/api/admin/stats-requests/${requestId}`)
+      .then(function(d){
+        const req=d.request||d;
+        _statsAllReqs.push(req);
+        openRequestDetailsModal(requestId);
+      })
+      .catch(function(){ toast('Could not load request details','error'); });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// ASSIGNMENTS
+// ═══════════════════════════════════════════════════════════
+
+// Left panel: Available Scouts with full field display
+async function loadAvailableScouts(){
+  const el=document.getElementById('avail-scouts-list'); if(!el) return;
+  el.innerHTML='<div class="loading">Loading…</div>';
+  try{
+    const d=await api('GET','/api/admin/users?type=dco&status=active&limit=50');
+    const scouts=d.users||[];
+    _availableScoutsList=scouts;
+    if(!scouts.length){el.innerHTML='<p class="text-sm text-muted" style="padding:.5rem 0">No available scouts.</p>';return;}
+    el.innerHTML=`<div class="scout-grid">${scouts.map(s=>{
+      const busy=s.status==='busy';
+      const name=escHtml(s.name||((s.firstName||'')+' '+(s.lastName||'')).trim()||'—');
+      const tierLabel=escHtml(s.tier||s.dco_tier||'Tier 1');
+      const stateLabel=escHtml(s.venue_state||s.state||'—');
+      return `<div class="scout-chip ${busy?'sc-busy':'sc-avail'}" title="${name}">
+        <div class="scn">${name}</div>
+        <div class="scl">${tierLabel} · ${stateLabel}</div>
+        <div class="scs">${busy?'Busy':'Available'}</div>
+      </div>`;
+    }).join('')}</div>`;
+  }catch(e){ el.innerHTML='<p class="text-sm text-muted text-danger">Error: '+e.message+'</p>'; }
+}
+
+// Right panel: Current Assignments table — Scout | Request ID | Player/Club | Venue | Match Date | Status | Actions
+async function loadAssignments(){
+  const tbody=document.getElementById('assignments-tbody'); if(!tbody) return;
+  tbody.innerHTML='<tr><td colspan="7" class="loading">Loading…</td></tr>';
+  try{
+    const qs=new URLSearchParams({page:_asgnPage,limit:PAGE_SIZE});
+    const d=await api('GET',`/api/admin/assignments?${qs}`);
+    const list=d.assignments||[];
+    if(!list.length){tbody.innerHTML='<tr><td colspan="7" class="empty" style="text-align:center;padding:2rem 1rem;color:#475569">No assignments found.</td></tr>';return;}
+
+    tbody.innerHTML=list.map(a=>{
+      // requestId is the stats-request resource identifier — NEVER fall back to assignmentId
+      // for request-level API calls (complete/reject). If absent, disable those actions.
+      const assignmentId=a.assignment_id||a._id||'';
+      const requestId=a.stats_request_id||a.request_id||'';
+      const hasRequestId=!!requestId;
+
+      const scoutName=escHtml(a.assigned_dco_id||a.assigned_supervisor_id||a.scout_name||'—'); // original field priority
+      const entityName=escHtml(a.player_name||a.club_name||a.player_id||a.club_id||'—');
+      const venue=escHtml(a.venue_address||a.venue||a.stadium||'—');
+      const matchDate=fmt(a.match_date||a.event_date||a.created_at);
+      const st=(a.status||'assigned').toLowerCase();
+      const statusBadge=`<span class="badge badge-${st==='completed'?'active':st==='rejected'?'danger':'info'}">${escHtml(st)}</span>`;
+      const displayId=escHtml((requestId||assignmentId).slice(-12)||'—');
+
+      // View uses requestId to open the details modal; falls back to assignmentId for lookup
+      const safeViewId=(requestId||assignmentId).replace(/'/g,"\\'");
+      const btnView=`<button class="btn btn-sm btn-ghost" onclick="viewAssignmentRow('${safeViewId}')"><i class="fas fa-eye"></i> View</button>`;
+
+      // Complete only enabled when we have a real request ID
+      let btnComplete='';
+      if(st!=='completed'&&st!=='rejected'){
+        if(hasRequestId){
+          const safeReqId=requestId.replace(/'/g,"\\'");
+          btnComplete=`<button class="btn btn-sm btn-success" onclick="completeAssignmentRow('${safeReqId}')"><i class="fas fa-check"></i> Complete</button>`;
+        } else {
+          btnComplete=`<button class="btn btn-sm btn-success" disabled title="No request ID available">Complete</button>`;
+        }
+      }
+
+      return `<tr>
+        <td class="fw700" style="color:var(--text)">${scoutName}</td>
+        <td class="mono" style="font-weight:700;color:var(--gold);font-size:.75rem">${displayId}</td>
+        <td style="color:var(--text2)">${entityName}</td>
+        <td class="text-sm text-muted">${venue}</td>
+        <td class="text-sm">${matchDate}</td>
+        <td>${statusBadge}</td>
+        <td><div class="gap-sm">${btnView}${btnComplete}</div></td>
+      </tr>`;
+    }).join('');
+
+    renderPager('assignments-pager',_asgnPage,Math.ceil((d.total||list.length)/PAGE_SIZE),function(p){_asgnPage=p;loadAssignments();});
+  }catch(e){ tbody.innerHTML=`<tr><td colspan="7" class="text-danger text-sm" style="padding:1rem">Error: ${e.message}</td></tr>`; }
+}
+
+// ═══════════════════════════════════════════════════════════
+// BACKGROUND CHECKS
+// ═══════════════════════════════════════════════════════════
+// ─── REPLACE loadBgChecks ENTIRELY ───────────────────────────────────────
+async function loadBgChecks() {
+  const container = document.getElementById('bgc-container');
+  if (container) container.innerHTML = '<div class="loading"><span class="spinner"></span> Loading…</div>';
+
+  try {
+    const status = (document.getElementById('bgc-status') || {}).value || '';
+    const qs     = new URLSearchParams({ page: _bgcPage, limit: PAGE_SIZE });
+    if (status) qs.set('status', status);
+
+    const d    = await api('GET', `/api/admin/background-checks?${qs}`)
+                   .catch(() => api('GET', `/api/admin/users?bgcheck=true&${qs}`));
+    const list = d.checks || d.background_checks || d.users || [];
+
+    if (!list.length) {
+      if (container) container.innerHTML = '<div class="empty"><i class="fas fa-user-check"></i><p>No background check records found.</p></div>';
+      return;
+    }
+
+    const html = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1rem">
+      ${list.map(renderBgCheckCard).join('')}
+    </div>`;
+    if (container) container.innerHTML = html;
+    renderPager('bgc-pager', _bgcPage, Math.ceil((d.total || list.length) / PAGE_SIZE),
+      function(p) { _bgcPage = p; loadBgChecks(); });
+  } catch (e) {
+    if (container) container.innerHTML = `<div class="empty text-danger"><i class="fas fa-exclamation-triangle"></i><p>Error: ${e.message}</p></div>`;
+  }
+}
+
+// ─── ADD THIS NEW FUNCTION (place directly after loadBgChecks) ────────────
+function renderBgCheckCard(b) {
+  const uid      = b.user_id || b.dco_id || b.scout_id || b._id || '—';
+  const name     = b.user_name || b.name || '—';
+  const role     = (b.user_type || b.role || 'scout').toLowerCase();
+  const roleColor = role === 'dco' ? 'var(--warning)' : role === 'supervisor' ? 'var(--info)' : 'var(--success)';
+  const st       = b.status || 'pending';
+  const isPending = st === 'pending' || st === 'submitted';
+  const stBadge  = st === 'approved' || st === 'passed' ? 'active'
+                 : st === 'rejected' || st === 'failed'  ? 'danger'
+                 : 'warning';
+
+  const docDetails = [
+    b.document_type   ? `<div><div class="text-muted" style="font-size:.66rem;margin-bottom:.12rem">Document Type</div><div class="text-sm">${b.document_type}</div></div>` : '',
+    b.document_number ? `<div><div class="text-muted" style="font-size:.66rem;margin-bottom:.12rem">Doc Number</div><div class="mono text-sm">${b.document_number}</div></div>` : '',
+    b.bg_check_reject_reason || b.rejection_reason
+      ? `<div style="grid-column:1/-1"><div class="text-muted" style="font-size:.66rem;margin-bottom:.12rem">Rejection Reason</div><div class="text-danger text-sm">${b.bg_check_reject_reason || b.rejection_reason}</div></div>`
+      : '',
+  ].join('');
+
+  const actions = isPending
+    ? `<button class="btn btn-sm btn-success" onclick="bgcAction('${uid}','approve')"><i class="fas fa-check"></i> Approve</button>
+       <button class="btn btn-sm btn-danger"  onclick="bgcAction('${uid}','reject')"><i class="fas fa-times"></i> Reject</button>`
+    : `<span class="text-muted text-sm" style="padding:.35rem 0">Processed  �� ${st}</span>`;
+
+  return `
+    <div class="pmt-card" style="border-left:3px solid ${roleColor}">
+      <div class="pmt-card-hdr">
+        <div class="pmt-card-hdr-left">
+          <i class="fas fa-user-shield" style="color:${roleColor};font-size:.85rem"></i>
+          <span class="fw700 text-sm" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</span>
+        </div>
+        <div class="pmt-card-hdr-right">
+          <span class="badge" style="background:${roleColor}22;color:${roleColor};border:1px solid ${roleColor}55;font-size:.62rem;text-transform:capitalize">${role}</span>
+          <span class="badge badge-${stBadge}">${st.charAt(0).toUpperCase() + st.slice(1)}</span>
+        </div>
+      </div>
+      <div class="pmt-card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.45rem .75rem;font-size:.78rem">
+          <div style="grid-column:1/-1">
+            <div class="text-muted" style="font-size:.66rem;margin-bottom:.12rem">User ID</div>
+            <div class="mono fw700">${uid}</div>
+          </div>
+          <div>
+            <div class="text-muted" style="font-size:.66rem;margin-bottom:.12rem">Submitted</div>
+            <div>${fmtDt(b.submitted_at || b.bg_check_submitted_at || b.created_at)}</div>
+          </div>
+          <div>
+            <div class="text-muted" style="font-size:.66rem;margin-bottom:.12rem">Approved / Rejected</div>
+            <div>${fmtDt(b.bg_check_approved_at || b.bg_check_rejected_at || null) || '—'}</div>
+          </div>
+          ${docDetails}
+        </div>
+      </div>
+      <div class="pmt-card-ftr">${actions}</div>
+    </div>`;
+}
+
+async function bgcAction(uid, action){ try{ await api('POST',`/api/admin/background-checks/${uid}/${action}`,{}); toast('Background check '+action+'d','success'); loadBgChecks(); }catch(e){ toast('Error: '+e.message,'error'); } }
+
+// ═══════════════════════════════════════════════════════════
+// BANK DETAILS
+// ═══════════════════════════════════════════════════════════
+async function loadBankDetails(){
+  try{
+    const d=await api('GET','/api/admin/bank-details').catch(()=>api('GET','/api/admin/settings/bank'));
+    const bank=d.bank_details||d.bank||d;
+    const se=function(id){return document.getElementById(id);};
+    if(se('bank-name')) se('bank-name').value=bank.account_name||bank.bank_account_name||'';
+    if(se('bank-number')) se('bank-number').value=bank.account_number||bank.bank_account_number||'';
+    if(se('bank-bank')) se('bank-bank').value=bank.bank_name||'';
+    if(se('bank-sort')) se('bank-sort').value=bank.sort_code||bank.routing_number||'';
+    if(se('bank-swift')) se('bank-swift').value=bank.swift||bank.swift_code||'';
+    if(se('bank-reference')) se('bank-reference').value=bank.payment_reference||bank.reference||'';
+    if(se('bank-instructions')) se('bank-instructions').value=bank.instructions||bank.payment_instructions||'';
+  }catch(e){ toast('Failed to load bank details: '+e.message,'warn'); }
+}
+
+async function saveBankDetails(){
+  const gv=function(id){ const e=document.getElementById(id); return e?e.value.trim():''; };
+  const payload={ account_name:gv('bank-name'), account_number:gv('bank-number'), bank_name:gv('bank-bank'), sort_code:gv('bank-sort'), swift:gv('bank-swift'), payment_reference:gv('bank-reference'), instructions:gv('bank-instructions') };
+  try{ await api('POST','/api/admin/bank-details',payload).catch(()=>api('PATCH','/api/admin/settings/bank',payload)); toast('Bank details saved!','success'); }catch(e){ toast('Error: '+e.message,'error'); }
+}
+
+// ═══════════════════════════════════════════════════════════
+// PAGE TITLES
+// ═══════════════════════════════════════════════════════════
+const PAGE_TITLES={ overview:'Dashboard Overview', payments:'Payment Center', payouts:'Payout Requests', 'stats-requests':'Stats Requests', assignments:'Scout Assignments', 'bg-checks':'Background Checks', banks:'Bank Account Details' };
+const PAGE_SUBS={ overview:'Platform at a glance', payments:'Manage payment intents & receipts', payouts:'Approve or reject DCO payouts', 'stats-requests':'Manage and assign player & club scouting requests', assignments:'Scout availability and assignment records', 'bg-checks':'Scout & DCO verification', banks:'Platform bank account configuration' };
+
+// ═══════════════════════════════════════════════════════════
+// PREACT COMPONENTS
+// ═══════════════════════════════════════════════════════════
+function Sidebar({ currentPage, adminName, adminRole, badgePayments }) {
+  return h('div', { className: 'sidebar' },
+    h('div', { className: 'sidebar-logo' },
+      h('div', { className: 'logo-text' }, 'ENEJI', h('span', null, 'STATS'))
+    ),
+    h('nav', { className: 'sidebar-nav' },
+      h('div', { className: 'nav-section' }, 'Overview'),
+      h('div', { className: 'nav-item'+(currentPage==='overview'?' active':''), onClick: ()=>navigateTo('overview') }, h('i',{className:'fas fa-chart-pie'}), h('span',null,'Dashboard')),
+      h('div', { className: 'nav-section' }, 'Users'),
+      h('a', { className: 'nav-item', href: '/admin-dashboard?page=users' }, h('i',{className:'fas fa-users'}), h('span',null,'All Users')),
+      h('a', { className: 'nav-item', href: '/admin-dashboard?page=sub-admins' }, h('i',{className:'fas fa-user-shield'}), h('span',null,'Sub-Admins')),
+      h('div', { className: 'nav-section' }, 'Subscriptions'),
+      h('a', { className: 'nav-item', href: '/admin-dashboard?page=subscriptions' }, h('i',{className:'fas fa-credit-card'}), h('span',null,'Subscriptions')),
+      h('a', { className: 'nav-item', href: '/admin-dashboard?page=trials' }, h('i',{className:'fas fa-hourglass-half'}), h('span',null,'Trials')),
+      h('a', { className: 'nav-item', href: '/admin-dashboard?page=receipts' }, h('i',{className:'fas fa-receipt'}), h('span',null,'Payment Receipts')),
+      h('div', { className: 'nav-section' }, 'Finance'),
+      h('div', { className: 'nav-item'+(currentPage==='payments'?' active':''), onClick: ()=>navigateTo('payments') }, h('i',{className:'fas fa-credit-card'}), h('span',null,'Payment Center'), badgePayments?h('span',{className:'nav-badge',id:'badge-payments'},badgePayments):h('span',{className:'nav-badge',id:'badge-payments',style:'display:none'})),
+      h('a', { className: 'nav-item', href: '/admin-dashboard?page=tokens' }, h('i',{className:'fas fa-coins'}), h('span',null,'Tokens')),
+      h('div', { className: 'nav-section' }, 'Operations'),
+      h('div', { className: 'nav-item'+(currentPage==='payouts'?' active':''), onClick: ()=>navigateTo('payouts') }, h('i',{className:'fas fa-wallet'}), h('span',null,'Payouts')),
+      h('div', { className: 'nav-item'+(currentPage==='stats-requests'?' active':''), onClick: ()=>navigateTo('stats-requests') }, h('i',{className:'fas fa-chart-bar'}), h('span',null,'Stats Requests')),
+      h('div', { className: 'nav-item'+(currentPage==='assignments'?' active':''), onClick: ()=>navigateTo('assignments') }, h('i',{className:'fas fa-tasks'}), h('span',null,'Scout Assignments')),
+      h('div', { className: 'nav-item'+(currentPage==='bg-checks'?' active':''), onClick: ()=>navigateTo('bg-checks') }, h('i',{className:'fas fa-user-check'}), h('span',null,'Background Checks')),
+      h('a', { className: 'nav-item', href: '/admin-dashboard?page=dco-tier' }, h('i',{className:'fas fa-layer-group'}), h('span',null,'DCO Tiers')),
+      h('div', { className: 'nav-section' }, 'Communication'),
+      h('a', { className: 'nav-item', href: '/admin-dashboard?page=messages' }, h('i',{className:'fas fa-bullhorn'}), h('span',null,'Broadcasts')),
+      h('a', { className: 'nav-item', href: '/admin-dashboard?page=support' }, h('i',{className:'fas fa-headset'}), h('span',null,'Support Tickets')),
+      h('div', { className: 'nav-section' }, 'Platform'),
+      h('div', { className: 'nav-item'+(currentPage==='banks'?' active':''), onClick: ()=>navigateTo('banks') }, h('i',{className:'fas fa-university'}), h('span',null,'Bank Accounts')),
+      h('a', { className: 'nav-item', href: '/admin-dashboard?page=settings' }, h('i',{className:'fas fa-cog'}), h('span',null,'Settings'))
+    ),
+    h('div', { className: 'sidebar-footer' },
+      h('div', { className: 'admin-info' },
+        h('div', { className: 'admin-avatar' }, (adminName||'A').charAt(0).toUpperCase()),
+        h('div', null,
+          h('div', { className: 'admin-name', id: 'admin-name-display' }, adminName||'Admin'),
+          h('div', { className: 'admin-role' }, adminRole||'Super Admin')
+        ),
+        h('button', { className: 'logout-btn', onClick: handleLogout, title: 'Logout' }, h('i', { className: 'fas fa-sign-out-alt' }))
+      )
+    )
+  );
+}
+
+function Dashboard({ currentPage, adminName, adminRole, badgePayments }) {
+  return h('div', { style: 'display:flex;width:100%' },
+    h(Sidebar, { currentPage, adminName, adminRole, badgePayments }),
+    h('div', { className: 'main' },
+      h('div', { className: 'topbar' },
+        h('div', null,
+          h('div', { className: 'topbar-title' }, PAGE_TITLES[currentPage]||'Dashboard'),
+          h('div', { className: 'topbar-sub' }, PAGE_SUBS[currentPage]||'')
+        ),
+        h('div', { className: 'topbar-actions' },
+          h('button', { className: 'icon-btn', title: 'Notifications' }, h('i', { className: 'fas fa-bell' })),
+          h('button', { className: 'icon-btn', onClick: refreshCurrentPage, title: 'Refresh' }, h('i', { className: 'fas fa-sync-alt' }))
+        )
+      ),
+      h('div', { className: 'content' },
+        h(PageOverview, { active: currentPage==='overview' }),
+        h(PagePayments, { active: currentPage==='payments' }),
+        h(PagePayouts, { active: currentPage==='payouts' }),
+        h(PageStatsRequests, { active: currentPage==='stats-requests' }),
+        h(PageAssignments, { active: currentPage==='assignments' }),
+        h(PageBgChecks, { active: currentPage==='bg-checks' }),
+        h(PageBanks, { active: currentPage==='banks' })
+      )
+    ),
+    h(AllModals, null),
+    h('div', { id: 'lightbox', style: 'display:none', className: 'lightbox', onClick: closeLightbox },
+      h('span', { className: 'lightbox-close', onClick: closeLightbox }, '×'),
+      h('img', { id: 'lightbox-img', src: '', alt: 'Payment' })
+    )
+  );
+}
+
+// ── PAGE COMPONENTS ──
+function PageOverview({ active }) {
+  return h('div', { className: 'page'+(active?' active':''), id: 'page-overview' },
+    h('div', { className: 'stat-grid' },
+      h('div',{className:'stat-card s-gold'},h('div',{className:'stat-val',id:'ov-users'},'—'),h('div',{className:'stat-lbl'},h('i',{className:'fas fa-users'}),' Total Users')),
+      h('div',{className:'stat-card s-ok'},h('div',{className:'stat-val',id:'ov-active-subs'},'—'),h('div',{className:'stat-lbl'},h('i',{className:'fas fa-crown'}),' Active Subscriptions')),
+      h('div',{className:'stat-card s-warn'},h('div',{className:'stat-val',id:'ov-pending-receipts'},'—'),h('div',{className:'stat-lbl'},h('i',{className:'fas fa-receipt'}),' Pending Receipts')),
+      h('div',{className:'stat-card s-info'},h('div',{className:'stat-val',id:'ov-tokens'},'—'),h('div',{className:'stat-lbl'},h('i',{className:'fas fa-coins'}),' Tokens in Circulation')),
+      h('div',{className:'stat-card s-danger'},h('div',{className:'stat-val',id:'ov-payout'},'—'),h('div',{className:'stat-lbl'},h('i',{className:'fas fa-wallet'}),' Pending Payouts')),
+      h('div',{className:'stat-card'},h('div',{className:'stat-val',id:'ov-dco'},'—'),h('div',{className:'stat-lbl'},h('i',{className:'fas fa-user-tie'}),' Data Scouts')),
+      h('div',{className:'stat-card s-ok'},h('div',{className:'stat-val',id:'ov-stats-req'},'—'),h('div',{className:'stat-lbl'},h('i',{className:'fas fa-chart-bar'}),' Stats Requests')),
+      h('div',{className:'stat-card s-warn'},h('div',{className:'stat-val',id:'ov-support'},'—'),h('div',{className:'stat-lbl'},h('i',{className:'fas fa-headset'}),' Open Tickets'))
+    ),
+    h('div', { className: 'ops-grid' },
+      h('div',{className:'ops-card s-warn'},h('div',{className:'ops-val',id:'ov-ops-pending'},'—'),h('div',{className:'ops-lbl'},'Pending Requests'),h('div',{className:'ops-sub'},'Stats requests awaiting assignment')),
+      h('div',{className:'ops-card s-info'},h('div',{className:'ops-val',id:'ov-ops-scouts'},'—'),h('div',{className:'ops-lbl'},'Available Scouts'),h('div',{className:'ops-sub'},'DCOs / supervisors available')),
+      h('div',{className:'ops-card s-ok'},h('div',{className:'ops-val',id:'ov-ops-completed'},'—'),h('div',{className:'ops-lbl'},'Completed Today'),h('div',{className:'ops-sub'},'Stats requests completed')),
+      h('div',{className:'ops-card s-danger'},h('div',{className:'ops-val',id:'ov-ops-pending-users'},'—'),h('div',{className:'ops-lbl'},'Pending Approvals'),h('div',{className:'ops-sub'},'Scouts & players awaiting approval'))
+    ),
+    h('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:1.25rem' },
+      h('div',{className:'card'},h('div',{className:'card-title'},h('i',{className:'fas fa-wallet'}),' Pending Payouts'),h('div',{id:'ov-recent-payouts'},h('p',{className:'text-sm text-muted'},'Loading…'))),
+      h('div',{className:'card'},h('div',{className:'card-title'},h('i',{className:'fas fa-stream'}),' Recent Activities'),h('div',{id:'ov-activities-list'},h('p',{className:'text-sm text-muted'},'Loading…')))
+    )
+  );
+}
+
+function PagePayments({ active }) {
+  return h('div', { className: 'page'+(active?' active':''), id: 'page-payments' },
+    h('div', { className: 'stat-grid', style: 'grid-template-columns:repeat(5,1fr)' },
+      h('div',{className:'stat-card s-warn'},h('div',{className:'stat-val',id:'pmt-stat-pending'},'—'),h('div',{className:'stat-lbl'},'Pending')),
+      h('div',{className:'stat-card s-ok'},h('div',{className:'stat-val',id:'pmt-stat-approved'},'—'),h('div',{className:'stat-lbl'},'Approved')),
+      h('div',{className:'stat-card s-danger'},h('div',{className:'stat-val',id:'pmt-stat-rejected'},'—'),h('div',{className:'stat-lbl'},'Rejected')),
+      h('div',{className:'stat-card s-info'},h('div',{className:'stat-val',id:'pmt-stat-pnr'},'—'),h('div',{className:'stat-lbl'},'PNR')),
+      h('div',{className:'stat-card s-gold'},h('div',{className:'stat-val',id:'pmt-stat-value',style:'font-size:1.2rem'},'₦0'),h('div',{className:'stat-lbl'},'Approved Value'))
+    ),
+    h('div', { className: 'filter-row' },
+      h('div', { style: 'display:flex;align-items:center;gap:.5rem' },
+        h('label', { style: 'font-size:.72rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px' }, 'Month:'),
+        h('select', { className: 'pmt-month-sel', id: 'pmt-month-filter', onChange: loadPayments },
+          h('option',{value:''},'All Time'),
+          ...(()=>{ const opts=[]; const now=new Date(); for(let i=0;i<12;i++){ const d=new Date(now.getFullYear(),now.getMonth()-i,1); const val=d.toISOString().slice(0,7); const lbl=d.toLocaleDateString('en-GB',{month:'long',year:'numeric'}); opts.push(h('option',{value:val},lbl)); } return opts; })()
+        )
+      ),
+      h('button',{className:'filter-tab active',onClick:function(e){_pmtTypeFilter='all';document.querySelectorAll('#page-payments .filter-tab').forEach(b=>b.classList.remove('active'));e.target.classList.add('active');renderPaymentCards();}},'All'),
+      h('button',{className:'filter-tab',onClick:function(e){_pmtTypeFilter='awaiting';document.querySelectorAll('#page-payments .filter-tab').forEach(b=>b.classList.remove('active'));e.target.classList.add('active');_pmtPage=1;renderPaymentCards();}},'Awaiting'),
+      h('button',{className:'filter-tab',onClick:function(e){_pmtTypeFilter='pnr';document.querySelectorAll('#page-payments .filter-tab').forEach(b=>b.classList.remove('active'));e.target.classList.add('active');_pmtPage=1;renderPaymentCards();}},'PNR'),
+      h('button',{className:'filter-tab',onClick:function(e){_pmtTypeFilter='token';document.querySelectorAll('#page-payments .filter-tab').forEach(b=>b.classList.remove('active'));e.target.classList.add('active');_pmtPage=1;renderPaymentCards();}},'Token'),
+      h('button',{className:'filter-tab',onClick:function(e){_pmtTypeFilter='sub';document.querySelectorAll('#page-payments .filter-tab').forEach(b=>b.classList.remove('active'));e.target.classList.add('active');_pmtPage=1;renderPaymentCards();}},'Subscription'),
+      h('div',{style:'margin-left:auto;display:flex;gap:.5rem'},
+        _pmtHidden.size?h('button',{className:'btn btn-ghost btn-sm',onClick:()=>{_pmtHidden.clear();renderPaymentCards();}},h('i',{className:'fas fa-eye'}),' Show Hidden (',_pmtHidden.size,')'):null,
+        h('button',{className:'btn btn-ghost btn-sm',onClick:loadPayments},h('i',{className:'fas fa-sync-alt'}),' Refresh')
+      )
+    ),
+    h('div',{id:'pmt-cards-container'},h('div',{className:'loading'},h('span',{className:'spinner'}),' Loading payments…')),
+    h('div',{className:'pager',id:'pmt-pager'})
+  );
+}
+
+// ─── REPLACE PagePayouts ENTIRELY ────────────────────────────────────────
+function PagePayouts({ active }) {
+  return h('div', { className: 'page' + (active ? ' active' : ''), id: 'page-payouts' },
+    h('div', { className: 'filter-row' },
+      h('button', { className: 'filter-tab active', onClick: function(e) { setPayoutFilter(e.target, ''); } }, 'All'),
+      h('button', { className: 'filter-tab', onClick: function(e) { setPayoutFilter(e.target, 'pending'); } }, 'Pending'),
+      h('button', { className: 'filter-tab', onClick: function(e) { setPayoutFilter(e.target, 'approved'); } }, 'Approved'),
+      h('button', { className: 'filter-tab', onClick: function(e) { setPayoutFilter(e.target, 'rejected'); } }, 'Rejected'),
+      h('button', { className: 'btn btn-ghost btn-sm', style: 'margin-left:auto', onClick: loadPayouts },
+        h('i', { className: 'fas fa-sync-alt' }))
+    ),
+    h('div', { className: 'card' },
+      h('div', { className: 'card-title' },
+        h('i', { className: 'fas fa-wallet' }), ' Payout Requests',
+        h('span', { className: 'badge badge-info', style: 'margin-left:.5rem;font-size:.65rem' }, 'DCO & Supervisor only')
+      ),
+      h('div', { id: 'payouts-container' },
+        h('div', { className: 'loading' }, h('span', { className: 'spinner' }), ' Loading…')
+      ),
+      h('div', { className: 'pager', id: 'payouts-pager' })
+    )
+  );
+}
+  
+// ── Stats Requests Page ──
+function PageStatsRequests({ active }) {
+  return h('div', { className: 'page'+(active?' active':''), id: 'page-stats-requests' },
+    // Status filter tabs
+    h('div',{className:'filter-row'},
+      h('button',{className:'filter-tab active',onClick:function(e){setStatsTab(e.target,'pending');}},h('i',{className:'fas fa-clock',style:'margin-right:4px'}),'Pending'),
+      h('button',{className:'filter-tab',onClick:function(e){setStatsTab(e.target,'assigned');}},h('i',{className:'fas fa-user-check',style:'margin-right:4px'}),'Assigned'),
+      h('button',{className:'filter-tab',onClick:function(e){setStatsTab(e.target,'completed');}},h('i',{className:'fas fa-check-circle',style:'margin-right:4px'}),'Completed'),
+      h('button',{className:'filter-tab',onClick:function(e){setStatsTab(e.target,'rejected');}},h('i',{className:'fas fa-times-circle',style:'margin-right:4px'}),'Rejected'),
+      h('button',{className:'filter-tab',onClick:function(e){setStatsTab(e.target,'all');}},h('i',{className:'fas fa-list',style:'margin-right:4px'}),'All'),
+      h('button',{className:'btn btn-ghost btn-sm',style:'margin-left:auto',onClick:loadStatsRequests},h('i',{className:'fas fa-sync-alt'}))
+    ),
+    // Advanced filter row
+    h('div',{className:'sreq-filter-row'},
+      h('input',{
+        className:'search-input',id:'sreq-search',
+        placeholder:'Search player, club, ref ID, team, state…',
+        style:'min-width:200px;flex:1',
+        onInput:()=>debounce(applyStatsFilters,350)()
+      }),
+      h(StatsLocationFilters, null),
+      h('input',{className:'search-input',id:'sreq-date-from',type:'date',title:'Match date from',style:'min-width:140px',onChange:applyStatsFilters}),
+      h('input',{className:'search-input',id:'sreq-date-to',type:'date',title:'Match date to',style:'min-width:140px',onChange:applyStatsFilters}),
+      h('button',{className:'btn btn-ghost btn-sm',onClick:clearStatsFilters},h('i',{className:'fas fa-times'}),' Clear')
+    ),
+    // Cards container
+    h('div',{id:'sreqs-container'},h('div',{className:'loading'},'Loading…'))
+  );
+}
+
+// ── Scout Assignments Page ──
+function PageAssignments({ active }) {
+  return h('div', { className: 'page'+(active?' active':''), id: 'page-assignments' },
+    h('div',{style:'display:grid;grid-template-columns:1fr 300px;gap:1.25rem;align-items:start'},
+
+      // Left: Current Assignments table (full spec columns)
+      h('div',{className:'card'},
+        h('div',{style:'display:flex;align-items:center;justify-content:space-between;margin-bottom:.85rem'},
+          h('div',{className:'card-title',style:'margin-bottom:0'},
+            h('i',{className:'fas fa-tasks'}),
+            ' Current Assignments'
+          ),
+          h('button',{className:'btn btn-ghost btn-sm',onClick:loadAssignments},h('i',{className:'fas fa-sync-alt'}))
+        ),
+        h('div',{className:'tbl-wrap'},
+          h('table',null,
+            h('thead',null,
+              h('tr',null,
+                h('th',null,'Scout'),
+                h('th',null,'Request ID'),
+                h('th',null,'Player / Club'),
+                h('th',null,'Venue'),
+                h('th',null,'Match Date'),
+                h('th',null,'Status'),
+                h('th',null,'Actions')
+              )
+            ),
+            h('tbody',{id:'assignments-tbody'},
+              h('tr',null,h('td',{colSpan:7,className:'loading'},'Loading…'))
+            )
+          )
+        ),
+        h('div',{className:'pager',id:'assignments-pager'})
+      ),
+
+      // Right: Available Scouts panel
+      h('div',{className:'card'},
+        h('div',{style:'display:flex;align-items:center;justify-content:space-between;margin-bottom:.85rem'},
+          h('div',{className:'card-title',style:'margin-bottom:0'},
+            h('i',{className:'fas fa-user-tie'}),
+            ' Available Scouts'
+          ),
+          h('button',{className:'btn btn-ghost btn-sm',onClick:loadAvailableScouts},h('i',{className:'fas fa-sync-alt'}))
+        ),
+        h('div',{id:'avail-scouts-list'},h('div',{className:'loading'},'Loading…'))
+      )
+    )
+  );
+}
+
+// ─── REPLACE PageBgChecks ENTIRELY ───────────────────────────────────────
+function PageBgChecks({ active }) {
+  return h('div', { className: 'page' + (active ? ' active' : ''), id: 'page-bg-checks' },
+    h('div', { className: 'filter-row' },
+      h('select', { className: 'search-input', id: 'bgc-status', onChange: () => { _bgcPage = 1; loadBgChecks(); } },
+        h('option', { value: '' }, 'All Status'),
+        h('option', { value: 'pending' }, 'Pending'),
+        h('option', { value: 'submitted' }, 'Submitted'),
+        h('option', { value: 'approved' }, 'Approved'),
+        h('option', { value: 'rejected' }, 'Rejected')
+      ),
+      h('button', { className: 'btn btn-ghost btn-sm', onClick: loadBgChecks },
+        h('i', { className: 'fas fa-sync-alt' }))
+    ),
+    h('div', { className: 'card' },
+      h('div', { className: 'card-title' }, h('i', { className: 'fas fa-user-check' }), ' Background Checks'),
+      h('div', { id: 'bgc-container' },
+        h('div', { className: 'loading' }, h('span', { className: 'spinner' }), ' Loading…')
+      ),
+      h('div', { className: 'pager', id: 'bgc-pager' })
+    )
+  );
+}
+
+function PageBanks({ active }) {
+  return h('div', { className: 'page'+(active?' active':''), id: 'page-banks' },
+    h('div',{style:'max-width:640px'},
+      h('div',{className:'card'},
+        h('div',{className:'card-title'},h('i',{className:'fas fa-university'}),' Platform Bank Account'),
+        h('div',{className:'form-grid'},
+          h('div',{className:'form-group'},h('label',{className:'form-label'},'Account Name'),h('input',{className:'form-control',id:'bank-name',placeholder:'EnejiStats Ltd'})),
+          h('div',{className:'form-group'},h('label',{className:'form-label'},'Account Number'),h('input',{className:'form-control',id:'bank-number',placeholder:'0123456789'})),
+          h('div',{className:'form-group'},h('label',{className:'form-label'},'Bank Name'),h('input',{className:'form-control',id:'bank-bank',placeholder:'e.g. Access Bank'})),
+          h('div',{className:'form-group'},h('label',{className:'form-label'},'Sort Code / Routing'),h('input',{className:'form-control',id:'bank-sort',placeholder:'Optional'})),
+          h('div',{className:'form-group'},h('label',{className:'form-label'},'SWIFT Code'),h('input',{className:'form-control',id:'bank-swift',placeholder:'Optional'})),
+          h('div',{className:'form-group'},h('label',{className:'form-label'},'Payment Reference'),h('input',{className:'form-control',id:'bank-reference',placeholder:'e.g. ENEJI-{UserID}'}))
+        ),
+        h('div',{className:'form-group'},h('label',{className:'form-label'},'Payment Instructions'),h('textarea',{className:'form-control',id:'bank-instructions',rows:'4',placeholder:'Instructions shown to users when making payments…'})),
+        h('div',{className:'gap-sm'},
+          h('button',{className:'btn btn-success',onClick:saveBankDetails},h('i',{className:'fas fa-save'}),' Save Bank Details'),
+          h('button',{className:'btn btn-ghost',onClick:loadBankDetails},h('i',{className:'fas fa-sync-alt'}),' Reload')
+        )
+      )
+    )
+  );
+}
+
+// ── MODALS ──
+function AllModals() {
+  return h('div', null,
+
+    // Payout action modal
+    h('div',{className:'modal-overlay',id:'payout-action-modal',onClick:function(e){if(e.target===this)closeModal('payout-action-modal');}},
+      h('div',{className:'modal-box'},
+        h('div',{className:'modal-header'},h('div',{className:'modal-title',id:'pam-title'},'Payout Action'),h('button',{className:'modal-close',onClick:()=>closeModal('payout-action-modal')},'×')),
+        h('p',{className:'text-sm text-muted',id:'pam-desc',style:'margin-bottom:1rem'},''),
+        h('div',{className:'form-group'},h('label',{className:'form-label',id:'pam-label'},'Reference'),h('input',{className:'form-control',id:'pam-input',placeholder:'Optional'})),
+        h('div',{className:'gap-sm'},h('button',{className:'btn btn-success',id:'pam-confirm-btn',onClick:executePayout},'Confirm'),h('button',{className:'btn btn-ghost',onClick:()=>closeModal('payout-action-modal')},'Cancel'))
+      )
+    ),
+
+    // Assign scout modal
+    h('div',{className:'modal-overlay',id:'assign-modal',onClick:function(e){if(e.target===this)closeModal('assign-modal');}},
+      h('div',{className:'modal-box',style:'max-width:640px'},
+        h('div',{className:'modal-header'},
+          h('div',{className:'modal-title'},h('i',{className:'fas fa-user-plus',style:'color:var(--gold);margin-right:.4rem'}),'Assign DCO'),
+          h('button',{className:'modal-close',onClick:()=>closeModal('assign-modal')},'×')
+        ),
+        h('input',{type:'hidden',id:'assign-rid'}),
+        h('input',{type:'hidden',id:'assign-venue-state'}),
+        h('div',{className:'modal-section-label'},'Select DCO (Data Collection Officer)'),
+        h('div',{id:'assign-dco-grid-loading',style:'display:none'},h('div',{className:'loading'},'Loading DCOs…')),
+        h('div',{id:'assign-dco-grid-wrap',style:'max-height:220px;overflow-y:auto'}),
+
+        h('div',{className:'modal-section-label',style:'margin-top:.75rem'},'Select Supervisor (optional — will monitor this DCO)'),
+        h('div',{id:'assign-supervisor-grid-loading',style:'display:none'},h('div',{className:'loading'},'Loading supervisors…')),
+        h('div',{id:'assign-supervisor-grid-wrap',style:'max-height:180px;overflow-y:auto'}),
+
+        h('input',{type:'hidden',id:'assign-id'}),
+        h('div',{className:'form-group'},
+          h('label',{className:'form-label'},'Assignment Notes (optional)'),
+          h('textarea',{className:'form-control',id:'assign-notes',rows:'2',placeholder:'Special instructions for the scout…'})
+        ),
+        h('div',{className:'gap-sm'},
+          h('button',{className:'btn btn-primary',onClick:doAssign},h('i',{className:'fas fa-check'}),' Assign DCO'),
+          h('button',{className:'btn btn-ghost',onClick:()=>closeModal('assign-modal')},'Cancel')
+        )
+      )
+    ),
+
+    // Reject request modal
+    h('div',{className:'modal-overlay',id:'sreq-reject-modal',onClick:function(e){if(e.target===this)closeModal('sreq-reject-modal');}},
+      h('div',{className:'modal-box'},
+        h('div',{className:'modal-header'},
+          h('div',{className:'modal-title'},h('i',{className:'fas fa-times-circle',style:'color:var(--danger);margin-right:.4rem'}),'Reject Request'),
+          h('button',{className:'modal-close',onClick:()=>closeModal('sreq-reject-modal')},'×')
+        ),
+        h('input',{type:'hidden',id:'sreq-reject-rid'}),
+        h('div',{className:'form-group'},
+          h('label',{className:'form-label'},'Reason for Rejection'),
+          h('textarea',{className:'form-control',id:'sreq-reject-reason',rows:'3',placeholder:'Enter reason for rejecting this request…'})
+        ),
+        h('div',{className:'gap-sm'},
+          h('button',{className:'btn btn-danger',onClick:executeRejectRequest},h('i',{className:'fas fa-times'}),' Reject Request'),
+          h('button',{className:'btn btn-ghost',onClick:()=>closeModal('sreq-reject-modal')},'Cancel')
+        )
+      )
+    ),
+
+    // Payment action modal
+    h('div',{className:'modal-overlay',id:'pmt-action-modal',onClick:function(e){if(e.target===this)closeModal('pmt-action-modal');}},
+      h('div',{className:'modal-box'},
+        h('div',{className:'modal-header'},h('div',{className:'modal-title',id:'pmt-am-title'},'Confirm'),h('button',{className:'modal-close',onClick:()=>closeModal('pmt-action-modal')},'×')),
+        h('p',{className:'text-sm text-muted',id:'pmt-am-body',style:'margin-bottom:1rem'},''),
+        h('div',{className:'form-group',id:'pmt-am-reason-wrap',style:'display:none'},h('label',{className:'form-label'},'Reason (optional)'),h('input',{className:'form-control',id:'pmt-am-reason',placeholder:'Optional reason…'})),
+        h('div',{className:'gap-sm'},h('button',{className:'btn btn-success',id:'pmt-am-btn',onClick:executePmtAction},'Confirm'),h('button',{className:'btn btn-ghost',onClick:()=>closeModal('pmt-action-modal')},'Cancel'))
+      )
+    ),
+
+    // ── Request Details Modal ──
+    h('div',{className:'modal-overlay',id:'sreq-details-modal',onClick:function(e){if(e.target===this)closeModal('sreq-details-modal');}},
+      h('div',{className:'modal-box',style:'max-width:640px;max-height:85vh;overflow-y:auto'},
+        h('div',{className:'modal-header'},
+          h('div',{className:'modal-title'},h('i',{className:'fas fa-file-alt',style:'color:var(--gold);margin-right:.4rem'}),'Request Details'),
+          h('button',{className:'modal-close',onClick:()=>closeModal('sreq-details-modal')},'×')
+        ),
+        h('div',{id:'sreq-details-modal-body'},
+          h('p',{className:'text-sm text-muted'},'Loading…')
+        )
+      )
+    )
+  );
+}
+
+// ── ROOT APP ──
+// Read optional ?page=X from URL so cross-file deep-links land on the right tab
+var _VALID_PAGES_D2 = ['overview','payments','payouts','stats-requests','assignments','bg-checks','banks'];
+var _urlPageD2 = new URLSearchParams(window.location.search).get('page')||'banks';
+var _initPage = _VALID_PAGES_D2.indexOf(_urlPageD2)>=0 ? _urlPageD2 : 'overview';
+
+function App() {
+  const [authed, setAuthed] = useState(false);
+  const [currentPage, setCurrentPage] = useState(_initPage);
+  const [adminName, setAdminName] = useState('Admin');
+  const [adminRole, setAdminRole] = useState('');
+  const [badgePayments, setBadgePayments] = useState(0);
+
+  useEffect(() => {
+    _setAuthed = setAuthed;
+    _setCurrentPage = setCurrentPage;
+    _setAdminName = setAdminName;
+    _setAdminRole = setAdminRole;
+    _setBadgePayments = setBadgePayments;
+    _setBadgeReceipts = function(){};
+    const saved = sessionStorage.getItem('adm_token');
+    if (saved) {
+      _token = saved; _authed = true;
+      setAuthed(true);
+      loadAdminProfile();
+      setTimeout(() => { navigateTo(_initPage); }, 50);
+    } else {
+      fetch('/api/admin/me', {credentials: 'include'}).then(function(res) {
+        if (!res.ok) throw new Error('not authed');
+        return res.json();
+      }).then(function(d) {
+        _authed = true; setAuthed(true);
+        var name = d.name || d.admin_name || d.email || 'Admin';
+        var role = d.role || d.type || 'admin';
+        _adminName = name; _adminRole = role;
+        _setAdminName(name); _setAdminRole(role);
+        setTimeout(function() { navigateTo(_initPage); }, 50);
+      }).catch(function() {});
+    }
+  }, []);
+  return h(Dashboard, { currentPage, adminName, adminRole, badgePayments });
+}
+
+render(h(App, null), document.getElementById('app-root'));
+</script>
+<script>window.__ENEJISTATS_TAB__={"file":"bank-accounts.html","page":"banks","label":"Bank Accounts","dashboard":2};</script>
+</body>
+</html>
