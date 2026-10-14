@@ -629,20 +629,29 @@ return null;
 }
 function isClubAssignmentRecord(source = {}) {
 const a = source && typeof source === 'object' ? source : {};
-const request = a.stats_request || a.statsRequest || a.request || a.stats_request_data || {};
-const explicit = String(a.entityType || a.entity_type || a.requestType || a.request_type || a.assignmentType || a.assignment_type || a.trackingType || a.tracking_type || a.scope || request.entityType || request.entity_type || request.requestType || request.request_type || request.assignmentType || request.assignment_type || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
- if (['club', 'team', 'club_match', 'club_stats', 'club_statistics', 'club_tracking', 'club_assignment', 'team_match', 'team_tracking', 'team_assignment'].includes(explicit)) return true;
-if (explicit === 'player') return false;
-const tracking = String(a.tracking_type || a.trackingType || a.tracking || request.tracking_type || request.trackingType || '').trim().toLowerCase();
-const club = a.club && typeof a.club === 'object' ? a.club : {};
-const hasClub = !!(a.club_id || a.clubId || a.club_name || a.clubName || a.club || a.club_role || a.clubRole || a.jersey_color || a.jerseyColor || request.club_id || request.clubId || request.club_name || request.clubName || club.id || club.name);
-const player = a.player || request.player || {};
-const hasPlayer = !!(a.player_id || a.playerId || a.player_name || a.playerName || player.id || player._id || player.name || player.full_name);
-return hasClub && !hasPlayer || tracking.indexOf('club') === 0;
+const nested = [a.stats_request, a.statsRequest, a.request, a.stats_request_data, a.statsRequestData, a.match_request, a.matchRequest, a.assignment, a.details].filter(v => v && typeof v === 'object');
+const explicitValues = [
+a.entityType,a.entity_type,a.requestType,a.request_type,a.assignmentType,a.assignment_type,
+a.trackingType,a.tracking_type,a.trackingEntity,a.tracking_entity,a.assignmentKind,a.assignment_kind,
+a.assignmentCategory,a.assignment_category,a.scope,a.target_type,a.targetType,
+...nested.flatMap(r => [r.entityType,r.entity_type,r.requestType,r.request_type,r.assignmentType,r.assignment_type,
+r.trackingType,r.tracking_type,r.trackingEntity,r.tracking_entity,r.assignmentKind,r.assignment_kind,
+r.assignmentCategory,r.assignment_category,r.scope,r.target_type,r.targetType,r.type, r.request_for, r.requestFor])
+].map(v => String(v ?? '').trim().toLowerCase().replace(/[\\s-]+/g,'_')).filter(Boolean);
+if (explicitValues.some(v => ['club','team','club_match','team_match','club_stats','club_statistics','club_tracking','club_assignment','team_tracking','team_assignment','club_stats_request','club_match_stats','team_stats_request'].includes(v))) return true;
+if (explicitValues.some(v => v === 'player' || v === 'player_stats' || v === 'player_assignment')) return false;
+const tracking = explicitValues.join(' ');
+if (/club|team/.test(tracking) && /(stat|track|match|assign|request)/.test(tracking)) return true;
+const has = values => values.some(v => v !== undefined && v !== null && String(typeof v === 'object' ? (v.name || v.club_name || v.clubName || v.id || v._id || '') : v).trim() !== '');
+const clubObjects = [a.club, a.team, ...nested.flatMap(r => [r.club,r.team])];
+const playerObjects = [a.player, ...nested.map(r => r.player)];
+const hasClub = has([a.club_id,a.clubId,a.club_name,a.clubName,a.team_id,a.teamId,a.team_name,a.teamName,a.club_role,a.clubRole,a.jersey_color,a.jerseyColor,...nested.flatMap(r => [r.club_id,r.clubId,r.club_name,r.clubName,r.team_id,r.teamId,r.team_name,r.teamName]),...clubObjects]);
+const hasPlayer = has([a.player_id,a.playerId,a.player_name,a.playerName,...nested.flatMap(r => [r.player_id,r.playerId,r.player_name,r.playerName]),...playerObjects]);
+return hasClub && !hasPlayer;
 }
 function normalizeDCOAssignment(source = {}) {
 const raw = source && typeof source === 'object' ? source : {};
-const request = raw.stats_request || raw.statsRequest || raw.request || raw.stats_request_data || {};
+const request = raw.stats_request || raw.statsRequest || raw.request || raw.stats_request_data || raw.statsRequestData || raw.match_request || raw.matchRequest || {};
 const match = raw.match || raw.fixture || request.match || request.fixture || {};
 const player = raw.player || request.player || {};
 const club = raw.club || request.club || {};
@@ -653,7 +662,10 @@ const playerId = String(raw.player_id ?? raw.playerId ?? player.id ?? player._id
 const playerName = raw.player_name || raw.playerName || player.name || player.full_name || player.fullName || request.player_name || request.playerName || '';
 const clubId = String(raw.club_id ?? raw.clubId ?? club.id ?? club._id ?? request.club_id ?? request.clubId ?? '').trim();
 const clubName = raw.club_name || raw.clubName || club.name || club.club_name || club.full_name || request.club_name || request.clubName || raw.club || '';
-const isClub = isClubAssignmentRecord({ ...merged, player_id: playerId, player_name: playerName, club_id: clubId, club_name: clubName });
+const requestTypeHint = String(request.entityType || request.entity_type || request.requestType || request.request_type || request.assignmentType || request.assignment_type || request.trackingType || request.tracking_type || request.request_for || request.requestFor || '').trim().toLowerCase();
+const isClub = ['club','team','club_stats','club_statistics','club_tracking','club_assignment','club_match','team_match','team_stats_request'].includes(requestTypeHint.replace(/[\\s-]+/g,'_'))
+  ? true
+  : isClubAssignmentRecord({ ...merged, stats_request: request, player_id: playerId, player_name: playerName, club_id: clubId, club_name: clubName });
 const id = String(raw.assignmentId ?? raw.assignment_id ?? raw.id ?? raw._id ?? request.assignment_id ?? request.assignmentId ?? request.id ?? '').trim();
 const requestId = String(raw.request_id ?? raw.requestId ?? request.request_id ?? request.requestId ?? '').trim();
 const statsRequestId = String(raw.stats_request_id ?? raw.statsRequestId ?? request.stats_request_id ?? request.statsRequestId ?? requestId).trim();
@@ -718,11 +730,23 @@ submittedAt: raw.submittedAt ?? raw.submitted_at ?? request.submittedAt ?? reque
 status, _assignment_entity: isClub ? 'club' : 'player' };
 }
 function normalizeDCOListResponse(value, keys = []) {
-if (Array.isArray(value)) return value;
-for (const key of keys) {
-if (Array.isArray(value?.[key])) return value[key];
+const listKeys = [...keys, 'items', 'records', 'results', 'data', 'payload'];
+const seen = new Set();
+function findList(node, depth = 0) {
+if (Array.isArray(node)) return node;
+if (!node || typeof node !== 'object' || depth > 4 || seen.has(node)) return null;
+seen.add(node);
+for (const key of listKeys) if (Array.isArray(node[key])) return node[key];
+for (const key of listKeys) {
+const nested = node[key];
+if (nested && typeof nested === 'object') {
+const found = findList(nested, depth + 1);
+if (found) return found;
 }
-return [];
+}
+return null;
+}
+return findList(value) || [];
 }
 function normalizeDCOSubmission(value) {
 const source = value && typeof value === 'object' ? value : {};
@@ -2402,8 +2426,8 @@ window.removeEventListener('storage', onStorage); channel?.close(); }
 setIsLoading(true); try {
 const [metricsResult, assignmentsResult, submissionsResult] = await Promise.allSettled([ apiFetch(API.metrics),
 apiFetch(API.assignments), apiFetch(API.submissions) ]); const shared = readDCOSharedState(); const local = readDCOLocalFallback(); const metricsResponse = metricsResult.status === 'fulfilled' ? (metricsResult.value || {}) : {}; const metricsData = metricsResponse.metrics && typeof metricsResponse.metrics === 'object' ? metricsResponse.metrics : metricsResponse; const assignmentsData = assignmentsResult.status === 'fulfilled' ? assignmentsResult.value : null; const submissionsData = submissionsResult.status === 'fulfilled' ? submissionsResult.value : null; const assignmentsFailed = assignmentsResult.status === 'rejected'; const submissionsFailed = submissionsResult.status === 'rejected'; const assignmentList = normalizeDCOListResponse(assignmentsData,
-['assignments', 'results', 'data']); const fallbackAssignments = normalizeDCOListResponse( local?.assignments || shared.assignments,
-['assignments', 'results', 'data'] ); const records = normalizeDCOListResponse(submissionsData, ['submissions',
+['assignments', 'club_assignments', 'clubAssignments', 'player_assignments', 'playerAssignments', 'stats_requests', 'statsRequests', 'requests', 'results', 'data']); const fallbackAssignments = normalizeDCOListResponse( local?.assignments || shared.assignments,
+['assignments', 'club_assignments', 'clubAssignments', 'player_assignments', 'playerAssignments', 'stats_requests', 'statsRequests', 'requests', 'results', 'data'] ); const records = normalizeDCOListResponse(submissionsData, ['submissions',
 'results', 'data']) .map(normalizeDCOSubmission); const fallbackRecords = normalizeDCOListResponse( local?.stats || shared.stats,
 ['submissions', 'results', 'data'] ).map(normalizeDCOSubmission); const nextAssignments = (assignmentsFailed ? fallbackAssignments : assignmentList) .map(normalizeDCOAssignment) .filter(item => item && typeof item === 'object'); const nextRecords = submissionsFailed ? fallbackRecords : records; const hasLiveData = metricsResult.status === 'fulfilled' || assignmentsResult.status === 'fulfilled' || submissionsResult.status === 'fulfilled'; if (!hasLiveData && !nextAssignments.length && !nextRecords.length) {
 throw metricsResult.reason || assignmentsResult.reason || submissionsResult.reason || new Error('No DCO data source available'); }
@@ -2414,7 +2438,7 @@ stats_total: Number(metricsData.stats_total ?? local?.metrics?.stats_total ?? sh
 stats: records }); }
 catch (error) {
 console.error('Error loading DCO data:', error); const fallback = readDCOLocalFallback() || readDCOSharedState(); const fallbackAssignments = normalizeDCOListResponse(fallback?.assignments,
-['assignments', 'data']).map(normalizeDCOAssignment); const fallbackRecords = normalizeDCOListResponse(fallback?.stats,
+['assignments', 'club_assignments', 'clubAssignments', 'player_assignments', 'playerAssignments', 'stats_requests', 'statsRequests', 'requests', 'data']).map(normalizeDCOAssignment); const fallbackRecords = normalizeDCOListResponse(fallback?.stats,
 ['submissions', 'data']).map(normalizeDCOSubmission); if (fallbackAssignments.length || fallbackRecords.length) {
 setAssignedPlayers(fallbackAssignments); setSubmissionRecords(fallbackRecords.slice(-8).reverse()); setDataSource('offline'); showDCONotification('Live API unavailable — retained synchronized DCO data',
 'warning'); }
