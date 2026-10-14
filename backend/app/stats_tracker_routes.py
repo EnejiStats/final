@@ -64,6 +64,10 @@ stat_events_collection = None
 stat_drafts_collection = None
 stat_draft_players_collection = None
 stat_draft_events_collection = None
+stat_submission_clubs_collection = None
+stat_submission_club_events_collection = None
+stat_draft_clubs_collection = None
+stat_draft_club_events_collection = None
 
 get_current_user = None
 get_dco_user = None
@@ -81,6 +85,8 @@ def _setup_dependencies(main_globals: dict) -> None:
     global stat_submissions_collection, stat_submission_players_collection
     global stat_events_collection, stat_drafts_collection
     global stat_draft_players_collection, stat_draft_events_collection
+    global stat_submission_clubs_collection, stat_submission_club_events_collection
+    global stat_draft_clubs_collection, stat_draft_club_events_collection
     global get_current_user, get_dco_user, MongoSerializer, logger
     global calculate_performance_score
     if _READY:
@@ -112,6 +118,10 @@ def _setup_dependencies(main_globals: dict) -> None:
     stat_draft_events_collection = collection(
         "stat_draft_events", "stat_draft_events_collection"
     )
+    stat_submission_clubs_collection = collection("stat_submission_clubs", "stat_submission_clubs_collection")
+    stat_submission_club_events_collection = collection("stat_submission_club_events", "stat_submission_club_events_collection")
+    stat_draft_clubs_collection = collection("stat_draft_clubs", "stat_draft_clubs_collection")
+    stat_draft_club_events_collection = collection("stat_draft_club_events", "stat_draft_club_events_collection")
 
     get_current_user = main_globals["get_current_user"]
     get_dco_user = main_globals.get("get_dco_user", get_current_user)
@@ -3267,6 +3277,12 @@ async def save_widget_draft(id: str, request: Request, payload: DraftRequest):
     assignment_value = _payload_value(payload, "assignmentId", "assignment_id", default="")
     assignment_id = str(assignment_value or "").strip()
     raw_players = payload.players or []
+    raw_club_tracking = _payload_value(payload, "clubTracking", "club_tracking", default=None)
+    club_tracking = raw_club_tracking if isinstance(raw_club_tracking, dict) else None
+    club_events = club_tracking.get("events", []) if club_tracking else []
+    if not isinstance(club_events, list):
+        raise HTTPException(status_code=422, detail="clubTracking.events must be a list")
+    club_events = [dict(event) for event in club_events if isinstance(event, dict)]
 
     try:
         normalised_players = _normalise_widget_players(
@@ -3293,7 +3309,10 @@ async def save_widget_draft(id: str, request: Request, payload: DraftRequest):
         **key,
         "match": match,
         "player_count": len(normalised_players),
-        "event_count": sum(len(events) for _profile, events in normalised_players),
+        "event_count": sum(len(events) for _profile, events in normalised_players) + len(club_events),
+        "tracking_type": "club" if club_tracking is not None and not raw_players else "player",
+        "club_tracking": club_tracking,
+        "club_event_count": len(club_events),
         "assignment_ids": list(dict.fromkeys(
             [str(value).strip() for value in (_payload_value(payload, "assignmentIds", "assignment_ids", default=[]) or [])
              if value is not None and str(value).strip()]
@@ -3348,6 +3367,19 @@ async def save_widget_draft(id: str, request: Request, payload: DraftRequest):
             await stat_draft_players_collection.insert_many(player_rows, **opts)
         if event_rows:
             await stat_draft_events_collection.insert_many(event_rows, **opts)
+        await stat_draft_clubs_collection.delete_many({"draft_id": draft_id_local}, **opts)
+        await stat_draft_club_events_collection.delete_many({"draft_id": draft_id_local}, **opts)
+        if club_tracking is not None:
+            team_rows = []
+            for side, team_name in (("home", match.get("home_team_name") or _payload_value(payload, "homeTeam", default="")), ("away", match.get("away_team_name") or _payload_value(payload, "awayTeam", default=""))):
+                team_stats = (club_tracking.get("stats") or {}).get(side, {})
+                derived_stats = (club_tracking.get("derived") or {}).get(side, {})
+                team_rows.append({"_id": ObjectId(), "draft_id": draft_id_local, "side": side, "club_name": str(team_name or ""), "stats": team_stats if isinstance(team_stats, dict) else {}, "derived": derived_stats if isinstance(derived_stats, dict) else {}, "possession": (club_tracking.get("possession") or {}).get(side)})
+            if team_rows:
+                await stat_draft_clubs_collection.insert_many(team_rows, **opts)
+            club_event_rows = [{"_id": ObjectId(), "draft_id": draft_id_local, "event_order": order, **event} for order, event in enumerate(club_events)]
+            if club_event_rows:
+                await stat_draft_club_events_collection.insert_many(club_event_rows, **opts)
         return draft_id_local
 
     saved_draft_id = await _run_atomic(persist)
@@ -3410,6 +3442,14 @@ async def submit_widget_stats(id: str, request: Request, payload: WidgetSubmitRe
             or "individual"
         ).strip().lower()
         raw_players = payload.players
+        raw_club_tracking = _payload_value(payload, "clubTracking", "club_tracking", default=None)
+        club_tracking = raw_club_tracking if isinstance(raw_club_tracking, dict) else None
+        club_events = club_tracking.get("events", []) if club_tracking else []
+        if not isinstance(club_events, list):
+            raise HTTPException(status_code=422, detail="clubTracking.events must be a list")
+        club_events = [dict(event) for event in club_events if isinstance(event, dict)]
+        if club_tracking is not None and not club_events and tracking_type != "reason":
+            raise HTTPException(status_code=422, detail="At least one club event is required")
         if raw_players is None:
             raw_players = [
                 {
@@ -3489,6 +3529,12 @@ async def submit_widget_stats(id: str, request: Request, payload: WidgetSubmitRe
             "venue_country": match_projection.get("venue_country") or "",
             "competition": match_projection.get("competition") or "",
             "players": [profile for profile, _events in normalised_players],
+            "tracking_type": "club" if club_tracking is not None and not normalised_players else tracking_type,
+            "club_tracking": club_tracking,
+            "club_event_count": len(club_events),
+            "club_stats": (club_tracking.get("stats") or {}) if club_tracking else {},
+            "club_derived_stats": (club_tracking.get("derived") or {}) if club_tracking else {},
+            "club_possession": (club_tracking.get("possession") or {}) if club_tracking else {},
             "stats": dict(first_profile.get("stats") or {}),
             "player_id": first_profile.get("player_id") or first_profile.get("playerId") or "",
             "player_name": first_profile.get("player_name") or first_profile.get("name") or "",
@@ -3501,7 +3547,7 @@ async def submit_widget_stats(id: str, request: Request, payload: WidgetSubmitRe
             "is_resubmit": bool(payload.isResubmit),
             "status": status,
             "player_count": len(normalised_players),
-            "event_count": sum(len(events) for _profile, events in normalised_players),
+            "event_count": sum(len(events) for _profile, events in normalised_players) + len(club_events),
             "performance_score": max(score_values, default=0.0),
             "submitted_at": now,
             "created_at": now,
@@ -3539,6 +3585,19 @@ async def submit_widget_stats(id: str, request: Request, payload: WidgetSubmitRe
                 await stat_submission_players_collection.insert_many(player_rows, **opts)
             if event_rows:
                 await stat_events_collection.insert_many(event_rows, **opts)
+            if club_tracking is not None:
+                club_rows = []
+                for side, team_name in (("home", match_projection.get("home_team_name") or match_projection.get("home_team") or ""), ("away", match_projection.get("away_team_name") or match_projection.get("away_team") or "")):
+                    team_stats = (club_tracking.get("stats") or {}).get(side, {})
+                    derived_stats = (club_tracking.get("derived") or {}).get(side, {})
+                    club_rows.append({"_id": ObjectId(), "submission_id": root_id, "dco_id": id, "assignment_id": assignment_id or None, "match_id": root.get("match_id"), "side": side, "club_name": str(team_name or ""), "stats": team_stats if isinstance(team_stats, dict) else {}, "derived": derived_stats if isinstance(derived_stats, dict) else {}, "possession": (club_tracking.get("possession") or {}).get(side), "created_at": now})
+                if club_rows:
+                    await stat_submission_clubs_collection.insert_many(club_rows, **opts)
+                club_event_rows = []
+                for event_order, event in enumerate(club_events):
+                    club_event_rows.append({"_id": ObjectId(), "submission_id": root_id, "dco_id": id, "assignment_id": assignment_id or None, "match_id": root.get("match_id"), "event_order": event_order, **event, "created_at": now})
+                if club_event_rows:
+                    await stat_submission_club_events_collection.insert_many(club_event_rows, **opts)
 
             if tracking_type != "reason":
                 await activity_history_collection.insert_one(
