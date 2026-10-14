@@ -437,6 +437,8 @@ to{opacity:1;transform:translate(-50%,0)}
  .asgn-select-control input { accent-color:var(--primary); width:14px; height:14px; cursor:pointer; }
  .selected-tracking-bar { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 10px; margin-bottom:10px; border:1px solid #b9d5ff; border-radius:7px; background:#f0f6ff; color:#24466f; font-size:.82rem; }
  .asgn-cards-stack { display:flex; flex-direction:column; gap:10px; }
+ .assignment-entity-tabs { overflow-x:auto; flex-wrap:nowrap!important; scrollbar-width:thin; -webkit-overflow-scrolling:touch; }
+ .assignment-entity-tabs .sub-tab-btn { flex:0 0 auto; }
  @media (max-width:520px) { .asgn-body { grid-template-columns:1fr; }
  .asgn-body > .asgn-sect:nth-child(odd) { border-right:none; border-bottom:1px solid #f0f2f5; }
  .asgn-vgrid { grid-template-columns:1fr 1fr; }
@@ -516,6 +518,8 @@ to{opacity:1;transform:translate(-50%,0)}
 .club-tracker-choice.away{border:2px solid #198754;color:#146c43}
  .club-tracker-choice.home:hover,.club-tracker-choice.home:focus{background:#0d6efd;color:#fff}
 .club-tracker-choice.away:hover,.club-tracker-choice.away:focus{background:#198754;color:#fff}
+.club-tracker-choice.active.home{background:#eaf2ff;box-shadow:inset 0 0 0 2px #0d6efd}
+.club-tracker-choice.active.away{background:#e9f7ef;box-shadow:inset 0 0 0 2px #198754}
  .club-tracker-selected{display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.7rem}
 .club-tracker-chip{font-size:.52rem;font-weight:800;padding:.24rem .38rem;border-radius:999px;background:#eef5ff;color:var(--primary)}
  .club-tracker-flow-actions{display:flex;justify-content:space-between;gap:.4rem;margin-top:.7rem}
@@ -621,12 +625,15 @@ return null;
 }
 function isClubAssignmentRecord(source = {}) {
 const a = source && typeof source === 'object' ? source : {};
-const explicit = String(a.entityType || a.entity_type || a.requestType || a.request_type || a.scope || '').trim().toLowerCase();
-if (explicit === 'club') return true;
+const request = a.stats_request || a.statsRequest || a.request || a.stats_request_data || {};
+const explicit = String(a.entityType || a.entity_type || a.requestType || a.request_type || a.assignmentType || a.assignment_type || a.trackingType || a.tracking_type || a.scope || request.entityType || request.entity_type || request.requestType || request.request_type || request.assignmentType || request.assignment_type || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+ if (['club', 'team', 'club_match', 'club_stats', 'club_statistics', 'club_tracking', 'club_assignment', 'team_match', 'team_tracking', 'team_assignment'].includes(explicit)) return true;
 if (explicit === 'player') return false;
-const tracking = String(a.tracking_type || a.trackingType || a.tracking || '').trim().toLowerCase();
-const hasClub = !!(a.club_id || a.clubId || a.club_name || a.clubName || a.club || a.club_role || a.clubRole || a.jersey_color || a.jerseyColor);
-const hasPlayer = !!(a.player_id || a.playerId || a.player_name || a.playerName || a.player?.id || a.player?._id || a.player?.name || a.player?.full_name);
+const tracking = String(a.tracking_type || a.trackingType || a.tracking || request.tracking_type || request.trackingType || '').trim().toLowerCase();
+const club = a.club && typeof a.club === 'object' ? a.club : {};
+const hasClub = !!(a.club_id || a.clubId || a.club_name || a.clubName || a.club || a.club_role || a.clubRole || a.jersey_color || a.jerseyColor || request.club_id || request.clubId || request.club_name || request.clubName || club.id || club.name);
+const player = a.player || request.player || {};
+const hasPlayer = !!(a.player_id || a.playerId || a.player_name || a.playerName || player.id || player._id || player.name || player.full_name);
 return hasClub && !hasPlayer || tracking.indexOf('club') === 0;
 }
 function normalizeDCOAssignment(source = {}) {
@@ -635,6 +642,8 @@ const request = raw.stats_request || raw.statsRequest || raw.request || raw.stat
 const match = raw.match || raw.fixture || request.match || request.fixture || {};
 const player = raw.player || request.player || {};
 const club = raw.club || request.club || {};
+const firstValue = (...values) => values.find(value => value !== undefined && value !== null && String(value).trim() !== '');
+const teamLabel = value => value && typeof value === 'object' ? (value.name || value.teamName || value.team_name || value.clubName || value.club_name || value.shortName || value.short_name || '') : value;
 const merged = { ...request, ...match, ...raw };
 const playerId = String(raw.player_id ?? raw.playerId ?? player.id ?? player._id ?? request.player_id ?? request.playerId ?? '').trim();
 const playerName = raw.player_name || raw.playerName || player.name || player.full_name || player.fullName || request.player_name || request.playerName || '';
@@ -670,17 +679,17 @@ tracking_type: raw.tracking_type ?? raw.trackingType ?? request.tracking_type ??
 trackingType: raw.trackingType ?? raw.tracking_type ?? request.trackingType ?? request.tracking_type ?? '',
 match_id: raw.match_id ?? raw.matchId ?? match.id ?? match.match_id ?? request.match_id ?? request.matchId ?? '',
 matchId: raw.matchId ?? raw.match_id ?? match.matchId ?? match.id ?? request.matchId ?? request.match_id ?? '',
-match_date: raw.match_date ?? raw.matchDate ?? match.date ?? match.match_date ?? request.match_date ?? request.matchDate ?? '',
-matchDate: raw.matchDate ?? raw.match_date ?? match.matchDate ?? match.date ?? request.matchDate ?? request.match_date ?? '',
-match_time: raw.match_time ?? raw.matchTime ?? match.time ?? match.match_time ?? request.match_time ?? request.matchTime ?? '',
-matchTime: raw.matchTime ?? raw.match_time ?? match.matchTime ?? match.time ?? request.matchTime ?? request.match_time ?? '',
+ match_date: firstValue(raw.match_date, raw.matchDate, raw.kickoff_date, raw.kickoffDate, match.match_date, match.matchDate, match.date, match.kickoff_date, match.kickoffDate, request.match_date, request.matchDate, request.date, ''),
+ matchDate: firstValue(raw.matchDate, raw.match_date, raw.kickoffDate, raw.kickoff_date, match.matchDate, match.match_date, match.date, match.kickoffDate, match.kickoff_date, request.matchDate, request.match_date, request.date, ''),
+ match_time: firstValue(raw.match_time, raw.matchTime, raw.kickoff_time, raw.kickoffTime, match.match_time, match.matchTime, match.time, match.kickoff_time, match.kickoffTime, request.match_time, request.matchTime, request.time, ''),
+ matchTime: firstValue(raw.matchTime, raw.match_time, raw.kickoffTime, raw.kickoff_time, match.matchTime, match.match_time, match.time, match.kickoffTime, match.kickoff_time, request.matchTime, request.match_time, request.time, ''),
 match_type: raw.match_type ?? raw.matchType ?? request.match_type ?? request.matchType ?? '', matchType: raw.matchType ?? raw.match_type ?? request.matchType ?? request.match_type ?? '',
 match_category: raw.match_category ?? raw.matchCategory ?? request.match_category ?? request.matchCategory ?? '',
 matchCategory: raw.matchCategory ?? raw.match_category ?? request.matchCategory ?? request.match_category ?? '',
-competition: raw.competition ?? match.competition ?? request.competition ?? '', home_team: raw.home_team ?? raw.homeTeam ?? match.home_team ?? match.homeTeam ?? match.home ?? request.home_team ?? request.homeTeam ?? '',
-homeTeam: raw.homeTeam ?? raw.home_team ?? match.homeTeam ?? match.home_team ?? match.home ?? request.homeTeam ?? request.home_team ?? '',
-away_team: raw.away_team ?? raw.awayTeam ?? match.away_team ?? match.awayTeam ?? match.away ?? request.away_team ?? request.awayTeam ?? '',
-awayTeam: raw.awayTeam ?? raw.away_team ?? match.awayTeam ?? match.away_team ?? match.away ?? request.awayTeam ?? request.away_team ?? '',
+ competition: raw.competition ?? match.competition ?? request.competition ?? '', home_team: teamLabel(firstValue(raw.home_team, raw.homeTeam, raw.home_club, raw.homeClub, raw.home_club_name, match.home_team, match.homeTeam, match.home, match.home_club, request.home_team, request.homeTeam, request.home_club, '')),
+ homeTeam: teamLabel(firstValue(raw.homeTeam, raw.home_team, raw.homeClub, raw.home_club, raw.home_club_name, match.homeTeam, match.home_team, match.home, match.home_club, request.homeTeam, request.home_team, request.home_club, '')),
+ away_team: teamLabel(firstValue(raw.away_team, raw.awayTeam, raw.away_club, raw.awayClub, raw.away_club_name, match.away_team, match.awayTeam, match.away, match.away_club, request.away_team, request.awayTeam, request.away_club, '')),
+ awayTeam: teamLabel(firstValue(raw.awayTeam, raw.away_team, raw.awayClub, raw.away_club, raw.away_club_name, match.awayTeam, match.away_team, match.away, match.away_club, request.awayTeam, request.away_team, request.away_club, '')),
 venue: raw.venue ?? raw.venue_stadium ?? match.venue ?? match.stadium ?? request.venue ?? request.stadium ?? '',
 venueStadium: raw.venueStadium ?? raw.venue_stadium ?? match.venueStadium ?? match.venue ?? match.stadium ?? request.venueStadium ?? request.venue ?? '',
 venue_address: raw.venue_address ?? raw.venueAddress ?? raw.stadiumAddress ?? match.venue_address ?? match.venueAddress ?? request.venue_address ?? request.venueAddress ?? '',
@@ -1266,17 +1275,32 @@ function getStatDotColor(stat) {
 const m = {goals:'#FFD700',assists:'#00CED1',shots:'#FF6B35',passes:'#4CAF50',dribbles:'#FF9800',crosses:'#9C27B0',
 tackles:'#F44336',duels:'#E91E63',interceptions:'#2196F3',clearances:'#607D8B',saves:'#00BCD4',cards:'#FFEB3B',
 fouls_committed:'#FF5722',default:'#FFFFFF'}; return m[stat]||m.default; }
+function normalizeTrackingAssignment(source = {}) {
+const a = source && typeof source === 'object' ? source : {};
+const request = a.stats_request || a.statsRequest || a.request || a.stats_request_data || {};
+const match = a.match || a.fixture || request.match || request.fixture || {};
+const teamLabel = value => value && typeof value === 'object' ? (value.name || value.teamName || value.team_name || value.clubName || value.club_name || value.shortName || value.short_name || '') : value;
+const first = (...values) => values.find(value => value !== undefined && value !== null && String(teamLabel(value)).trim() !== '');
+return {
+...a,
+ matchDate: first(a.matchDate, a.match_date, a.kickoffDate, a.kickoff_date, match.matchDate, match.match_date, match.date, match.kickoffDate, match.kickoff_date, request.matchDate, request.match_date, request.date),
+ matchTime: first(a.matchTime, a.match_time, a.kickoffTime, a.kickoff_time, match.matchTime, match.match_time, match.time, match.kickoffTime, match.kickoff_time, request.matchTime, request.match_time, request.time),
+ homeTeam: teamLabel(first(a.homeTeam, a.home_team, a.homeClub, a.home_club, a.homeClubName, a.home_club_name, a.homeTeamName, a.home_team_name, match.homeTeam, match.home_team, match.home, match.homeClub, match.home_club, request.homeTeam, request.home_team, request.home_club)),
+ awayTeam: teamLabel(first(a.awayTeam, a.away_team, a.awayClub, a.away_club, a.awayClubName, a.away_club_name, a.awayTeamName, a.away_team_name, match.awayTeam, match.away_team, match.away, match.awayClub, match.away_club, request.awayTeam, request.away_team, request.away_club))
+};
+}
 function checkMatchTimeRestriction(assignment) {
-if (!assignment || !assignment.matchDate || !assignment.matchTime) return {allowed:true}; try {
-const mdt = parseMatchDateTime(assignment.matchDate, assignment.matchTime); if (!mdt) return { allowed: true }; const now = new Date(); const diffH = (mdt-now)/(1000*60*60); if (diffH>3) return {allowed:false,
+const normalized = normalizeTrackingAssignment(assignment); if (!normalized || !normalized.matchDate || !normalized.matchTime) return {allowed:true}; try {
+const mdt = parseMatchDateTime(normalized.matchDate, normalized.matchTime); if (!mdt) return { allowed: true }; const now = new Date(); const diffH = (mdt-now)/(1000*60*60); if (diffH>3) return {allowed:false,
 reason:`Match starts in ${Math.round(diffH)} hours. Tracking available 3 hours before match.`}; if (diffH<-5) return {allowed:false,
 reason:'Match has already ended (more than 5 hours ago).'}; return {allowed:true}; }
 catch { return {allowed:true}; } }
 function checkTrackingAccess(player) {
-if (!player.matchDate || !player.matchTime) {
+const normalized = normalizeTrackingAssignment(player);
+if (!normalized.matchDate || !normalized.matchTime) {
 return { allowed: false, message: '⏰ Match date and time not set for this assignment' }; }
 try {
-const matchDateTime = parseMatchDateTime(player.matchDate, player.matchTime); if (!matchDateTime) return { allowed: false,
+const matchDateTime = parseMatchDateTime(normalized.matchDate, normalized.matchTime); if (!matchDateTime) return { allowed: false,
 message: '⚠️ Invalid match date or time format' }; const now = new Date(); const isSameDay = now.toDateString() === matchDateTime.toDateString(); if (!isSameDay) {
 const daysDiff = Math.ceil((matchDateTime - now) / (1000*60*60*24)); return { allowed: false, message: `⏰ This match is scheduled for ${matchDateTime.toLocaleDateString()}. You can only track on the SAME DAY as the match (${daysDiff>0?`in ${daysDiff} day(s)`:'match day has passed'}).` }; }
 const timeDiff = matchDateTime - now; const minutesDiff = Math.floor(timeDiff / (1000*60)); if (timeDiff <= 0 || minutesDiff <= 30) return { allowed: true,
@@ -1550,7 +1574,7 @@ const source = data && typeof data === 'object' ? data : {}; const values = [ so
 source.requestType, source.request_type, source.assignmentType, source.assignment_type, source.trackingType,
 source.tracking_type, source.assignmentKind, source.assignment_kind, source.assignmentCategory, source.assignment_category ].map(v => String(v ?? '').trim().toLowerCase()).filter(Boolean); if (values.some(v => ['club',
 'club_match','club-match','club_stats','club-statistics','club_tracking','club-tracking','team','team_match',
-'team-match'].includes(v))) return true; const text = values.join(' '); return /club[\s_-]*(match|stat|statistics|tracking)|match[\s_-]*tracking[\s_-]*(club|team)/i.test(text); }
+ 'team-match','club_stats','team_tracking','club_assignment','team_assignment'].includes(v))) return true; if (isClubAssignmentRecord(source)) return true; const nested = source.stats_request || source.statsRequest || source.request || source.stats_request_data || {}; const valuesWithNested = [...values,nested.entityType,nested.entity_type,nested.requestType,nested.request_type,nested.assignmentType,nested.assignment_type,nested.trackingType,nested.tracking_type].map(v=>String(v??'').trim().toLowerCase()).filter(Boolean); const text = valuesWithNested.join(' '); return /club[\s_-]*(match|stat|statistics|tracking|assignment)|match[\s_-]*tracking[\s_-]*(club|team)/i.test(text); }
 function clubTrackerLabel(value) {
 return String(value ?? '').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()); }
 function clubTrackerFormatTime(seconds) {
@@ -1559,54 +1583,73 @@ function clubTrackerTypes(metric) {
 return (metric?.types || []).map(t => Array.isArray(t) ? {key:t[0],label:t[1]} : t); }
 function clubTrackerOutcomes(metric) {
 return (metric?.outcomes || []).map(o => Array.isArray(o) ? {key:o[0],label:o[1]} : o); }
+function clubTrackerMatchSeconds(period, seconds) {
+const periodOffset = Number(period) === 2 ? 45 * 60 : 0;
+return periodOffset + Math.max(0, Math.floor(Number(seconds) || 0));
+}
 function clubTrackerPossessionProfile(event) {
-const key=event?.key||'', outcome=event?.outcome||'', team=event?.team; const opponent=team==='home'?'away':'home'; if(key==='goals') return {mode:'restart',
-nextTeam:null,reason:'goal'}; if(CLUB_TRACKER_FAILURES.has(outcome) || ['fouls_committed','offsides'].includes(key)) {
-return {mode:'transfer',nextTeam:opponent,reason:'turnover'}; }
-return {mode:'retain',nextTeam:team,reason:'team_action'}; }
-function clubTrackerBuildPossession(events, switches, clock) {
-const totalTime={home:0,away:0}, intervals=[]; let currentTeam=null,startTime=null; const timeline=[]; (events||[]).forEach(event=>timeline.push({time:Number(event.matchTime)||0,
-kind:'event',event})); (switches||[]).forEach(sw=>timeline.push({time:Number(sw.matchTime)||0,kind:'switch',
-switch:sw})); timeline.sort((a,b)=>a.time-b.time || (a.kind==='switch'?-1:1)); timeline.forEach(item=>{
-const t=Math.max(0,Number(item.time)||0); if(currentTeam && startTime!==null && t>=startTime) {
-const duration=t-startTime; if(duration>0) {
-totalTime[currentTeam]+=duration; intervals.push({team:currentTeam,startMatchTime:startTime,endMatchTime:t,
-durationSeconds:duration,reason:item.kind==='event'?'event_transition':'manual_switch'}); }
+const key=event?.key||'', outcome=String(event?.outcome||'').toLowerCase(), type=String(event?.type||'').toLowerCase(), team=event?.team;
+const opponent=team==='home'?'away':'home';
+if(key==='goals') return {nextTeam:opponent,reason:'kickoff_after_goal'};
+if(CLUB_TRACKER_FAILURES.has(outcome) || ['fouls_committed','offsides','possession_losses'].includes(key) ||
+   (key==='passes' && ['misplaced','bad_touch','dispossessed'].includes(type)) ||
+   (key==='tackles' && outcome==='foul')) return {nextTeam:opponent,reason:'turnover'};
+if(['shots','shots_faced'].includes(key) && ['on_target','saved','goal'].includes(outcome)) return {nextTeam:opponent,reason:'shot_end'};
+if(['saves','claims','interceptions','clearances','recoveries','tackles'].includes(key) ||
+   (key==='duels' && outcome==='won')) return {nextTeam:team,reason:'recovery'};
+return {nextTeam:team,reason:'team_action'};
 }
-if(item.kind==='switch') {
-currentTeam=item.switch.team; startTime=t; return; }
-const profile=clubTrackerPossessionProfile(item.event); if(profile.mode==='restart') {
-currentTeam=null; startTime=null; }
-else {
-currentTeam=profile.nextTeam||item.event.team; startTime=t; }
+function clubTrackerBuildPossession(events, switches, clock, period = 1, firstHalfFinalSeconds = 45 * 60) {
+const totalTime={home:0,away:0}, intervals=[]; let currentTeam=null,startTime=null;
+const periodOneLength=Math.max(45*60,Number(firstHalfFinalSeconds)||0,...(events||[]).filter(item=>Number(item?.period||item?.half)===1&&Number.isFinite(Number(item?.periodSeconds))).map(item=>Number(item.periodSeconds)),...(switches||[]).filter(item=>Number(item?.period)===1&&Number.isFinite(Number(item?.periodSeconds))).map(item=>Number(item.periodSeconds)));
+const timelineTime=item=>{const source=item.event||item.switch||{};const sourcePeriod=Number(source.period||source.half);if(sourcePeriod===1||sourcePeriod===2){const local=Number(source.periodSeconds);if(Number.isFinite(local))return (sourcePeriod===2?periodOneLength:0)+Math.max(0,local);}return Number.isFinite(Number(source.absoluteMatchTime))?Number(source.absoluteMatchTime):clubTrackerMatchSeconds(sourcePeriod||1,source.matchTime);};
+const timeline=[];
+(events||[]).forEach((event,index)=>timeline.push({time:timelineTime({event}),stamp:Date.parse(event?.timestamp||event?.recordedAt||'')||0,order:index,kind:'event',event}));
+(switches||[]).forEach((sw,index)=>timeline.push({time:timelineTime({switch:sw}),stamp:Date.parse(sw?.timestamp||'')||0,order:index,kind:'switch',switch:sw}));
+timeline.sort((a,b)=>a.time-b.time || a.stamp-b.stamp || (a.kind===b.kind?a.order-b.order:a.kind==='event'?-1:1));
+const closeInterval=(end,reason)=>{
+if(currentTeam&&startTime!==null&&end>=startTime){const duration=end-startTime;if(duration>0){totalTime[currentTeam]+=duration;intervals.push({team:currentTeam,startMatchTime:startTime,endMatchTime:end,durationSeconds:duration,reason});}}
+};
+timeline.forEach(item=>{
+const t=Math.max(0,item.time);closeInterval(t,item.kind==='switch'?'manual_switch':'event_transition');
+if(item.kind==='switch'){if(['home','away'].includes(item.switch?.team)){currentTeam=item.switch.team;startTime=t;}return;}
+const profile=clubTrackerPossessionProfile(item.event);currentTeam=profile.nextTeam||item.event?.team||null;startTime=currentTeam?t:null;
+});
+const liveClock=(Number(period)===2?periodOneLength:0)+Math.max(0,Math.floor(Number(clock)||0)),liveTotal={home:totalTime.home,away:totalTime.away};
+if(currentTeam&&startTime!==null&&liveClock>=startTime){const duration=liveClock-startTime;if(duration>0){liveTotal[currentTeam]+=duration;intervals.push({team:currentTeam,startMatchTime:startTime,endMatchTime:liveClock,durationSeconds:duration,reason:'live'});}}
+const total=liveTotal.home+liveTotal.away,home=total>0?Math.max(0,Math.min(100,Math.round(liveTotal.home/total*100))):50;
+return {home,away:100-home,currentTeam,startTime,totalTime:liveTotal,totalSeconds:total,intervals,switches:[...(switches||[])]};
 }
-); const liveClock=Math.max(0,Number(clock)||0); const liveTotal={home:totalTime.home,away:totalTime.away}; if(currentTeam && startTime!==null && liveClock>=startTime) liveTotal[currentTeam]+=liveClock-startTime; const total=liveTotal.home+liveTotal.away; const home=total>0 ? Math.max(0,
-Math.min(100,Math.round(liveTotal.home/total*100))) : 50; return {home,away:100-home,currentTeam,startTime,
-totalTime:totalTime,intervals,switches:[...(switches||[])]}; }
 function clubTrackerDeriveStats(events) {
 const result={home:{},away:{}}; const ensure=(team,key)=>{
-result[team][key] ||= {count:0,success:0,failure:0,types:{}}; return result[team][key]; }
+ result[team][key] ||= {count:0,success:0,failure:0,types:{},outcomes:{}}; return result[team][key]; }
 ; const derived={home:{},away:{}}; const inc=(obj,key,n=1)=>{
 obj[key]=(Number(obj[key])||0)+n;}
 ; (events||[]).forEach(event=>{
+if(!event||!['home','away'].includes(event.team)||!event.key)return;
 const target=ensure(event.team,event.key); target.count++; if(event.outcome) {
-if(['successful','won','saved','on_target','created'].includes(event.outcome)) target.success++; else if(CLUB_TRACKER_FAILURES.has(event.outcome)) target.failure++; else inc(target,
-event.outcome); }
-if(event.type) inc(target.types,event.type); const team=event.team, opp=team==='home'?'away':'home'; if(event.key==='fouls_committed' || (event.key==='tackles' && event.outcome==='foul')) {
+const outcome=String(event.outcome).toLowerCase();inc(target.outcomes,outcome);if(['successful','won','saved','on_target','created'].includes(outcome)) target.success++; else if(CLUB_TRACKER_FAILURES.has(outcome)) target.failure++; else inc(target,outcome); }
+if(event.type) inc(target.types,event.type); const team=event.team, opp=team==='home'?'away':'home';
+if(event.key==='passes'){inc(derived[team],'passes_attempted');if(event.outcome==='successful')inc(derived[team],'passes_completed');}
+if(event.key==='crosses'){inc(derived[team],'crosses_attempted');if(event.outcome==='successful')inc(derived[team],'crosses_completed');}
+if(event.key==='shots'){inc(derived[team],'shots');if(event.outcome==='on_target')inc(derived[team],'shots_on_target');if(event.outcome==='blocked')inc(derived[team],'shots_blocked');}
+if(event.key==='corners')inc(derived[team],'corners');
+if(event.key==='assists')inc(derived[team],'assists');
+if(event.key==='fouls_committed' || (event.key==='tackles' && event.outcome==='foul')) {
 inc(derived[team],'fouls_committed'); inc(derived[opp],'fouls_won'); }
 if(event.key==='goals') {
 inc(derived[team],'goals'); inc(derived[opp],'goals_conceded'); }
 if(event.key==='shots') {
 inc(derived[opp],'shots_faced'); if(event.outcome==='on_target') inc(derived[opp],'shots_on_target_faced'); }
-if(event.key==='saves') inc(derived[opp],'shots_saved'); if(event.key==='offsides') inc(derived[opp],'offsides_drawn'); }
+if(event.key==='saves') inc(derived[team],'saves'); if(event.key==='offsides') inc(derived[opp],'offsides_drawn'); }
 ); return {result,derived}; }
-function ClubStatsTracker({homeTeam,awayTeam,timerRunning,timerSeconds,period,scoreA,scoreB,onScoreChange,
+function ClubStatsTracker({homeTeam,awayTeam,timerRunning,timerSeconds,period,firstHalfFinalSeconds=45*60,scoreA,scoreB,onScoreChange,
 onStateChange,onReset,onExport,onSubmit,submitting,initialClubTracking=null}) {
 const initial = initialClubTracking && typeof initialClubTracking==='object' ? initialClubTracking : {}; const [events,
 setEvents] = useState(() => Array.isArray(initial.events) ? initial.events : []); const [redo,setRedo] = useState(() => ({ home:Array.isArray(initial.redo?.home)?initial.redo.home:[],
 away:Array.isArray(initial.redo?.away)?initial.redo.away:[] })); const [switches,setSwitches] = useState(() => Array.isArray(initial.possession?.switches) ? initial.possession.switches : []); const [flow,
 setFlow] = useState(null); const [undoOpen,setUndoOpen] = useState(false); const possession = clubTrackerBuildPossession(events,
-switches,timerSeconds); const {result:stats,derived} = clubTrackerDeriveStats(events); useEffect(()=>{
+  switches,timerSeconds,period,firstHalfFinalSeconds); const {result:stats,derived} = clubTrackerDeriveStats(events); useEffect(()=>{
 if(typeof onStateChange==='function') {
 onStateChange({ events:JSON.parse(JSON.stringify(events)), redo:JSON.parse(JSON.stringify(redo)), possession:JSON.parse(JSON.stringify(possession)),
 stats:JSON.parse(JSON.stringify(stats)), derived:JSON.parse(JSON.stringify(derived)), undoLatest:()=>setUndoOpen(true),
@@ -1614,17 +1657,17 @@ resetTracker:()=>{
 setEvents([]);setRedo({home:[],away:[]});setSwitches([]);setFlow(null);setUndoOpen(false);}
 }); }
 }
-,[events,redo,switches,timerSeconds]); const teamName = team => team==='home' ? (homeTeam || 'Home Team') : (awayTeam || 'Away Team'); const openMetric = key => {
+ ,[events,redo,switches,timerSeconds,period,firstHalfFinalSeconds]); const teamName = team => team==='home' ? (homeTeam || 'Home Team') : (awayTeam || 'Away Team'); const openMetric = key => {
 if(!timerRunning){
 showWidgetNotif('Please start the match timer before tracking statistics','warning');return;}
 if(!CLUB_TRACKER_METRIC_MAP[key])return; setFlow({key,team:null,outcome:null,type:null,stage:'team'}); }
 ; const record = selected => {
-if(!selected?.team || !selected?.key || !timerRunning)return; const metric=CLUB_TRACKER_METRIC_MAP[selected.key]; const recordedAt=new Date(); const event={ id:`club-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
+if(!selected?.team || !selected?.key || !timerRunning)return; const metric=CLUB_TRACKER_METRIC_MAP[selected.key]; const recordedAt=new Date(); const periodSeconds=Math.max(0,Number(timerSeconds)||0); const matchTime=clubTrackerMatchSeconds(period,periodSeconds); const event={ id:`club-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
 kind:'club_tracker',team:selected.team,teamName:teamName(selected.team), oppositionTeam:teamName(selected.team==='home'?'away':'home'),
 key:selected.key,metricLabel:metric.label,sourceButton:metric.label, outcome:selected.outcome||null,outcomeLabel:selected.outcome?clubTrackerLabel(selected.outcome):'',
 type:selected.type||null,typeLabel:selected.type?clubTrackerLabel(selected.type):'', detail:selected.detail||null,
-detailLabel:selected.detail?clubTrackerLabel(selected.detail):'', matchTime:Math.max(0,Number(timerSeconds)||0),
-matchClock:clubTrackerFormatTime(timerSeconds), half:period===2?2:1,timestamp:recordedAt.toISOString(),recordedAt:recordedAt.toISOString(),
+detailLabel:selected.detail?clubTrackerLabel(selected.detail):'', periodSeconds,matchTime,absoluteMatchTime:matchTime,
+matchClock:clubTrackerFormatTime(periodSeconds), period:period===2?2:1,half:period===2?2:1,timestamp:recordedAt.toISOString(),recordedAt:recordedAt.toISOString(),
 timestampLocal:recordedAt.toLocaleString(),homeTeam,awayTeam,derivedContributions:{} }; setEvents(prev=>[...prev,
 event]); setRedo(prev=>({...prev,[selected.team]:[]})); if(selected.key==='goals') onScoreChange?.(selected.team==='home'?'a':'b',
 1); setFlow(null); showWidgetNotif(`${metric.label} recorded for ${teamName(selected.team)} at ${event.matchClock}`,
@@ -1632,8 +1675,13 @@ event]); setRedo(prev=>({...prev,[selected.team]:[]})); if(selected.key==='goals
 ; const manualPossession = team => {
 if(!timerRunning){
 showWidgetNotif('Please start the match timer first','warning');return;}
-const matchTime=Math.max(0,Number(timerSeconds)||0); setSwitches(prev=>[...prev,{team,fromTeam:possession.currentTeam,
-matchTime,reason:'manual_possession_switch',timestamp:new Date().toISOString()}]); }
+const periodSeconds=Math.max(0,Number(timerSeconds)||0),matchTime=clubTrackerMatchSeconds(period,periodSeconds);
+if (possession.currentTeam === team) return;
+setSwitches(prev => {
+  const latest = prev.length ? prev[prev.length - 1] : null;
+   if (latest && latest.team === team && Number(latest.matchTime) === matchTime) return prev;
+   return [...prev, {team, fromTeam:possession.currentTeam, period:period===2?2:1,periodSeconds,matchTime,absoluteMatchTime:matchTime,reason:'manual_possession_switch', timestamp:new Date().toISOString()}];
+}); }
 ; const latest = team => [...events].reverse().find(e=>e.team===team) || null; const undoTeam = team => {
 const event=latest(team); if(!event){
 showWidgetNotif(`No recorded events for ${teamName(team)}`,'warning');return;}
@@ -1658,17 +1706,19 @@ const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
 a=document.createElement('a'); a.href=url;a.download=`club-match-stats-${Date.now()}.json`;a.click();URL.revokeObjectURL(url); }
 }
 ; const totalEvents=events.length; const renderMetric=(metric)=>{
-const count=events.filter(e=>e.key===metric.key).length; return h('div',{key:metric.key,className:'club-tracker-metric'},
+const homeCount=events.filter(e=>e.key===metric.key && e.team==='home').length;
+const awayCount=events.filter(e=>e.key===metric.key && e.team==='away').length;
+const count=homeCount+awayCount; return h('div',{key:metric.key,className:'club-tracker-metric'},
 h('button',{type:'button',className:'club-tracker-metric-btn',onClick:()=>openMetric(metric.key), 'aria-label':`${metric.label}: ${count}`},
 h('i',{className:`fas ${metric.icon} club-tracker-metric-icon`}), h('span',{className:'club-tracker-metric-label'},
-metric.label), h('span',{className:`club-tracker-metric-count ${count?'has-value':''}`},count) ) ); }
+metric.label), h('span',{className:`club-tracker-metric-count ${count?'has-value':''}`,title:`Home ${homeCount} · Away ${awayCount}`},`${homeCount} H · ${awayCount} A`) ) ); }
 ; const renderFlow=()=>{
 if(!flow)return null; const metric=CLUB_TRACKER_METRIC_MAP[flow.key], outcomes=clubTrackerOutcomes(metric),
 types=clubTrackerTypes(metric); const hasOutcome=outcomes.length>0; let step=flow.stage==='team'?1:flow.stage==='outcome'?2:hasOutcome?3:2; const choices = flow.stage==='team' ? [h('button',
-{key:'home',type:'button',className:'club-tracker-choice home',onClick:()=>setFlow({...flow,team:'home',
-stage:hasOutcome?'outcome':'type'})},h('strong',null,'Home'),h('br'),teamName('home')), h('button',{key:'away',
-type:'button',className:'club-tracker-choice away',onClick:()=>setFlow({...flow,team:'away',stage:hasOutcome?'outcome':'type'})},
-h('strong',null,'Away'),h('br'),teamName('away'))] : flow.stage==='outcome' ? outcomes.map(c=>h('button',
+ {key:'home',type:'button',className:`club-tracker-choice home ${possession.currentTeam==='home'?'active':''}`,onClick:()=>setFlow({...flow,team:'home',
+stage:hasOutcome?'outcome':'type'})},h('strong',null,'Home'),h('br'),teamName('home'),possession.currentTeam==='home'&&h('small',null,'IN POSSESSION')), h('button',{key:'away',
+ type:'button',className:`club-tracker-choice away ${possession.currentTeam==='away'?'active':''}`,onClick:()=>setFlow({...flow,team:'away',stage:hasOutcome?'outcome':'type'})},
+ h('strong',null,'Away'),h('br'),teamName('away'),possession.currentTeam==='away'&&h('small',null,'IN POSSESSION'))] : flow.stage==='outcome' ? outcomes.map(c=>h('button',
 {key:c.key,type:'button',className:'club-tracker-choice',onClick:()=>setFlow({...flow,outcome:c.key,stage:'type'})},
 c.label)) : types.map(c=>h('button',{key:c.key,type:'button',className:'club-tracker-choice',onClick:()=>record({...flow,
 type:c.key})},c.label)); return h('div',{className:'club-tracker-flow-backdrop',onMouseDown:e=>{
@@ -1718,16 +1768,16 @@ e.matchClock), h('div',{className:'club-team-event-main'},h('strong',null,e.metr
 [e.outcomeLabel,e.typeLabel,e.detailLabel].filter(Boolean).join(' · ')||'Recorded') ) ) ).concat([...events].filter(e=>e.team===team).length===0 ? [h('div',
 {key:`empty-${team}`,className:'club-team-event-empty'},`No ${team} events recorded.`)] : []) )) ) ), renderFlow(),
 renderUndo() ); }
-function MatchWidgetApp({ currentUser, initialData, onSubmissionComplete }) {
+function MatchWidgetApp({ currentUser, initialData, onSubmissionComplete, onAssignmentCompleted }) {
 const minPlayers = 1; const maxPlayers = 3; const initPlayers = () => {
 const slots = [null, null, null]; getInitialAssignmentSources(initialData).slice(0, maxPlayers).forEach((assignment, index) => {
 slots[index] = createTrackedPlayer( index, assignment, resolvePlayerTeam(assignment, index === 0 ? 'home' : 'away') ); }
 ); return slots; }
 ; const [players, setPlayers] = useState(initPlayers); const [activePlayerIndex, setActivePlayerIndex] = useState(0); const [homeTeam,
-setHomeTeam] = useState(initialData?.homeTeam||initialData?.home_team||''); const [awayTeam, setAwayTeam] = useState(initialData?.awayTeam||initialData?.away_team||''); const isClubAssignment = String(initialData?.entityType || initialData?.requestType || '').toLowerCase() === 'club'; const [scoreA,
+ setHomeTeam] = useState(initialData?.homeTeam||initialData?.home_team||''); const [awayTeam, setAwayTeam] = useState(initialData?.awayTeam||initialData?.away_team||''); const isClubAssignment = isClubTrackingAssignment(initialData); const [scoreA,
 setScoreA] = useState(numericScore(initialData?.scoreA ?? initialData?.score_a)); const [scoreB, setScoreB] = useState(numericScore(initialData?.scoreB ?? initialData?.score_b)); const [timerSeconds,
 setTimerSeconds] = useState(0); const [timerRunning, setTimerRunning] = useState(false); const [period,
-setPeriod] = useState(1); const [geoStatus, setGeoStatus] = useState('pending'); const [geoCoordinates,
+ setPeriod] = useState(1); const [firstHalfFinalSeconds,setFirstHalfFinalSeconds] = useState(45*60); const [geoStatus, setGeoStatus] = useState('pending'); const [geoCoordinates,
 setGeoCoordinates] = useState({ latitude: null, longitude: null }); const [activeStatBtn, setActiveStatBtn] = useState(null); const [heatmapQueue,
 setHeatmapQueue] = useState([]); const [heatmapPopup, setHeatmapPopup] = useState(null); const [submissionReviewOpen,
 setSubmissionReviewOpen] = useState(false); const [submissionPlayers, setSubmissionPlayers] = useState([]); const [submissionTrigger,
@@ -1958,7 +2008,7 @@ geoLat:geoCoordinates.latitude,geoLon:geoCoordinates.longitude,matchDetails, sub
 clubTracking:tracking }); const fingerprint=JSON.stringify(payload); if(fingerprint===lastFinalSubmissionFingerprintRef.current)return; finalSubmissionInFlightRef.current=true; setSubmitting(true); try {
 await apiFetch(API.widgetSubmit(currentUser.id),{ method:'POST', headers:{'X-Widget-Submission-Id':submissionId},
 body:JSON.stringify(payload) }); lastFinalSubmissionFingerprintRef.current=fingerprint; setClubSubmissionReviewOpen(false); setTimerRunning(false); showDCONotification('Club match statistics submitted successfully!',
-'success',8000); if(typeof onSubmissionComplete==='function') onSubmissionComplete({trigger:'match_end',
+'success',8000); if(typeof onAssignmentCompleted==='function') onAssignmentCompleted({assignmentIds:[...new Set([canonicalAssignmentId(initialData),...(initialData?.assignments||[]).map(canonicalAssignmentId)].filter(Boolean))]}); if(typeof onSubmissionComplete==='function') onSubmissionComplete({trigger:'match_end',
 club:true,eventCount:tracking.events.length}); }
 catch(e) {
 showDCONotification('Club statistics submission failed: '+(e?.message||'Please try again.'),'error'); }
@@ -1967,7 +2017,7 @@ finalSubmissionInFlightRef.current=false; setSubmitting(false); }
 }
 ; const handleClubMatchEnd = () => {
 setTimerRunning(false); if (periodRef.current === 1) {
-periodRef.current = 2; setPeriod(2); timerSecondsRef.current = 0; participationClockRef.current = {period:2,
+setFirstHalfFinalSeconds(Math.max(45*60,timerSecondsRef.current)); periodRef.current = 2; setPeriod(2); timerSecondsRef.current = 0; participationClockRef.current = {period:2,
 seconds:0}; setTimerSeconds(0); showWidgetNotif('First half ended — second half ready','info'); return; }
 if (!clubTrackingRef.current?.events?.length) {
 showDCONotification('Record at least one club match event before completing the match','warning'); return; }
@@ -2040,9 +2090,10 @@ setHeatmapPopup(null); }
 setHeatmapRedoStack([]); setSubmissionPlayers([]); setSubmissionReviewOpen(false); if (trigger === 'match_end') {
 setScoreA(0); setScoreB(0); setTimerSeconds(0); setPeriod(1); setTimerRunning(false); timerSecondsRef.current = 0; periodRef.current = 1; participationClockRef.current = { period: 1,
 seconds: 0 }; if (typeof onSubmissionComplete === 'function') {
-onSubmissionComplete({ trigger, playerCount: loadedPlayers.length }); }
+ onSubmissionComplete({ trigger, playerCount: loadedPlayers.length, assignmentIds: loadedPlayers.map(canonicalAssignmentId).filter(Boolean) }); }
 showDCONotification('All mounted player stats submitted successfully!','success',8000); }
 else {
+if(typeof onAssignmentCompleted==='function') onAssignmentCompleted({assignmentIds:loadedPlayers.map(canonicalAssignmentId).filter(Boolean)});
 showDCONotification('Player stats submitted successfully. The tab is ready for another player.','success',8000); }
 }
 catch(e) {
@@ -2111,7 +2162,7 @@ participationClockRef.current = { period: periodRef.current, seconds: timerSecon
 , onPauseTimer:()=>{
 syncParticipationToClock(periodRef.current, timerSecondsRef.current); setTimerRunning(false); }
 , onResetTimer:resetCurrentPeriodClock, onPeriodEnd:handleMatchEnd, geoStatus }), isClubAssignment ? h(ClubStatsTracker,
-{ homeTeam,awayTeam,timerRunning,timerSeconds,period,scoreA,scoreB, onScoreChange:(side,delta)=>{
+ { homeTeam,awayTeam,timerRunning,timerSeconds,period,firstHalfFinalSeconds,scoreA,scoreB, onScoreChange:(side,delta)=>{
 if(side==='a') setScoreA(s=>Math.max(0,s+delta)); else setScoreB(s=>Math.max(0,s+delta)); }
 , onStateChange:handleClubStateChange, onReset:()=>{
 }
@@ -2302,18 +2353,17 @@ e.stopPropagation(); onTrack && onTrack(assignment); }
 ${status === 'completed' ? html` <div class="asgn-actions"><span class="btn btn-secondary btn-sm" style="cursor:default"><i class="fas fa-check-circle"></i> Completed</span></div>` : null}
 ${status === 'declined' ? html` <div class="asgn-actions"><span class="btn btn-danger btn-sm" style="cursor:default"><i class="fas fa-times-circle"></i> Declined</span></div>` : null}
 </div>`; }
-function DCODashboardApp({ onNavigateToWidget, refreshToken = 0 }) {
+function DCODashboardApp({ onNavigateToWidget, refreshToken = 0, completedAssignmentIds = [] }) {
 const maxMountablePlayers = 3; const [metrics, setMetrics] = useState({ assigned_players:0, stats_today:0,
 pending_validation:0, stats_total:0 }); const [assignedPlayers, setAssignedPlayers] = useState([]); const [submissionRecords,
-setSubmissionRecords] = useState([]); const [dataSource, setDataSource] = useState('live'); const [assignmentView,
-setAssignmentView] = useState('all'); const [sectionsOpen, setSectionsOpen] = useState({ assignments: true,
+setSubmissionRecords] = useState([]); const [dataSource, setDataSource] = useState('live'); const [assignmentView, setAssignmentView] = useState('all'); const [assignmentEntityView, setAssignmentEntityView] = useState('player'); const [sectionsOpen, setSectionsOpen] = useState({ assignments: true,
 currentPlayers: true, submissions: true }); const [isLoading, setIsLoading] = useState(true); const [fadingCardId,
-setFadingCardId] = useState(null); const [selectedAssignmentIds, setSelectedAssignmentIds] = useState([]); useEffect(() => {
+ setFadingCardId] = useState(null); const [selectedAssignmentIds, setSelectedAssignmentIds] = useState([]); const locallyCompletedIds = new Set((Array.isArray(completedAssignmentIds)?completedAssignmentIds:[]).map(String)); useEffect(() => {
 loadLiveData(); }
 , [refreshToken]); useEffect(() => {
 const applySharedState = () => {
 const shared = readDCOSharedState(); if (Array.isArray(shared.assignments)) {
-setAssignedPlayers(prev => mergeDCOSharedRows(prev, shared.assignments)); }
+setAssignedPlayers(prev => mergeDCOSharedRows(prev, shared.assignments.map(normalizeDCOAssignment))); }
 if (Array.isArray(shared.stats)) {
 setSubmissionRecords(prev => {
 const merged = mergeDCOSharedRows(prev, shared.stats).map(normalizeDCOSubmission); return merged.slice(-8).reverse(); }
@@ -2383,10 +2433,14 @@ catch (error) {
 showDCONotification('Failed to decline assignment: ' + error.message, 'error'); }
 }
 const getFilteredAssignments = () => {
-const filtered = assignedPlayers.filter(a => !a.hiddenFromCards); switch (assignmentView) {
+const filtered = assignedPlayers.filter(a => {
+  if (!a || a.hiddenFromCards || locallyCompletedIds.has(canonicalAssignmentId(a))) return false;
+  const status = String(a.status || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+  return !['completed', 'complete', 'passed', 'pass', 'submitted', 'declined', 'cancelled', 'canceled'].includes(status);
+}); switch (assignmentView) {
 case 'assigned': return filtered.filter(p => ['assigned','pending'].includes(String(p.status || '').toLowerCase())); case 'accepted': return filtered.filter(p => String(p.status || '').toLowerCase() === 'accepted'); default: return filtered; }
 }
-; const filteredAssignments = getFilteredAssignments(); const playerAssignments = filteredAssignments.filter(a => !isClubAssignmentRecord(a)); const clubAssignments = filteredAssignments.filter(a => isClubAssignmentRecord(a)); const acceptedPlayers = assignedPlayers.filter(p => String(p.status || '').toLowerCase() === 'accepted' && !isClubAssignmentRecord(p)); const acceptedClubs = assignedPlayers.filter(p => String(p.status || '').toLowerCase() === 'accepted' && isClubAssignmentRecord(p)); const selectedAssignments = acceptedPlayers.filter(player => selectedAssignmentIds.includes(canonicalAssignmentId(player))); const toggleAssignmentSelection = (assignmentId) => {
+; const filteredAssignments = getFilteredAssignments(); const playerAssignments = filteredAssignments.filter(a => !isClubAssignmentRecord(a)); const clubAssignments = filteredAssignments.filter(a => isClubAssignmentRecord(a)); const effectiveAssignmentEntityView = playerAssignments.length ? (clubAssignments.length && assignmentEntityView === 'club' ? 'club' : 'player') : 'club'; const acceptedRecords = assignedPlayers.filter(p => p && !locallyCompletedIds.has(canonicalAssignmentId(p)) && String(p.status || '').trim().toLowerCase()==='accepted'); const acceptedPlayers = acceptedRecords.filter(p => !isClubAssignmentRecord(p)); const acceptedClubs = acceptedRecords.filter(p => isClubAssignmentRecord(p)); const selectedAssignments = acceptedPlayers.filter(player => selectedAssignmentIds.includes(canonicalAssignmentId(player))); const toggleAssignmentSelection = (assignmentId) => {
 const id = canonicalAssignmentId(assignmentId); setSelectedAssignmentIds(prev => {
 if (prev.includes(id)) return prev.filter(value => value !== id); if (prev.length >= maxMountablePlayers) {
 showDCONotification(`You can mount up to ${maxMountablePlayers} players at once`,'warning'); return prev; }
@@ -2395,9 +2449,9 @@ return [...prev, id]; }
 ; const trackSelectedAssignments = () => {
 if (!selectedAssignments.length) {
 showDCONotification('Select at least one accepted player to track','warning'); return; }
-const assignments = selectedAssignments.slice(0, 3).map(player => ({ ...player, id: canonicalAssignmentId(player),
-_id: player._id || canonicalAssignmentId(player), homeTeam: player.homeTeam || player.home_team || '', awayTeam: player.awayTeam || player.away_team || '' })); const first = assignments[0]; const fullAssignmentData = { ...first,
-assignments, homeTeam: first.homeTeam, awayTeam: first.awayTeam }; setAssignedPlayers(prev => prev.map(player => selectedAssignmentIds.includes(canonicalAssignmentId(player)) ? { ...player,
+ const assignments = selectedAssignments.slice(0, 3).map(player => normalizeTrackingAssignment({ ...player, id: canonicalAssignmentId(player),
+ _id: player._id || canonicalAssignmentId(player), entityType:'player',requestType:'player' })); const first = assignments[0]; const fullAssignmentData = normalizeTrackingAssignment({ ...first,
+ assignments, homeTeam: first.homeTeam, awayTeam: first.awayTeam }); setAssignedPlayers(prev => prev.map(player => selectedAssignmentIds.includes(canonicalAssignmentId(player)) ? { ...player,
 trackingStatus: 'tracking' } : player )); onNavigateToWidget(fullAssignmentData); }
 ; return html`
 <div class="dco-container">
@@ -2406,42 +2460,42 @@ ${isLoading ? html` <div style="text-align: center; padding: 3rem 2rem;"> <i cla
 <div class="selected-tracking-bar">
 <span><strong>${selectedAssignments.length}</strong> accepted player${selectedAssignments.length === 1 ? '' : 's'} selected</span>
 <button type="button" class="btn btn-primary btn-sm" onClick=${trackSelectedAssignments}><i class="fas fa-play"></i> Track selected</button>
-</div>` : null} ${playerAssignments.length === 0 ? html`
+</div>` : null} ${(playerAssignments.length || clubAssignments.length) ? html`
+<div class="assignment-entity-tabs" role="tablist" aria-label="Assignment type" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:10px 0 4px">
+${playerAssignments.length ? html`<button type="button" role="tab" aria-selected=${effectiveAssignmentEntityView==='player'} class=${'sub-tab-btn'+(effectiveAssignmentEntityView==='player'?' active-sub-tab':'')} onClick=${()=>setAssignmentEntityView('player')}><i class="fas fa-user"></i> Player Assignments (${playerAssignments.length})</button>` : null}
+${clubAssignments.length ? html`<button type="button" role="tab" aria-selected=${effectiveAssignmentEntityView==='club'} class=${'sub-tab-btn'+(effectiveAssignmentEntityView==='club'?' active-sub-tab':'')} onClick=${()=>setAssignmentEntityView('club')}><i class="fas fa-shield-alt"></i> Club Assignments (${clubAssignments.length})</button>` : null}
+</div>` : null}
+${effectiveAssignmentEntityView==='player' && playerAssignments.length === 0 ? html`
 <div class="empty-state"><i class="fas fa-user-slash"></i><h3>No player assignments found</h3><p>No player assignments match your current filter.</p></div>
-` : html`
-<div class="asgn-cards-stack">
-${playerAssignments.map(assignment => html` <${PlayerCard} key=${canonicalAssignmentId(assignment)} assignment=${assignment} isFading=${fadingCardId === canonicalAssignmentId(assignment)} selectable=${String(assignment.status || '').toLowerCase() === 'accepted'} selected=${selectedAssignmentIds.includes(canonicalAssignmentId(assignment))} onSelect=${toggleAssignmentSelection} onAccept=${acceptAssignment} onDecline=${declineAssignment} onTrack=${(a) => {
-const id = canonicalAssignmentId(a); const full = { ...a, id, _id: a._id || id, homeTeam: a.homeTeam || a.home_team || '',
-awayTeam: a.awayTeam || a.away_team || '' }; const access = checkTrackingAccess(full); if (!access.allowed) {
+` : effectiveAssignmentEntityView !== 'player' ? null : html` <div class="asgn-cards-stack"> ${playerAssignments.map(assignment => html` <${PlayerCard} key=${canonicalAssignmentId(assignment)} assignment=${assignment} isFading=${fadingCardId === canonicalAssignmentId(assignment)} selectable=${String(assignment.status || '').toLowerCase() === 'accepted'} selected=${selectedAssignmentIds.includes(canonicalAssignmentId(assignment))} onSelect=${toggleAssignmentSelection} onAccept=${acceptAssignment} onDecline=${declineAssignment} onTrack=${(a) => {
+ const id = canonicalAssignmentId(a); const full = normalizeTrackingAssignment({ ...a, id, _id: a._id || id, entityType:'player', requestType:'player' }); const access = checkTrackingAccess(full); if (!access.allowed) {
 showDCONotification(access.message, 'warning'); return; }
 setAssignedPlayers(prev => prev.map(p => canonicalAssignmentId(p) === id ? { ...p, trackingStatus:'tracking' } : p)); onNavigateToWidget(full); }
 } />`)}
-</div>`} </div> </div> </div> <div class="card"> <div class="collapsible-section"> <button type="button" class=${'section-toggle ' + (sectionsOpen.assignments ? 'active' : '')} onClick=${() => setSectionsOpen({...sectionsOpen, assignments: !sectionsOpen.assignments})}> <div><i class="fas fa-shield-alt"></i><span> Club Assignments from Match Centre Stats Requests</span></div> <i class=${'fas fa-chevron-down toggle-icon ' + (sectionsOpen.assignments ? 'rotated' : '')}></i> </button> <div class=${'section-content ' + (sectionsOpen.assignments ? 'active' : '')}> <div class="d-flex justify-between align-center mb-2"> <div class="text-muted" style="font-size:.88rem">${clubAssignments.length} club assignments</div> <button type="button" class="btn btn-ghost btn-sm" onClick=${loadLiveData}><i class="fas fa-sync"></i> Refresh</button> </div> ${clubAssignments.length === 0 ? html`
+</div>`} </div> </div> </div> <div class="card"> <div class="collapsible-section"> <button type="button" class=${'section-toggle ' + (sectionsOpen.assignments ? 'active' : '')} onClick=${() => setSectionsOpen({...sectionsOpen, assignments: !sectionsOpen.assignments})}> <div><i class="fas fa-shield-alt"></i><span> Club Assignments from Match Centre Stats Requests</span></div> <i class=${'fas fa-chevron-down toggle-icon ' + (sectionsOpen.assignments ? 'rotated' : '')}></i> </button> <div class=${'section-content ' + (sectionsOpen.assignments ? 'active' : '')}> <div class="d-flex justify-between align-center mb-2"> <div class="text-muted" style="font-size:.88rem">${clubAssignments.length} club assignments</div> <button type="button" class="btn btn-ghost btn-sm" onClick=${loadLiveData}><i class="fas fa-sync"></i> Refresh</button> </div> ${effectiveAssignmentEntityView !== 'club' ? null : clubAssignments.length === 0 ? html`
 <div class="empty-state"><i class="fas fa-shield-alt"></i><h3>No club assignments found</h3><p>Assigned club stats requests will appear here using the Match Centre request fields.</p></div>
 ` : html`
 <div class="asgn-cards-stack">
 ${clubAssignments.map(assignment => html` <${PlayerCard} key=${canonicalAssignmentId(assignment)} assignment=${assignment} isFading=${fadingCardId === canonicalAssignmentId(assignment)} selectable=${false} selected=${false} onAccept=${acceptAssignment} onDecline=${declineAssignment} onTrack=${(a) => {
-const id = canonicalAssignmentId(a); const full = { ...a, id, _id: a._id || id, entityType:'club', requestType:'club',
-homeTeam: a.homeTeam || a.home_team || '', awayTeam: a.awayTeam || a.away_team || '' }; const access = checkTrackingAccess(full); if (!access.allowed) {
+ const id = canonicalAssignmentId(a); const full = normalizeTrackingAssignment({ ...a, id, _id: a._id || id, entityType:'club', requestType:'club' }); const access = checkTrackingAccess(full); if (!access.allowed) {
 showDCONotification(access.message, 'warning'); return; }
 setAssignedPlayers(prev => prev.map(p => canonicalAssignmentId(p) === id ? { ...p, trackingStatus:'tracking' } : p)); onNavigateToWidget(full); }
 } />`)}
 </div>`} </div> </div> </div> <div class="card"> <div class="collapsible-section"> <button type="button" class=${'section-toggle ' + (sectionsOpen.currentPlayers ? 'active' : '')} onClick=${() => setSectionsOpen({...sectionsOpen, currentPlayers: !sectionsOpen.currentPlayers})}> <div><i class="fas fa-user-check"></i><span> Accepted Stats Assignments — Ready to Track</span></div> <i class=${'fas fa-chevron-down toggle-icon ' + (sectionsOpen.currentPlayers ? 'rotated' : '')}></i> </button> <div class=${'section-content ' + (sectionsOpen.currentPlayers ? 'active' : '')}> <div class="d-flex justify-between align-center mb-2"> <div class="text-muted" style="font-size:.88rem">${acceptedPlayers.length + acceptedClubs.length} accepted assignment${acceptedPlayers.length + acceptedClubs.length === 1 ? '' : 's'}</div> <button type="button" style="background:none;border:1px solid var(--primary);color:var(--primary);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:600" onClick=${loadLiveData}><i class="fas fa-sync"></i> Refresh</button> </div> <div class="table-scroll-container"> <table class="accepted-players-table"> <thead><tr><th>Entity</th><th>Entity Type</th><th>Team/Club</th><th>Venue</th><th>Match Date</th><th>Tracking Status</th><th>Actions</th></tr></thead> <tbody> ${acceptedPlayers.length + acceptedClubs.length === 0 ? html`
 <tr><td colspan="7" style="text-align:center;color:var(--gray);padding:2rem">No accepted stats assignments yet.</td></tr>
 ` : [...acceptedPlayers, ...acceptedClubs].map(item => {
-const isClub = isClubAssignmentRecord(item); const entityName = isClub ? (item.clubName || item.club_name || item.club || item.club_id || 'Unknown Club') : (item.playerName || item.player_name || item.player_id || 'Unknown Player'); const teamClub = item.club || item.clubName || item.club_name || item.homeTeam || item.home_team || 'Unknown'; const matchDate = item.matchDate || item.match_date ? (normalizeDateInput(item.matchDate || item.match_date)?.toLocaleDateString('en-US',
-{weekday:'short',month:'short',day:'numeric',year:'numeric'}) || (item.matchDate || item.match_date)) : 'TBD'; const id = canonicalAssignmentId(item); return html`
+ const normalizedItem = normalizeTrackingAssignment(item); const isClub = isClubAssignmentRecord(normalizedItem); const entityName = isClub ? (normalizedItem.clubName || normalizedItem.club_name || (typeof normalizedItem.club === 'string' ? normalizedItem.club : '') || normalizedItem.club_id || 'Unknown Club') : (normalizedItem.playerName || normalizedItem.player_name || normalizedItem.player_id || 'Unknown Player'); const teamClub = (typeof normalizedItem.club === 'string' ? normalizedItem.club : '') || normalizedItem.clubName || normalizedItem.club_name || normalizedItem.homeTeam || 'Unknown'; const matchDate = normalizedItem.matchDate || normalizedItem.match_date ? (normalizeDateInput(normalizedItem.matchDate || normalizedItem.match_date)?.toLocaleDateString('en-US',
+ {weekday:'short',month:'short',day:'numeric',year:'numeric'}) || (normalizedItem.matchDate || normalizedItem.match_date)) : 'TBD'; const id = canonicalAssignmentId(item); return html`
 <tr key=${id}>
 <td>${entityName}</td>
 <td><span class="status-badge ${isClub ? 'badge-primary' : 'badge-success'}">${isClub ? 'Club' : 'Player'}</span></td>
 <td>${teamClub}</td>
-<td>${item.venue || item.venueStadium || item.venue_stadium || 'TBD'}</td>
-<td>${matchDate} ${item.matchTime || item.match_time || 'TBD'}</td>
+ <td>${normalizedItem.venue || normalizedItem.venueStadium || normalizedItem.venue_stadium || 'TBD'}</td>
+ <td>${matchDate} ${normalizedItem.matchTime || normalizedItem.match_time || 'TBD'}</td>
 <td><span class=${'status-' + (item.trackingStatus || 'awaiting')}>${item.trackingStatus === 'tracking' ? 'Tracking' : 'Awaiting'}</span></td>
 <td>
 <button type="button" class="btn btn-primary btn-sm" onClick=${() => {
-const fullAssignmentData = { ...item, id, _id: item._id || id, entityType: isClub ? 'club' : 'player', requestType: isClub ? 'club' : 'player',
-homeTeam: item.homeTeam || item.home_team || '', awayTeam: item.awayTeam || item.away_team || '' };
+ const fullAssignmentData = normalizeTrackingAssignment({ ...normalizedItem, id, _id: item._id || id, entityType: isClub ? 'club' : 'player', requestType: isClub ? 'club' : 'player' });
 const timeCheck = checkTrackingAccess(fullAssignmentData);
 if (!timeCheck.allowed) { showDCONotification(timeCheck.message, 'warning'); return; }
 setAssignedPlayers(prev => prev.map(p => canonicalAssignmentId(p) === id ? { ...p, trackingStatus:'tracking' } : p));
@@ -2462,7 +2516,12 @@ ${submissionRecords.map(record => html` <div class="dco-submission-row" key=${re
 function StatsTrackerApp() {
 const [activeTab, setActiveTab] = useState('assignments'); const [widgetData, setWidgetData] = useState(null); const [currentUser,
 setCurrentUser] = useState({ id: '', name: 'DCO', dco_id: '', photo: '' }); const [assignmentRefreshToken,
-setAssignmentRefreshToken] = useState(0); const hasMountedPlayers = data => Boolean( data && ( (Array.isArray(data.assignments) && data.assignments.some(Boolean)) || (Array.isArray(data.players) && data.players.some(Boolean)) || data.playerId || data.player_id || data.playerName || data.player_name ) ); const [theme,
+setAssignmentRefreshToken] = useState(0); const [completedAssignmentIds,setCompletedAssignmentIds] = useState([]); const markAssignmentsCompleted = payload => { const ids = Array.isArray(payload?.assignmentIds) ? payload.assignmentIds : [payload?.assignmentId]; const valid = ids.map(value=>String(value||'').trim()).filter(Boolean); if(valid.length)setCompletedAssignmentIds(previous=>[...new Set([...previous,...valid])]); }; const hasMountedPlayers = data => Boolean(data && (
+  isClubTrackingAssignment(data) || isClubAssignmentRecord(data) ||
+  (Array.isArray(data.assignments) && data.assignments.some(Boolean)) ||
+  (Array.isArray(data.players) && data.players.some(Boolean)) ||
+  data.playerId || data.player_id || data.playerName || data.player_name
+)); const [theme,
 setTheme] = useState(() => {
 try {
 const saved = localStorage.getItem('stats-tracker-theme'); if (saved === 'dark' || saved === 'light') return saved; }
@@ -2483,7 +2542,7 @@ dco_id: user.dco_id || user.id || '', photo: user.photo || user.profileImage || 
 }
 );  try {
 const saved = sessionStorage.getItem('statsTrackerData'); if (saved) {
-const data = JSON.parse(saved); if (hasMountedPlayers(data)) {
+const data = normalizeTrackingAssignment(JSON.parse(saved)); if (isClubTrackingAssignment(data) || hasMountedPlayers(data)) {
 setWidgetData(data); setActiveTab('match-widget'); sessionStorage.removeItem('statsTrackerData'); }
 }
 }
@@ -2511,16 +2570,18 @@ ${theme === 'dark' ? '☀ Light' : '☾ Dark'}
 </div>
 <!-- Assignments Sub-Tab -->
 <div class=${'sub-tab-content stats-assignments-section' + (activeTab==='assignments' ? ' active' : '')} role="tabpanel" style="padding:0">
-<${DCODashboardApp} refreshToken=${assignmentRefreshToken} onNavigateToWidget=${(data) => {
-if (hasMountedPlayers(data)) {
-setWidgetData(data);
+<${DCODashboardApp} refreshToken=${assignmentRefreshToken} completedAssignmentIds=${completedAssignmentIds} onNavigateToWidget=${(data) => {
+const prepared = normalizeTrackingAssignment(data);
+if (isClubTrackingAssignment(prepared) || hasMountedPlayers(prepared)) {
+setWidgetData(prepared);
 setActiveTab('match-widget');
 }
 }}/>
 </div>
 <!-- Match Widget Sub-Tab -->
 <div class=${'sub-tab-content' + (activeTab==='match-widget' ? ' active' : '')} role="tabpanel">
-${!hasMountedPlayers(widgetData) ? html` <div style="text-align:center;padding:3rem 1rem;color:var(--gray)"> <i class="fas fa-clipboard-list" style="font-size:3rem;margin-bottom:1rem;opacity:.4;display:block"></i> <h3 style="margin-bottom:.5rem;color:var(--dark)">No Assignment Loaded</h3> <p style="font-size:.9rem">Go to the <strong>Assignments</strong> tab, accept an assignment, and click <strong>Track</strong> to begin live stat tracking.</p> </div> ` : html` <div class="page-content" style="padding:0.75rem 0.5rem"> <${MatchWidgetApp} currentUser=${widgetUser} initialData=${widgetData} onSubmissionComplete=${() => {
+${!(isClubTrackingAssignment(widgetData) || hasMountedPlayers(widgetData)) ? html` <div style="text-align:center;padding:3rem 1rem;color:var(--gray)"> <i class="fas fa-clipboard-list" style="font-size:3rem;margin-bottom:1rem;opacity:.4;display:block"></i> <h3 style="margin-bottom:.5rem;color:var(--dark)">No Assignment Loaded</h3> <p style="font-size:.9rem">Go to the <strong>Assignments</strong> tab, accept an assignment, and click <strong>Track</strong> to begin live stat tracking.</p> </div> ` : html` <div class="page-content" style="padding:0.75rem 0.5rem"> <${MatchWidgetApp} key=${canonicalAssignmentId(widgetData)||widgetData.matchId||widgetData.match_id||widgetData.id} currentUser=${widgetUser} initialData=${widgetData} onAssignmentCompleted=${markAssignmentsCompleted} onSubmissionComplete=${(details) => {
+markAssignmentsCompleted(details);
 setWidgetData(null); setAssignmentRefreshToken(value => value + 1); setActiveTab('assignments'); }
 } /> </div>`}
 </div>
