@@ -2,7 +2,7 @@
 ENEJISTATS — Club Dashboard Routes
 ====================================
 Complete API router for every endpoint consumed by the club dashboard
-frontend (club-dashboard(2).html). Public authentication, geography and venue endpoints remain owned by the shared auth/public router.
+frontend (club-dashboard.html / FILE C).
 
 INTEGRATION — wire in main.py immediately after other sub-routers:
 
@@ -18,7 +18,7 @@ This file NEVER imports from main at module-level.  All shared state
 is injected by ``_setup_dependencies()`` which is called by main.py
 AFTER main.py has fully executed and every symbol is bound.
 
-ENDPOINTS COVERED (40 unique paths):
+ENDPOINTS COVERED (38 unique paths):
   GET    /api/club/{uid}/profile
   GET    /api/club/{uid}/stats/summary
   GET    /api/club/{uid}/matches
@@ -45,8 +45,6 @@ ENDPOINTS COVERED (40 unique paths):
   POST   /api/club/{uid}/match-requests
   PATCH  /api/club/{uid}/match-requests/{req_id}/accept
   PATCH  /api/club/{uid}/match-requests/{req_id}/decline
-  PUT    /api/club/{uid}/match-requests/{req_id}/modify
-  PUT    /api/club/{uid}/match-requests/{req_id}/cancel
   POST   /api/club/{uid}/competitions/{comp_id}/apply
   GET    /api/clubs/search
   GET    /api/competitions
@@ -57,6 +55,7 @@ ENDPOINTS COVERED (40 unique paths):
   POST   /api/payment/bank-transfer/intent
   POST   /api/payment/bank-transfer/receipt
   GET    /api/bank-details/active
+  GET    /api/stadiums/search
   POST   /api/support/tickets
   POST   /api/support/chat/{ticket_id}
 """
@@ -106,10 +105,7 @@ competitions_collection         = None
 support_tickets_collection      = None
 support_messages_collection     = None
 payment_intents_collection      = None
-bank_details_collection         = None
 activity_history_collection     = None
-TOKEN_PACKAGES                  = []
-SUBSCRIPTION_PLANS               = []
 
 # ── Helpers from main ────────────────────────────────────────
 MongoSerializer       = None
@@ -155,8 +151,7 @@ def _setup_dependencies(main_globals: dict) -> None:
     global stats_requests_collection, match_requests_collection
     global club_squads_collection, players_collection, competitions_collection
     global support_tickets_collection, support_messages_collection
-    global payment_intents_collection, bank_details_collection, activity_history_collection
-    global TOKEN_PACKAGES, SUBSCRIPTION_PLANS
+    global payment_intents_collection, activity_history_collection
 
     global MongoSerializer, MongoJSONResponse, logger
     global upload_to_cloudinary, send_email
@@ -204,9 +199,6 @@ def _setup_dependencies(main_globals: dict) -> None:
     payment_intents_collection = _m.get("payment_intents_collection")
     if payment_intents_collection is None:
         payment_intents_collection = database["payment_intents"]
-    bank_details_collection = _m.get("bank_details_collection")
-    if bank_details_collection is None:
-        bank_details_collection = database["bank_details"]
     activity_history_collection = _m.get("activity_history_collection")
     if activity_history_collection is None:
         activity_history_collection = database["activity_history"]
@@ -266,10 +258,6 @@ def _setup_dependencies(main_globals: dict) -> None:
     _make_tx_ref = _m.get("_make_tx_ref")
     _make_stats_request_ref = _m.get("_make_stats_request_ref")
     _make_club_token_topup_ref = _m.get("_make_club_token_topup_ref")
-
-    # ── Optional static pricing fallbacks ────────────────────
-    TOKEN_PACKAGES = _m.get("TOKEN_PACKAGES", _m.get("token_packages", [])) or []
-    SUBSCRIPTION_PLANS = _m.get("SUBSCRIPTION_PLANS", _m.get("subscription_plans", [])) or []
 
     # ── Payment configuration ────────────────────────────────
     FLUTTERWAVE_SECRET_KEY = _m.get("FLUTTERWAVE_SECRET_KEY", "")
@@ -395,9 +383,6 @@ class BankTransferIntentBody(BaseModel):
     role: Optional[str] = "club"
     level: Optional[str] = None
     tokens: Optional[int] = None
-
-    class Config:
-        extra = "ignore"
 
 
 # ============================================================
@@ -945,116 +930,17 @@ async def get_token_costs(request: Request):
 # 11. TOKEN PRICING  (Payment Wizard — TOKEN_PURCHASE)
 # ============================================================
 
-def _pricing_items(kind: str, role: str = "club", level: Optional[str] = None) -> List[dict]:
-    """Read pricing from the configured pricing service; never invent prices."""
-    service = pricing_service
-    candidates = (
-        ("get_token_packages", "token_packages", "get_token_pricing")
-        if kind == "tokens" else
-        ("get_subscription_plans", "get_subscription_packages", "subscription_plans", "get_subscription_pricing")
-    )
-    if service is not None:
-        for name in candidates:
-            fn = getattr(service, name, None)
-            if not callable(fn):
-                continue
-            for args in ((role, level), (role,), ()):
-                try:
-                    value = fn(*args)
-                    if isinstance(value, dict):
-                        value = value.get("packages" if kind == "tokens" else "plans", value.get("items", []))
-                    if isinstance(value, (list, tuple)):
-                        return [dict(x) for x in value if isinstance(x, dict)]
-                except TypeError:
-                    continue
-                except Exception:
-                    break
-    # Some applications inject static pricing lists in main.py.
-    for key in (("TOKEN_PACKAGES", "token_packages") if kind == "tokens" else ("SUBSCRIPTION_PLANS", "subscription_plans")):
-        value = globals().get(key)
-        if isinstance(value, (list, tuple)):
-            return [dict(x) for x in value if isinstance(x, dict)]
-    return []
-
-
-def _plan_key(plan: dict, kind: str) -> str:
-    return str(plan.get("key") or plan.get("id") or plan.get("plan_id") or
-               (f"tokens_{plan.get('tokens')}" if kind == "tokens" else "") or "")
-
-
-@router.get("/token/pricing")
-async def get_token_pricing(request: Request):
-    """Pricing contract consumed by the bank-transfer token purchase wizard."""
-    current_user = await get_current_user(request)
-    role = str(current_user.get("role") or current_user.get("user_type") or "club")
-    level = str(current_user.get("category") or current_user.get("club_category") or "professional")
-    packages = _pricing_items("tokens", role, level)
-    normalized = []
-    for item in packages:
-        tokens = item.get("tokens") or item.get("token_count")
-        amount = item.get("amount", item.get("price", item.get("cost", item.get("price_ngn", item.get("amount_ngn", item.get("cost_ngn", 0))))))
-        if tokens is None or amount is None:
-            continue
-        item = dict(item)
-        item.setdefault("key", _plan_key(item, "tokens"))
-        item.setdefault("label", f"{tokens} Token" + ("s" if int(tokens) != 1 else ""))
-        item["tokens"] = int(tokens)
-        item["amount"] = float(amount)
-        item["price"] = float(amount)
-        normalized.append(item)
-    return MongoJSONResponse({"packages": normalized})
 
 
 # ============================================================
 # 12. SUBSCRIPTION PRICING  (Payment Wizard — SUBSCRIPTION)
 # ============================================================
 
-@router.get("/subscription/pricing")
-async def get_subscription_pricing(request: Request):
-    current_user = await get_current_user(request)
-    role = str(current_user.get("role") or current_user.get("user_type") or "club")
-    level = str(current_user.get("category") or current_user.get("club_category") or "professional")
-    plans = _pricing_items("subscriptions", role, level)
-    normalized = []
-    for item in plans:
-        months = item.get("durationMonths") or item.get("months") or item.get("duration_months") or 1
-        amount = item.get("amount", item.get("price", item.get("cost", item.get("price_ngn", item.get("amount_ngn", item.get("cost_ngn", 0))))))
-        if amount is None:
-            continue
-        item = dict(item)
-        item.setdefault("key", str(item.get("id") or item.get("plan_id") or f"{months}_MONTH"))
-        item.setdefault("name", f"{months} Month" + ("s" if int(months) != 1 else ""))
-        item["durationMonths"] = int(months)
-        item["amount"] = float(amount)
-        item["price"] = float(amount)
-        normalized.append(item)
-    return MongoJSONResponse({"plans": normalized})
 
 
 # ============================================================
 # 13. PAYMENT CONFIG  (bank transfer details — legacy endpoint)
 # ============================================================
-
-@router.get("/payment/config")
-async def get_payment_config(request: Request):
-    """Legacy dashboard contract: {bank: {bankName, accountName, accountNumber}}."""
-    try:
-        current_user = await get_current_user(request)
-        _ = current_user  # authentication is required; no secrets are returned
-        bank = await bank_details_collection.find_one({"is_active": {"$ne": False}})
-        if not bank:
-            return MongoJSONResponse({"bank": {}})
-        safe = {
-            "bankName": bank.get("bankName") or bank.get("bank_name") or bank.get("bank") or "",
-            "accountName": bank.get("accountName") or bank.get("account_name") or "",
-            "accountNumber": bank.get("accountNumber") or bank.get("account_number") or "",
-        }
-        return MongoJSONResponse({"bank": safe})
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"get_payment_config error: {e}")
-        raise HTTPException(status_code=500, detail="Unable to load payment configuration")
 
 
 
@@ -1790,96 +1676,63 @@ async def search_clubs(
     limit: int = 20,
     page: int = 1,
 ):
-    """Search clubs, including the min/max metric filters sent by the dashboard."""
+    """
+    Search registered clubs — used by the Match Request form to
+    select an opponent.
+    """
     try:
         limit = max(1, min(limit, 50))
-        page = max(1, page)
+        skip  = (max(1, page) - 1) * limit
+
         query: Dict[str, Any] = {}
+
         if q and len(q.strip()) >= 2:
             q_stripped = q.strip()
             if q_stripped.upper().startswith("CL-"):
                 query["club_id"] = q_stripped.upper()
             else:
                 query["$or"] = [
-                    {"club_name": {"$regex": q_stripped, "$options": "i"}},
+                    {"club_name":     {"$regex": q_stripped, "$options": "i"}},
                     {"club_nickname": {"$regex": q_stripped, "$options": "i"}},
-                    {"address": {"$regex": q_stripped, "$options": "i"}},
+                    {"address":       {"$regex": q_stripped, "$options": "i"}},
                 ]
+
         if category:
             query["category"] = {"$regex": category, "$options": "i"}
-        for clause in build_club_location_filter(country=country, state=state, lga=lga, city=city):
-            query.setdefault("$and", []).append(clause)
+        # Club location filtering delegated to location_module (single source of truth)
+        for _clause in build_club_location_filter(country=country, state=state, lga=lga, city=city):
+            query.setdefault("$and", []).append(_clause)
 
-        # The UI's metric filters are query-string values, not Pydantic fields.
-        # Read metric aliases from common persisted club-stat shapes and apply
-        # the complete filter before pagination so pages remain consistent.
-        metric_aliases = {
-            "possession": ("possession", "possession_avg", "average_possession"),
-            "short_passes": ("short_passes", "passes_short", "short_passes_avg"),
-            "long_passes": ("long_passes", "passes_long", "long_passes_avg"),
-            "goals_scored": ("goals_scored", "goals_for", "scored"),
-            "goals_conceded": ("goals_conceded", "goals_against", "conceded"),
-            "win_rate": ("win_rate", "win_percentage", "win_pct"),
-        }
-        metric_filters = []
-        for metric, aliases in metric_aliases.items():
-            for bound in ("min", "max"):
-                raw = request.query_params.get(f"{metric}_{bound}")
-                if raw not in (None, ""):
-                    try:
-                        metric_filters.append((metric, aliases, bound, float(raw)))
-                    except (TypeError, ValueError):
-                        raise HTTPException(status_code=422, detail=f"Invalid {metric}_{bound} filter")
+        clubs = await (
+            clubs_collection.find(query)
+            .skip(skip)
+            .limit(limit)
+            .to_list(length=limit)
+        )
 
-        docs = await clubs_collection.find(query).limit(1000).to_list(length=1000)
-        def metric_value(doc: dict, aliases: tuple):
-            containers = [doc]
-            for key in ("stats", "season_stats", "summary_stats", "statistics", "club_stats", "analytics"):
-                value = doc.get(key)
-                if isinstance(value, dict):
-                    containers.append(value)
-            for container in containers:
-                for key in aliases:
-                    value = container.get(key)
-                    if value is not None:
-                        try:
-                            return float(value)
-                        except (TypeError, ValueError):
-                            pass
-            return None
+        results = []
+        for c in clubs:
+            results.append({
+                "_id":        str(c.get("_id", "")),
+                "club_id":    c.get("club_id", ""),
+                "club_name":  c.get("club_name", ""),
+                "name":       c.get("club_name", ""),
+                "category":   c.get("category", ""),
+                "state":      c.get("state", "") or c.get("region", ""),
+                "lga":        c.get("lga", ""),
+                "city":       c.get("city", "") or c.get("town", ""),
+                "country":    c.get("country", ""),
+                "photo_url":  c.get("photo_url", ""),
+                "is_verified": c.get("is_verified", False),
+            })
 
-        filtered = []
-        for club_doc in docs:
-            accepted = True
-            for metric, aliases, bound, threshold in metric_filters:
-                value = metric_value(club_doc, aliases)
-                # Unknown metrics do not satisfy a requested numeric constraint.
-                if value is None or (value < threshold if bound == "min" else value > threshold):
-                    accepted = False
-                    break
-            if accepted:
-                filtered.append(club_doc)
-        total = len(filtered)
-        page_docs = filtered[(page - 1) * limit: page * limit]
-        results = [{
-            "_id": str(c.get("_id", "")),
-            "club_id": c.get("club_id", ""),
-            "club_name": c.get("club_name", ""),
-            "name": c.get("club_name", ""),
-            "category": c.get("category", ""),
-            "state": c.get("state", "") or c.get("region", ""),
-            "lga": c.get("lga", ""),
-            "city": c.get("city", "") or c.get("town", ""),
-            "country": c.get("country", ""),
-            "photo_url": c.get("photo_url", ""),
-            "is_verified": c.get("is_verified", False),
-        } for c in page_docs]
-        return MongoJSONResponse({"clubs": results, "total": total, "page": page, "limit": limit})
+        return MongoJSONResponse({"clubs": results, "total": len(results)})
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"search_clubs error: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
 
 # ============================================================
 # 27. SEND MATCH REQUEST
@@ -2029,48 +1882,6 @@ async def decline_match_request(uid: str, req_id: str, request: Request):
     except Exception as e:
         logger.error(f"decline_match_request error: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
-
-
-# ============================================================
-# 28c. MODIFY / CANCEL SENT MATCH REQUESTS (frontend PUT contract)
-# ============================================================
-
-@router.put("/club/{uid}/match-requests/{req_id}/modify")
-async def modify_match_request(uid: str, req_id: str, request: Request, body: MatchRequestBody):
-    try:
-        current_user = await get_current_user(request)
-        _require_auth(current_user, uid)
-        owner_filter = {"$or": [{"reference_id": req_id}, {"_id": ObjectId(req_id)}]} if len(req_id) == 24 and ObjectId.is_valid(req_id) else {"reference_id": req_id}
-        query = {"$and": [owner_filter, {"$or": [{"requesting_club_id": uid}, {"club_id": uid}, {"user_id": uid}], "status": {"$in": ["pending", "Pending", "modified"]}}]}
-        update = {k: v for k, v in body.model_dump(exclude_unset=True).items()} if hasattr(body, "model_dump") else body.dict(exclude_unset=True)
-        update.update({"updated_at": MongoSerializer.now_utc(), "status": "modified"})
-        result = await match_requests_collection.update_one(query, {"$set": update})
-        if result.matched_count == 0:
-            raise HTTPException(status_code=404, detail="Pending match request not found")
-        return MongoJSONResponse({"ok": True, "reference_id": req_id, "request_id": req_id, "status": "modified"})
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"modify_match_request error: {e}")
-        raise HTTPException(status_code=500, detail="Unable to modify match request")
-
-
-@router.put("/club/{uid}/match-requests/{req_id}/cancel")
-async def cancel_match_request(uid: str, req_id: str, request: Request):
-    try:
-        current_user = await get_current_user(request)
-        _require_auth(current_user, uid)
-        id_filter = {"$or": [{"reference_id": req_id}, {"_id": ObjectId(req_id)}]} if len(req_id) == 24 and ObjectId.is_valid(req_id) else {"reference_id": req_id}
-        query = {"$and": [id_filter, {"$or": [{"requesting_club_id": uid}, {"club_id": uid}, {"user_id": uid}], "status": {"$in": ["pending", "Pending", "modified"]}}]}
-        result = await match_requests_collection.update_one(query, {"$set": {"status": "cancelled", "updated_at": MongoSerializer.now_utc()}})
-        if result.matched_count == 0:
-            raise HTTPException(status_code=404, detail="Pending match request not found")
-        return MongoJSONResponse({"ok": True, "reference_id": req_id, "status": "cancelled"})
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"cancel_match_request error: {e}")
-        raise HTTPException(status_code=500, detail="Unable to cancel match request")
 
 
 # ============================================================
@@ -2225,139 +2036,15 @@ async def send_support_chat_message(
 # 33. BANK TRANSFER INTENT  (Payment Wizard step 2)
 # ============================================================
 
-@router.post("/payment/bank-transfer/intent")
-async def create_bank_transfer_intent(request: Request, body: BankTransferIntentBody):
-    """Create a server-priced, owner-scoped pending bank-transfer intent."""
-    try:
-        current_user = await get_current_user(request)
-        role = str(current_user.get("role") or current_user.get("user_type") or "")
-        normalized_role = normalize_role(role)
-        if normalized_role != "club":
-            raise HTTPException(status_code=403, detail="Club account required for bank-transfer payments")
-        if body.paymentType not in {"TOKEN_PURCHASE", "SUBSCRIPTION"}:
-            raise HTTPException(status_code=422, detail="Unsupported payment type")
-        uid = str(current_user.get("club_id") or current_user.get("user_id") or current_user.get("unique_id") or current_user.get("_id") or "")
-        club = await _resolve_club(uid) if uid else None
-        if normalized_role == "club" and not club:
-            # Some auth payloads identify a club by the user document id.
-            raise HTTPException(status_code=404, detail="Club account not found")
-        level = body.level or (club or {}).get("category") or (club or {}).get("club_category") or "professional"
-        kind = "tokens" if body.paymentType == "TOKEN_PURCHASE" else "subscriptions"
-        plans = _pricing_items(kind, body.role or role or "club", level)
-        selected = next((x for x in plans if _plan_key(x, kind) == body.selectedPlan or str(x.get("key") or x.get("id") or x.get("plan_id") or "") == body.selectedPlan), None)
-        if not selected:
-            raise HTTPException(status_code=422, detail="Selected plan is not available")
-        raw_amount = next((selected[k] for k in ("amount", "price", "cost", "price_ngn", "amount_ngn", "cost_ngn") if selected.get(k) is not None), None)
-        if raw_amount is None:
-            raise HTTPException(status_code=503, detail="Selected plan has no configured price")
-        amount = float(raw_amount)
-        if amount <= 0:
-            raise HTTPException(status_code=422, detail="Invalid plan price")
-        tokens = int(selected.get("tokens") or selected.get("token_count") or (body.tokens if kind == "tokens" else 0) or 0)
-        reference = f"BT-{uuid.uuid4().hex[:12].upper()}"
-        now = MongoSerializer.now_utc()
-        doc = {
-            "intent_id": reference, "reference": reference, "ref": reference,
-            "club_id": str((club or {}).get("club_id") or uid),
-            "user_id": str((club or {}).get("user_id") or uid),
-            "user_type": "club", "payment_type": body.paymentType,
-            "selected_plan": body.selectedPlan, "role": body.role or role,
-            "level": level, "amount": amount, "currency": "NGN", "tokens": tokens,
-            "plan": selected, "status": "awaiting_transfer", "created_at": now,
-            "updated_at": now, "expires_at": now + timedelta(days=2),
-        }
-        result = await payment_intents_collection.insert_one(doc)
-        return MongoJSONResponse({"ok": True, "intentId": reference, "intent_id": reference, "reference": reference, "ref": reference, "amount": amount, "currency": "NGN", "tokens": tokens, "status": "awaiting_transfer"})
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"create_bank_transfer_intent error: {e}")
-        raise HTTPException(status_code=500, detail="Unable to create bank-transfer intent")
 
 
 # ============================================================
 # 34. BANK DETAILS  (Payment Wizard step 3)
 # ============================================================
 
-@router.get("/bank-details/active")
-async def get_active_bank_details(request: Request):
-    try:
-        await get_current_user(request)
-        bank = await bank_details_collection.find_one({"is_active": {"$ne": False}})
-        if not bank:
-            raise HTTPException(status_code=503, detail="No active bank-transfer account is configured")
-        return MongoJSONResponse({
-            "bankName": bank.get("bankName") or bank.get("bank_name") or bank.get("bank") or "",
-            "accountName": bank.get("accountName") or bank.get("account_name") or "",
-            "accountNumber": bank.get("accountNumber") or bank.get("account_number") or "",
-            "bank_name": bank.get("bank_name") or bank.get("bankName") or bank.get("bank") or "",
-            "account_name": bank.get("account_name") or bank.get("accountName") or "",
-            "account_number": bank.get("account_number") or bank.get("accountNumber") or "",
-        })
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"get_active_bank_details error: {e}")
-        raise HTTPException(status_code=500, detail="Unable to load bank details")
 
 
 # ============================================================
-# 35. BANK TRANSFER RECEIPT UPLOAD (Payment Wizard step 4)
+# 35. BANK TRANSFER RECEIPT UPLOAD  (Payment Wizard step 4)
 # ============================================================
-
-@router.post("/payment/bank-transfer/receipt")
-async def upload_bank_transfer_receipt(
-    request: Request,
-    intentId: str = Form(...),
-    receiptFile: UploadFile = File(...),
-):
-    try:
-        current_user = await get_current_user(request)
-        role = normalize_role(current_user.get("role") or current_user.get("user_type") or "")
-        if role != "club":
-            raise HTTPException(status_code=403, detail="Club account required for receipt submission")
-        filename = receiptFile.filename or "receipt"
-        ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
-        if ext not in {"pdf", "png", "jpg", "jpeg"}:
-            raise HTTPException(status_code=400, detail="Only PDF, PNG, JPG, JPEG files are allowed")
-        content = await receiptFile.read()
-        if not content:
-            raise HTTPException(status_code=400, detail="Receipt file is empty")
-        if len(content) > 10 * 1024 * 1024:
-            raise HTTPException(status_code=413, detail="Receipt file must be 10 MB or smaller")
-        id_filter = {"intent_id": intentId}
-        if len(intentId) == 24 and ObjectId.is_valid(intentId):
-            id_filter = {"$or": [{"intent_id": intentId}, {"_id": ObjectId(intentId)}]}
-        intent = await payment_intents_collection.find_one(id_filter)
-        if not intent:
-            raise HTTPException(status_code=404, detail="Payment intent not found")
-        uid = str(current_user.get("club_id") or current_user.get("user_id") or current_user.get("unique_id") or current_user.get("_id") or "")
-        owner = str(intent.get("club_id") or intent.get("user_id") or "")
-        club = await _resolve_club(uid) if uid else None
-        allowed_ids = {uid, str((club or {}).get("club_id") or ""), str((club or {}).get("user_id") or ""), str((club or {}).get("_id") or "")}
-        if not owner or owner not in allowed_ids:
-            raise HTTPException(status_code=403, detail="Payment intent does not belong to this club")
-        if intent.get("status") in {"completed", "rejected", "cancelled"}:
-            raise HTTPException(status_code=409, detail="This payment intent can no longer accept a receipt")
-        if not callable(upload_to_cloudinary):
-            raise HTTPException(status_code=503, detail="Receipt storage is not configured")
-        try:
-            receipt_url = await upload_to_cloudinary(
-                content, filename=filename, folder="enejistats/payment_receipts",
-                resource_type="auto", public_id=f"bank_receipt_{intentId}",
-                user_type="club", file_category="payment_receipts",
-            )
-        except TypeError:
-            receipt_url = await upload_to_cloudinary(content, filename=filename, folder="enejistats/payment_receipts", resource_type="raw", public_id=f"bank_receipt_{intentId}")
-        now = MongoSerializer.now_utc()
-        await payment_intents_collection.update_one(
-            {"_id": intent.get("_id")} if intent.get("_id") is not None else id_filter,
-            {"$set": {"receipt_url": receipt_url, "receipt_filename": filename, "receipt_content_type": receiptFile.content_type, "receipt_submitted_at": now, "status": "receipt_submitted", "updated_at": now}},
-        )
-        return MongoJSONResponse({"ok": True, "intentId": intentId, "reference": intent.get("reference") or intent.get("ref") or intentId, "receipt_url": receipt_url, "status": "receipt_submitted"})
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"upload_bank_transfer_receipt error: {e}")
-        raise HTTPException(status_code=500, detail="Unable to upload payment receipt")
 

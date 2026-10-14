@@ -2603,22 +2603,67 @@ async def admin_create_assignment(
     dco_col = _require_collection(dco_collection, "dco_collection")
 
     assignee_id = body.assigned_dco_id or body.assigned_supervisor_id or ""
-    role        = "dco" if body.assigned_dco_id else "supervisor"
+    role = "dco" if body.assigned_dco_id else "supervisor"
 
-    assignment_id  = f"ASGN-{secrets.token_hex(6).upper()}"
+    # Resolve the ID sent by the admin UI. Depending on which table/view
+    # launched assignment, it may be Mongo _id, request_id, or reference_id.
+    supplied_request_id = str(body.stats_request_id or "").strip()
+    request_doc = None
+    if stats_requests_collection is not None and supplied_request_id:
+        request_clauses = [
+            {"request_id": supplied_request_id},
+            {"reference_id": supplied_request_id},
+            {"referenceId": supplied_request_id},
+            {"stats_request_id": supplied_request_id},
+        ]
+        if ObjectId.is_valid(supplied_request_id):
+            request_clauses.append({"_id": ObjectId(supplied_request_id)})
+        request_doc = await stats_requests_collection.find_one({"$or": request_clauses})
+
+    # Use the persisted Mongo ID as the canonical link when the request is
+    # available, while retaining the human-facing reference for old clients.
+    canonical_request_id = (
+        str(request_doc.get("_id"))
+        if request_doc and request_doc.get("_id") is not None
+        else supplied_request_id
+    )
+    request_reference_id = (
+        str((request_doc or {}).get("reference_id")
+            or (request_doc or {}).get("referenceId")
+            or supplied_request_id)
+    )
+
+    assignment_id = f"ASGN-{secrets.token_hex(6).upper()}"
     assignment_doc = {
-        "assignment_id":          assignment_id,
-        "request_id":             body.stats_request_id,
-        "dco_id":                 body.assigned_dco_id,
-        "supervisor_id":          body.assigned_supervisor_id,
-        "assignee_id":            assignee_id,
-        "role":                   role,
-        "notes":                  body.notes or "",
-        "status":                 "assigned",
-        "admin_id":               admin_id,
-        "created_at":             _now_utc(),
-        "updated_at":             _now_utc(),
+        "assignment_id": assignment_id,
+        "request_id": canonical_request_id,
+        "stats_request_id": canonical_request_id,
+        "request_reference_id": request_reference_id,
+        "dco_id": body.assigned_dco_id or "",
+        "assigned_dco_id": body.assigned_dco_id or "",
+        "supervisor_id": body.assigned_supervisor_id or "",
+        "assigned_supervisor_id": body.assigned_supervisor_id or "",
+        "assignee_id": assignee_id,
+        "role": role,
+        "notes": body.notes or "",
+        "status": "assigned",
+        "admin_id": admin_id,
+        "created_at": _now_utc(),
+        "updated_at": _now_utc(),
     }
+    # Keep the assignment self-describing as a safe fallback if older request
+    # documents cannot be fetched by a downstream tracker.
+    if request_doc:
+        for field in (
+            "reference_id", "requester_type", "entity_type", "request_type",
+            "tracking_type", "club_id", "club_name", "user_id", "player_id",
+            "player_name", "home_team", "away_team", "match_date", "match_time",
+            "match_type", "venue_address", "venue_state", "venue_lga",
+            "venue_country", "contact_phone", "jersey_color", "player_ids",
+            "player_stat_categories",
+        ):
+            if request_doc.get(field) is not None:
+                assignment_doc[field] = request_doc[field]
     await asgn_col.insert_one(assignment_doc)
 
     # ── FIX 1-B: propagate supervisor_id to the DCO's own document ────────
@@ -2659,25 +2704,41 @@ async def admin_create_assignment(
                 body.assigned_dco_id,
             )
 
-    # Also update the stats request status if possible
+    # Update the exact resolved request and write every ownership alias used
+    # by the DCO dashboard/tracker. Older documents remain readable as well.
     if stats_requests_collection is not None:
-        assignee_key = "dco_id" if role == "dco" else "supervisor_id"
-        await stats_requests_collection.update_one(
-            {
-                "$or": [
-                    {"request_id": body.stats_request_id},
-                    {"_id": _try_oid(body.stats_request_id)},
-                ]
-            },
-            {
-                "$set": {
-                    "status":        "assigned",
-                    assignee_key:    assignee_id,
-                    "assigned_role": role,
-                    "updated_at":    _now_utc(),
-                }
-            },
-        )
+        assignee_fields = {
+            "status": "assigned",
+            "assigned_role": role,
+            "updated_at": _now_utc(),
+        }
+        if role == "dco":
+            assignee_fields.update({
+                "dco_id": assignee_id,
+                "assigned_dco_id": assignee_id,
+                "assignee_id": assignee_id,
+            })
+        else:
+            assignee_fields.update({
+                "supervisor_id": assignee_id,
+                "assigned_supervisor_id": assignee_id,
+                "assignee_id": assignee_id,
+            })
+        if request_doc and request_doc.get("_id") is not None:
+            await stats_requests_collection.update_one(
+                {"_id": request_doc["_id"]}, {"$set": assignee_fields}
+            )
+        else:
+            fallback_clauses = [
+                {"request_id": supplied_request_id},
+                {"reference_id": supplied_request_id},
+                {"referenceId": supplied_request_id},
+            ]
+            if ObjectId.is_valid(supplied_request_id):
+                fallback_clauses.append({"_id": ObjectId(supplied_request_id)})
+            await stats_requests_collection.update_one(
+                {"$or": fallback_clauses}, {"$set": assignee_fields}
+            )
 
     if assignee_id:
         await _send_notification(
@@ -2698,8 +2759,9 @@ async def admin_create_assignment(
     return JSONResponse({
         "success":          True,
         "assignment_id":    assignment_id,
-        "request_id":       body.stats_request_id,
-        "stats_request_id": body.stats_request_id,
+        "request_id":       canonical_request_id,
+        "stats_request_id": canonical_request_id,
+        "request_reference_id": request_reference_id,
         "assignee_id":      assignee_id,
         "role":             role,
         "status":           "assigned",
