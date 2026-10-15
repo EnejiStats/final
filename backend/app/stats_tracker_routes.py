@@ -1361,6 +1361,201 @@ def _normalise_widget_players(
     return normalized
 
 
+def _normalise_club_tracking(
+    raw_tracking: Any,
+    assignment_id: str = "",
+    match_id: str = "",
+) -> Optional[Dict[str, Any]]:
+    """Validate and canonicalize the club widget's event snapshot."""
+    if raw_tracking is None:
+        return None
+    if not isinstance(raw_tracking, dict):
+        raise ValueError("clubTracking must be an object")
+
+    raw_events = raw_tracking.get("events", [])
+    if not isinstance(raw_events, list):
+        raise ValueError("clubTracking.events must be a list")
+    if len(raw_events) > 10000:
+        raise ValueError("clubTracking.events cannot exceed 10000 events")
+
+    normalized_events: List[Dict[str, Any]] = []
+    seen_event_ids: set[str] = set()
+    seen_client_event_ids: set[str] = set()
+    for index, raw_event in enumerate(raw_events):
+        field = f"clubTracking.events[{index}]"
+        if not isinstance(raw_event, dict):
+            raise ValueError(f"{field} must be an object")
+
+        team = str(
+            raw_event.get("team")
+            or raw_event.get("clubTeam")
+            or raw_event.get("club_team")
+            or raw_event.get("teamSide")
+            or raw_event.get("team_side")
+            or ""
+        ).strip().lower()
+        if team not in {"home", "away"}:
+            raise ValueError(f"{field}.team must be 'home' or 'away'")
+
+        metric_key = str(
+            raw_event.get("key")
+            or raw_event.get("metricKey")
+            or raw_event.get("metric_key")
+            or raw_event.get("metric")
+            or ""
+        ).strip()
+        if not metric_key or len(metric_key) > 100:
+            raise ValueError(f"{field}.key must contain 1 to 100 characters")
+
+        event_id = str(
+            raw_event.get("eventId")
+            or raw_event.get("event_id")
+            or raw_event.get("id")
+            or raw_event.get("clientEventId")
+            or raw_event.get("client_event_id")
+            or f"club-event-{index + 1}"
+        ).strip()
+        client_event_id = str(
+            raw_event.get("clientEventId")
+            or raw_event.get("client_event_id")
+            or event_id
+        ).strip()
+        if event_id in seen_event_ids:
+            raise ValueError(f"{field}.eventId is duplicated")
+        if client_event_id in seen_client_event_ids:
+            raise ValueError(f"{field}.clientEventId is duplicated")
+        seen_event_ids.add(event_id)
+        seen_client_event_ids.add(client_event_id)
+
+        period_value = raw_event.get("period", raw_event.get("half", 1))
+        period = int(_number(period_value, f"{field}.period"))
+        if period not in {1, 2}:
+            raise ValueError(f"{field}.period must be 1 or 2")
+        period_seconds = int(
+            _number(
+                raw_event.get(
+                    "periodSeconds",
+                    raw_event.get("period_seconds", raw_event.get("elapsed_seconds", 0)),
+                ),
+                f"{field}.periodSeconds",
+            )
+        )
+        match_seconds = int(
+            _number(
+                raw_event.get(
+                    "absoluteMatchTime",
+                    raw_event.get(
+                        "absolute_match_time",
+                        raw_event.get(
+                            "matchTime",
+                            raw_event.get(
+                                "match_time",
+                                period_seconds + (45 * 60 if period == 2 else 0),
+                            ),
+                        ),
+                    ),
+                ),
+                f"{field}.matchTime",
+            )
+        )
+
+        event = dict(raw_event)
+        event.update(
+            {
+                "event_id": event_id,
+                "client_event_id": client_event_id,
+                "entity_type": "club",
+                "team": team,
+                "club_team": team,
+                "team_name": (
+                    raw_event.get("teamName")
+                    or raw_event.get("team_name")
+                    or raw_event.get("clubName")
+                    or raw_event.get("club_name")
+                    or ""
+                ),
+                "metric_key": metric_key,
+                "metric_label": (
+                    raw_event.get("metricLabel")
+                    or raw_event.get("metric_label")
+                    or metric_key.replace("_", " ").title()
+                ),
+                "outcome": raw_event.get("outcome"),
+                "outcome_label": (
+                    raw_event.get("outcomeLabel")
+                    or raw_event.get("outcome_label")
+                    or ""
+                ),
+                "type": raw_event.get("type"),
+                "type_label": raw_event.get("typeLabel") or raw_event.get("type_label") or "",
+                "recorded_at": (
+                    raw_event.get("recordedAt")
+                    or raw_event.get("recorded_at")
+                    or raw_event.get("timestamp")
+                ),
+                "period": period,
+                "half": period,
+                "period_seconds": period_seconds,
+                "elapsed_seconds": period_seconds,
+                "match_time": match_seconds,
+                "absolute_match_time": match_seconds,
+                "assignment_id": str(
+                    raw_event.get("assignmentId")
+                    or raw_event.get("assignment_id")
+                    or assignment_id
+                    or ""
+                ).strip()
+                or None,
+                "match_id": str(
+                    raw_event.get("matchId")
+                    or raw_event.get("match_id")
+                    or match_id
+                    or ""
+                ).strip()
+                or None,
+            }
+        )
+        normalized_events.append(event)
+
+    normalized = dict(raw_tracking)
+    normalized["events"] = normalized_events
+    for key in ("stats", "derived", "redo", "possession"):
+        value = normalized.get(key)
+        if value is not None and not isinstance(value, dict):
+            raise ValueError(f"clubTracking.{key} must be an object")
+    return normalized
+
+
+def _club_event_documents(
+    parent_field: str,
+    parent_id: Any,
+    club_tracking: Optional[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Create event rows compatible with the existing normalized event collections."""
+    if not club_tracking:
+        return []
+    documents = []
+    for order, event in enumerate(club_tracking.get("events", [])):
+        row = dict(event)
+        row.update(
+            {
+                "_id": ObjectId(),
+                parent_field: parent_id,
+                "event_order": order,
+                "entity_type": "club",
+                "event_type": "club_tracker",
+                "team": event["team"],
+                "club_team": event["team"],
+                "metric": event["metric_key"],
+                "metric_key": event["metric_key"],
+                "elapsed_seconds": event["period_seconds"],
+                "match_time": event["absolute_match_time"],
+            }
+        )
+        documents.append(row)
+    return documents
+
+
 def _normalise_widget_match(payload: BaseModel) -> tuple[Dict[str, Any], Dict[str, Any]]:
     """Canonicalize the match once for both draft and final submission."""
     match = _normalise_match(payload) or {}
@@ -1497,6 +1692,8 @@ class DraftRequest(BaseModel):
     players: Optional[List[Dict[str, Any]]] = None
     actions: Optional[List[Dict[str, Any]]] = None
     assignmentIds: Optional[List[str]] = None
+    clubTracking: Optional[Dict[str, Any]] = None
+    club_tracking: Optional[Dict[str, Any]] = None
     homeTeam: Optional[str] = None
     awayTeam: Optional[str] = None
     homeTeamId: Optional[str] = None
@@ -1516,6 +1713,8 @@ class WidgetSubmitRequest(BaseModel):
     dcoId: Optional[str] = None
     assignmentId: Optional[str] = None
     assignmentIds: Optional[List[str]] = None
+    clubTracking: Optional[Dict[str, Any]] = None
+    club_tracking: Optional[Dict[str, Any]] = None
     supervisorId: Optional[str] = None
     match: Optional[Dict[str, Any]] = None
     assignment_id: Optional[str] = None
@@ -1534,7 +1733,7 @@ class WidgetSubmitRequest(BaseModel):
     geoLat: Optional[float] = None
     geoLon: Optional[float] = None
     isResubmit: bool = False
-    tracking_type: str = "full"
+    tracking_type: Optional[str] = None
     submission_trigger: Optional[str] = None
     reason: Optional[str] = None
     player_id: Optional[str] = None
@@ -1978,6 +2177,7 @@ def _session_kwargs(session: Any) -> Dict[str, Any]:
 _FINGERPRINT_ALIASES = {
     "assignmentId": "assignment_id",
     "assignmentIds": "assignment_ids",
+    "clubTracking": "club_tracking",
     "supervisorId": "supervisor_id",
     "trackingType": "tracking_type",
     "submissionTrigger": "submission_trigger",
@@ -2003,6 +2203,11 @@ _FINGERPRINT_ALIASES = {
     "playerCategory": "player_category",
     "playerLevel": "player_level",
     "participationSecondsByPeriod": "participation_seconds_by_period",
+    "periodSeconds": "period_seconds",
+    "absoluteMatchTime": "absolute_match_time",
+    "teamName": "team_name",
+    "metricLabel": "metric_label",
+    "oppositionTeam": "opposition_team",
     "geoStatus": "geo_status",
     "geoLat": "geo_lat",
     "geoLon": "geo_lon",
@@ -2144,6 +2349,9 @@ def _canonical_submission_body(payload: WidgetSubmitRequest) -> Dict[str, Any]:
         "reason": data.get("reason"),
         "match": _canonicalise_match_document(_normalise_match(payload)),
         "players": unique_players,
+        "club_tracking": _canonicalise_fingerprint_value(
+            _first_data_value(data, "clubTracking", "club_tracking")
+        ),
         "geo": {
             "status": _first_data_value(data, "geoStatus", "geo_status"),
             "latitude": _first_data_value(data, "geoLat", "geo_lat"),
@@ -2183,6 +2391,7 @@ def _submission_result_response(record: dict, submission_key: str) -> JSONRespon
             "status": record.get("status"),
             "record_id": str(record.get("_id", "")),
             "player_count": int(record.get("player_count") or 0),
+            "club_event_count": int(record.get("club_event_count") or 0),
             "performance_score": float(record.get("performance_score") or 0),
             "submission_id": record.get("client_submission_id") or submission_key.rsplit(":", 1)[-1],
             "duplicate": bool(record.get("_idempotent_replay", False)),
@@ -2201,26 +2410,13 @@ async def _enriched_assignments(identifier: str) -> List[Dict[str, Any]]:
     result: List[Dict[str, Any]] = []
     for assignment in rows:
         item = _serialize(assignment)
-        request_id = (
-            item.get("stats_request_id")
-            or item.get("request_id")
-            or item.get("request_reference_id")
-            or item.get("reference_id")
-            or ""
-        )
+        request_id = item.get("stats_request_id") or item.get("request_id") or ""
         request_doc = {}
-        if request_id and stats_requests_collection is not None:
-            request_clauses = [
-                {"request_id": str(request_id)},
-                {"reference_id": str(request_id)},
-                {"referenceId": str(request_id)},
-                {"stats_request_id": str(request_id)},
-            ]
+        if request_id:
             if ObjectId.is_valid(str(request_id)):
-                request_clauses.append({"_id": ObjectId(str(request_id))})
-            else:
-                request_clauses.append({"_id": str(request_id)})
-            request_doc = await stats_requests_collection.find_one({"$or": request_clauses}) or {}
+                request_doc = await stats_requests_collection.find_one({"_id": ObjectId(str(request_id))}) or {}
+            if not request_doc:
+                request_doc = await stats_requests_collection.find_one({"request_id": request_id}) or {}
         request_item = _serialize(request_doc)
         player_id = item.get("player_id") or request_item.get("player_id") or ""
         player_doc = {}
@@ -2398,20 +2594,9 @@ async def tracker_assignments(request: Request):
     # without creating a separate dco_assignments record. Include those
     # request documents as virtual assignments for the same DCO dashboard.
     linked_request_ids = {
-        str(
-            row.get("stats_request_id")
-            or row.get("request_id")
-            or row.get("request_reference_id")
-            or row.get("reference_id")
-            or ""
-        ).strip()
+        str(row.get("stats_request_id") or row.get("request_id") or "").strip()
         for row in raw_assignments
-        if (
-            row.get("stats_request_id")
-            or row.get("request_id")
-            or row.get("request_reference_id")
-            or row.get("reference_id")
-        )
+        if row.get("stats_request_id") or row.get("request_id")
     }
     if stats_requests_collection is not None:
         request_cursor = (
@@ -2423,30 +2608,19 @@ async def tracker_assignments(request: Request):
         for request_doc in owned_requests:
             request_snapshot = _serialize(request_doc)
             request_id = str(
-                request_snapshot.get("_id")
-                or request_snapshot.get("request_id")
-                or request_snapshot.get("reference_id")
-                or request_snapshot.get("referenceId")
+                request_snapshot.get("request_id")
+                or request_snapshot.get("_id")
                 or ""
             ).strip()
-            request_reference_id = str(
-                request_snapshot.get("reference_id")
-                or request_snapshot.get("referenceId")
-                or request_snapshot.get("request_id")
-                or ""
-            ).strip()
-            if not request_id or request_id in linked_request_ids or request_reference_id in linked_request_ids:
+            if not request_id or request_id in linked_request_ids:
                 continue
             linked_request_ids.add(request_id)
-            if request_reference_id:
-                linked_request_ids.add(request_reference_id)
             raw_assignments.append(
                 {
                     "assignment_id": request_snapshot.get("assignment_id")
                     or request_id,
                     "stats_request_id": request_id,
                     "request_id": request_id,
-                    "request_reference_id": request_reference_id,
                     "assigned_dco_id": (
                         request_snapshot.get("assigned_dco_id")
                         or request_snapshot.get("assigned_scout_id")
@@ -2483,33 +2657,35 @@ async def tracker_assignments(request: Request):
         )
         stats_request_snapshot: Dict[str, Any] = {}
 
-        # Assignment writers historically used different link keys: some sent
-        # the Mongo _id, others the human reference_id, and some only wrote
-        # request_id. Resolve all known aliases before building the card.
-        stats_request_id = str(
+        stats_request_id = (
             assignment_snapshot.get("stats_request_id")
             or assignment_snapshot.get("request_id")
-            or assignment_snapshot.get("request_reference_id")
-            or assignment_snapshot.get("reference_id")
             or ""
-        ).strip()
+        )
 
         if stats_request:
             stats_request_snapshot = _serialize(stats_request)
-        elif stats_request_id and stats_requests_collection is not None:
-            request_clauses = [
-                {"request_id": stats_request_id},
-                {"reference_id": stats_request_id},
-                {"referenceId": stats_request_id},
-                {"stats_request_id": stats_request_id},
-            ]
-            if ObjectId.is_valid(stats_request_id):
-                request_clauses.append({"_id": ObjectId(stats_request_id)})
-            else:
-                request_clauses.append({"_id": stats_request_id})
-            stats_request = await stats_requests_collection.find_one(
-                {"$or": request_clauses}
-            )
+        elif stats_request_id:
+            if len(str(stats_request_id)) == 24:
+                try:
+                    from bson import ObjectId
+
+                    stats_request = await stats_requests_collection.find_one(
+                        {"_id": ObjectId(str(stats_request_id))}
+                    )
+                except Exception:
+                    stats_request = None
+
+            if not stats_request:
+                stats_request = await stats_requests_collection.find_one(
+                    {
+                        "$or": [
+                            {"request_id": stats_request_id},
+                            {"_id": stats_request_id},
+                        ]
+                    }
+                )
+
             if stats_request:
                 stats_request_snapshot = _serialize(stats_request)
 
@@ -2988,7 +3164,15 @@ async def tracker_assignments(request: Request):
                 "assignment_notes": assignment_notes,
 
                 # Assignment status
-                "status": assignment_snapshot.get("status", "assigned"),
+                "status": (
+                    assignment_snapshot.get("status")
+                    or stats_request_snapshot.get("status")
+                    or stats_request_snapshot.get("assignment_status")
+                    or stats_request_snapshot.get("acceptance_status")
+                    or assignment_snapshot.get("assignment_status")
+                    or assignment_snapshot.get("acceptance_status")
+                    or "assigned"
+                ),
 
                 # Linking fields
                 "stats_request_id": stats_request_id,
@@ -3198,7 +3382,10 @@ async def tracker_submissions(request: Request):
 
 
 async def _update_owned_assignment_or_request(
-    identifier: str, assignment_id: str, values: Dict[str, Any]
+    identifier: str,
+    assignment_id: str,
+    values: Dict[str, Any],
+    session: Any = None,
 ) -> bool:
     """Update either a materialized assignment or a Match Centre request row."""
     assignment_owner_filter = {
@@ -3231,6 +3418,7 @@ async def _update_owned_assignment_or_request(
                 ]
             },
             {"$set": values},
+            **_session_kwargs(session),
         )
         if result.matched_count:
             return True
@@ -3252,6 +3440,7 @@ async def _update_owned_assignment_or_request(
                 ]
             },
             {"$set": values},
+            **_session_kwargs(session),
         )
         return bool(request_result.matched_count)
     return False
@@ -3300,18 +3489,30 @@ async def save_widget_draft(id: str, request: Request, payload: DraftRequest):
     assignment_value = _payload_value(payload, "assignmentId", "assignment_id", default="")
     assignment_id = str(assignment_value or "").strip()
     raw_players = payload.players or []
+    raw_club_tracking = _payload_value(
+        payload, "clubTracking", "club_tracking", default=None
+    )
 
-    try:
-        normalised_players = _normalise_widget_players(
-            raw_players,
-            _payload_value(payload, "actions", default=[]),
-            max_players=3,
-        )
-    except (TypeError, ValueError) as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if raw_club_tracking is not None:
+        normalised_players = []
+    else:
+        try:
+            normalised_players = _normalise_widget_players(
+                raw_players,
+                _payload_value(payload, "actions", default=[]),
+                max_players=3,
+            )
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     match, geo = _normalise_widget_match(payload)
     match_id = str(match.get("match_id") or assignment_id).strip()
+    try:
+        club_tracking = _normalise_club_tracking(
+            raw_club_tracking, assignment_id=assignment_id, match_id=match_id
+        )
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     for profile, events in normalised_players:
         profile["assignment_id"] = profile.get("assignment_id") or assignment_id or None
         for event in events:
@@ -3325,8 +3526,15 @@ async def save_widget_draft(id: str, request: Request, payload: DraftRequest):
         "schema_version": 2,
         **key,
         "match": match,
+        "entity_type": "club" if club_tracking is not None else "player",
+        "tracking_type": "club" if club_tracking is not None else "full",
         "player_count": len(normalised_players),
-        "event_count": sum(len(events) for _profile, events in normalised_players),
+        "event_count": (
+            sum(len(events) for _profile, events in normalised_players)
+            + len(club_tracking.get("events", []) if club_tracking else [])
+        ),
+        "club_event_count": len(club_tracking.get("events", []) if club_tracking else []),
+        "club_tracking": club_tracking,
         "assignment_ids": list(dict.fromkeys(
             [str(value).strip() for value in (_payload_value(payload, "assignmentIds", "assignment_ids", default=[]) or [])
              if value is not None and str(value).strip()]
@@ -3377,6 +3585,9 @@ async def save_widget_draft(id: str, request: Request, payload: DraftRequest):
                 }
                 for event_order, event in enumerate(events)
             )
+        event_rows.extend(
+            _club_event_documents("draft_id", draft_id_local, club_tracking)
+        )
         if player_rows:
             await stat_draft_players_collection.insert_many(player_rows, **opts)
         if event_rows:
@@ -3433,9 +3644,16 @@ async def submit_widget_stats(id: str, request: Request, payload: WidgetSubmitRe
         )
         status = "pending_approval" if supervisor_id else "approved"
         tracking_type = str(
-            _payload_value(payload, "tracking_type", "trackingType", default="full")
+            _payload_value(payload, "tracking_type", "trackingType", default="")
             or "full"
         ).strip().lower()
+        raw_club_tracking = _payload_value(
+            payload, "clubTracking", "club_tracking", default=None
+        )
+        if raw_club_tracking is not None:
+            tracking_type = "club"
+        elif tracking_type in {"club_tracking", "club-match", "club_match"}:
+            tracking_type = "club"
         submission_trigger = str(
             _payload_value(
                 payload, "submission_trigger", "submissionTrigger", default="individual"
@@ -3470,7 +3688,10 @@ async def submit_widget_stats(id: str, request: Request, payload: WidgetSubmitRe
                 }
             ]
 
-        if tracking_type == "reason":
+        if tracking_type == "club":
+            normalised_players = []
+            reason_value = None
+        elif tracking_type == "reason":
             reason = str(payload.reason or "").strip()
             if not reason:
                 raise HTTPException(status_code=400, detail="reason is required for non-tracking submissions")
@@ -3488,6 +3709,21 @@ async def submit_widget_stats(id: str, request: Request, payload: WidgetSubmitRe
             reason_value = None
 
         match, geo = _normalise_widget_match(payload)
+        try:
+            club_tracking = _normalise_club_tracking(
+                raw_club_tracking,
+                assignment_id=assignment_id,
+                match_id=str(match.get("match_id") or assignment_id).strip(),
+            )
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        if tracking_type == "club" and (
+            not club_tracking or not club_tracking.get("events")
+        ):
+            raise HTTPException(
+                status_code=422,
+                detail="Record at least one club match event before submitting",
+            )
         for profile, events in normalised_players:
             profile["assignment_id"] = profile.get("assignment_id") or assignment_id or None
             for event in events:
@@ -3522,6 +3758,11 @@ async def submit_widget_stats(id: str, request: Request, payload: WidgetSubmitRe
             "venue_country": match_projection.get("venue_country") or "",
             "competition": match_projection.get("competition") or "",
             "players": [profile for profile, _events in normalised_players],
+            "entity_type": "club" if tracking_type == "club" else "player",
+            "club_tracking": club_tracking,
+            "club_event_count": len(
+                club_tracking.get("events", []) if club_tracking else []
+            ),
             "stats": dict(first_profile.get("stats") or {}),
             "player_id": first_profile.get("player_id") or first_profile.get("playerId") or "",
             "player_name": first_profile.get("player_name") or first_profile.get("name") or "",
@@ -3534,7 +3775,10 @@ async def submit_widget_stats(id: str, request: Request, payload: WidgetSubmitRe
             "is_resubmit": bool(payload.isResubmit),
             "status": status,
             "player_count": len(normalised_players),
-            "event_count": sum(len(events) for _profile, events in normalised_players),
+            "event_count": (
+                sum(len(events) for _profile, events in normalised_players)
+                + len(club_tracking.get("events", []) if club_tracking else [])
+            ),
             "performance_score": max(score_values, default=0.0),
             "submitted_at": now,
             "created_at": now,
@@ -3572,8 +3816,26 @@ async def submit_widget_stats(id: str, request: Request, payload: WidgetSubmitRe
                 await stat_submission_players_collection.insert_many(player_rows, **opts)
             if event_rows:
                 await stat_events_collection.insert_many(event_rows, **opts)
+            club_event_rows = _club_event_documents(
+                "submission_id", root_id, club_tracking
+            )
+            if club_event_rows:
+                await stat_events_collection.insert_many(club_event_rows, **opts)
 
             if tracking_type != "reason":
+                if tracking_type == "club":
+                    activity_description = (
+                        f"Submitted club statistics for "
+                        f"{len(club_event_rows)} event(s): "
+                        f"{match.get('home_team_name') or 'home'} vs "
+                        f"{match.get('away_team_name') or 'away'}"
+                    )
+                else:
+                    activity_description = (
+                        f"Submitted stats for {len(player_rows)} player(s): "
+                        f"{match.get('home_team_name') or 'home'} vs "
+                        f"{match.get('away_team_name') or 'away'}"
+                    )
                 await activity_history_collection.insert_one(
                     {
                         "actor_id": id,
@@ -3581,28 +3843,23 @@ async def submit_widget_stats(id: str, request: Request, payload: WidgetSubmitRe
                         "assignment_id": assignment_id or None,
                         "submission_id": root_id,
                         "type": "stats_submission",
-                        "description": (
-                            f"Submitted stats for {len(player_rows)} player(s): "
-                            f"{match.get('home_team_name') or 'home'} vs "
-                            f"{match.get('away_team_name') or 'away'}"
-                        ),
+                        "description": activity_description,
                         "created_at": now,
                     },
                     **opts,
                 )
             for completed_assignment_id in assignment_ids:
-                await dco_assignments_collection.update_one(
-                    _assignment_filter(completed_assignment_id),
+                await _update_owned_assignment_or_request(
+                    id,
+                    completed_assignment_id,
                     {
-                        "$set": {
-                            "status": "pending_approval" if supervisor_id else "completed",
-                            "submitted_at": now,
-                            "completed_at": now if not supervisor_id else None,
-                            "submission_id": root_id,
-                            "updated_at": now,
-                        }
+                        "status": "pending_approval" if supervisor_id else "completed",
+                        "submitted_at": now,
+                        "completed_at": now if not supervisor_id else None,
+                        "submission_id": root_id,
+                        "updated_at": now,
                     },
-                    **opts,
+                    session=session,
                 )
             return root
 
