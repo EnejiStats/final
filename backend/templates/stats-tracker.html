@@ -597,31 +597,6 @@ throw err;
 const DCO_SHARED_KEY = 'eneji-matchday-shared-v1';
 const DCO_SYNC_NAME = 'eneji-matchday-sync-v1';
 const DCO_LOCAL_KEY = 'eneji-dco-stats-v5';
-const DCO_TRACKING_IDS_KEY = 'enejistats-active-tracking-assignment-ids-v1';
-function readDCOTrackingIds() {
-try {
-const ids = JSON.parse(sessionStorage.getItem(DCO_TRACKING_IDS_KEY) || '[]');
-return new Set(Array.isArray(ids) ? ids.map(value => String(value || '').trim()).filter(Boolean) : []);
-}
-catch (e) {
-return new Set();
-}
-}
-function updateDCOTrackingIds(values, remove = false) {
-const ids = (Array.isArray(values) ? values : [values]).map(value => String(value || '').trim()).filter(Boolean);
-if (!ids.length) return;
-try {
-const current = readDCOTrackingIds();
-ids.forEach(id => remove ? current.delete(id) : current.add(id));
-sessionStorage.setItem(DCO_TRACKING_IDS_KEY, JSON.stringify([...current]));
-}
-catch (e) {
-}
-}
-function restoreDCOTrackingStatus(rows) {
-const trackingIds = readDCOTrackingIds();
-return (Array.isArray(rows) ? rows : []).map(row => trackingIds.has(canonicalAssignmentId(row)) ? { ...row, trackingStatus: 'tracking' } : row);
-}
 function readDCOSharedState() {
 try {
 const value = JSON.parse(localStorage.getItem(DCO_SHARED_KEY) || '{}');
@@ -648,18 +623,41 @@ catch (e) {
 return null;
 }
 }
+function normalizeAssignmentStatus(value) {
+const status = String(value ?? '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+if (['accept', 'accepted', 'approved', 'confirmed', 'accepted_by_dco'].includes(status)) return 'accepted';
+if (['decline', 'declined', 'rejected', 'denied'].includes(status)) return 'declined';
+if (['complete', 'completed', 'passed', 'pass', 'submitted', 'done'].includes(status)) return 'completed';
+if (['inprogress', 'in_progress', 'tracking'].includes(status)) return 'in_progress';
+return status;
+}
 function isClubAssignmentRecord(source = {}) {
 const a = source && typeof source === 'object' ? source : {};
 const request = a.stats_request || a.statsRequest || a.request || a.stats_request_data || {};
-const explicit = String(a.entityType || a.entity_type || a.requestType || a.request_type || a.assignmentType || a.assignment_type || a.trackingType || a.tracking_type || a.scope || request.entityType || request.entity_type || request.requestType || request.request_type || request.assignmentType || request.assignment_type || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
- if (['club', 'team', 'club_match', 'club_stats', 'club_statistics', 'club_tracking', 'club_assignment', 'team_match', 'team_tracking', 'team_assignment'].includes(explicit)) return true;
-if (explicit === 'player') return false;
-const tracking = String(a.tracking_type || a.trackingType || a.tracking || request.tracking_type || request.trackingType || '').trim().toLowerCase();
-const club = a.club && typeof a.club === 'object' ? a.club : {};
-const hasClub = !!(a.club_id || a.clubId || a.club_name || a.clubName || a.club || a.club_role || a.clubRole || a.jersey_color || a.jerseyColor || request.club_id || request.clubId || request.club_name || request.clubName || club.id || club.name);
+const values = [
+a.entityType, a.entity_type, a.requestType, a.request_type, a.assignmentType, a.assignment_type,
+a.trackingType, a.tracking_type, a.assignmentKind, a.assignment_kind, a.assignmentCategory,
+a.assignment_category, a.statsRequestType, a.stats_request_type, a.targetType, a.target_type,
+a.subjectType, a.subject_type, a.scope, a._assignment_entity,
+request.entityType, request.entity_type, request.requestType, request.request_type,
+request.assignmentType, request.assignment_type, request.trackingType, request.tracking_type,
+request.statsRequestType, request.stats_request_type, request.targetType, request.target_type
+].map(value => String(value ?? '').trim().toLowerCase().replace(/[\s-]+/g, '_')).filter(Boolean);
+const isClubType = value => /^(club|team)(?:_|$)/.test(value) || /(?:^|_)(club|team)_(match|stat|statistics|tracking|assignment)(?:_|$)/.test(value);
+if (values.some(isClubType)) return true;
+if (values.some(value => /^(player|individual)(?:_|$)/.test(value) || /player_(match|stat|tracking|assignment)/.test(value))) return false;
+const label = value => {
+if (value && typeof value === 'object') return value.name || value.clubName || value.club_name || value.teamName || value.team_name || value.shortName || value.short_name || '';
+return value;
+};
+const club = a.club && typeof a.club === 'object' ? a.club : request.club && typeof request.club === 'object' ? request.club : {};
 const player = a.player || request.player || {};
-const hasPlayer = !!(a.player_id || a.playerId || a.player_name || a.playerName || player.id || player._id || player.name || player.full_name);
-return hasClub && !hasPlayer || tracking.indexOf('club') === 0;
+const hasClub = [a.club_id, a.clubId, a.club_name, a.clubName, label(a.club), a.club_role, a.clubRole,
+a.jersey_color, a.jerseyColor, request.club_id, request.clubId, request.club_name, request.clubName,
+label(request.club), club.id, club._id, club.name, club.club_name].some(value => String(value ?? '').trim());
+const hasPlayer = [a.player_id, a.playerId, a.player_name, a.playerName, player.id, player._id, player.name, player.full_name].some(value => String(value ?? '').trim());
+const tracking = String(a.tracking_type || a.trackingType || a.tracking || request.tracking_type || request.trackingType || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+return (hasClub && !hasPlayer) || /^(club|team)(?:_|$)/.test(tracking);
 }
 function normalizeDCOAssignment(source = {}) {
 const raw = source && typeof source === 'object' ? source : {};
@@ -673,13 +671,13 @@ const merged = { ...request, ...match, ...raw };
 const playerId = String(raw.player_id ?? raw.playerId ?? player.id ?? player._id ?? request.player_id ?? request.playerId ?? '').trim();
 const playerName = raw.player_name || raw.playerName || player.name || player.full_name || player.fullName || request.player_name || request.playerName || '';
 const clubId = String(raw.club_id ?? raw.clubId ?? club.id ?? club._id ?? request.club_id ?? request.clubId ?? '').trim();
-const clubName = raw.club_name || raw.clubName || club.name || club.club_name || club.full_name || request.club_name || request.clubName || raw.club || '';
+const clubName = teamLabel(raw.club_name || raw.clubName || club.name || club.club_name || club.full_name || request.club_name || request.clubName || raw.club || request.club || '');
 const isClub = isClubAssignmentRecord({ ...merged, player_id: playerId, player_name: playerName, club_id: clubId, club_name: clubName });
 const id = String(raw.assignmentId ?? raw.assignment_id ?? raw.id ?? raw._id ?? request.assignment_id ?? request.assignmentId ?? request.id ?? '').trim();
 const requestId = String(raw.request_id ?? raw.requestId ?? request.request_id ?? request.requestId ?? '').trim();
 const statsRequestId = String(raw.stats_request_id ?? raw.statsRequestId ?? request.stats_request_id ?? request.statsRequestId ?? requestId).trim();
 const referenceId = String(raw.reference_id ?? raw.referenceId ?? request.reference_id ?? request.referenceId ?? '').trim();
-const statusRaw = String(raw.status ?? request.status ?? 'assigned').trim().toLowerCase();
+const statusRaw = normalizeAssignmentStatus(raw.assignment_status ?? raw.assignmentStatus ?? raw.acceptance_status ?? raw.acceptanceStatus ?? raw.status ?? request.assignment_status ?? request.assignmentStatus ?? request.acceptance_status ?? request.acceptanceStatus ?? request.status ?? 'assigned');
 const status = statusRaw === 'pending' && (raw.assigned_dco_id || raw.assignedDcoId || raw.assigned_scout_id || raw.assignedScoutId) ? 'assigned' : statusRaw;
 return { ...merged, id: id || requestId || statsRequestId || referenceId || undefined, assignmentId: id || requestId || statsRequestId || referenceId || undefined,
 assignment_id: id || requestId || statsRequestId || referenceId || undefined, request_id: requestId || undefined,
@@ -740,16 +738,8 @@ status, _assignment_entity: isClub ? 'club' : 'player' };
 }
 function normalizeDCOListResponse(value, keys = []) {
 if (Array.isArray(value)) return value;
-if (!value || typeof value !== 'object') return [];
-const allKeys = [...new Set([...keys, 'assignments', 'stats_requests', 'statsRequests', 'requests', 'submissions', 'items', 'results', 'data', 'result'])];
-for (const key of allKeys) {
-if (Array.isArray(value[key])) return value[key];
-}
-for (const key of ['data', 'result']) {
-if (value[key] && typeof value[key] === 'object') {
-const rows = normalizeDCOListResponse(value[key], keys);
-if (rows.length || Array.isArray(value[key])) return rows;
-}
+for (const key of keys) {
+if (Array.isArray(value?.[key])) return value[key];
 }
 return [];
 }
@@ -1152,6 +1142,11 @@ if (assignment === null || assignment === undefined) return '';
 if (typeof assignment !== 'object') return String(assignment).trim();
 return String(assignment.assignmentId ?? assignment.assignment_id ?? assignment.id ?? assignment._id ?? '').trim();
 }
+function getAssignmentIds(assignment) {
+const source = assignment && typeof assignment === 'object' ? assignment : {};
+const nested = [...(Array.isArray(source.assignments) ? source.assignments : []), ...(Array.isArray(source.assignmentIds) ? source.assignmentIds : []), ...(Array.isArray(source.assignment_ids) ? source.assignment_ids : [])];
+return [...new Set([canonicalAssignmentId(source), ...nested.map(canonicalAssignmentId)].filter(Boolean))];
+}
 function getBackendPlayerId(player) {
 if (!player || typeof player !== 'object') return '';
 return String( player.playerId || player.player_id || player.personId || player.person_id || player.player?.id || player.player?._id || '' ).trim();
@@ -1167,7 +1162,9 @@ return '';
 }
 function getAssignmentClubName(source = {}) {
 if (!source || typeof source !== 'object') return '';
-return String( source.clubName ?? source.club_name ?? source.club ?? source.teamName ?? source.team_name ?? source.team ?? source.playerClub ?? source.player_club ?? '' ).trim();
+const value = source.clubName ?? source.club_name ?? source.club ?? source.teamName ?? source.team_name ?? source.team ?? source.playerClub ?? source.player_club ?? '';
+const label = value && typeof value === 'object' ? (value.name || value.clubName || value.club_name || value.teamName || value.team_name || value.shortName || value.short_name || '') : value;
+return String(label ?? '').trim();
 }
 function resolvePlayerTeam(assignment, fallback = 'home') {
 const source = assignment && typeof assignment === 'object' ? assignment : {};
@@ -1282,7 +1279,8 @@ function buildWidgetPayload({ mode = 'draft', players = [], dcoId = null, assign
 supervisorId = null, matchId = null, homeTeamId = null, awayTeamId = null, homeTeam = '', awayTeam = '',
 scoreA = 0, scoreB = 0, period = 1, timerSeconds = 0, geoStatus = null, geoLat = null, geoLon = null, submissionTrigger = 'individual',
 matchDetails = {}, clubTracking = null } = {}) {
-const teamIds = { homeId: homeTeamId, awayId: awayTeamId }; const uniquePlayers = getUniquePlayers(players); const primaryPlayer = uniquePlayers[0] || null; const primaryStats = primaryPlayer ? derivePlayerStats(primaryPlayer) : {}; return { schemaVersion: 2,
+const teamIds = { homeId: homeTeamId, awayId: awayTeamId }; const uniquePlayers = getUniquePlayers(players); const primaryPlayer = uniquePlayers[0] || null; const primaryStats = primaryPlayer ? derivePlayerStats(primaryPlayer) : {}; const isClubPayload = Boolean(clubTracking && typeof clubTracking === 'object'); return { schemaVersion: 2,
+trackingType: isClubPayload ? 'club' : 'full', entityType: isClubPayload ? 'club' : 'player',
 mode, dcoId, assignmentId: canonicalAssignmentId(assignmentId) || null, assignmentIds: Array.isArray(assignmentIds) ? [...new Set(assignmentIds.map(canonicalAssignmentId).filter(Boolean))] : [],
 minutes: primaryPlayer ? Math.floor(getParticipationSeconds(primaryPlayer) / 60) : 0, goals: primaryPlayer ? getMetricCount(primaryStats,
 'goals') : 0, assists: primaryPlayer ? getMetricCount(primaryStats, 'assists') : 0, rating: Number(primaryPlayer?.rating ?? primaryPlayer?.performanceRating ?? primaryPlayer?.performance_rating ?? 0) || 0,
@@ -1328,11 +1326,19 @@ const mdt = parseMatchDateTime(normalized.matchDate, normalized.matchTime); if (
 reason:`Match starts in ${Math.round(diffH)} hours. Tracking available 3 hours before match.`}; if (diffH<-5) return {allowed:false,
 reason:'Match has already ended (more than 5 hours ago).'}; return {allowed:true}; }
 catch { return {allowed:true}; } }
-// Opening an accepted assignment is navigation, not the start of live tracking.
-// The timer still enforces its match-time window through checkMatchTimeRestriction().
 function checkTrackingAccess(player) {
-return { allowed: true, message: '' };
-}
+const normalized = normalizeTrackingAssignment(player);
+if (!normalized.matchDate || !normalized.matchTime) {
+return { allowed: false, message: '⏰ Match date and time not set for this assignment' }; }
+const entityLabel = isClubAssignmentRecord(normalized) ? 'club' : 'player';
+try {
+const matchDateTime = parseMatchDateTime(normalized.matchDate, normalized.matchTime); if (!matchDateTime) return { allowed: false,
+message: '⚠️ Invalid match date or time format' }; const now = new Date(); const isSameDay = now.toDateString() === matchDateTime.toDateString(); if (!isSameDay) {
+const daysDiff = Math.ceil((matchDateTime - now) / (1000*60*60*24)); return { allowed: false, message: `⏰ This match is scheduled for ${matchDateTime.toLocaleDateString()}. You can only track on the SAME DAY as the match (${daysDiff>0?`in ${daysDiff} day(s)`:'match day has passed'}).` }; }
+const timeDiff = matchDateTime - now; const minutesDiff = Math.floor(timeDiff / (1000*60)); if (timeDiff <= 0 || minutesDiff <= 30) return { allowed: true,
+message: '' }; const hoursDiff = Math.floor(timeDiff / (1000*60*60)); const timeMessage = hoursDiff>0 ? `${hoursDiff} hour(s) and ${minutesDiff%60} minute(s)` : `${minutesDiff} minute(s)`; return { allowed: false,
+message: `⏰ You can track this ${entityLabel} in ${timeMessage}. Tracking opens 30 MINUTES BEFORE match time or after the match has started.` }; }
+catch { return { allowed: false, message: '⚠️ Invalid match date or time format' }; } }
 function buildPitchElements() {
 return [ h('defs',null,h('linearGradient',{id:'ptchG',x1:'0',y1:'0',x2:'1',y2:'0'},h('stop',{offset:'0%',
 stopColor:'#2d8a4e'}),h('stop',{offset:'50%',stopColor:'#34a05a'}),h('stop',{offset:'100%',stopColor:'#2d8a4e'}))),
@@ -1609,8 +1615,8 @@ function clubTrackerTypes(metric) {
 return (metric?.types || []).map(t => Array.isArray(t) ? {key:t[0],label:t[1]} : t); }
 function clubTrackerOutcomes(metric) {
 return (metric?.outcomes || []).map(o => Array.isArray(o) ? {key:o[0],label:o[1]} : o); }
-function clubTrackerMatchSeconds(period, seconds) {
-const periodOffset = Number(period) === 2 ? 45 * 60 : 0;
+function clubTrackerMatchSeconds(period, seconds, firstHalfFinalSeconds = 45 * 60) {
+const periodOffset = Number(period) === 2 ? Math.max(45 * 60, Number(firstHalfFinalSeconds) || 0) : 0;
 return periodOffset + Math.max(0, Math.floor(Number(seconds) || 0));
 }
 function clubTrackerPossessionProfile(event) {
@@ -1688,7 +1694,7 @@ if(!timerRunning){
 showWidgetNotif('Please start the match timer before tracking statistics','warning');return;}
 if(!CLUB_TRACKER_METRIC_MAP[key])return; setFlow({key,team:null,outcome:null,type:null,stage:'team'}); }
 ; const record = selected => {
-if(!selected?.team || !selected?.key || !timerRunning)return; const metric=CLUB_TRACKER_METRIC_MAP[selected.key]; const recordedAt=new Date(); const periodSeconds=Math.max(0,Number(timerSeconds)||0); const matchTime=clubTrackerMatchSeconds(period,periodSeconds); const event={ id:`club-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
+if(!selected?.team || !selected?.key || !timerRunning)return; const metric=CLUB_TRACKER_METRIC_MAP[selected.key]; const recordedAt=new Date(); const periodSeconds=Math.max(0,Number(timerSeconds)||0); const matchTime=clubTrackerMatchSeconds(period,periodSeconds,firstHalfFinalSeconds); const event={ id:`club-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
 kind:'club_tracker',team:selected.team,teamName:teamName(selected.team), oppositionTeam:teamName(selected.team==='home'?'away':'home'),
 key:selected.key,metricLabel:metric.label,sourceButton:metric.label, outcome:selected.outcome||null,outcomeLabel:selected.outcome?clubTrackerLabel(selected.outcome):'',
 type:selected.type||null,typeLabel:selected.type?clubTrackerLabel(selected.type):'', detail:selected.detail||null,
@@ -1701,7 +1707,7 @@ event]); setRedo(prev=>({...prev,[selected.team]:[]})); if(selected.key==='goals
 ; const manualPossession = team => {
 if(!timerRunning){
 showWidgetNotif('Please start the match timer first','warning');return;}
-const periodSeconds=Math.max(0,Number(timerSeconds)||0),matchTime=clubTrackerMatchSeconds(period,periodSeconds);
+const periodSeconds=Math.max(0,Number(timerSeconds)||0),matchTime=clubTrackerMatchSeconds(period,periodSeconds,firstHalfFinalSeconds);
 if (possession.currentTeam === team) return;
 setSwitches(prev => {
   const latest = prev.length ? prev[prev.length - 1] : null;
@@ -1872,7 +1878,7 @@ setHeatmapPopup(nextPopup); setHeatmapQueue(prev => prev.slice(1)); }
 , [heatmapQueue, heatmapPopup]); const timerDisplay = formatMatchClock(period, timerSeconds); const saveDraft = async () => {
 if (!currentUser?.id || draftSaveInFlightRef.current) return; const payload = buildWidgetPayload({ mode: 'draft',
 players: occupiedPlayers, dcoId: currentUser.id, assignmentId: canonicalAssignmentId(initialData) || null,
-assignmentIds: (initialData?.assignments || []).map(canonicalAssignmentId).filter(Boolean), supervisorId: initialData?.supervisorId || initialData?.supervisor_id || null,
+assignmentIds: getAssignmentIds(initialData), supervisorId: initialData?.supervisorId || initialData?.supervisor_id || null,
 matchId: initialData?.matchId || initialData?.match_id || canonicalAssignmentId(initialData) || null, homeTeamId: initialData?.homeTeamId || initialData?.home_team_id || null,
 awayTeamId: initialData?.awayTeamId || initialData?.away_team_id || null, homeTeam, awayTeam, scoreA, scoreB,
 timerSeconds: timerSecondsRef.current, period: periodRef.current, geoStatus, geoLat: geoCoordinates.latitude,
@@ -2009,7 +2015,7 @@ player.attackingDirection = getOppositeAttackDirection(dir); }
 ; const handleClubStateChange = snapshot => {
 clubTrackingRef.current = snapshot || null; setClubEventCount(Array.isArray(snapshot?.events) ? snapshot.events.length : 0); }
 ; const handleClubExport = payload => {
-const exportPayload = { ...payload, assignmentId: canonicalAssignmentId(initialData) || null, assignmentIds: (initialData?.assignments || []).map(canonicalAssignmentId).filter(Boolean),
+const exportPayload = { ...payload, assignmentId: canonicalAssignmentId(initialData) || null, assignmentIds: getAssignmentIds(initialData),
 matchId: initialData?.matchId || initialData?.match_id || canonicalAssignmentId(initialData) || null, supervisorId: initialData?.supervisorId || initialData?.supervisor_id || null,
 dcoId: currentUser?.id || null, matchDetails }; const blob = new Blob([JSON.stringify(exportPayload,null,
 2)], {type:'application/json'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download=`club-stats-${homeTeam||'match'}-${Date.now()}.json`; a.click(); URL.revokeObjectURL(url); showWidgetNotif('Club match statistics exported',
@@ -2023,18 +2029,47 @@ if (!currentUser?.id) {
 showDCONotification('Not authenticated','error'); return; }
 setClubSubmissionReviewOpen(true); }
 ; const submitClubStats = async () => {
-if (finalSubmissionInFlightRef.current) return; const tracking = clubTrackingRef.current; if (!tracking) {
-showDCONotification('No club tracking data is available to submit','warning'); return; }
-const submissionId=createWidgetSubmissionId(); const payload=buildWidgetPayload({ mode:'submit', players:[],
-dcoId:currentUser.id, assignmentId:canonicalAssignmentId(initialData)||null, assignmentIds:(initialData?.assignments||[]).map(canonicalAssignmentId).filter(Boolean),
+if (finalSubmissionInFlightRef.current) return;
+if (!currentUser?.id) {
+showDCONotification('Not authenticated','error'); return;
+}
+if (!homeTeam || !awayTeam) {
+showDCONotification('Please select both teams','warning'); return;
+}
+const timeCheck = checkMatchTimeRestriction(initialData);
+if (!timeCheck.allowed) {
+showDCONotification(timeCheck.reason,'warning'); return;
+}
+const tracking = clubTrackingRef.current;
+if (!Array.isArray(tracking?.events) || tracking.events.length === 0) {
+showDCONotification('Record at least one club match event before submitting','warning'); return;
+}
+const payload=buildWidgetPayload({ mode:'submit', players:[],
+dcoId:currentUser.id, assignmentId:canonicalAssignmentId(initialData)||null, assignmentIds:getAssignmentIds(initialData),
 supervisorId:initialData?.supervisorId||initialData?.supervisor_id||null, matchId:initialData?.matchId||initialData?.match_id||canonicalAssignmentId(initialData)||null,
 homeTeamId:initialData?.homeTeamId||initialData?.home_team_id||null, awayTeamId:initialData?.awayTeamId||initialData?.away_team_id||null,
 homeTeam,awayTeam,scoreA,scoreB,period:periodRef.current,timerSeconds:timerSecondsRef.current, geoStatus,
 geoLat:geoCoordinates.latitude,geoLon:geoCoordinates.longitude,matchDetails, submissionTrigger:'match_end',
-clubTracking:tracking }); const fingerprint=JSON.stringify(payload); if(fingerprint===lastFinalSubmissionFingerprintRef.current)return; finalSubmissionInFlightRef.current=true; setSubmitting(true); try {
-await apiFetch(API.widgetSubmit(currentUser.id),{ method:'POST', headers:{'X-Widget-Submission-Id':submissionId},
-body:JSON.stringify(payload) }); lastFinalSubmissionFingerprintRef.current=fingerprint; setClubSubmissionReviewOpen(false); setTimerRunning(false); showDCONotification('Club match statistics submitted successfully!',
-'success',8000); if(typeof onAssignmentCompleted==='function') onAssignmentCompleted({assignmentIds:[...new Set([canonicalAssignmentId(initialData),...(initialData?.assignments||[]).map(canonicalAssignmentId)].filter(Boolean))]}); if(typeof onSubmissionComplete==='function') onSubmissionComplete({trigger:'match_end',
+clubTracking:tracking });
+const fingerprint=JSON.stringify(payload);
+if(fingerprint===lastFinalSubmissionFingerprintRef.current) {
+setClubSubmissionReviewOpen(false); return;
+}
+let submissionId=createWidgetSubmissionId();
+if (pendingFinalSubmissionRef.current?.fingerprint === fingerprint) submissionId=pendingFinalSubmissionRef.current.submissionId;
+else pendingFinalSubmissionRef.current={fingerprint,submissionId};
+finalSubmissionInFlightRef.current=true; setSubmitting(true); try {
+const requestOptions={method:'POST',headers:{'X-Widget-Submission-Id':submissionId},body:JSON.stringify(payload)};
+try {
+await apiFetch(API.widgetSubmit(currentUser.id),requestOptions);
+} catch(firstError) {
+const retryable=!firstError?.status||firstError.status===408||firstError.status===425||firstError.status===429||firstError.status>=500;
+if(!retryable)throw firstError;
+await new Promise(resolve=>setTimeout(resolve,350));
+await apiFetch(API.widgetSubmit(currentUser.id),requestOptions);
+}
+lastFinalSubmissionFingerprintRef.current=fingerprint; pendingFinalSubmissionRef.current=null; setClubSubmissionReviewOpen(false); setTimerRunning(false); showDCONotification('Club match statistics submitted successfully!',
+'success',8000); if(typeof onAssignmentCompleted==='function') onAssignmentCompleted({assignmentIds:getAssignmentIds(initialData)}); if(typeof onSubmissionComplete==='function') onSubmissionComplete({trigger:'match_end',
 club:true,eventCount:tracking.events.length}); }
 catch(e) {
 showDCONotification('Club statistics submission failed: '+(e?.message||'Please try again.'),'error'); }
@@ -2051,7 +2086,7 @@ setClubSubmissionReviewOpen(true); }
 ; const handleExport = () => {
 const targetPlayerIndex = resolveActivePlayerIndex(); const targetPlayer = playersRef.current[targetPlayerIndex]; const data = buildWidgetPayload({ mode:'draft',
 players: targetPlayer ? [targetPlayer] : [], dcoId: currentUser.id, assignmentId: canonicalAssignmentId(initialData) || null,
-assignmentIds: (initialData?.assignments || []).map(canonicalAssignmentId).filter(Boolean), supervisorId: initialData?.supervisorId || initialData?.supervisor_id || null,
+assignmentIds: getAssignmentIds(initialData), supervisorId: initialData?.supervisorId || initialData?.supervisor_id || null,
 matchId: initialData?.matchId || initialData?.match_id || canonicalAssignmentId(initialData) || null, homeTeamId: initialData?.homeTeamId || initialData?.home_team_id || null,
 awayTeamId: initialData?.awayTeamId || initialData?.away_team_id || null, homeTeam, awayTeam, scoreA, scoreB,
 period: periodRef.current, timerSeconds: timerSecondsRef.current, geoStatus, geoLat: geoCoordinates.latitude,
@@ -2095,7 +2130,7 @@ submissionId, { dcoId: currentUser?.id || null, assignmentId: canonicalAssignmen
 playerCount: loadedPlayers.length, trigger }); if (!validateSubmission(loadedPlayers)) {
 logWidgetSubmission('validation_failed', submissionId, { reason: 'Submission validation failed' }); return; }
 const payload = buildWidgetPayload({ mode: 'submit', players: loadedPlayers, dcoId: currentUser.id, assignmentId: canonicalAssignmentId(initialData) || null,
-assignmentIds: (initialData?.assignments || []).map(canonicalAssignmentId).filter(Boolean), supervisorId: initialData?.supervisorId || initialData?.supervisor_id || null,
+assignmentIds: getAssignmentIds(initialData), supervisorId: initialData?.supervisorId || initialData?.supervisor_id || null,
 matchId: initialData?.matchId || initialData?.match_id || canonicalAssignmentId(initialData) || null, homeTeamId: initialData?.homeTeamId || initialData?.home_team_id || null,
 awayTeamId: initialData?.awayTeamId || initialData?.away_team_id || null, homeTeam, awayTeam, scoreA, scoreB,
 period: periodRef.current, timerSeconds: timerSecondsRef.current, geoStatus, geoLat: geoCoordinates.latitude,
@@ -2262,7 +2297,7 @@ if (!t) return null; const normalized = normalizeTimePart(t); if (!normalized) r
 minutes] = normalized.split(':').map(Number); return `${hours % 12 || 12}:${String(minutes).padStart(2, '0')} ${hours >= 12 ? 'PM' : 'AM'}`; }
 ; const safe = (v) => {
 const s = (v == null ? '' : String(v)).trim(); return (s && s !== 'undefined' && s !== 'null') ? s : ''; }
-; const status = safe(assignment.status).toLowerCase() || 'assigned'; const scls = { assigned:'asgn-s-assigned',
+; const status = normalizeAssignmentStatus(assignment.status) || 'assigned'; const scls = { assigned:'asgn-s-assigned',
 accepted:'asgn-s-accepted', completed:'asgn-s-completed', declined:'asgn-s-declined', in_progress:'asgn-s-in_progress' }[status] || 'asgn-s-default'; const slbl = { assigned:'Assigned',
 accepted:'Accepted', completed:'Completed', declined:'Declined', in_progress:'In Progress', pending:'Pending' }[status] || toTitleCase(status); const isClub = isClubAssignmentRecord(assignment); const heatmap = assignment.heatmap; const entityName = isClub ? (toTitleCase(safe(assignment.clubName || assignment.club_name || assignment.club || assignment.clubId || assignment.club_id)) || 'Unknown Club') : (toTitleCase(safe(assignment.playerName || assignment.player_name || assignment.playerId || assignment.player_id)) || 'Unknown Player'); const entityId = isClub ? safe(assignment.clubId || assignment.club_id) : safe(assignment.playerId || assignment.player_id); const position = toTitleCase(safe(assignment.position || assignment.mainPosition || assignment.main_position)) || null; const jerseyNum = safe(assignment.jerseyNumber || assignment.jersey_number); const playerClub = toTitleCase(safe(assignment.club || assignment.clubName || assignment.club_name)) || null; const playerLevel = toTitleCase(safe(assignment.playerLevel || assignment.player_level || assignment.playerCategory || assignment.player_category || assignment.matchCategory || assignment.match_category)) || null; const competition = toTitleCase(safe(assignment.competition)) || null; const matchType = toTitleCase(safe(assignment.matchType || assignment.match_type)).replace(/_/g,
 ' ') || null; const matchCategory = toTitleCase(safe(assignment.matchCategory || assignment.match_category)).replace(/_/g,
@@ -2383,13 +2418,13 @@ function DCODashboardApp({ onNavigateToWidget, refreshToken = 0, completedAssign
 const maxMountablePlayers = 3; const [metrics, setMetrics] = useState({ assigned_players:0, stats_today:0,
 pending_validation:0, stats_total:0 }); const [assignedPlayers, setAssignedPlayers] = useState([]); const [submissionRecords,
 setSubmissionRecords] = useState([]); const [dataSource, setDataSource] = useState('live'); const [assignmentView, setAssignmentView] = useState('all'); const [assignmentEntityView, setAssignmentEntityView] = useState('player'); const [sectionsOpen, setSectionsOpen] = useState({ assignments: true,
-currentPlayers: true, submissions: true }); const [isLoading, setIsLoading] = useState(true); const [fadingCardId,
+ clubs: true, currentPlayers: true, submissions: true }); const [isLoading, setIsLoading] = useState(true); const [fadingCardId,
  setFadingCardId] = useState(null); const [selectedAssignmentIds, setSelectedAssignmentIds] = useState([]); const locallyCompletedIds = new Set((Array.isArray(completedAssignmentIds)?completedAssignmentIds:[]).map(String)); useEffect(() => {
 loadLiveData(); }
 , [refreshToken]); useEffect(() => {
 const applySharedState = () => {
 const shared = readDCOSharedState(); if (Array.isArray(shared.assignments)) {
-setAssignedPlayers(prev => restoreDCOTrackingStatus(mergeDCOSharedRows(prev, shared.assignments.map(normalizeDCOAssignment)))); }
+setAssignedPlayers(prev => mergeDCOSharedRows(prev, shared.assignments.map(normalizeDCOAssignment))); }
 if (Array.isArray(shared.stats)) {
 setSubmissionRecords(prev => {
 const merged = mergeDCOSharedRows(prev, shared.stats).map(normalizeDCOSubmission); return merged.slice(-8).reverse(); }
@@ -2406,17 +2441,21 @@ window.removeEventListener('storage', onStorage); channel?.close(); }
 setIsLoading(true); try {
 const [metricsResult, assignmentsResult, submissionsResult] = await Promise.allSettled([ apiFetch(API.metrics),
 apiFetch(API.assignments), apiFetch(API.submissions) ]); const shared = readDCOSharedState(); const local = readDCOLocalFallback(); const metricsResponse = metricsResult.status === 'fulfilled' ? (metricsResult.value || {}) : {}; const metricsData = metricsResponse.metrics && typeof metricsResponse.metrics === 'object' ? metricsResponse.metrics : metricsResponse; const assignmentsData = assignmentsResult.status === 'fulfilled' ? assignmentsResult.value : null; const submissionsData = submissionsResult.status === 'fulfilled' ? submissionsResult.value : null; const assignmentsFailed = assignmentsResult.status === 'rejected'; const submissionsFailed = submissionsResult.status === 'rejected'; const assignmentList = normalizeDCOListResponse(assignmentsData,
-['assignments', 'stats_requests', 'statsRequests', 'requests', 'results', 'data']); const localAssignments = normalizeDCOListResponse(local?.assignments, ['assignments', 'stats_requests', 'statsRequests', 'requests', 'results', 'data']); const sharedAssignments = normalizeDCOListResponse(shared.assignments, ['assignments', 'stats_requests', 'statsRequests', 'requests', 'results', 'data']); const fallbackAssignments = localAssignments.length ? localAssignments : sharedAssignments; const records = normalizeDCOListResponse(submissionsData, ['submissions',
-'results', 'data']) .map(normalizeDCOSubmission); const localRecords = normalizeDCOListResponse(local?.stats, ['submissions', 'results', 'data']); const sharedRecords = normalizeDCOListResponse(shared.stats, ['submissions', 'results', 'data']); const fallbackRecords = (localRecords.length ? localRecords : sharedRecords).map(normalizeDCOSubmission); const nextAssignments = (assignmentsFailed ? fallbackAssignments : assignmentList) .map(normalizeDCOAssignment) .filter(item => item && typeof item === 'object'); const nextRecords = submissionsFailed ? fallbackRecords : records; const hasLiveData = metricsResult.status === 'fulfilled' || assignmentsResult.status === 'fulfilled' || submissionsResult.status === 'fulfilled'; if (!hasLiveData && !nextAssignments.length && !nextRecords.length) {
+['assignments', 'results', 'data']); const fallbackAssignments = normalizeDCOListResponse( local?.assignments || shared.assignments,
+['assignments', 'results', 'data'] ); const records = normalizeDCOListResponse(submissionsData, ['submissions',
+'results', 'data']) .map(normalizeDCOSubmission); const fallbackRecords = normalizeDCOListResponse( local?.stats || shared.stats,
+['submissions', 'results', 'data'] ).map(normalizeDCOSubmission); const nextAssignments = (assignmentsFailed ? fallbackAssignments : assignmentList) .map(normalizeDCOAssignment) .filter(item => item && typeof item === 'object'); const nextRecords = submissionsFailed ? fallbackRecords : records; const hasLiveData = metricsResult.status === 'fulfilled' || assignmentsResult.status === 'fulfilled' || submissionsResult.status === 'fulfilled'; if (!hasLiveData && !nextAssignments.length && !nextRecords.length) {
 throw metricsResult.reason || assignmentsResult.reason || submissionsResult.reason || new Error('No DCO data source available'); }
 setMetrics({ assigned_players: Number(metricsData.assigned_players ?? local?.metrics?.assigned_players ?? shared.metrics?.assigned_players) || 0,
 stats_today: Number(metricsData.stats_today ?? local?.metrics?.stats_today ?? shared.metrics?.stats_today) || 0,
 pending_validation: Number(metricsData.pending_validation ?? local?.metrics?.pending_validation ?? shared.metrics?.pending_validation) || 0,
-stats_total: Number(metricsData.stats_total ?? local?.metrics?.stats_total ?? shared.metrics?.stats_total ?? nextRecords.length) || 0 }); setAssignedPlayers(restoreDCOTrackingStatus(nextAssignments.filter(item => item && typeof item === 'object'))); setSubmissionRecords(nextRecords.slice(-8).reverse()); setDataSource(hasLiveData ? 'live' : 'offline'); if (hasLiveData) publishDCOSharedState({ assignments: assignmentList,
+stats_total: Number(metricsData.stats_total ?? local?.metrics?.stats_total ?? shared.metrics?.stats_total ?? nextRecords.length) || 0 }); setAssignedPlayers(nextAssignments.filter(item => item && typeof item === 'object')); setSubmissionRecords(nextRecords.slice(-8).reverse()); setDataSource(hasLiveData ? 'live' : 'offline'); if (hasLiveData) publishDCOSharedState({ assignments: assignmentList,
 stats: records }); }
 catch (error) {
-console.error('Error loading DCO data:', error); const localFallback = readDCOLocalFallback(); const sharedFallback = readDCOSharedState(); const localAssignments = normalizeDCOListResponse(localFallback?.assignments, ['assignments', 'stats_requests', 'statsRequests', 'requests', 'data']); const sharedAssignments = normalizeDCOListResponse(sharedFallback.assignments, ['assignments', 'stats_requests', 'statsRequests', 'requests', 'data']); const fallbackAssignments = (localAssignments.length ? localAssignments : sharedAssignments).map(normalizeDCOAssignment); const localRecords = normalizeDCOListResponse(localFallback?.stats, ['submissions', 'data']); const sharedRecords = normalizeDCOListResponse(sharedFallback.stats, ['submissions', 'data']); const fallbackRecords = (localRecords.length ? localRecords : sharedRecords).map(normalizeDCOSubmission); if (fallbackAssignments.length || fallbackRecords.length) {
-setAssignedPlayers(restoreDCOTrackingStatus(fallbackAssignments)); setSubmissionRecords(fallbackRecords.slice(-8).reverse()); setDataSource('offline'); showDCONotification('Live API unavailable — retained synchronized DCO data',
+console.error('Error loading DCO data:', error); const fallback = readDCOLocalFallback() || readDCOSharedState(); const fallbackAssignments = normalizeDCOListResponse(fallback?.assignments,
+['assignments', 'data']).map(normalizeDCOAssignment); const fallbackRecords = normalizeDCOListResponse(fallback?.stats,
+['submissions', 'data']).map(normalizeDCOSubmission); if (fallbackAssignments.length || fallbackRecords.length) {
+setAssignedPlayers(fallbackAssignments); setSubmissionRecords(fallbackRecords.slice(-8).reverse()); setDataSource('offline'); showDCONotification('Live API unavailable — retained synchronized DCO data',
 'warning'); }
 else {
 showDCONotification('Failed to load assignments data. Please refresh.', 'error'); }
@@ -2454,15 +2493,32 @@ status: 'declined', hiddenFromCards: true } : p)); refreshMetrics(); }
 catch (error) {
 showDCONotification('Failed to decline assignment: ' + error.message, 'error'); }
 }
+const trackAssignment = (assignment, forcedEntityType = '') => {
+const id = canonicalAssignmentId(assignment);
+if (!id) {
+showDCONotification('This assignment is missing its ID and cannot be mounted','error'); return;
+}
+const entityType = forcedEntityType || (isClubAssignmentRecord(assignment) ? 'club' : 'player');
+const fullAssignmentData = normalizeTrackingAssignment({
+...assignment, id, assignmentId: assignment.assignmentId || id, assignment_id: assignment.assignment_id || id,
+_id: assignment._id || id, entityType, entity_type: entityType, requestType: entityType, request_type: entityType
+});
+const access = checkTrackingAccess(fullAssignmentData);
+if (!access.allowed) {
+showDCONotification(access.message, 'warning'); return;
+}
+setAssignedPlayers(prev => prev.map(item => canonicalAssignmentId(item) === id ? { ...item, trackingStatus: 'tracking' } : item));
+if (typeof onNavigateToWidget === 'function') onNavigateToWidget(fullAssignmentData);
+};
 const getFilteredAssignments = () => {
 const filtered = assignedPlayers.filter(a => {
   if (!a || a.hiddenFromCards || locallyCompletedIds.has(canonicalAssignmentId(a))) return false;
-  const status = String(a.status || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+  const status = normalizeAssignmentStatus(a.status);
   return !['completed', 'complete', 'passed', 'pass', 'submitted', 'declined', 'cancelled', 'canceled'].includes(status);
 }); switch (assignmentView) {
-case 'assigned': return filtered.filter(p => ['assigned','pending'].includes(String(p.status || '').toLowerCase())); case 'accepted': return filtered.filter(p => String(p.status || '').toLowerCase() === 'accepted'); default: return filtered; }
+case 'assigned': return filtered.filter(p => ['assigned','pending'].includes(normalizeAssignmentStatus(p.status))); case 'accepted': return filtered.filter(p => normalizeAssignmentStatus(p.status) === 'accepted'); default: return filtered; }
 }
-; const filteredAssignments = getFilteredAssignments(); const playerAssignments = filteredAssignments.filter(a => !isClubAssignmentRecord(a)); const clubAssignments = filteredAssignments.filter(a => isClubAssignmentRecord(a)); const effectiveAssignmentEntityView = playerAssignments.length ? (clubAssignments.length && assignmentEntityView === 'club' ? 'club' : 'player') : 'club'; const acceptedRecords = assignedPlayers.filter(p => p && !locallyCompletedIds.has(canonicalAssignmentId(p)) && String(p.status || '').trim().toLowerCase()==='accepted'); const acceptedPlayers = acceptedRecords.filter(p => !isClubAssignmentRecord(p)); const acceptedClubs = acceptedRecords.filter(p => isClubAssignmentRecord(p)); const selectedAssignments = acceptedPlayers.filter(player => selectedAssignmentIds.includes(canonicalAssignmentId(player))); const toggleAssignmentSelection = (assignmentId) => {
+; const filteredAssignments = getFilteredAssignments(); const playerAssignments = filteredAssignments.filter(a => !isClubAssignmentRecord(a)); const clubAssignments = filteredAssignments.filter(a => isClubAssignmentRecord(a)); const effectiveAssignmentEntityView = playerAssignments.length ? (clubAssignments.length && assignmentEntityView === 'club' ? 'club' : 'player') : 'club'; const acceptedRecords = assignedPlayers.filter(p => p && !locallyCompletedIds.has(canonicalAssignmentId(p)) && normalizeAssignmentStatus(p.status) === 'accepted'); const acceptedPlayers = acceptedRecords.filter(p => !isClubAssignmentRecord(p)); const acceptedClubs = acceptedRecords.filter(p => isClubAssignmentRecord(p)); const selectedAssignments = acceptedPlayers.filter(player => selectedAssignmentIds.includes(canonicalAssignmentId(player))); const toggleAssignmentSelection = (assignmentId) => {
 const id = canonicalAssignmentId(assignmentId); setSelectedAssignmentIds(prev => {
 if (prev.includes(id)) return prev.filter(value => value !== id); if (prev.length >= maxMountablePlayers) {
 showDCONotification(`You can mount up to ${maxMountablePlayers} players at once`,'warning'); return prev; }
@@ -2489,23 +2545,15 @@ ${clubAssignments.length ? html`<button type="button" role="tab" aria-selected=$
 </div>` : null}
 ${effectiveAssignmentEntityView==='player' && playerAssignments.length === 0 ? html`
 <div class="empty-state"><i class="fas fa-user-slash"></i><h3>No player assignments found</h3><p>No player assignments match your current filter.</p></div>
-` : effectiveAssignmentEntityView !== 'player' ? null : html` <div class="asgn-cards-stack"> ${playerAssignments.map(assignment => html` <${PlayerCard} key=${canonicalAssignmentId(assignment)} assignment=${assignment} isFading=${fadingCardId === canonicalAssignmentId(assignment)} selectable=${String(assignment.status || '').toLowerCase() === 'accepted'} selected=${selectedAssignmentIds.includes(canonicalAssignmentId(assignment))} onSelect=${toggleAssignmentSelection} onAccept=${acceptAssignment} onDecline=${declineAssignment} onTrack=${(a) => {
- const id = canonicalAssignmentId(a); const full = normalizeTrackingAssignment({ ...a, id, _id: a._id || id, entityType:'player', requestType:'player' }); const access = checkTrackingAccess(full); if (!access.allowed) {
-showDCONotification(access.message, 'warning'); return; }
-setAssignedPlayers(prev => prev.map(p => canonicalAssignmentId(p) === id ? { ...p, trackingStatus:'tracking' } : p)); onNavigateToWidget(full); }
-} />`)}
-</div>`} </div> </div> </div> <div class="card"> <div class="collapsible-section"> <button type="button" class=${'section-toggle ' + (sectionsOpen.assignments ? 'active' : '')} onClick=${() => setSectionsOpen({...sectionsOpen, assignments: !sectionsOpen.assignments})}> <div><i class="fas fa-shield-alt"></i><span> Club Assignments from Match Centre Stats Requests</span></div> <i class=${'fas fa-chevron-down toggle-icon ' + (sectionsOpen.assignments ? 'rotated' : '')}></i> </button> <div class=${'section-content ' + (sectionsOpen.assignments ? 'active' : '')}> <div class="d-flex justify-between align-center mb-2"> <div class="text-muted" style="font-size:.88rem">${clubAssignments.length} club assignments</div> <button type="button" class="btn btn-ghost btn-sm" onClick=${loadLiveData}><i class="fas fa-sync"></i> Refresh</button> </div> ${effectiveAssignmentEntityView !== 'club' ? null : clubAssignments.length === 0 ? html`
+` : effectiveAssignmentEntityView !== 'player' ? null : html` <div class="asgn-cards-stack"> ${playerAssignments.map(assignment => html` <${PlayerCard} key=${canonicalAssignmentId(assignment)} assignment=${assignment} isFading=${fadingCardId === canonicalAssignmentId(assignment)} selectable=${normalizeAssignmentStatus(assignment.status) === 'accepted'} selected=${selectedAssignmentIds.includes(canonicalAssignmentId(assignment))} onSelect=${toggleAssignmentSelection} onAccept=${acceptAssignment} onDecline=${declineAssignment} onTrack=${a => trackAssignment(a, 'player')} />`)}
+</div>`} </div> </div> </div> <div class="card"> <div class="collapsible-section"> <button type="button" class=${'section-toggle ' + (sectionsOpen.clubs ? 'active' : '')} onClick=${() => setSectionsOpen({...sectionsOpen, clubs: !sectionsOpen.clubs})}> <div><i class="fas fa-shield-alt"></i><span> Club Assignments from Match Centre Stats Requests</span></div> <i class=${'fas fa-chevron-down toggle-icon ' + (sectionsOpen.clubs ? 'rotated' : '')}></i> </button> <div class=${'section-content ' + (sectionsOpen.clubs ? 'active' : '')}> <div class="d-flex justify-between align-center mb-2"> <div class="text-muted" style="font-size:.88rem">${clubAssignments.length} club assignments</div> <button type="button" class="btn btn-ghost btn-sm" onClick=${loadLiveData}><i class="fas fa-sync"></i> Refresh</button> </div> ${effectiveAssignmentEntityView !== 'club' ? null : clubAssignments.length === 0 ? html`
 <div class="empty-state"><i class="fas fa-shield-alt"></i><h3>No club assignments found</h3><p>Assigned club stats requests will appear here using the Match Centre request fields.</p></div>
 ` : html`
 <div class="asgn-cards-stack">
-${clubAssignments.map(assignment => html` <${PlayerCard} key=${canonicalAssignmentId(assignment)} assignment=${assignment} isFading=${fadingCardId === canonicalAssignmentId(assignment)} selectable=${false} selected=${false} onAccept=${acceptAssignment} onDecline=${declineAssignment} onTrack=${(a) => {
- const id = canonicalAssignmentId(a); const full = normalizeTrackingAssignment({ ...a, id, _id: a._id || id, entityType:'club', requestType:'club' }); const access = checkTrackingAccess(full); if (!access.allowed) {
-showDCONotification(access.message, 'warning'); return; }
-setAssignedPlayers(prev => prev.map(p => canonicalAssignmentId(p) === id ? { ...p, trackingStatus:'tracking' } : p)); onNavigateToWidget(full); }
-} />`)}
-</div>`} </div> </div> </div> <div class="card"> <div class="collapsible-section"> <button type="button" class=${'section-toggle ' + (sectionsOpen.currentPlayers ? 'active' : '')} onClick=${() => setSectionsOpen({...sectionsOpen, currentPlayers: !sectionsOpen.currentPlayers})}> <div><i class="fas fa-user-check"></i><span> Accepted Stats Assignments — Ready to Track</span></div> <i class=${'fas fa-chevron-down toggle-icon ' + (sectionsOpen.currentPlayers ? 'rotated' : '')}></i> </button> <div class=${'section-content ' + (sectionsOpen.currentPlayers ? 'active' : '')}> <div class="d-flex justify-between align-center mb-2"> <div class="text-muted" style="font-size:.88rem">${acceptedPlayers.length + acceptedClubs.length} accepted assignment${acceptedPlayers.length + acceptedClubs.length === 1 ? '' : 's'}</div> <button type="button" style="background:none;border:1px solid var(--primary);color:var(--primary);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:600" onClick=${loadLiveData}><i class="fas fa-sync"></i> Refresh</button> </div> <div class="table-scroll-container"> <table class="accepted-players-table"> <thead><tr><th>Entity</th><th>Entity Type</th><th>Team/Club</th><th>Venue</th><th>Match Date</th><th>Tracking Status</th><th>Actions</th></tr></thead> <tbody> ${acceptedPlayers.length + acceptedClubs.length === 0 ? html`
-<tr><td colspan="7" style="text-align:center;color:var(--gray);padding:2rem">No accepted stats assignments yet.</td></tr>
-` : [...acceptedPlayers, ...acceptedClubs].map(item => {
+${clubAssignments.map(assignment => html` <${PlayerCard} key=${canonicalAssignmentId(assignment)} assignment=${assignment} isFading=${fadingCardId === canonicalAssignmentId(assignment)} selectable=${false} selected=${false} onAccept=${acceptAssignment} onDecline=${declineAssignment} onTrack=${a => trackAssignment(a, 'club')} />`)}
+</div>`} </div> </div> </div> <div class="card"> <div class="collapsible-section"> <button type="button" class=${'section-toggle ' + (sectionsOpen.currentPlayers ? 'active' : '')} onClick=${() => setSectionsOpen({...sectionsOpen, currentPlayers: !sectionsOpen.currentPlayers})}> <div><i class="fas fa-user-check"></i><span> Accepted Stats Assignments — Ready to Track</span></div> <i class=${'fas fa-chevron-down toggle-icon ' + (sectionsOpen.currentPlayers ? 'rotated' : '')}></i> </button> <div class=${'section-content ' + (sectionsOpen.currentPlayers ? 'active' : '')}> <div class="d-flex justify-between align-center mb-2"> <div class="text-muted" style="font-size:.88rem">${acceptedPlayers.length + acceptedClubs.length} accepted assignment${acceptedPlayers.length + acceptedClubs.length === 1 ? '' : 's'}</div> <button type="button" style="background:none;border:1px solid var(--primary);color:var(--primary);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:600" onClick=${loadLiveData}><i class="fas fa-sync"></i> Refresh</button> </div> <div class="table-scroll-container"> <table class="accepted-players-table"> <thead><tr><th>Entity</th><th>Entity Type</th><th>Team/Club</th><th>Venue</th><th>Match Date</th><th>Tracking Status</th><th>Actions</th></tr></thead> <tbody> ${acceptedClubs.length ? html`<tr><td colspan="7" style="padding:.65rem"><div class="asgn-cards-stack">${acceptedClubs.map(assignment => html`<${PlayerCard} key=${canonicalAssignmentId(assignment)} assignment=${assignment} isFading=${fadingCardId === canonicalAssignmentId(assignment)} selectable=${false} selected=${false} onAccept=${acceptAssignment} onDecline=${declineAssignment} onTrack=${a => trackAssignment(a, 'club')} />`)}</div></td></tr>` : null} ${acceptedPlayers.length === 0 ? html`
+<tr><td colspan="7" style="text-align:center;color:var(--gray);padding:2rem">${acceptedClubs.length ? 'No accepted player assignments to list.' : 'No accepted stats assignments yet.'}</td></tr>
+` : acceptedPlayers.map(item => {
  const normalizedItem = normalizeTrackingAssignment(item); const isClub = isClubAssignmentRecord(normalizedItem); const entityName = isClub ? (normalizedItem.clubName || normalizedItem.club_name || (typeof normalizedItem.club === 'string' ? normalizedItem.club : '') || normalizedItem.club_id || 'Unknown Club') : (normalizedItem.playerName || normalizedItem.player_name || normalizedItem.player_id || 'Unknown Player'); const teamClub = (typeof normalizedItem.club === 'string' ? normalizedItem.club : '') || normalizedItem.clubName || normalizedItem.club_name || normalizedItem.homeTeam || 'Unknown'; const matchDate = normalizedItem.matchDate || normalizedItem.match_date ? (normalizeDateInput(normalizedItem.matchDate || normalizedItem.match_date)?.toLocaleDateString('en-US',
  {weekday:'short',month:'short',day:'numeric',year:'numeric'}) || (normalizedItem.matchDate || normalizedItem.match_date)) : 'TBD'; const id = canonicalAssignmentId(item); return html`
 <tr key=${id}>
@@ -2517,11 +2565,7 @@ setAssignedPlayers(prev => prev.map(p => canonicalAssignmentId(p) === id ? { ...
 <td><span class=${'status-' + (item.trackingStatus || 'awaiting')}>${item.trackingStatus === 'tracking' ? 'Tracking' : 'Awaiting'}</span></td>
 <td>
 <button type="button" class="btn btn-primary btn-sm" onClick=${() => {
- const fullAssignmentData = normalizeTrackingAssignment({ ...normalizedItem, id, _id: item._id || id, entityType: isClub ? 'club' : 'player', requestType: isClub ? 'club' : 'player' });
-const timeCheck = checkTrackingAccess(fullAssignmentData);
-if (!timeCheck.allowed) { showDCONotification(timeCheck.message, 'warning'); return; }
-setAssignedPlayers(prev => prev.map(p => canonicalAssignmentId(p) === id ? { ...p, trackingStatus:'tracking' } : p));
-onNavigateToWidget(fullAssignmentData);
+trackAssignment(item, isClub ? 'club' : 'player');
 }}><i class="fas fa-play"></i> Track</button>
 </td>
 </tr>`; }
@@ -2542,8 +2586,7 @@ setAssignmentRefreshToken] = useState(0); const [completedAssignmentIds,setCompl
   isClubTrackingAssignment(data) || isClubAssignmentRecord(data) ||
   (Array.isArray(data.assignments) && data.assignments.some(Boolean)) ||
   (Array.isArray(data.players) && data.players.some(Boolean)) ||
-  data.playerId || data.player_id || data.playerName || data.player_name ||
-  canonicalAssignmentId(data)
+  data.playerId || data.player_id || data.playerName || data.player_name
 )); const [theme,
 setTheme] = useState(() => {
 try {
@@ -2566,7 +2609,7 @@ dco_id: user.dco_id || user.id || '', photo: user.photo || user.profileImage || 
 );  try {
 const saved = sessionStorage.getItem('statsTrackerData'); if (saved) {
 const data = normalizeTrackingAssignment(JSON.parse(saved)); if (isClubTrackingAssignment(data) || hasMountedPlayers(data)) {
-setWidgetData(data); setActiveTab('match-widget'); }
+setWidgetData(data); setActiveTab('match-widget'); sessionStorage.removeItem('statsTrackerData'); }
 }
 }
 catch (e) {
@@ -2595,10 +2638,7 @@ ${theme === 'dark' ? '☀ Light' : '☾ Dark'}
 <div class=${'sub-tab-content stats-assignments-section' + (activeTab==='assignments' ? ' active' : '')} role="tabpanel" style="padding:0">
 <${DCODashboardApp} refreshToken=${assignmentRefreshToken} completedAssignmentIds=${completedAssignmentIds} onNavigateToWidget=${(data) => {
 const prepared = normalizeTrackingAssignment(data);
-if (prepared && typeof prepared === 'object') {
-const sources = Array.isArray(prepared.assignments) && prepared.assignments.length ? prepared.assignments : [prepared];
-updateDCOTrackingIds(sources.map(canonicalAssignmentId));
-try { sessionStorage.setItem('statsTrackerData', JSON.stringify(prepared)); } catch (e) {}
+if (isClubTrackingAssignment(prepared) || hasMountedPlayers(prepared)) {
 setWidgetData(prepared);
 setActiveTab('match-widget');
 }
@@ -2606,9 +2646,8 @@ setActiveTab('match-widget');
 </div>
 <!-- Match Widget Sub-Tab -->
 <div class=${'sub-tab-content' + (activeTab==='match-widget' ? ' active' : '')} role="tabpanel">
-${!widgetData ? html` <div style="text-align:center;padding:3rem 1rem;color:var(--gray)"> <i class="fas fa-clipboard-list" style="font-size:3rem;margin-bottom:1rem;opacity:.4;display:block"></i> <h3 style="margin-bottom:.5rem;color:var(--dark)">No Assignment Loaded</h3> <p style="font-size:.9rem">Go to the <strong>Assignments</strong> tab, accept an assignment, and click <strong>Track</strong> to begin live stat tracking.</p> </div> ` : html` <div class="page-content" style="padding:0.75rem 0.5rem"> <${MatchWidgetApp} key=${canonicalAssignmentId(widgetData)||widgetData.matchId||widgetData.match_id||widgetData.id} currentUser=${widgetUser} initialData=${widgetData} onAssignmentCompleted=${markAssignmentsCompleted} onSubmissionComplete=${(details) => {
+${!(isClubTrackingAssignment(widgetData) || hasMountedPlayers(widgetData)) ? html` <div style="text-align:center;padding:3rem 1rem;color:var(--gray)"> <i class="fas fa-clipboard-list" style="font-size:3rem;margin-bottom:1rem;opacity:.4;display:block"></i> <h3 style="margin-bottom:.5rem;color:var(--dark)">No Assignment Loaded</h3> <p style="font-size:.9rem">Go to the <strong>Assignments</strong> tab, accept an assignment, and click <strong>Track</strong> to begin live stat tracking.</p> </div> ` : html` <div class="page-content" style="padding:0.75rem 0.5rem"> <${MatchWidgetApp} key=${canonicalAssignmentId(widgetData)||widgetData.matchId||widgetData.match_id||widgetData.id} currentUser=${widgetUser} initialData=${widgetData} onAssignmentCompleted=${markAssignmentsCompleted} onSubmissionComplete=${(details) => {
 markAssignmentsCompleted(details);
-try { sessionStorage.removeItem('statsTrackerData'); } catch (e) {}
 setWidgetData(null); setAssignmentRefreshToken(value => value + 1); setActiveTab('assignments'); }
 } /> </div>`}
 </div>
