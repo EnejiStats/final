@@ -110,6 +110,20 @@ const res = await fetch(url, options);
 if (!res.ok) { const err = await res.json().catch(() => ({})); const e = new Error(err.detail || `HTTP ${res.status}`); e.status = res.status; throw e; }
 return res.json();
 }
+function normalizeStatsRequestList(value, depth = 0) {
+if (Array.isArray(value)) return value;
+if (!value || typeof value !== 'object' || depth > 4) return [];
+for (const key of ['requests', 'stats_requests', 'statsRequests', 'items', 'results']) {
+if (Array.isArray(value[key])) return value[key];
+}
+for (const key of ['data', 'result']) {
+if (value[key] && typeof value[key] === 'object') {
+const rows = normalizeStatsRequestList(value[key], depth + 1);
+if (rows.length || Array.isArray(value[key])) return rows;
+}
+}
+return [];
+}
 // ── TOAST ──
 function ToastContainer({ toasts, removeToast }) {
 return html`
@@ -1121,7 +1135,7 @@ if (v(txData)) setTransactions(Array.isArray(v(txData)) ? v(txData) : v(txData).
 if (v(compData)) setCompetitions(Array.isArray(v(compData)) ? v(compData) : v(compData).competitions || []);
 if (v(costsData)) { const cd = v(costsData); setTokenCosts(cd?.costs || cd); if (cd?.packages) setTokenPackages(cd.packages); }
 if (v(bankData)) { const bd = v(bankData); setBankTransfer(bd?.bank || bd); }
-if (v(stReqData)) setStatsRequests(Array.isArray(v(stReqData)) ? v(stReqData) : v(stReqData).requests || []);
+if (v(stReqData)) setStatsRequests(normalizeStatsRequestList(v(stReqData)));
 if (v(mrSentData)) setMatchRequests(p => ({...p, sent: Array.isArray(v(mrSentData)) ? v(mrSentData) : v(mrSentData).requests || []}));
 if (v(mrRecvData)) setMatchRequests(p => ({...p, received: Array.isArray(v(mrRecvData)) ? v(mrRecvData) : v(mrRecvData).requests || []}));
 if (v(squadData)) setSquadPlayers(Array.isArray(v(squadData)) ? v(squadData) : v(squadData).squad || []);
@@ -1344,19 +1358,24 @@ setTokenConfirmation(null);
 handleStatsTrackingSubmit({ preventDefault:()=>{}, __tokenConfirmed:true });
 }
 });
+setStSubmitting(false);
 return;
 }
 try {
 const r = await apiCall(`/club/${(club?.club_id || club?.user_id)}/stats-request`, { method: 'POST', body: JSON.stringify(payload) });
-if (r?.request_id || r?.reference_id || r?.status === 'SUBMITTED') {
+const nestedRequest = [r?.request, r?.stats_request, r?.statsRequest, r?.data, r?.result].find(value => value && typeof value === 'object' && !Array.isArray(value)) || {};
+const savedRequest = { ...nestedRequest, ...(r && typeof r === 'object' ? r : {}) };
+const requestId = savedRequest.request_id || savedRequest.requestId || savedRequest.stats_request_id || savedRequest.statsRequestId || savedRequest.reference_id || savedRequest.referenceId || savedRequest.id || savedRequest._id;
+const responseStatus = String(savedRequest.status || '').trim().toLowerCase();
+if (requestId || savedRequest.success === true || ['submitted', 'pending', 'created', 'accepted'].includes(responseStatus)) {
 addToast(`Stats tracking requested! ${stTrackingType !== 'no_tracking' ? stTrackingCost + ' tokens reserved.' : ''}`, 'success');
 if (stTrackingType !== 'no_tracking') setTokens(p => ({...p, locked: (p.locked||0) + stTrackingCost}));
-setStatsRequests(p => [{...payload, reference_id: r.reference_id || r.request_id, status: 'Pending', submitted_at: new Date().toISOString()}, ...p]);
+setStatsRequests(p => [{...payload, ...savedRequest, request_id: savedRequest.request_id || requestId, reference_id: savedRequest.reference_id || savedRequest.referenceId || requestId, status: savedRequest.status || 'Pending', submitted_at: savedRequest.submitted_at || savedRequest.submittedAt || new Date().toISOString()}, ...p]);
 setStMatchDate(''); setStMatchTime(''); setStAwayTeam(''); setStVenue(''); setStCountry('Nigeria'); setStCountryCode('NG'); setStState(''); setStLGA(''); setStCity(''); setStJerseyColor(''); setStContactPhone(''); setStNotes(''); setStSelectedPlayers([]); setStStadiumSuggestions([]);
 setStSubTab('history');
 } else addToast(r?.detail || 'Request failed', 'error');
 } catch (err) { addToast(err?.message || 'Request failed', 'error'); }
-setStSubmitting(false);
+finally { setStSubmitting(false); }
 };
 // Match requests
 const loadClubsForMatch = async () => {
@@ -2580,14 +2599,14 @@ ${stSubTab==='history' && html`
 <div class="card-title"><i class="fas fa-history"></i> Request History</div>
 ${statsRequests.length === 0 ? html`<div class="empty-state"><i class="fas fa-satellite-dish"></i><div>No tracking requests yet</div></div>` :
 statsRequests.map((r,i) => html`
-<div key=${r.reference_id||i} class="request-item-card">
+<div key=${r.reference_id||r.referenceId||r.request_id||r.requestId||r.id||r._id||i} class="request-item-card">
 <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.4rem;">
 <div style="font-size:0.88rem;font-weight:800;">${r.home_team||r.homeTeam||'—'} vs ${r.away_team||r.awayTeam||'—'}</div>
-<span class=${`badge ${r.status==='Approved'||r.status==='Completed'?'badge-green':r.status==='Rejected'||r.status==='Cancelled'?'badge-red':'badge-yellow'}`}>${r.status||'Pending'}</span>
+<span class=${`badge ${['approved','completed'].includes(String(r.status||'').toLowerCase())?'badge-green':['rejected','cancelled','canceled'].includes(String(r.status||'').toLowerCase())?'badge-red':'badge-yellow'}`}>${r.status||'Pending'}</span>
 </div>
 <div class="request-detail-grid">
 <div><span class="req-label">Date</span><br/><span class="req-value">${fmtDate(r.match_date||r.matchDate||r.submitted_at)}</span></div>
-<div><span class="req-label">Ref ID</span><br/><span class="req-value" style="font-family:var(--mono);font-size:0.75rem;">${r.reference_id||'—'}</span></div>
+<div><span class="req-label">Ref ID</span><br/><span class="req-value" style="font-family:var(--mono);font-size:0.75rem;">${r.reference_id||r.referenceId||r.request_id||r.requestId||r.stats_request_id||r.statsRequestId||r.id||r._id||'—'}</span></div>
 <div><span class="req-label">Tracking</span><br/><span class="req-value">${(r.tracking_type||r.trackingType||'—').replace(/_/g,' ')}</span></div>
 <div><span class="req-label">Venue State</span><br/><span class="req-value">${r.venue_state||r.state||'—'}</span></div>
 <div><span class="req-label">Match Type</span><br/><span class="req-value">${r.match_type||r.matchType||'—'}</span></div>
