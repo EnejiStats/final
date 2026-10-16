@@ -562,8 +562,8 @@ const storedToken = localStorage.getItem('dco_token');
 const authHeaders = storedToken ? { 'Authorization': 'Bearer ' + storedToken } : {};
 const isJson = options.body && !(options.body instanceof FormData);
 const { headers: optionHeaders = {}, ...requestOptions } = options;
-const res = await fetch(endpoint, { credentials: 'include', headers: { ...authHeaders, ...(isJson ? { 'Content-Type': 'application/json' } : {}),
-...optionHeaders }, ...requestOptions });
+const res = await fetch(endpoint, { ...requestOptions, credentials: options.credentials ?? 'include', headers: { ...authHeaders, ...(isJson ? { 'Content-Type': 'application/json' } : {}),
+...optionHeaders } });
 if (!res.ok) {
 if (res.status === 401 || res.status === 403) {
 localStorage.removeItem('dco_token');
