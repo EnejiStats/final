@@ -636,6 +636,22 @@ const player = a.player || request.player || {};
 const hasPlayer = !!(a.player_id || a.playerId || a.player_name || a.playerName || player.id || player._id || player.name || player.full_name);
 return hasClub && !hasPlayer || tracking.indexOf('club') === 0;
 }
+function assignmentHasPassedDay(assignment) {
+  if (!assignment || typeof assignment !== 'object') return false;
+  const rawStatus = String(assignment.status || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+  if (['completed','complete','submitted','declined','rejected','cancelled','canceled','expired'].includes(rawStatus)) return false;
+  const candidates = [assignment.matchDate, assignment.match_date, assignment.kickoffDate, assignment.kickoff_date, assignment.dueDate, assignment.due_date, assignment.endDate, assignment.end_date, assignment.expiresAt, assignment.expires_at, assignment.deadline];
+  const value = candidates.find(v => v !== undefined && v !== null && String(v).trim() !== '');
+  if (!value) return false;
+  const raw = String(value).trim(); const match = raw.match(/^(\d{4}-\d{2}-\d{2})/); let day = match ? match[1] : '';
+  if (!day) { const parsed = new Date(raw); if (!Number.isFinite(parsed.getTime())) return false; day = `${parsed.getFullYear()}-${String(parsed.getMonth()+1).padStart(2,'0')}-${String(parsed.getDate()).padStart(2,'0')}`; }
+  const now = new Date(); const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  return day < today;
+}
+function markExpiredAssignmentRejected(assignment) {
+  if (!assignmentHasPassedDay(assignment)) return assignment;
+  return { ...assignment, status: 'declined', rejection_reason: assignment.rejection_reason || 'Assignment date passed without completion', hiddenFromCards: true, autoRejectedExpired: true };
+}
 function normalizeDCOAssignment(source = {}) {
 const raw = source && typeof source === 'object' ? source : {};
 const request = raw.stats_request || raw.statsRequest || raw.request || raw.stats_request_data || {};
@@ -656,7 +672,7 @@ const statsRequestId = String(raw.stats_request_id ?? raw.statsRequestId ?? requ
 const referenceId = String(raw.reference_id ?? raw.referenceId ?? request.reference_id ?? request.referenceId ?? '').trim();
 const statusRaw = String(raw.status ?? request.status ?? 'assigned').trim().toLowerCase();
 const status = statusRaw === 'pending' && (raw.assigned_dco_id || raw.assignedDcoId || raw.assigned_scout_id || raw.assignedScoutId) ? 'assigned' : statusRaw;
-return { ...merged, id: id || requestId || statsRequestId || referenceId || undefined, assignmentId: id || requestId || statsRequestId || referenceId || undefined,
+const normalized = { ...merged, id: id || requestId || statsRequestId || referenceId || undefined, assignmentId: id || requestId || statsRequestId || referenceId || undefined,
 assignment_id: id || requestId || statsRequestId || referenceId || undefined, request_id: requestId || undefined,
 stats_request_id: statsRequestId || undefined, reference_id: referenceId || undefined, entityType: isClub ? 'club' : 'player',
 entity_type: isClub ? 'club' : 'player', requestType: isClub ? 'club' : 'player', request_type: isClub ? 'club' : 'player',
@@ -712,6 +728,7 @@ assigned_scout_name: raw.assigned_scout_name ?? raw.assignedScout ?? request.ass
 notes: raw.notes ?? request.notes ?? request.additional_notes ?? request.additionalNotes ?? '', submitted_at: raw.submitted_at ?? raw.submittedAt ?? request.submitted_at ?? request.submittedAt ?? raw.created_at ?? request.created_at ?? '',
 submittedAt: raw.submittedAt ?? raw.submitted_at ?? request.submittedAt ?? request.submitted_at ?? raw.created_at ?? request.created_at ?? '',
 status, _assignment_entity: isClub ? 'club' : 'player' };
+return markExpiredAssignmentRejected(normalized);
 }
 function normalizeDCOListResponse(value, keys = []) {
 if (Array.isArray(value)) return value;
@@ -1305,7 +1322,7 @@ message: '⚠️ Invalid match date or time format' }; const now = new Date(); c
 const daysDiff = Math.ceil((matchDateTime - now) / (1000*60*60*24)); return { allowed: false, message: `⏰ This match is scheduled for ${matchDateTime.toLocaleDateString()}. You can only track on the SAME DAY as the match (${daysDiff>0?`in ${daysDiff} day(s)`:'match day has passed'}).` }; }
 const timeDiff = matchDateTime - now; const minutesDiff = Math.floor(timeDiff / (1000*60)); if (timeDiff <= 0 || minutesDiff <= 30) return { allowed: true,
 message: '' }; const hoursDiff = Math.floor(timeDiff / (1000*60*60)); const timeMessage = hoursDiff>0 ? `${hoursDiff} hour(s) and ${minutesDiff%60} minute(s)` : `${minutesDiff} minute(s)`; return { allowed: false,
-message: `⏰ You can track this ${isClubTrackingAssignment(normalized) ? 'club match' : 'player'} in ${timeMessage}. Tracking opens 30 MINUTES BEFORE match time or after the match has started.` }; }
+message: `⏰ You can track this player in ${timeMessage}. Tracking opens 30 MINUTES BEFORE match time or after the match has started.` }; }
 catch { return { allowed: false, message: '⚠️ Invalid match date or time format' }; } }
 function buildPitchElements() {
 return [ h('defs',null,h('linearGradient',{id:'ptchG',x1:'0',y1:'0',x2:'1',y2:'0'},h('stop',{offset:'0%',
@@ -1770,7 +1787,7 @@ e.matchClock), h('div',{className:'club-team-event-main'},h('strong',null,e.metr
 renderUndo() ); }
 function MatchWidgetApp({ currentUser, initialData, onSubmissionComplete, onAssignmentCompleted }) {
 const minPlayers = 1; const maxPlayers = 3; const initPlayers = () => {
-const slots = [null, null, null]; if (isClubTrackingAssignment(initialData)) return slots; getInitialAssignmentSources(initialData).slice(0, maxPlayers).forEach((assignment, index) => {
+const slots = [null, null, null]; getInitialAssignmentSources(initialData).slice(0, maxPlayers).forEach((assignment, index) => {
 slots[index] = createTrackedPlayer( index, assignment, resolvePlayerTeam(assignment, index === 0 ? 'home' : 'away') ); }
 ); return slots; }
 ; const [players, setPlayers] = useState(initPlayers); const [activePlayerIndex, setActivePlayerIndex] = useState(0); const [homeTeam,
@@ -1797,7 +1814,6 @@ periodRef.current = period; }
 heatmapPopupRef.current = heatmapPopup; }
 , [heatmapPopup]); useEffect(() => {
 if (!initialData) return; setHomeTeam(initialData.homeTeam || initialData.home_team || ''); setAwayTeam(initialData.awayTeam || initialData.away_team || ''); setScoreA(numericScore(initialData.scoreA ?? initialData.score_a)); setScoreB(numericScore(initialData.scoreB ?? initialData.score_b)); setPlayers(prev => {
-if (isClubTrackingAssignment(initialData)) return [null, null, null];
 const next = prev.length ? clonePlayersState(prev) : [null, null, null]; getInitialAssignmentSources(initialData).slice(0, maxPlayers).forEach(assignment => {
 const sourceId = getStablePlayerId(assignment); const existingIndex = sourceId ? next.findIndex(player => player && getStablePlayerId(player) === sourceId) : -1; if (existingIndex >= 0) {
 const existing = next[existingIndex]; existing.name = assignment.playerName || assignment.player_name || existing.name; existing.mainPosition = assignment.mainPosition || assignment.main_position || existing.mainPosition || assignment.position || existing.position; existing.position = existing.position || existing.mainPosition; existing.positionOptions = Array.from(new Set([ ...(existing.positionOptions || []),
@@ -2152,7 +2168,7 @@ venueCountry: initialData?.venueCountry || initialData?.venue_country || null, v
 venueGpsLon: initialData?.venueGpsLon ?? initialData?.venue_gps_lon ?? null, gpsLat: initialData?.gpsLat ?? initialData?.venueGpsLat ?? initialData?.venue_gps_lat ?? null,
 gpsLon: initialData?.gpsLon ?? initialData?.venueGpsLon ?? initialData?.venue_gps_lon ?? null }; const canSubmit = !!(homeTeam && awayTeam) && occupiedPlayers.length >= minPlayers && occupiedPlayers.length <= maxPlayers; return h('div',
 {className:'widget-container'}, h('div',{className:'embedded-widget'}, h('div',{className:'widget-header'},
-h('h2',null, h('i',{className:'fas fa-chart-bar'}), isClubAssignment ? ' Club Match Stats Tracker' : ' Player Stats Tracker'),
+h('h2',null, h('i',{className:'fas fa-chart-bar'}), isClubAssignment ? ' Professional Club Stats Track Widget' : ' DCO Stats Track Widget'),
 h('p',null, homeTeam&&awayTeam ? `${homeTeam} vs ${awayTeam}` : 'Set up match below') ), h(MatchSetup,{homeTeam,
 awayTeam, onTeamChange:(side,val)=>{
 if(side==='home') setHomeTeam(val); else setAwayTeam(val); }
@@ -2384,7 +2400,7 @@ apiFetch(API.assignments), apiFetch(API.submissions) ]); const shared = readDCOS
 ['assignments', 'results', 'data']); const fallbackAssignments = normalizeDCOListResponse( local?.assignments || shared.assignments,
 ['assignments', 'results', 'data'] ); const records = normalizeDCOListResponse(submissionsData, ['submissions',
 'results', 'data']) .map(normalizeDCOSubmission); const fallbackRecords = normalizeDCOListResponse( local?.stats || shared.stats,
-['submissions', 'results', 'data'] ).map(normalizeDCOSubmission); const nextAssignments = (assignmentsFailed ? fallbackAssignments : assignmentList) .map(normalizeDCOAssignment) .filter(item => item && typeof item === 'object'); const nextRecords = submissionsFailed ? fallbackRecords : records; const hasLiveData = metricsResult.status === 'fulfilled' || assignmentsResult.status === 'fulfilled' || submissionsResult.status === 'fulfilled'; if (!hasLiveData && !nextAssignments.length && !nextRecords.length) {
+['submissions', 'results', 'data'] ).map(normalizeDCOSubmission); const nextAssignments = (assignmentsFailed ? fallbackAssignments : assignmentList) .map(normalizeDCOAssignment) .filter(item => item && typeof item === 'object'); if (!assignmentsFailed) { nextAssignments.filter(item => item.autoRejectedExpired && canonicalAssignmentId(item)).forEach(item => { const expiredId = canonicalAssignmentId(item); const key = 'enejistats_expired_assignment_rejected_' + expiredId; if (!sessionStorage.getItem(key)) { sessionStorage.setItem(key, '1'); apiFetch(API.declineAssignment, { method: 'POST', body: JSON.stringify({ assignmentId: expiredId, assignment_id: expiredId, reason: 'expired', rejection_reason: 'Assignment date passed without completion' }) }).catch(() => { sessionStorage.removeItem(key); }); } }); } const nextRecords = submissionsFailed ? fallbackRecords : records; const hasLiveData = metricsResult.status === 'fulfilled' || assignmentsResult.status === 'fulfilled' || submissionsResult.status === 'fulfilled'; if (!hasLiveData && !nextAssignments.length && !nextRecords.length) {
 throw metricsResult.reason || assignmentsResult.reason || submissionsResult.reason || new Error('No DCO data source available'); }
 setMetrics({ assigned_players: Number(metricsData.assigned_players ?? local?.metrics?.assigned_players ?? shared.metrics?.assigned_players) || 0,
 stats_today: Number(metricsData.stats_today ?? local?.metrics?.stats_today ?? shared.metrics?.stats_today) || 0,
@@ -2435,13 +2451,13 @@ showDCONotification('Failed to decline assignment: ' + error.message, 'error'); 
 }
 const getFilteredAssignments = () => {
 const filtered = assignedPlayers.filter(a => {
-  if (!a || a.hiddenFromCards || locallyCompletedIds.has(canonicalAssignmentId(a))) return false;
+  if (!a || a.hiddenFromCards || assignmentHasPassedDay(a) || locallyCompletedIds.has(canonicalAssignmentId(a))) return false;
   const status = String(a.status || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
   return !['completed', 'complete', 'passed', 'pass', 'submitted', 'declined', 'cancelled', 'canceled'].includes(status);
 }); switch (assignmentView) {
 case 'assigned': return filtered.filter(p => ['assigned','pending'].includes(String(p.status || '').toLowerCase())); case 'accepted': return filtered.filter(p => String(p.status || '').toLowerCase() === 'accepted'); default: return filtered; }
 }
-; const filteredAssignments = getFilteredAssignments(); const playerAssignments = filteredAssignments.filter(a => !isClubAssignmentRecord(a)); const clubAssignments = filteredAssignments.filter(a => isClubAssignmentRecord(a)); const effectiveAssignmentEntityView = playerAssignments.length ? (clubAssignments.length && assignmentEntityView === 'club' ? 'club' : 'player') : 'club'; const acceptedRecords = assignedPlayers.filter(p => p && !locallyCompletedIds.has(canonicalAssignmentId(p)) && String(p.status || '').trim().toLowerCase()==='accepted'); const acceptedPlayers = acceptedRecords.filter(p => !isClubAssignmentRecord(p)); const acceptedClubs = acceptedRecords.filter(p => isClubAssignmentRecord(p)); const selectedAssignments = acceptedPlayers.filter(player => selectedAssignmentIds.includes(canonicalAssignmentId(player))); const toggleAssignmentSelection = (assignmentId) => {
+; const filteredAssignments = getFilteredAssignments(); const playerAssignments = filteredAssignments.filter(a => !isClubAssignmentRecord(a)); const clubAssignments = filteredAssignments.filter(a => isClubAssignmentRecord(a)); const effectiveAssignmentEntityView = playerAssignments.length ? (clubAssignments.length && assignmentEntityView === 'club' ? 'club' : 'player') : 'club'; const acceptedRecords = assignedPlayers.filter(p => p && !p.hiddenFromCards && !assignmentHasPassedDay(p) && !locallyCompletedIds.has(canonicalAssignmentId(p)) && String(p.status || '').trim().toLowerCase()==='accepted'); const acceptedPlayers = acceptedRecords.filter(p => !isClubAssignmentRecord(p)); const acceptedClubs = acceptedRecords.filter(p => isClubAssignmentRecord(p)); const selectedAssignments = acceptedPlayers.filter(player => selectedAssignmentIds.includes(canonicalAssignmentId(player))); const toggleAssignmentSelection = (assignmentId) => {
 const id = canonicalAssignmentId(assignmentId); setSelectedAssignmentIds(prev => {
 if (prev.includes(id)) return prev.filter(value => value !== id); if (prev.length >= maxMountablePlayers) {
 showDCONotification(`You can mount up to ${maxMountablePlayers} players at once`,'warning'); return prev; }
@@ -2517,7 +2533,8 @@ ${submissionRecords.map(record => html` <div class="dco-submission-row" key=${re
 function StatsTrackerApp() {
 const [activeTab, setActiveTab] = useState('assignments'); const [widgetData, setWidgetData] = useState(null); const [currentUser,
 setCurrentUser] = useState({ id: '', name: 'DCO', dco_id: '', photo: '' }); const [assignmentRefreshToken,
-setAssignmentRefreshToken] = useState(0); const [completedAssignmentIds,setCompletedAssignmentIds] = useState([]); const markAssignmentsCompleted = payload => { const ids = Array.isArray(payload?.assignmentIds) ? payload.assignmentIds : [payload?.assignmentId]; const valid = ids.map(value=>String(value||'').trim()).filter(Boolean); if(valid.length)setCompletedAssignmentIds(previous=>[...new Set([...previous,...valid])]); }; const hasMountedPlayers = data => Boolean(data && !isClubTrackingAssignment(data) && !isClubAssignmentRecord(data) && (
+setAssignmentRefreshToken] = useState(0); const [completedAssignmentIds,setCompletedAssignmentIds] = useState([]); const markAssignmentsCompleted = payload => { const ids = Array.isArray(payload?.assignmentIds) ? payload.assignmentIds : [payload?.assignmentId]; const valid = ids.map(value=>String(value||'').trim()).filter(Boolean); if(valid.length)setCompletedAssignmentIds(previous=>[...new Set([...previous,...valid])]); }; const hasMountedPlayers = data => Boolean(data && (
+  isClubTrackingAssignment(data) || isClubAssignmentRecord(data) ||
   (Array.isArray(data.assignments) && data.assignments.some(Boolean)) ||
   (Array.isArray(data.players) && data.players.some(Boolean)) ||
   data.playerId || data.player_id || data.playerName || data.player_name
@@ -2543,7 +2560,7 @@ dco_id: user.dco_id || user.id || '', photo: user.photo || user.profileImage || 
 );  try {
 const saved = sessionStorage.getItem('statsTrackerData'); if (saved) {
 const data = normalizeTrackingAssignment(JSON.parse(saved)); if (isClubTrackingAssignment(data) || hasMountedPlayers(data)) {
-setWidgetData(data); setActiveTab(isClubTrackingAssignment(data) ? 'club-tracker' : 'player-tracker'); sessionStorage.removeItem('statsTrackerData'); }
+setWidgetData(data); setActiveTab(isClubTrackingAssignment(data) || isClubAssignmentRecord(data) ? 'club-tracker' : 'player-tracker'); sessionStorage.removeItem('statsTrackerData'); }
 }
 }
 catch (e) {
@@ -2559,14 +2576,8 @@ catch (e) {
 onClick=${() => setActiveTab('assignments')} role="tab">
 <i class="fas fa-clipboard-list"></i> Assignments
 </button>
-${hasMountedPlayers(widgetData) ? html`<button type="button" class=${'sub-tab-btn' + (activeTab==='player-tracker' ? ' active-sub-tab' : '')}
-onClick=${() => setActiveTab('player-tracker')} role="tab" aria-selected=${activeTab==='player-tracker'}>
-<i class="fas fa-user"></i> Player Tracker
-</button>` : null}
-${isClubTrackingAssignment(widgetData) ? html`<button type="button" class=${'sub-tab-btn' + (activeTab==='club-tracker' ? ' active-sub-tab' : '')}
-onClick=${() => setActiveTab('club-tracker')} role="tab" aria-selected=${activeTab==='club-tracker'}>
-<i class="fas fa-shield-alt"></i> Club Tracker
-</button>` : null}
+${widgetData && !isClubTrackingAssignment(widgetData) && !isClubAssignmentRecord(widgetData) && hasMountedPlayers(widgetData) ? html`<button type="button" role="tab" aria-selected=${activeTab==='player-tracker'} class=${'sub-tab-btn'+(activeTab==='player-tracker'?' active-sub-tab':'')} onClick=${()=>setActiveTab('player-tracker')}><i class="fas fa-user"></i> Player Tracker</button>` : null}
+${widgetData && (isClubTrackingAssignment(widgetData) || isClubAssignmentRecord(widgetData)) ? html`<button type="button" role="tab" aria-selected=${activeTab==='club-tracker'} class=${'sub-tab-btn'+(activeTab==='club-tracker'?' active-sub-tab':'')} onClick=${()=>setActiveTab('club-tracker')}><i class="fas fa-shield-alt"></i> Club Tracker</button>` : null}
 <button type="button" class="sub-tab-btn theme-toggle" style="margin-left:auto" onClick=${() => setTheme(theme === 'dark' ? 'light' : 'dark')}
 aria-label=${theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
 ${theme === 'dark' ? '☀ Light' : '☾ Dark'}
@@ -2578,34 +2589,17 @@ ${theme === 'dark' ? '☀ Light' : '☾ Dark'}
 const prepared = normalizeTrackingAssignment(data);
 if (isClubTrackingAssignment(prepared) || hasMountedPlayers(prepared)) {
 setWidgetData(prepared);
-setActiveTab(isClubTrackingAssignment(prepared) ? 'club-tracker' : 'player-tracker');
+setActiveTab(isClubTrackingAssignment(prepared) || isClubAssignmentRecord(prepared) ? 'club-tracker' : 'player-tracker');
 }
 }}/>
 </div>
-<!-- Player Tracker Sub-Tab: rendered only for a loaded player assignment. -->
-${hasMountedPlayers(widgetData) ? html`
-<div class=${'sub-tab-content' + (activeTab==='player-tracker' ? ' active' : '')} role="tabpanel" aria-label="Player Tracker">
-<div class="page-content" style="padding:0.75rem 0.5rem">
-<${MatchWidgetApp} key=${'player-'+(canonicalAssignmentId(widgetData)||widgetData.matchId||widgetData.match_id||widgetData.id)} currentUser=${widgetUser} initialData=${widgetData} onAssignmentCompleted=${markAssignmentsCompleted} onSubmissionComplete=${(details) => {
-markAssignmentsCompleted(details);
-setWidgetData(null); setAssignmentRefreshToken(value => value + 1); setActiveTab('assignments');
-}
-} />
+<!-- Match Widget Sub-Tab -->
+<div class=${'sub-tab-content' + (activeTab==='player-tracker' && widgetData && !isClubTrackingAssignment(widgetData) && !isClubAssignmentRecord(widgetData) && hasMountedPlayers(widgetData) ? ' active' : '')} role="tabpanel" aria-label="Player Tracker">
+${activeTab==='player-tracker' && widgetData && !isClubTrackingAssignment(widgetData) && !isClubAssignmentRecord(widgetData) && hasMountedPlayers(widgetData) ? html`<div class="page-content" style="padding:0.75rem 0.5rem"><${MatchWidgetApp} key=${canonicalAssignmentId(widgetData)||widgetData.matchId||widgetData.match_id||widgetData.id} currentUser=${widgetUser} initialData=${widgetData} onAssignmentCompleted=${markAssignmentsCompleted} onSubmissionComplete=${(details) => { markAssignmentsCompleted(details); setWidgetData(null); setAssignmentRefreshToken(value => value + 1); setActiveTab('assignments'); }} /></div>` : null}
 </div>
+<div class=${'sub-tab-content' + (activeTab==='club-tracker' && widgetData && (isClubTrackingAssignment(widgetData) || isClubAssignmentRecord(widgetData)) ? ' active' : '')} role="tabpanel" aria-label="Club Tracker">
+${activeTab==='club-tracker' && widgetData && (isClubTrackingAssignment(widgetData) || isClubAssignmentRecord(widgetData)) ? html`<div class="page-content" style="padding:0.75rem 0.5rem"><${MatchWidgetApp} key=${canonicalAssignmentId(widgetData)||widgetData.matchId||widgetData.match_id||widgetData.id} currentUser=${widgetUser} initialData=${widgetData} onAssignmentCompleted=${markAssignmentsCompleted} onSubmissionComplete=${(details) => { markAssignmentsCompleted(details); setWidgetData(null); setAssignmentRefreshToken(value => value + 1); setActiveTab('assignments'); }} /></div>` : null}
 </div>
-` : null}
-<!-- Club Tracker Sub-Tab: the existing complete club widget, controls, logic and submission flow mount only for club assignments. -->
-${isClubTrackingAssignment(widgetData) ? html`
-<div class=${'sub-tab-content' + (activeTab==='club-tracker' ? ' active' : '')} role="tabpanel" aria-label="Club Tracker">
-<div class="page-content" style="padding:0.75rem 0.5rem">
-<${MatchWidgetApp} key=${'club-'+(canonicalAssignmentId(widgetData)||widgetData.matchId||widgetData.match_id||widgetData.id)} currentUser=${widgetUser} initialData=${widgetData} onAssignmentCompleted=${markAssignmentsCompleted} onSubmissionComplete=${(details) => {
-markAssignmentsCompleted(details);
-setWidgetData(null); setAssignmentRefreshToken(value => value + 1); setActiveTab('assignments');
-}
-} />
-</div>
-</div>
-` : null}
 </div>
 </main>
 </div>`; }
