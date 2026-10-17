@@ -1,0 +1,2900 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EnejiStats – Register</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/preact@10.19.3/dist/preact.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/preact@10.19.3/hooks/dist/hooks.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.umd.js"></script>
+  <link rel="stylesheet" href="/static/dco-dashboard/styles/registration.css">
+  <script src="/static/dco-dashboard/dco-iframe-bridge.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+const { h, render, Fragment } = preact;
+const { useState, useRef, useEffect, useCallback, useMemo } = preactHooks;
+const html = htm.bind(h);
+
+/* ── CONSTANTS ──────────────────────────────────────────────────────────────── */
+const POSITION_SHORT_TO_FULL = {
+  GK:'Goalkeeper', CB:'Center Back', RB:'Right Back', LB:'Left Back',
+  RWB:'Right Wing Back', LWB:'Left Wing Back', CDM:'Defensive Midfielder',
+  CM:'Central Midfielder', CAM:'Attacking Midfielder', RM:'Right Midfielder',
+  LM:'Left Midfielder', ST:'Striker', CF:'Center Forward', LW:'Left Winger', RW:'Right Winger'
+};
+const POSITION_CATEGORIES = {
+  Goalkeeper: ['GK'],
+  Defender:   ['CB','RB','LB','RWB','LWB'],
+  Midfielder: ['CDM','CM','CAM','RM','LM'],
+  Attacker:   ['ST','CF','LW','RW']
+};
+const ALL_POSITIONS = ['GK','CB','RB','LB','RWB','LWB','CDM','CM','CAM','RM','LM','ST','CF','LW','RW'];
+const LANGUAGES_LIST = ['English','French','Arabic','Portuguese','Hausa','Yoruba','Igbo','Swahili','Amharic','Zulu','Afrikaans','Twi','Wolof','Fulani','Spanish','German','Italian'];
+const YEAR_NOW = new Date().getFullYear();
+const NIGERIAN_TEAMS = ['Lagos Stars FC','Abuja Lions','PH Tigers','Enugu Warriors','Kano Pillars','Rivers United','Kwara United','Plateau United','Dolphins FC','Shooting Stars','Enyimba FC','Rangers International','Sunshine Stars','Heartland FC','Lobi Stars','Abia Warriors','Niger Tornadoes','Nasarawa United','Wikki Tourists','Insurance FC'];
+const TIER_RATES_DCO = {
+  1:{ Professional:700, 'Semi-professional':500, Academy:400, Other:500, Club:1400 },
+  2:{ Professional:1000, 'Semi-professional':700, Academy:600, Other:700, Club:2000 },
+  3:{ Professional:1400, 'Semi-professional':1000, Academy:900, Other:1000, Club:2800 }
+};
+const VENUE_TYPES   = ['Stadium','Football Field','Training Ground','Sports Complex','School Ground','Indoor Arena','Mini Pitch','Other'];
+const VENUE_SURFACES= ['Natural Grass','Artificial Turf','Hybrid Grass','Concrete / Tarmac','Sand','Other'];
+const GPS_ACCURACY_THRESHOLD = 100; // metres — DCO must be physically at venue
+
+/* ── API ENDPOINTS ──────────────────────────────────────────────────────────── */
+const API = DCOChild.routes.registration;
+async function apiFetch(endpoint, options = {}) {
+  try {
+    const isJson = options.body && !(options.body instanceof FormData);
+    const res = await DCOChild.fetch(endpoint, { credentials: 'include', headers: { ...(isJson ? { 'Content-Type': 'application/json' } : {}), ...(options.headers || {}) }, ...options, authRedirectStatuses: [401, 403] });
+    if (!res.ok) { const txt = await res.text(); const e = new Error(`HTTP ${res.status}: ${txt}`); e.status = res.status; throw e; }
+    return res.json();
+  } catch (err) { if (!err.status) console.error(`API error (${endpoint}):`, err); throw err; }
+}
+async function apiFetchFormData(endpoint, formData) {
+  try {
+    const res = await DCOChild.fetch(endpoint, { method: 'POST', credentials: 'include', body: formData, authRedirectStatuses: [401, 403] });
+    if (!res.ok) { const txt = await res.text(); const e = new Error(`HTTP ${res.status}: ${txt}`); e.status = res.status; throw e; }
+    return res.json();
+  } catch (err) { console.error(`API error (${endpoint}):`, err); throw err; }
+}
+
+/* ── UTILITIES ──────────────────────────────────────────────────────────────── */
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+const toTitleCase = s => !s ? s : s.replace(/\b\w/g, c => c.toUpperCase());
+
+/* ── LEGAL DOCUMENT HELPERS ─────────────────────────────────────────────────── */
+function legalEscape(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+function legalPlaceholders(d, role) {
+  const fullName = d.fullName || [d.firstName, d.middleName, d.lastName].filter(Boolean).join(' ') || '';
+  const business = d.clubName || d.agencyName || d.affiliatedClub || '';
+  const labels = { player:'Player', club:'Club' };
+  const now = new Date().toLocaleDateString('en-GB', {day:'2-digit', month:'long', year:'numeric'});
+  return {
+    fullName: fullName || 'Not provided',
+    firstName: d.firstName || fullName.split(' ')[0] || 'Not provided',
+    lastName: d.lastName || fullName.split(' ').slice(-1)[0] || '',
+    email: d.email || 'Not provided',
+    phone: d.phone || 'Not provided',
+    userId: 'Will be assigned upon successful registration',
+    userType: labels[role] || role || '',
+    userRole: labels[role] || role || '',
+    userCategory: d.playerLevel || d.clubLevel || 'Standard',
+    organization: business || 'N/A',
+    businessName: business || 'N/A',
+    registrationDate: now,
+    acceptedDate: now,
+    currentDate: now,
+    applicationName: 'EnejiStats',
+    companyName: 'Enejistats'
+  };
+}
+function applyLegalTemplate(value, placeholders) {
+  return String(value || '').replace(/\{\{(\w+)\}\}/g,
+    (_, key) => Object.prototype.hasOwnProperty.call(placeholders, key) ? legalEscape(placeholders[key]) : '');
+}
+async function hashLegalContent(text) {
+  try {
+    const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2,'0')).join('');
+  } catch (_) {
+    return '';
+  }
+}
+
+/* ── LEGAL DOCUMENT OVERLAY (scroll-gated) ─────────────────────────────────── */
+function LegalDocumentOverlay({open, title, fetchUrl, onClose, onAccept, formData, role}) {
+  const contentRef = useRef(null);
+  const closeRef = useRef(onClose);
+  const loadRef = useRef(null);
+  closeRef.current = onClose;
+  const [canAccept, setCanAccept] = useState(false);
+  const [bodyHtml, setBodyHtml] = useState('');
+  const [activeTab, setActiveTab] = useState('terms');
+  const [scrollPct, setScrollPct] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
+  const [renderedPayload, setRenderedPayload] = useState(null);
+
+  const loadDocument = useCallback(() => {
+    if (!fetchUrl) return;
+    setLoading(true);
+    setFetchError(false);
+    fetch(fetchUrl)
+      .then(response => {
+        if (!response.ok) throw new Error('Could not load legal document');
+        return response.text();
+      })
+      .then(raw => {
+        const doc = new DOMParser().parseFromString(raw, 'text/html');
+        const termsEl = doc.getElementById('terms-doc-content');
+        const privacyEl = doc.getElementById('privacy-doc-content');
+        const placeholders = formData ? legalPlaceholders(formData, role) : null;
+        const template = value => placeholders ? applyLegalTemplate(value, placeholders) : value;
+        const termsHtml = template(termsEl ? termsEl.innerHTML : '');
+        const privacyHtml = template(privacyEl ? privacyEl.innerHTML : '');
+        const termsText = termsEl ? termsEl.textContent : '';
+        const privacyText = privacyEl ? privacyEl.textContent : '';
+
+        setBodyHtml(termsEl || privacyEl
+          ? '__TABBED__' + JSON.stringify({terms: termsHtml, privacy: privacyHtml})
+          : template(doc.body.innerHTML));
+        setRenderedPayload({termsHtml, privacyHtml, termsText, privacyText});
+      })
+      .catch(() => setFetchError(true))
+      .finally(() => setLoading(false));
+  }, [fetchUrl, formData, role]);
+  loadRef.current = loadDocument;
+
+  useEffect(() => {
+    if (!open) return;
+    setCanAccept(false);
+    setScrollPct(0);
+    setFetchError(false);
+    setActiveTab('terms');
+    if (contentRef.current) contentRef.current.scrollTop = 0;
+    if (loadRef.current) loadRef.current();
+    const onKey = event => {
+      if (event.key === 'Escape' && closeRef.current) closeRef.current();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const element = contentRef.current;
+    if (!element) return;
+    const onScroll = () => {
+      const max = element.scrollHeight - element.clientHeight;
+      if (max <= 0) {
+        setCanAccept(true);
+        setScrollPct(100);
+        return;
+      }
+      const pct = Math.round((element.scrollTop / max) * 100);
+      setScrollPct(pct);
+      if (element.scrollTop + element.clientHeight >= element.scrollHeight - 12) {
+        setCanAccept(true);
+      }
+    };
+    element.addEventListener('scroll', onScroll, {passive: true});
+    onScroll();
+    return () => element.removeEventListener('scroll', onScroll);
+  }, [open, activeTab, bodyHtml]);
+
+  if (!open) return null;
+
+  let tabbedData = null;
+  if (bodyHtml.startsWith('__TABBED__')) {
+    try { tabbedData = JSON.parse(bodyHtml.slice('__TABBED__'.length)); } catch (_) {}
+  }
+
+  const changeTab = tab => {
+    setActiveTab(tab);
+    setCanAccept(false);
+    setScrollPct(0);
+    if (contentRef.current) contentRef.current.scrollTop = 0;
+  };
+
+  const accept = () => {
+    if (onAccept) onAccept(renderedPayload);
+    onClose();
+  };
+
+  return html`
+    <div class="legal-overlay" role="dialog" aria-modal="true" aria-label=${title}
+      onClick=${event => { if (event.target === event.currentTarget) onClose(); }}>
+      <div class="legal-card" onClick=${event => event.stopPropagation()}>
+        <div class="legal-header">
+          <h3>${title}</h3>
+          <button type="button" class="modal-btn secondary" style="padding:6px 12px;font-size:.78rem" onClick=${onClose}>Close</button>
+        </div>
+        <div class="legal-progress" role="progressbar" aria-valuenow=${scrollPct} aria-valuemin="0" aria-valuemax="100">
+          <div style=${{width: scrollPct + '%', height:'100%', background:'var(--primary)', transition:'width .15s'}}></div>
+        </div>
+        <div class="legal-content" ref=${contentRef}>
+          ${loading ? html`
+            <div style="text-align:center;padding:44px 0">
+              <i class="fas fa-spinner fa-spin" style="font-size:1.8rem;color:var(--primary);display:block;margin-bottom:12px" aria-hidden="true"></i>
+              <p style="color:var(--gray);font-size:.85rem">Loading document…</p>
+            </div>` :
+          fetchError ? html`
+            <div style="text-align:center;padding:28px 16px">
+              <i class="fas fa-exclamation-triangle" style="color:var(--warning);font-size:1.5rem;display:block;margin-bottom:10px" aria-hidden="true"></i>
+              <p style="color:var(--gray);font-size:.85rem;margin-bottom:14px">Could not load document. Check your connection and try again.</p>
+              <button type="button" class="modal-btn primary" style="margin:0 auto" onClick=${loadDocument}><i class="fas fa-redo" aria-hidden="true"></i> Retry</button>
+            </div>` :
+          tabbedData ? html`
+            <div class="legal-tabs" role="tablist" aria-label="Legal documents">
+              <button type="button" class=${'legal-tab' + (activeTab === 'terms' ? ' active' : '')} role="tab"
+                aria-selected=${activeTab === 'terms'} onClick=${() => changeTab('terms')}>
+                <i class="fas fa-file-contract" style="margin-right:5px" aria-hidden="true"></i>Terms of Service
+              </button>
+              <button type="button" class=${'legal-tab' + (activeTab === 'privacy' ? ' active' : '')} role="tab"
+                aria-selected=${activeTab === 'privacy'} onClick=${() => changeTab('privacy')}>
+                <i class="fas fa-shield-alt" style="margin-right:5px" aria-hidden="true"></i>Privacy Policy
+              </button>
+            </div>
+            <div class="legal-doc" dangerouslySetInnerHTML=${{__html: activeTab === 'terms' ? tabbedData.terms : tabbedData.privacy}}></div>` :
+          html`<div class="legal-doc" dangerouslySetInnerHTML=${{__html: bodyHtml}}></div>`}
+        </div>
+        <div class="legal-footer">
+          ${!canAccept ? html`
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:10px 14px;background:#fff8e1;border:1px solid #f4d35e;border-radius:8px">
+              <i class="fas fa-arrow-down" style="color:#b7791f;animation:bounce .9s infinite alternate" aria-hidden="true"></i>
+              <p style="font-size:.82rem;color:#8a5a00;margin:0">Scroll to the end of the document to unlock the Accept button.</p>
+            </div>
+            <div style="display:flex;gap:10px">
+              <button type="button" class="modal-btn secondary" onClick=${onClose}><i class="fas fa-times" aria-hidden="true"></i> Decline & Close</button>
+              <button type="button" class="modal-btn primary" disabled style="opacity:.35;cursor:not-allowed"><i class="fas fa-lock" aria-hidden="true"></i> Accept (scroll to unlock)</button>
+            </div>` : html`
+            <div style="display:flex;gap:10px">
+              <button type="button" class="modal-btn secondary" onClick=${onClose}><i class="fas fa-times" aria-hidden="true"></i> Decline</button>
+              <button type="button" class="modal-btn primary" onClick=${accept}><i class="fas fa-check" aria-hidden="true"></i> I Accept</button>
+            </div>`}
+        </div>
+      </div>
+    </div>`;
+}
+
+function LegalConsent({id, accepted, formData, role, onAccepted, onDeclined}) {
+  const [showLegal, setShowLegal] = useState(false);
+  const handleAccept = useCallback(async rendered => {
+    const acceptedAt = new Date().toISOString();
+    let record = {accepted: true, accepted_at: acceptedAt, version: '2.0'};
+    if (rendered) {
+      try {
+        const [termsHash, privacyHash] = await Promise.all([
+          hashLegalContent(rendered.termsText || rendered.termsHtml || ''),
+          hashLegalContent(rendered.privacyText || rendered.privacyHtml || '')
+        ]);
+        const placeholders = legalPlaceholders(formData, role);
+        record = {
+          ...record,
+          terms: {version:'2.0', accepted:true, accepted_at:acceptedAt, rendered_html:rendered.termsHtml || '', rendered_text:(rendered.termsText || '').trim(), hash_sha256:termsHash},
+          privacy: {version:'2.0', accepted:true, accepted_at:acceptedAt, rendered_html:rendered.privacyHtml || '', rendered_text:(rendered.privacyText || '').trim(), hash_sha256:privacyHash},
+          signer: {full_name:placeholders.fullName, email:placeholders.email, phone:placeholders.phone, user_type:placeholders.userType, category:placeholders.userCategory, business:placeholders.businessName !== 'N/A' ? placeholders.businessName : undefined},
+          device: {user_agent:navigator.userAgent, platform:navigator.platform || '', language:navigator.language || '', timezone:Intl.DateTimeFormat().resolvedOptions().timeZone || ''}
+        };
+      } catch (_) {}
+    }
+    onAccepted(record);
+    setShowLegal(false);
+  }, [formData, role, onAccepted]);
+
+  return html`
+    <div class="legal-consent">
+      <div class="legal-consent-row">
+        <input type="checkbox" id=${'legal-' + id} checked=${accepted}
+          onChange=${event => event.target.checked ? setShowLegal(true) : onDeclined()}
+          required/>
+        <label for=${'legal-' + id} class="legal-consent-label">
+          I have read and accept the
+          <button type="button" class="legal-link" onClick=${event => { event.preventDefault(); setShowLegal(true); }}>
+          Terms of Service & Privacy Policy
+          </button>
+          ${accepted
+            ? html`<i class="fas fa-check-circle" style="color:var(--success);margin-left:6px" aria-label="Accepted" aria-hidden="true"></i>`
+            : html`<span style="color:var(--danger);font-size:.74rem;display:block;margin-top:2px" role="status">Required before proceeding</span>`}
+        </label>
+      </div>
+      <p class="legal-help">
+        By checking above you confirm you have read both our Terms of Service and Privacy Policy.
+        <button type="button" class="legal-link" style="color:var(--gray);font-size:.74rem" onClick=${event => { event.preventDefault(); window.open('/privacy-terms.html', '_blank', 'noopener,noreferrer'); }}>
+          Open in new tab
+        </button>
+      </p>
+      <${LegalDocumentOverlay}
+        open=${showLegal}
+        title="Terms of Service & Privacy Policy"
+        fetchUrl="privacy-terms.html"
+        formData=${formData}
+        role=${role}
+        onClose=${() => setShowLegal(false)}
+        onAccept=${handleAccept}/>
+    </div>`;
+}
+
+/* ── NOTIFICATIONS ──────────────────────────────────────────────────────────── */
+function showNotification(message, type = 'info', duration = 5000) {
+  document.querySelectorAll('.widget-notification').forEach(el => el.remove());
+  const n = document.createElement('div');
+  n.className = `widget-notification ${type}`;
+  const iconMap = { error:'exclamation-circle', success:'check-circle', warning:'exclamation-triangle', info:'info-circle' };
+  n.innerHTML = `<i class="fas fa-${iconMap[type]||'info-circle'}"></i>
+    <span style="margin-left:9px;flex:1">${escHtml(message)}</span>
+    <button onclick="this.parentElement.remove()" style="background:none;border:none;color:inherit;cursor:pointer;margin-left:9px"><i class="fas fa-times"></i></button>`;
+  document.body.appendChild(n);
+  setTimeout(() => n.parentElement && n.remove(), duration);
+}
+
+function showAvailabilityNotification() {
+  document.querySelectorAll('.availability-notification').forEach(el => el.remove());
+  const n = document.createElement('div');
+  n.className = 'availability-notification';
+  n.innerHTML = `<i class="fas fa-bell"></i><span style="flex:1">Your availability is turned off. You will not receive new tracking assignments.</span>
+    <button onclick="this.parentElement.remove()" style="background:none;border:none;color:inherit;cursor:pointer;margin-left:9px"><i class="fas fa-times"></i></button>`;
+  document.body.appendChild(n);
+  setTimeout(() => n.parentElement && n.remove(), 5000);
+}
+
+function showDCONotification(message, type = 'info', duration = 5000) {
+  document.querySelectorAll('.dco-notif').forEach(el => el.remove());
+  const n = document.createElement('div');
+  n.className = `dco-notif ${type}`;
+  const icons = { error:'exclamation-circle', success:'check-circle', warning:'exclamation-triangle', info:'info-circle' };
+  n.innerHTML = `<i class="fas fa-${icons[type]||'info-circle'}"></i><span style="margin-left:10px;flex:1">${escHtml(message)}</span><button onclick="this.parentElement.remove()" style="background:none;border:none;color:${type==='warning'?'#333':'white'};cursor:pointer;margin-left:10px"><i class="fas fa-times"></i></button>`;
+  document.body.appendChild(n);
+  setTimeout(() => { if (n.parentElement) n.remove(); }, duration);
+}
+
+/* ── TOKEN COST HELPERS ─────────────────────────────────────────────────────── */
+function getPlayerTokenCost(level, costs) {
+  const key = String(level || '').toLowerCase().replace(/_/g, '-');
+  if (costs && costs[key] != null) return Number(costs[key]);
+  switch (level) {
+    case 'Professional': return 5;
+    case 'Semi-professional': case 'Semi-Professional': return 3.5;
+    case 'Academy': return 3;
+    default: return 2;
+  }
+}
+function getClubTokenCost(level, costs) {
+  const key = String(level || '').toLowerCase().replace(/_/g, '-');
+  if (costs && costs[key] != null) return Number(costs[key]);
+  if (['Professional','University'].includes(level)) return 100;
+  if (['Semi-professional','Semi-Professional','Academy'].includes(level)) return 50;
+  return 20;
+}
+
+/* ── METRICS LOADER ─────────────────────────────────────────────────────────── */
+async function loadMetrics() {
+  try {
+    const res = await apiFetch(API.metrics);
+    let reg = { players: {}, clubs: {} };
+    try { reg = await apiFetch(API.regStats); } catch {}
+    let venueCount = 0;
+    try {
+      const vd = await apiFetch(API.dcoVenues + '?count_only=true');
+      venueCount = vd.total || vd.count || 0;
+    } catch {}
+    let tokenInfo = {};
+    try { tokenInfo = await apiFetch(API.tokenInfo); } catch {}
+    return {
+      totalPlayersRegistered: res.assigned_players || 0,
+      bioUpdatesTotal: res.bio_updates_total || 0,
+      achievementsUpdatesTotal: res.stats_total || 0,
+      totalPlayersAssigned: res.assigned_players || 0,
+      totalStatsSubmitted: res.stats_total || 0,
+      tokenBalance: tokenInfo.balance ?? res.token_balance ?? 0,
+      tokenCosts: tokenInfo.registration_costs || {},
+      bioUpdateCost: Number(tokenInfo.bio_update_cost ?? 1),
+      pendingValidation: res.pending_validation || 0,
+      playerPro: reg.players?.Professional || 0,
+      playerSemi: reg.players?.['Semi-professional'] || 0,
+      playerAcademy: reg.players?.Academy || 0,
+      playerLocal: reg.players?.Local || 0,
+      playerUniversity: reg.players?.University || 0,
+      clubPro: reg.clubs?.Professional || 0,
+      clubSemi: reg.clubs?.['Semi-professional'] || 0,
+      clubAcademy: reg.clubs?.Academy || 0,
+      clubLocal: reg.clubs?.Local || 0,
+      clubUniversity: reg.clubs?.University || 0,
+      totalClubsRegistered: reg.totalClubs || 0,
+      totalVenuesRegistered: venueCount,
+    };
+  } catch {
+    throw new Error('Failed to load metrics from server');
+  }
+}
+
+/* ── HOOKS ──────────────────────────────────────────────────────────────────── */
+function useClickOutside(ref, handler) {
+  useEffect(() => {
+    function listener(e) { if (ref.current && !ref.current.contains(e.target)) handler(); }
+    document.addEventListener('mousedown', listener);
+    return () => document.removeEventListener('mousedown', listener);
+  }, [ref, handler]);
+}
+
+/*
+ * useStates — fetches regions for an ISO-3166-1 alpha-2 country code.
+ * Endpoint: GET /api/public/countries/{ISO_CODE}/regions
+ * Response: { region_label, regions: string[] }
+ * Returns: [regions: string[], loading: bool, regionLabel: string]
+ */
+function useStates(countryCode) {
+  const [states,setStates]=useState([]), [loading,setLoading]=useState(false);
+  const [regionLabel,setRegionLabel]=useState('State / Region');
+  useEffect(()=>{
+    if(!countryCode){setStates([]);setRegionLabel('State / Region');return;}
+    const controller=new AbortController();
+    setLoading(true);
+    fetch('/api/public/countries/'+encodeURIComponent(String(countryCode).toUpperCase())+'/regions',{credentials:'include',signal:controller.signal})
+      .then(r=>r.ok?r.json():Promise.reject(new Error('regions request failed')))
+      .then(d=>{
+        const list=Array.isArray(d)?d:(d.regions||[]);
+        setStates(list.map(x=>typeof x==='string'?x:(x?.name||x?.state||x?.region||'')).filter(Boolean));
+        setRegionLabel(d.region_label||'State / Region');
+      }).catch(e=>{if(e.name!=='AbortError')setStates([]);})
+      .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
+    return ()=>controller.abort();
+  },[countryCode]);
+  return [states,loading,regionLabel];
+}
+
+/*
+ * useLGAs — fetches subregions for a country + region combination.
+ * Endpoint: GET /api/public/countries/{ISO_CODE}/regions/{region_name}/subregions
+ * Response: { subregion_label, subregions: string[] }
+ * Returns: [subregions: string[], loading: bool, subregionLabel: string]
+ */
+function useLGAs(countryCode,region) {
+  const [lgas,setLGAs]=useState([]), [loading,setLoading]=useState(false);
+  const [subregionLabel,setSubregionLabel]=useState('LGA / Local Area');
+  useEffect(()=>{
+    if(!countryCode||!region){setLGAs([]);setSubregionLabel('LGA / Local Area');return;}
+    const controller=new AbortController();
+    setLoading(true);
+    const url='/api/public/countries/'+encodeURIComponent(String(countryCode).toUpperCase())+'/regions/'+encodeURIComponent(region)+'/subregions';
+    fetch(url,{credentials:'include',signal:controller.signal})
+      .then(r=>r.ok?r.json():Promise.reject(new Error('subregions request failed')))
+      .then(d=>{
+        const list=Array.isArray(d)?d:(d.subregions||[]);
+        setLGAs(list.map(x=>typeof x==='string'?x:(x?.name||x?.lga||x?.subregion||'')).filter(Boolean));
+        setSubregionLabel(d.subregion_label||'LGA / Local Area');
+      }).catch(e=>{if(e.name!=='AbortError')setLGAs([]);})
+      .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
+    return ()=>controller.abort();
+  },[countryCode,region]);
+  return [lgas,loading,subregionLabel];
+}
+
+
+/* ── PASSWORD STRENGTH ──────────────────────────────────────────────────────── */
+function pwStrength(pw) {
+  if (!pw) return { score: 0, label: '', color: '' };
+  let s = 0;
+  if (pw.length >= 8)          s++;
+  if (/[A-Z]/.test(pw))        s++;
+  if (/[0-9]/.test(pw))        s++;
+  if (/[^A-Za-z0-9]/.test(pw)) s++;
+  return { score: s, label: ['Weak','Fair','Strong','Very Strong'][s - 1] || '', color: ['#ef4444','#f97316','#f59e0b','#22c55e'][s - 1] || '#ef4444' };
+}
+
+function PasswordStrength({ pw }) {
+  const { score, label, color } = pwStrength(pw);
+  const rules = [
+    { label: '8+ chars',  met: pw.length >= 8 },
+    { label: 'Uppercase', met: /[A-Z]/.test(pw) },
+    { label: 'Number',    met: /[0-9]/.test(pw) },
+    { label: 'Special',   met: /[^A-Za-z0-9]/.test(pw) },
+  ];
+  if (!pw) return null;
+  return html`
+    <div>
+      <div class="pw-bar"><div class="pw-fill" style=${{ width: (score / 4 * 100) + '%', background: color }}></div></div>
+      <p class="pw-label" style=${{ color }}>${label}</p>
+      <div class="pw-rules">
+        ${rules.map((r, i) => html`
+          <span key=${i} class=${'pw-rule' + (r.met ? ' met' : '')}>
+            <i class=${'fas fa-' + (r.met ? 'check' : 'times')} style="font-size:.62rem;margin-right:3px"></i>${r.label}
+          </span>`)}
+      </div>
+    </div>`;
+}
+
+/* ── FILE UPLOAD ────────────────────────────────────────────────────────────── */
+function fmtBytes(b) { return b < 1048576 ? (b/1024).toFixed(1)+'KB' : (b/1048576).toFixed(2)+'MB'; }
+
+function FileUpload({ id, label, accept, maxMB, required, value, onChange, hint }) {
+  const ref = useRef();
+  const maxBytes = (maxMB || 1) * 1048576;
+  const handleChange = e => {
+    const f = e.target.files[0];
+    if (!f) return;
+    if (f.size > maxBytes) { showNotification(`File too large. Max ${maxMB || 1}MB`, 'error'); return; }
+    onChange(f);
+  };
+  const preview = value && value.type?.startsWith('image/') ? URL.createObjectURL(value) : null;
+  return html`
+    <div class="form-group" style="margin-bottom:0">
+      <label for=${'file-' + id}>${label}${required ? html`<span class="req"> *</span>` : ''}</label>
+      <div class="file-upload-area" onClick=${() => ref.current.click()}>
+        <div class="icon"><i class="fas fa-cloud-upload-alt"></i></div>
+        <p>${value ? 'Click to change' : 'Click to upload'}</p>
+        ${hint ? html`<p style="font-size:.7rem;color:#475569;margin-top:2px">${hint}</p>` : ''}
+      </div>
+      ${value ? html`
+        <div class="file-preview">
+          ${preview ? html`<img src=${preview} alt="Preview"/>` : ''}
+          <div class="file-info"><span>${value.name}</span><small>${fmtBytes(value.size)}</small></div>
+          <button type="button" class="modal-btn secondary" style="padding:4px 10px;font-size:.75rem"
+            onClick=${e => { e.stopPropagation(); onChange(null); }}>
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>` : ''}
+      <input ref=${ref} id=${'file-' + id} type="file" accept=${accept} style="display:none" onChange=${handleChange}/>
+    </div>`;
+}
+
+/* ── GPS CAPTURE ────────────────────────────────────────────────────────────── */
+function GPSCapture({ value, onChange, label, required }) {
+  const [status, setStatus] = useState(value ? 'captured' : 'idle');
+  const capture = () => {
+    setStatus('loading');
+    if (!navigator.geolocation) { setStatus('error'); showNotification('Geolocation not supported.', 'error'); return; }
+    navigator.geolocation.getCurrentPosition(
+      pos => { onChange({ lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy }); setStatus('captured'); },
+      () => { setStatus('error'); showNotification('Could not get location — check permissions.', 'error'); },
+      { enableHighAccuracy: true, timeout: 15000 }
+    );
+  };
+  return html`
+    <div class="form-group" style="margin-bottom:0">
+      <label>${label || 'GPS Location'}${required ? html`<span class="req"> *</span>` : ''}</label>
+      <button type="button"
+        style=${{ padding: '8px 16px', fontSize: '0.86rem', display:'inline-flex', alignItems:'center', gap:'7px', cursor:'pointer', border:'none', borderRadius:'8px', fontWeight:'600', background: status === 'captured' ? 'var(--success)' : 'linear-gradient(135deg,var(--primary),var(--secondary))', color:'white' }}
+        onClick=${capture}>
+        <i class="fas fa-map-marker-alt"></i>
+        ${status === 'loading' ? 'Getting location…' : status === 'captured' ? '✓ Location captured — tap to update' : '📍 Get GPS Location'}
+      </button>
+      ${status === 'loading' ? html`<p class="helper-text" style="margin-top:5px"><i class="fas fa-spinner fa-spin"></i> Acquiring GPS…</p>` : ''}
+      ${status === 'error'   ? html`<p class="error-text"  style="margin-top:5px"><i class="fas fa-exclamation-triangle"></i> Failed — check browser permissions and retry.</p>` : ''}
+      ${status === 'captured' && value ? html`
+        <div class="gps-coords">Lat: ${value.lat.toFixed(6)} | Lng: ${value.lng.toFixed(6)} | ±${value.acc.toFixed(0)}m</div>` : ''}
+    </div>`;
+}
+
+/* ── COUNTRY SELECT — searchable typeahead (code-based) ─────────────────────── */
+function CountrySelect({ label, value, onChange, countries, required, placeholder }) {
+  const [search, setSearch] = useState('');
+  const [open, setOpen]     = useState(false);
+  const ref = useRef();
+  const close = useCallback(() => setOpen(false), []);
+  useClickOutside(ref, close);
+  const selected = (countries || []).find(c => c.code === value);
+  const filtered = useMemo(() =>
+    (countries || []).filter(c => c.name.toLowerCase().includes(search.toLowerCase())).slice(0, 40),
+    [countries, search]);
+  const select = c => { onChange(c.code); setSearch(''); setOpen(false); };
+  return html`
+    <div class="form-group" ref=${ref}>
+      <label>${label || 'Country'}${required ? html`<span class="req"> *</span>` : ''}</label>
+      <div class="smart-select-wrap">
+        <div class="input-group">
+          <input class="form-control"
+            value=${selected ? selected.name : search}
+            onInput=${e => { setSearch(e.target.value); onChange(''); setOpen(true); }}
+            onFocus=${() => setOpen(true)}
+            placeholder=${placeholder || 'Search country…'}/>
+          <span class="input-icon"><i class="fas fa-chevron-down" style="font-size:.7rem"></i></span>
+        </div>
+        ${open && filtered.length ? html`
+          <div class="smart-select-results">
+            ${filtered.map(c => html`
+              <div key=${c.code} class="smart-select-item"
+                onMouseDown=${e => { e.preventDefault(); select(c); }}>
+                <span>${c.name}</span>
+                <small style="color:var(--gray);margin-left:8px">${c.code}</small>
+              </div>`)}
+          </div>` : ''}
+      </div>
+    </div>`;
+}
+
+/* ── STATE SELECT — data-driven, label-agnostic ─────────────────────────────── */
+function StateSelect({ states, loading, regionLabel, value, onChange, phOverride }) {
+  const [search, setSearch] = useState(value || '');
+  const [open, setOpen]     = useState(false);
+  const ref = useRef();
+  const close = useCallback(() => setOpen(false), []);
+  useClickOutside(ref, close);
+  useEffect(() => { if (value !== undefined && value !== search) setSearch(value || ''); }, [value]);
+  const ph       = phOverride || (regionLabel ? 'Select ' + regionLabel.toLowerCase() + '…' : 'Select state / region…');
+  const filtered = useMemo(() =>
+    (states || []).filter(s => s.toLowerCase().includes(search.toLowerCase())).slice(0, 60),
+    [states, search]);
+  if (loading) return html`<div class="loading-shimmer" style="margin-top:5px"></div>`;
+  return html`
+    <div class="smart-select-wrap" ref=${ref}>
+      <input class="form-control" value=${search}
+        onInput=${e => { setSearch(e.target.value); onChange(''); setOpen(true); }}
+        onFocus=${() => { setOpen(true); setSearch(''); }}
+        placeholder=${ph}/>
+      ${open && filtered.length ? html`
+        <div class="smart-select-results">
+          ${filtered.map(s => html`
+            <div key=${s} class="smart-select-item"
+              onMouseDown=${e => { e.preventDefault(); setSearch(s); onChange(s); setOpen(false); }}>${s}</div>`)}
+        </div>` : ''}
+    </div>`;
+}
+
+/* ── LGA SELECT — data-driven, label-agnostic ───────────────────────────────── */
+function LGASelect({ lgas, loading, subregionLabel, value, onChange, phOverride }) {
+  const [search, setSearch] = useState(value || '');
+  const [open, setOpen]     = useState(false);
+  const ref = useRef();
+  const close = useCallback(() => setOpen(false), []);
+  useClickOutside(ref, close);
+  useEffect(() => { if (value !== undefined && value !== search) setSearch(value || ''); }, [value]);
+  const ph       = phOverride || (subregionLabel ? 'Search ' + subregionLabel.toLowerCase() + '…' : 'Search local area…');
+  const filtered = useMemo(() =>
+    (lgas || []).filter(l => l.toLowerCase().includes(search.toLowerCase())).slice(0, 50),
+    [lgas, search]);
+  if (loading) return html`<div class="loading-shimmer" style="margin-top:5px"></div>`;
+  return html`
+    <div class="smart-select-wrap" ref=${ref}>
+      <input class="form-control" value=${search} placeholder=${ph}
+        onInput=${e => { setSearch(e.target.value); onChange(''); setOpen(true); }}
+        onFocus=${() => setOpen(true)}/>
+      ${open && filtered.length ? html`
+        <div class="smart-select-results">
+          ${filtered.map(l => html`
+            <div key=${l} class="smart-select-item"
+              onMouseDown=${e => { e.preventDefault(); setSearch(l); onChange(l); setOpen(false); }}>${l}</div>`)}
+        </div>` : ''}
+    </div>`;
+}
+
+/* ── CHIP GROUP ─────────────────────────────────────────────────────────────── */
+function ChipGroup({ label, options, value, onChange, required }) {
+  const toggle = opt => onChange(value.includes(opt) ? value.filter(v => v !== opt) : [...value, opt]);
+  return html`
+    <div class="form-group">
+      <label>${label}${required ? html`<span class="req"> *</span>` : ''}</label>
+      <div class="checkbox-group">
+        ${options.map(o => html`
+          <label key=${o} class=${'check-chip' + (value.includes(o) ? ' active' : '')}>
+            <input type="checkbox" checked=${value.includes(o)} onChange=${() => toggle(o)}/>${o}
+          </label>`)}
+      </div>
+    </div>`;
+}
+
+/* ── EMAIL FIELD — live availability check ──────────────────────────────────── */
+function EmailField({ value, onChange, existsCb }) {
+  const [status, setStatus] = useState('idle');
+  const timer = useRef();
+  const check = useCallback(email => {
+    clearTimeout(timer.current);
+    if (!email.includes('@') || !email.includes('.')) {
+      setStatus('idle');
+      if (existsCb) existsCb(false);
+      return;
+    }
+    setStatus('checking');
+    timer.current = setTimeout(async () => {
+      try {
+        const r = await fetch(API.checkEmail + '?email=' + encodeURIComponent(email), { credentials: 'include' });
+        const d = await r.json();
+        const taken = d.exists || (d.available === false);
+        setStatus(taken ? 'taken' : 'ok');
+        if (existsCb) existsCb(taken);
+      } catch { setStatus('idle'); if (existsCb) existsCb(false); }
+    }, 400);
+  }, [existsCb]);
+  return html`
+    <div class="form-group">
+      <label>Email Address <span class="req">*</span></label>
+      <div class="input-group">
+        <input type="email" class="form-control" value=${value}
+          onInput=${e => { onChange(e.target.value); check(e.target.value); }}
+          placeholder="you@example.com" autocomplete="email"/>
+        <span class="input-icon">
+          ${status === 'checking' ? html`<i class="fas fa-spinner fa-spin" style="font-size:.75rem"></i>` : ''}
+          ${status === 'ok'       ? html`<i class="fas fa-check-circle" style="color:var(--success)"></i>` : ''}
+          ${status === 'taken'    ? html`<i class="fas fa-times-circle" style="color:var(--danger)"></i>` : ''}
+        </span>
+      </div>
+      ${status === 'ok'    ? html`<p class="success-text"><i class="fas fa-check-circle"></i> Email available</p>` : ''}
+      ${status === 'taken' ? html`<p class="error-text"><i class="fas fa-times-circle"></i> Already registered — <a href="/login">Sign in?</a></p>` : ''}
+    </div>`;
+}
+
+/* ── MULTI TAG SELECT ───────────────────────────────────────────────────────── */
+function MultiTag({ label, options, value, onChange, required, placeholder }) {
+  const [search, setSearch] = useState('');
+  const [open, setOpen]     = useState(false);
+  const ref = useRef();
+  const close = useCallback(() => setOpen(false), []);
+  useClickOutside(ref, close);
+  const filtered = (options || []).filter(o => o.toLowerCase().includes(search.toLowerCase()) && !value.includes(o));
+  const toggle   = opt => { onChange(value.includes(opt) ? value.filter(v => v !== opt) : [...value, opt]); setSearch(''); };
+  return html`
+    <div class="form-group" ref=${ref}>
+      <label>${label}${required ? html`<span class="req"> *</span>` : ''}</label>
+      <div style="position:relative">
+        <div class="tag-input" onClick=${() => setOpen(true)}>
+          ${value.map(v => html`<span key=${v} class="tag-item">${v}
+            <button type="button" onClick=${e => { e.stopPropagation(); toggle(v); }}>×</button>
+          </span>`)}
+          <input type="text" value=${search}
+            onInput=${e => setSearch(e.target.value)}
+            onFocus=${() => setOpen(true)}
+            placeholder=${value.length ? '' : '+ ' + (placeholder || 'Add…')}
+            style="background:none;border:none;outline:none;color:#333;font-size:.82rem;flex:1;min-width:80px;font-family:inherit"/>
+        </div>
+        ${open && filtered.length ? html`
+          <div class="tag-dropdown">
+            ${filtered.map(o => html`
+              <div key=${o} class="tag-dropdown-item"
+                onMouseDown=${e => { e.preventDefault(); toggle(o); }}>${o}</div>`)}
+          </div>` : ''}
+      </div>
+    </div>`;
+}
+
+/* ── CLUB SEARCH — location-aware, rich result cards ───────────────────────── */
+/*
+ * Club result card displays ≥ 5 identification fields:
+ *   1. Club name (+ verified badge)   2. Club level   3. Country
+ *   4. State / Region   5. LGA / Local Area
+ *   6. Home Ground (if available)   7. Year Founded (if available)
+ */
+function ClubSearch({ value, clubId, onSelect, level, country, state, lga, required }) {
+  const [q,       setQ]       = useState(value || '');
+  const [results, setResults] = useState([]);
+  const [open,    setOpen]    = useState(false);
+  const [loading, setLoading] = useState(false);
+  const timer = useRef();
+  const ref   = useRef();
+  const close = useCallback(() => setOpen(false), []);
+  useClickOutside(ref, close);
+
+  const search = useCallback(async query => {
+    if (query.length < 2) { setResults([]); return; }
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ q: query });
+      if (level)   params.set('level',   level);
+      if (country) params.set('country', country);
+      if (state)   params.set('state',   state);
+      if (lga)     params.set('lga',     lga);
+      const r   = await fetch(API.clubs + '?' + params.toString(), { credentials: 'include' });
+      const d   = await r.json();
+      let clubs = (d.clubs || d.data || d.results || []).slice(0, 30);
+      const ql  = query.toLowerCase();
+      if (lga) {
+        const lgaL = lga.toLowerCase();
+        clubs = clubs.filter(c =>
+          (c.lga || c.local_area || '').toLowerCase().includes(lgaL) ||
+          (c.name || c.club_name || '').toLowerCase().includes(ql));
+      } else if (state) {
+        const stL = state.toLowerCase();
+        clubs = clubs.filter(c =>
+          (c.state || c.region || '').toLowerCase().includes(stL) ||
+          (c.name || c.club_name || '').toLowerCase().includes(ql));
+      } else if (country) {
+        const ctL = country.toLowerCase();
+        clubs = clubs.filter(c =>
+          (c.country || c.country_code || '').toLowerCase().includes(ctL) ||
+          (c.name || c.club_name || '').toLowerCase().includes(ql));
+      }
+      setResults(clubs.slice(0, 20));
+      setOpen(true);
+    } catch { setResults([]); }
+    finally  { setLoading(false); }
+  }, [level, country, state, lga]);
+
+  const handleInput = e => {
+    const v = e.target.value;
+    setQ(v); onSelect(v, '');
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => search(v), 350);
+  };
+
+  const select = c => {
+    const name = c.name || c.club_name || c.title || '';
+    setQ(name);
+    onSelect(name, c.id || c._id || c.club_id || '');
+    setOpen(false); setResults([]);
+  };
+
+  return html`
+    <div class="form-group" style="margin-bottom:0" ref=${ref}>
+      <label>Current Club${required ? html`<span class="req"> *</span>` : ''}</label>
+      <p class="helper-text" style="margin-bottom:5px">
+        Search registered clubs or type "Free Agent"${(lga || state || country) ? ' — filtered by location' : ''}
+      </p>
+      <div style="position:relative">
+        <div class="input-group">
+          <input class="form-control" value=${q} onInput=${handleInput}
+            placeholder="Club name or Free Agent…"/>
+          ${loading ? html`<span class="input-icon"><i class="fas fa-spinner fa-spin" style="font-size:.72rem"></i></span>` : ''}
+          ${clubId  ? html`<span class="input-icon" style="color:var(--success)"><i class="fas fa-check-circle"></i></span>` : ''}
+        </div>
+        ${open && results.length ? html`
+          <div class="smart-select-results" style="padding:4px 0">
+            ${results.map(c => {
+              const name     = c.name || c.club_name || '';
+              const initials = name.split(' ').slice(0, 2).map(w => w[0] || '').join('').toUpperCase() || '?';
+              const logo     = c.logo_url || c.logo || c.badge || '';
+              const cLevel   = c.level || c.club_level || '';
+              const cNick    = c.nickname || c.club_nickname || '';
+              const cCountry = c.country_name || c.country || '';
+              const cState   = c.state || c.region || '';
+              const cLga     = c.lga || c.local_area || c.city || '';
+              const cGround  = c.home_ground || c.primary_ground || c.stadium || '';
+              const cFounded = c.founded || c.year_founded || '';
+              return html`
+                <div key=${c.id || name} class="club-result-card"
+                  onMouseDown=${e => { e.preventDefault(); select(c); }}>
+                  <div class="club-badge">
+                    ${logo
+                      ? html`<img src=${logo} alt=${name} style="width:100%;height:100%;object-fit:cover"
+                          onError=${e => { e.target.style.display='none'; }}/>`
+                      : initials}
+                  </div>
+                  <div class="club-result-info">
+                    <span class="club-result-name">
+                      ${name}
+                      ${c.verified || c.is_verified ? html`<i class="fas fa-check-circle" style="color:#3b82f6;font-size:.65rem;margin-left:3px"></i>` : ''}
+                    </span>
+                    ${cNick ? html`<span style="font-size:.7rem;color:var(--gray);font-style:italic">"${cNick}"</span>` : ''}
+                    ${cLevel ? html`<span class="club-result-level"><i class="fas fa-layer-group" style="font-size:.6rem;margin-right:3px"></i>${cLevel}</span>` : ''}
+                    <div class="club-result-fields">
+                      ${cCountry ? html`<span class="club-result-field"><i class="fas fa-globe-africa" style="font-size:.6rem;color:var(--primary)"></i><strong>${cCountry}</strong></span>` : ''}
+                      ${cState   ? html`<span class="club-result-field"><i class="fas fa-map" style="font-size:.6rem;color:var(--gray)"></i>${cState}</span>` : ''}
+                      ${cLga     ? html`<span class="club-result-field"><i class="fas fa-map-pin" style="font-size:.6rem;color:var(--gray)"></i>${cLga}</span>` : ''}
+                      ${cGround  ? html`<span class="club-result-field"><i class="fas fa-futbol" style="font-size:.6rem;color:var(--gray)"></i>${cGround}</span>` : ''}
+                      ${cFounded ? html`<span class="club-result-field"><i class="fas fa-calendar-alt" style="font-size:.6rem;color:var(--gray)"></i>Est. ${cFounded}</span>` : ''}
+                    </div>
+                  </div>
+                </div>`;
+            })}
+          </div>` : ''}
+      </div>
+      ${clubId ? html`<p class="success-text" style="margin-top:4px"><i class="fas fa-check-circle"></i> Club matched</p>` :
+        q && q.toLowerCase() !== 'free agent' && q.length >= 2 && !loading
+          ? html`<p class="helper-text" style="margin-top:4px;color:var(--warning)"><i class="fas fa-exclamation-circle"></i> No match yet — keep typing or type "Free Agent"</p>` : ''}
+    </div>`;
+}
+
+/* ══════════════════════════════════════════════════════════
+   VENUE GROUND SEARCH
+   Location-aware — passes q + country/state/lga to
+   /api/public/venues for server-side filtering.
+   Client-side fallback enforces most-specific location tier.
+   Selected venue detail card shows ≥ 5 fields.
+══════════════════════════════════════════════════════════ */
+function VenueGroundSearch({ value, venueData, onSelect, country, state, lga, label, required, placeholder }) {
+  const [q,       setQ]       = useState(value || '');
+  const [results, setResults] = useState([]);
+  const [open,    setOpen]    = useState(false);
+  const [loading, setLoading] = useState(false);
+  const timer = useRef();
+  const ref   = useRef();
+  const close = useCallback(() => setOpen(false), []);
+  useClickOutside(ref, close);
+
+  useEffect(() => { setQ(value || ''); }, [value]);
+
+  const search = useCallback(async query => {
+    if (query.length < 3) { setResults([]); setOpen(false); return; }
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ q: query });
+      if (country) params.set('country', country);
+      if (state)   params.set('state',   state);
+      if (lga)     params.set('lga',     lga);
+      const r = await fetch(API.venues + '?' + params.toString(), { credentials: 'include' });
+      if (!r.ok) { setResults([]); return; }
+      const d = await r.json();
+      let venues = Array.isArray(d) ? d : (d.venues || []);
+      const ql   = query.toLowerCase();
+      venues = venues.filter(v => (v.venue_name || v.name || '').toLowerCase().includes(ql));
+      if (lga) {
+        const lgaL = lga.toLowerCase();
+        const byLga = venues.filter(v => (v.lga || v.local_area || '').toLowerCase().includes(lgaL));
+        if (byLga.length > 0) venues = byLga;
+      } else if (state) {
+        const stL = state.toLowerCase();
+        const bySt = venues.filter(v => (v.state || v.region || '').toLowerCase().includes(stL));
+        if (bySt.length > 0) venues = bySt;
+      } else if (country) {
+        const ctL = country.toLowerCase();
+        const byCt = venues.filter(v => (v.country || v.country_code || '').toLowerCase().includes(ctL));
+        if (byCt.length > 0) venues = byCt;
+      }
+      setResults(venues.slice(0, 15));
+      setOpen(true);
+    } catch { setResults([]); }
+    finally { setLoading(false); }
+  }, [country, state, lga]);
+
+  const handleInput = e => {
+    const v = e.target.value;
+    setQ(v);
+    if (!v) onSelect(null);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => search(v), 350);
+  };
+
+  const select = v => {
+    setQ(v.venue_name || v.name || '');
+    onSelect(v);
+    setOpen(false); setResults([]);
+  };
+
+  return html`
+    <div ref=${ref} style="position:relative">
+      <label style="display:block;font-weight:600;font-size:.88rem;margin-bottom:4px;color:var(--dark)">
+        ${label || 'Ground / Venue'}
+        ${required ? html`<span class="req"> *</span>` : html`<span style="font-weight:400;font-size:.72rem"> (optional)</span>`}
+      </label>
+      <p class="helper-text" style="margin-bottom:6px">
+        <i class="fas fa-info-circle" style="color:var(--primary)"></i>
+        Type 3+ characters to search registered venues${(lga || state || country) ? ' — filtered by location' : ''}
+      </p>
+      <div class="input-group">
+        <input class="form-control" value=${q}
+          onInput=${handleInput}
+          onFocus=${() => q.length >= 3 && setOpen(true)}
+          placeholder=${placeholder || 'Search registered venues…'}/>
+        ${loading ? html`<span class="input-icon"><i class="fas fa-spinner fa-spin" style="font-size:.72rem"></i></span>` : ''}
+        ${venueData && !loading ? html`<span class="input-icon" style="color:var(--success)"><i class="fas fa-check-circle"></i></span>` : ''}
+      </div>
+      ${open && results.length ? html`
+        <div class="smart-select-results">
+          ${results.map(v => {
+            const vName    = v.venue_name || v.name || '—';
+            const vType    = v.venue_type  || '';
+            const vSurface = v.surface_type || '';
+            const vCap     = v.capacity ? Number(v.capacity).toLocaleString() + ' seats' : '';
+            const vCountry = v.country || v.country_name || '';
+            const vState   = v.state   || v.region      || '';
+            const vLga     = v.lga     || v.local_area  || '';
+            const vAddr    = v.full_address || v.address || '';
+            const vOwner   = v.owner   || v.managing_club || '';
+            return html`
+              <div key=${v._id || v.venue_id || v.id || vName} class="smart-select-item"
+                onMouseDown=${e => { e.preventDefault(); select(v); }} style="padding:9px 12px">
+                <div style="font-weight:700;color:#1a1a2e;margin-bottom:3px">${vName}</div>
+                <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:3px">
+                  ${vType    ? html`<span style="font-size:.67rem;background:#eef2ff;color:var(--primary);border-radius:4px;padding:1px 6px">${vType}</span>` : ''}
+                  ${vSurface ? html`<span style="font-size:.67rem;background:#f0fdf4;color:var(--success);border-radius:4px;padding:1px 6px">${vSurface}</span>` : ''}
+                  ${vCap     ? html`<span style="font-size:.67rem;background:#fffde7;color:#b45309;border-radius:4px;padding:1px 6px"><i class="fas fa-users" style="font-size:.6rem;margin-right:2px"></i>${vCap}</span>` : ''}
+                </div>
+                <div style="font-size:.72rem;color:var(--gray);display:flex;flex-wrap:wrap;gap:5px">
+                  ${vCountry ? html`<span><i class="fas fa-globe-africa" style="color:var(--primary);margin-right:2px;font-size:.6rem"></i>${vCountry}</span>` : ''}
+                  ${vState   ? html`<span style="color:#94a3b8">›</span><span>${vState}</span>` : ''}
+                  ${vLga     ? html`<span style="color:#94a3b8">›</span><span>${vLga}</span>` : ''}
+                  ${vOwner   ? html`<span style="color:#94a3b8;margin-left:3px"><i class="fas fa-shield-alt" style="font-size:.6rem;margin-right:2px"></i>${vOwner}</span>` : ''}
+                </div>
+                ${vAddr ? html`<div style="font-size:.68rem;color:var(--gray);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><i class="fas fa-road" style="font-size:.6rem;margin-right:3px"></i>${vAddr}</div>` : ''}
+              </div>`;
+          })}
+        </div>` : ''}
+      ${open && !loading && results.length === 0 && q.length >= 3 ? html`
+        <div class="smart-select-results">
+          <div class="smart-select-item" style="color:var(--gray);cursor:default;font-size:.82rem">
+            <i class="fas fa-info-circle" style="margin-right:6px"></i>
+            No venues found — register one in the Venues tab first
+          </div>
+        </div>` : ''}
+    </div>
+    ${venueData ? html`
+      <div class="ground-detail-card">
+        <div class="ground-name">
+          <i class="fas fa-map-marker-alt"></i>
+          ${venueData.venue_name || venueData.name}
+          ${venueData.verified || venueData.is_verified ? html`<i class="fas fa-check-circle" style="color:#3b82f6;font-size:.75rem"></i>` : ''}
+        </div>
+        <div class="ground-detail-grid">
+          ${venueData.venue_type   ? html`<span><strong>Type:</strong> ${venueData.venue_type}</span>`   : ''}
+          ${venueData.surface_type ? html`<span><strong>Surface:</strong> ${venueData.surface_type}</span>` : ''}
+          ${venueData.capacity     ? html`<span><strong>Capacity:</strong> ${Number(venueData.capacity).toLocaleString()}</span>` : ''}
+          ${venueData.country      ? html`<span><strong>Country:</strong> ${venueData.country || venueData.country_name}</span>` : ''}
+          ${venueData.state        ? html`<span><strong>State:</strong> ${venueData.state || venueData.region}</span>` : ''}
+          ${venueData.lga          ? html`<span><strong>LGA:</strong> ${venueData.lga || venueData.local_area}</span>` : ''}
+          ${venueData.owner || venueData.managing_club ? html`<span><strong>Owner:</strong> ${venueData.owner || venueData.managing_club}</span>` : ''}
+          ${venueData.lighting     ? html`<span><strong>Floodlights:</strong> ${venueData.lighting}</span>` : ''}
+        </div>
+        ${venueData.full_address || venueData.address ? html`
+          <div style="color:#64748b;margin-top:5px;font-size:.78rem">
+            <i class="fas fa-road" style="color:#0369a1;margin-right:4px"></i>
+            ${venueData.full_address || venueData.address}
+          </div>` : ''}
+        <button type="button" class="ground-clear-btn"
+          onClick=${() => { setQ(''); onSelect(null); }}>
+          <i class="fas fa-times"></i> Clear selection
+        </button>
+      </div>` : ''}`;
+}
+
+/* ══════════════════════════════════════════════════════════
+   PLAYER REGISTRATION
+   Section order (mirrors standalone PlayerFields + CommonFields):
+   1. Account Credentials  (email, password, confirm — with show/hide)
+   2. Contact              (phone, WhatsApp)
+   3. Personal Details     (name, dob, dobVisible, gender, country→state→lga, address, GPS, photo)
+   4. Football Profile     (level, height, weight, foot, positions ChipGroup, club)
+   5. Token cost / consent / submit
+══════════════════════════════════════════════════════════ */
+const ACHIEVEMENT_ICON_OPTIONS = [
+  ['fa-shield-alt', 'Defence'], ['fa-bolt', 'Attack'], ['fa-running', 'Speed'],
+  ['fa-futbol', 'Football'], ['fa-hand-paper', 'Goalkeeping'], ['fa-bullseye', 'Accuracy'],
+  ['fa-users', 'Teamwork'], ['fa-star', 'Star'], ['fa-trophy', 'Trophy'],
+  ['fa-medal', 'Medal'], ['fa-award', 'Award'], ['fa-crown', 'Leadership'],
+  ['fa-chart-line', 'Progress'], ['fa-heart', 'Dedication'], ['fa-flag', 'National'],
+  ['fa-certificate', 'Certificate'],
+];
+const ACHIEVEMENT_CATEGORIES = ['Defence', 'Attack', 'Goalkeeping', 'Midfield', 'Leadership', 'Award', 'Other'];
+const PROFILE_UPDATE_STORAGE_PREFIX = 'enejistats-profile-update:';
+
+const playerValue = (player, keys, fallback = '') => {
+  const source = player?.player || player?.profile || player?.data || player || {};
+  for (const key of keys) {
+    if (source[key] !== undefined && source[key] !== null && String(source[key]).trim() !== '') return source[key];
+  }
+  return fallback;
+};
+const playerIdValue = player => playerValue(player, ['player_id', 'playerId', 'user_id', 'userId', '_id', 'id']);
+const playerNameValue = player => playerValue(player, ['full_name', 'fullName', 'name']) ||
+  [playerValue(player, ['first_name', 'firstName']), playerValue(player, ['middle_name', 'middleName']), playerValue(player, ['last_name', 'lastName'])].filter(Boolean).join(' ') ||
+  'Unnamed player';
+const playerPhotoValue = player => playerValue(player, ['photo_url', 'photo', 'profile_image', 'profileImage', 'avatar']);
+const normalizeEditorAchievement = (raw, index = 0) => {
+  const item = typeof raw === 'string' ? { title: raw } : (raw || {});
+  const rawIcon = String(item.icon || '').trim();
+  const icon = rawIcon ? (rawIcon.includes('fa-') ? rawIcon : `fa-${rawIcon}`) : 'fa-trophy';
+  return {
+    id: item.id || item._id || `achievement-${index}-${Date.now()}`,
+    title: item.title || item.name || item.achievement || item.award || item.label || '',
+    category: item.category || item.type || 'Award',
+    description: item.description || item.details || item.notes || '',
+    date: item.date || item.awarded_on || item.year || '',
+    organizer: item.organizer || item.organisation || item.organization || '',
+    icon: ACHIEVEMENT_ICON_OPTIONS.some(option => option[0] === icon) ? icon : 'fa-trophy',
+  };
+};
+
+function useVenueStates(countryCode) {
+  const [states, setStates] = useState([]);
+  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    if (!countryCode) { setStates([]); return; }
+    setLoading(true);
+    fetch(`${API.states}?country_code=${encodeURIComponent(countryCode)}`, { credentials: 'include' })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(d => setStates(d.states || d.data || []))
+      .catch(() => setStates([]))
+      .finally(() => setLoading(false));
+  }, [countryCode]);
+  return [states, loading];
+}
+
+function useVenueLGAs(state) {
+  const [lgas, setLgas] = useState([]);
+  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    if (!state) { setLgas([]); return; }
+    setLoading(true);
+    fetch(`${API.lgas}?state=${encodeURIComponent(state)}`, { credentials: 'include' })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(d => setLgas(d.lgas || d.data || []))
+      .catch(() => setLgas([]))
+      .finally(() => setLoading(false));
+  }, [state]);
+  return [lgas, loading];
+}
+
+/* ── COUNTRY SEARCH ── */
+function VenueCountrySearch({ value, onChange, id, disabled, countries }) {
+  const [q, setQ] = useState(value || '');
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => { setQ(value || ''); }, [value]);
+  useEffect(() => {
+    const handler = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, []);
+  const filtered = q.length >= 1 && countries.length > 0
+    ? countries.filter(c => (c.name || c).toLowerCase().includes(q.toLowerCase())).slice(0, 30) : [];
+  return html`
+    <div class="country-search-container" ref=${ref}>
+      <input class="registration-input" type="text" id=${id}
+        value=${q} placeholder="Search country…" disabled=${disabled}
+        onInput=${e => {
+          const v = toTitleCase(e.target.value);
+          e.target.value = v;
+          setQ(v);
+          onChange(v);
+          setOpen(v.length >= 1);
+        }}
+        onFocus=${() => !disabled && q.length >= 1 && setOpen(true)}/>
+      ${!disabled && html`
+        <div class=${'country-results' + (open && filtered.length > 0 ? ' show' : '')}>
+          ${filtered.map(c => {
+            const name = c.name || c;
+            return html`<div class="country-result-item" onClick=${() => { setQ(name); onChange(name); setOpen(false); }}>${name}</div>`;
+          })}
+        </div>`}
+    </div>`;
+}
+
+/* ── STATE SELECT ── */
+function VenueStateSelect({ countryCode, value, onChange, placeholder }) {
+  const [states, loading] = useStates(countryCode);
+  const [q, setQ] = useState(value || '');
+  const [open, setOpen] = useState(false);
+  const ref = useRef();
+  const close = useCallback(() => setOpen(false), []);
+  useClickOutside(ref, close);
+  useEffect(() => { if (value !== undefined) setQ(value || ''); }, [value]);
+  const filtered = states.filter(s => s.toLowerCase().includes(q.toLowerCase())).slice(0, 60);
+  if (loading) return html`<div class="loading-shimmer" style="margin-top:5px"></div>`;
+  return html`
+    <div class="smart-select-wrap" ref=${ref}>
+      <input class="form-control" value=${q}
+        onInput=${e => {
+          const v = toTitleCase(e.target.value);
+          e.target.value = v;
+          setQ(v);
+          onChange('');
+          setOpen(true);
+        }}
+        onFocus=${() => { setOpen(true); setQ(''); }}
+        placeholder=${placeholder || 'Select state…'}/>
+      ${open && filtered.length ? html`
+        <div class="smart-select-results">
+          ${filtered.map(s => html`
+            <div key=${s} class="smart-select-item"
+              onMouseDown=${e => { e.preventDefault(); setQ(s); onChange(s); setOpen(false); }}>${s}</div>`)}
+        </div>` : ''}
+    </div>`;
+}
+
+/* ── LGA SELECT ── */
+function VenueLGASelect({ state, value, onChange, placeholder }) {
+  const [lgas, loading] = useLGAs(state);
+  const [q, setQ] = useState(value || '');
+  const [open, setOpen] = useState(false);
+  const ref = useRef();
+  const close = useCallback(() => setOpen(false), []);
+  useClickOutside(ref, close);
+  useEffect(() => { if (value !== undefined) setQ(value || ''); }, [value]);
+  const filtered = lgas.filter(l => l.toLowerCase().includes(q.toLowerCase())).slice(0, 50);
+  if (loading) return html`<div class="loading-shimmer" style="margin-top:5px"></div>`;
+  return html`
+    <div class="smart-select-wrap" ref=${ref}>
+      <input class="form-control" value=${q}
+        onInput=${e => {
+          const v = toTitleCase(e.target.value);
+          e.target.value = v;
+          setQ(v);
+          onChange('');
+          setOpen(true);
+        }}
+        onFocus=${() => setOpen(true)}
+        placeholder=${placeholder || 'Search LGA…'}/>
+      ${open && filtered.length ? html`
+        <div class="smart-select-results">
+          ${filtered.map(l => html`
+            <div key=${l} class="smart-select-item"
+              onMouseDown=${e => { e.preventDefault(); setQ(l); onChange(l); setOpen(false); }}>${l}</div>`)}
+        </div>` : ''}
+    </div>`;
+}
+
+/* ══════════════════════════════════════════════════════════
+   VENUE REGISTRATION
+   Card order:
+   1. Smart Liveness Banner          (top of form)
+   2. Venue Details & Location
+   3. Venue Video                    (GPS auto-captured on recording start;
+                                      overlay shown on live feed; no playback)
+   GPS coordinates are NEVER included in the FormData payload.
+══════════════════════════════════════════════════════════ */
+function VenueRegistration({ metrics, setMetrics, isLoading, setIsLoading, countries, currentUser }) {
+  const EMPTY = {
+    venueName:'', venueType:'',
+    country:'Nigeria', state:'', lga:'', fullAddress:'',
+    capacity:'', surfaceType:'',
+    gps: null, video: null,
+  };
+  const [f, setF]           = useState(EMPTY);
+  const set                 = useCallback((k, v) => setF(prev => ({ ...prev, [k]: v })), []);
+  const [submitting,        setSubmitting]    = useState(false);
+  const [formMessage,       setFormMessage]   = useState('');
+  const [msgType,           setMsgType]       = useState('');
+  const [showConfirm,       setShowConfirm]   = useState(false);
+  const [gpsTs,             setGpsTs]         = useState(null);
+
+  /* ── Video recording state ── */
+  const [recording,         setRecording]     = useState(false);
+  const [recSecs,           setRecSecs]       = useState(0);
+  const [videoReady,        setVideoReady]    = useState(false);
+  const [gpsStatus,         setGpsStatus]     = useState('idle'); // idle | acquiring | captured | failed
+  const mediaRecorderRef    = useRef(null);
+  const chunksRef           = useRef([]);
+  const recTimerRef         = useRef(null);
+  const liveVideoRef        = useRef(null);
+  const streamRef           = useRef(null);
+  const gpsRef              = useRef(null); // holds live GPS during recording
+
+  /* ── GPS stamp text ── */
+  const gpsStampText = f.gps
+    ? `${f.gps.lat.toFixed(6)}, ${f.gps.lng.toFixed(6)}`
+    : null;
+  const gpsAccClass = !f.gps ? ''
+    : f.gps.acc <= GPS_ACCURACY_THRESHOLD       ? 'gps-accuracy-ok'
+    : f.gps.acc <= GPS_ACCURACY_THRESHOLD * 3   ? 'gps-accuracy-warn'
+    : 'gps-accuracy-bad';
+  const gpsOk = f.gps && f.gps.acc <= GPS_ACCURACY_THRESHOLD * 3;
+
+  useEffect(() => { set('state', ''); set('lga', ''); }, [f.country]);
+  useEffect(() => { set('lga', ''); }, [f.state]);
+
+  /* ── Clean up on unmount ── */
+  useEffect(() => {
+    return () => {
+      clearInterval(recTimerRef.current);
+      if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
+    };
+  }, []);
+
+  /* ── Acquire GPS silently and store in gpsRef ── */
+  const acquireGps = () => new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocation not supported'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const gpsData = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          acc: pos.coords.accuracy,
+        };
+        resolve(gpsData);
+      },
+      err => reject(err),
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+    );
+  });
+
+  /* ── Start recording — GPS auto-captured simultaneously ── */
+  const startRecording = async () => {
+    setGpsStatus('acquiring');
+    setFormMessage('');
+
+    // Determine best supported video mime type
+    const mimeTypes = [
+      'video/mp4;codecs=h264',
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp9',
+      'video/webm;codecs=vp8',
+      'video/webm',
+    ];
+    const mimeType = mimeTypes.find(t => MediaRecorder.isTypeSupported(t)) || '';
+
+    // Video constraints — request the highest possible resolution from the device
+    const videoConstraints = {
+      facingMode: 'environment',
+      width:     { ideal: 3840, min: 1280 },
+      height:    { ideal: 2160, min: 720 },
+      frameRate: { ideal: 60,   min: 30  },
+    };
+
+    try {
+      // Start camera and GPS simultaneously
+      const [stream, gpsData] = await Promise.all([
+        navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: false })
+          .catch(() =>
+            // Fallback: relax constraints if highest res not available
+            navigator.mediaDevices.getUserMedia({
+              video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+              audio: false
+            })
+          ),
+        acquireGps(),
+      ]);
+
+      // Store GPS in both ref (for overlay updates) and state (for form)
+      gpsRef.current = gpsData;
+      set('gps', gpsData);
+      setGpsTs(new Date().toLocaleString());
+      setGpsStatus('captured');
+
+      streamRef.current = stream;
+      if (liveVideoRef.current) {
+        liveVideoRef.current.srcObject = stream;
+        liveVideoRef.current.play().catch(() => {});
+      }
+
+      chunksRef.current = [];
+      const recOptions = mimeType
+        ? { mimeType, videoBitsPerSecond: 12000000 }
+        : { videoBitsPerSecond: 12000000 };
+      const mr = new MediaRecorder(stream, recOptions);
+      mediaRecorderRef.current = mr;
+
+      mr.ondataavailable = e => {
+        if (e.data && e.data.size > 0) chunksRef.current.push(e.data);
+      };
+
+      mr.onstop = () => {
+        const blobType = mimeType.startsWith('video/mp4') ? 'video/mp4' : 'video/webm';
+        const ext      = blobType === 'video/mp4' ? 'mp4' : 'webm';
+        const blob     = new Blob(chunksRef.current, { type: blobType });
+        set('video', new File([blob], `venue-video.${ext}`, { type: blobType }));
+        setVideoReady(true);
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(t => t.stop());
+          streamRef.current = null;
+        }
+        if (liveVideoRef.current) liveVideoRef.current.srcObject = null;
+      };
+
+      mr.start(250); // collect data every 250ms for smooth capture
+      setRecording(true);
+      setRecSecs(0);
+
+      recTimerRef.current = setInterval(() => {
+        setRecSecs(prev => {
+          if (prev >= 9) {
+            stopRecording();
+            return prev;
+          }
+          return prev + 1;
+        });
+      }, 1000);
+
+    } catch (err) {
+      setGpsStatus('failed');
+      if (err.message === 'Geolocation not supported' || err.code !== undefined) {
+        // GPS failed
+        showNotification('GPS unavailable — ensure location permissions are enabled and try again.', 'error');
+      } else {
+        // Camera failed
+        showNotification('Camera access denied or unavailable — allow camera permissions and try again.', 'error');
+      }
+      // Stop stream if it started before GPS error
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+      }
+    }
+  };
+
+  const stopRecording = () => {
+    clearInterval(recTimerRef.current);
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    setRecording(false);
+  };
+
+  const discardVideo = () => {
+    setVideoReady(false);
+    set('video', null);
+    set('gps', null);
+    setGpsTs(null);
+    setGpsStatus('idle');
+    gpsRef.current = null;
+    setRecSecs(0);
+  };
+
+  /* ── Form validation ── */
+  const handleReview = e => {
+    e.preventDefault();
+    if (!f.country)            { setFormMessage('Country is required');                                   setMsgType('error'); return; }
+    if (!f.venueName.trim())   { setFormMessage('Venue name is required');                                setMsgType('error'); return; }
+    if (!f.venueType)          { setFormMessage('Venue type is required');                                setMsgType('error'); return; }
+    if (!f.fullAddress.trim()) { setFormMessage('Full address is required');                              setMsgType('error'); return; }
+    if (!f.video)              { setFormMessage('Venue video is required — tap Record to capture');       setMsgType('error'); return; }
+    if (!f.gps || !gpsOk)     { setFormMessage('Valid GPS location is required — record the video at the venue to capture GPS'); setMsgType('error'); return; }
+    setFormMessage('');
+    setShowConfirm(true);
+  };
+
+  /* ── Submission — GPS intentionally excluded ── */
+  const handleConfirm = async () => {
+    setShowConfirm(false); setIsLoading(true); setSubmitting(true); setFormMessage('');
+    try {
+      const fd = new FormData();
+      fd.append('venue_name',   f.venueName.trim());
+      fd.append('venue_type',   f.venueType);
+      fd.append('country',      f.country);
+      fd.append('state',        f.state);
+      fd.append('lga',          f.lga);
+      fd.append('full_address', f.fullAddress.trim());
+      if (f.capacity)     fd.append('capacity',     f.capacity);
+if (f.surfaceType)  fd.append('surface_type', f.surfaceType);
+
+// GPS — permanently send captured GPS to backend
+if (f.gps) {
+  fd.append('gps_lat', String(f.gps.lat));
+  fd.append('gps_lng', String(f.gps.lng));
+  fd.append('gps_accuracy', String(f.gps.acc));
+}
+
+if (currentUser?.id)   fd.append('registered_by_dco_id',   currentUser.id);
+if (currentUser?.name) fd.append('registered_by_dco_name', currentUser.name);
+
+if (f.video) fd.append('video', f.video);
+
+      const res = await apiFetchFormData(API.registerVenue, fd);
+      showNotification(res.message || 'Venue registered successfully!', 'success');
+      try { const m = await loadMetrics(); setMetrics(m); } catch {}
+      setVideoReady(false);
+      setGpsTs(null);
+      setGpsStatus('idle');
+      gpsRef.current = null;
+      setF(EMPTY);
+      setRecSecs(0);
+      setFormMessage('Venue registered successfully!');
+      setMsgType('success');
+    } catch (err) {
+      setFormMessage(err.message);
+      setMsgType('error');
+      showNotification(`Registration failed: ${err.message}`, 'error');
+    } finally { setIsLoading(false); setSubmitting(false); }
+  };
+
+  return html`
+    <form class="registration-section" onSubmit=${handleReview} style="max-width:640px">
+
+      <!-- ── Smart Liveness Banner ── -->
+      <div class="venue-liveness-banner">
+        <i class="fas fa-shield-alt"></i>
+        <div>
+          <strong>Smart Liveness Check — Automated GPS Verification</strong>
+          You must be physically present at the venue. When you tap <em>Record</em>, GPS coordinates are captured automatically and overlaid on the live video for on-screen liveness display — they are <em>not stored in the database</em>. Only the clean video is submitted.
+        </div>
+      </div>
+
+      <!-- ── Card: Venue Details + Location ── -->
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-map-marker-alt"></i> Venue Details &amp; Location</div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Country <span class="req">*</span></label>
+            <${VenueCountrySearch} value=${f.country} onChange=${v => set('country', v)} id="venueCountry" countries=${countries}/>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>State / Region</label>
+            <${VenueStateSelect} countryCode=${f.country} value=${f.state || ''} onChange=${v => { set('state', v); set('lga', ''); }} placeholder="Select state…"/>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>LGA / Local Area</label>
+          <${VenueLGASelect} state=${f.state || ''} value=${f.lga || ''} onChange=${v => set('lga', v)} placeholder="Search LGA…"/>
+        </div>
+
+        <div class="form-group">
+          <label>Full Address <span class="req">*</span></label>
+          <textarea class="form-control" rows="2" required value=${f.fullAddress}
+            onInput=${e => {
+              const v = toTitleCase(e.target.value);
+              e.target.value = v;
+              set('fullAddress', v);
+            }}
+            placeholder="Street, Area, City, Landmark…"></textarea>
+          <p class="helper-text"><i class="fas fa-info-circle" style="color:var(--primary)"></i> Enter the address — system checks for similar existing venues.</p>
+        </div>
+
+        <div class="form-group">
+          <label>Venue Name <span class="req">*</span></label>
+          <input class="form-control" required value=${f.venueName}
+            onInput=${e => {
+              const v = toTitleCase(e.target.value);
+              e.target.value = v;
+              set('venueName', v);
+            }}
+            placeholder="E.g. Moshood Abiola National Stadium"/>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Venue Type <span class="req">*</span></label>
+            <select class="form-control" required value=${f.venueType} onChange=${e => set('venueType', e.target.value)}>
+              <option value="">Select venue type…</option>
+              ${VENUE_TYPES.map(t => html`<option key=${t} value=${t}>${t}</option>`)}
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>Seating Capacity <span style="font-weight:400;font-size:.72rem">(optional)</span></label>
+            <input type="number" class="form-control" value=${f.capacity}
+              onInput=${e => set('capacity', e.target.value)}
+              placeholder="E.g. 5000" min="0"/>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:0">
+          <label>Playing Surface <span style="font-weight:400;font-size:.72rem">(optional)</span></label>
+          <select class="form-control" value=${f.surfaceType} onChange=${e => set('surfaceType', e.target.value)}>
+            <option value="">Select surface…</option>
+            ${VENUE_SURFACES.map(s => html`<option key=${s} value=${s}>${s}</option>`)}
+          </select>
+        </div>
+      </div>
+
+      <!-- ── Card: Venue Video (GPS auto-embedded in recording) ── -->
+      <div class="section-block">
+        <div class="section-block-title">
+          <i class="fas fa-video"></i> Venue Video <span class="req">*</span>
+          <span class="stamp-badge" style="margin-left:auto">GPS AUTO-CAPTURED</span>
+        </div>
+        <div style="background:#f0f4ff;border:1.5px solid #c7d7fa;border-radius:10px;padding:.95rem 1.1rem;margin-bottom:1rem;font-size:.84rem;line-height:1.65;color:#1e3a6e">
+          <div style="font-weight:700;color:var(--primary);margin-bottom:.55rem;display:flex;align-items:center;gap:7px;font-size:.88rem">
+            <i class="fas fa-camera-retro"></i> Recording Instructions — Read Before You Tap Record
+          </div>
+          <ol style="padding-left:1.3rem;margin:0;display:flex;flex-direction:column;gap:.45rem">
+            <li><strong>Position yourself</strong> at the venue — walk to the pitch, field, or main playing area.</li>
+            <li><strong>Stand behind one goalpost</strong> and ensure <strong>both goalposts are visible</strong> within your frame simultaneously, giving a clear view of the full pitch length.</li>
+            <li><strong>Tap Start Recording</strong> — your device's GPS location is locked automatically at that instant and overlaid live on the video for liveness verification.</li>
+            <li><strong>Pan slowly</strong> across the venue — capture the surface, boundary markings, stands or surroundings, and both posts clearly.</li>
+            <li>Recording <strong>auto-stops at 10 seconds</strong>. You may stop early if the venue is fully captured.</li>
+            <li>Only the <strong>clean video</strong> (without GPS overlay) is submitted. The GPS stamp is display-only and is never stored.</li>
+          </ol>
+          <div style="margin-top:.7rem;padding-top:.65rem;border-top:1px solid #c7d7fa;display:flex;align-items:flex-start;gap:7px;color:#7c3aed;font-weight:600;font-size:.8rem">
+            <i class="fas fa-exclamation-circle" style="margin-top:2px;flex-shrink:0;color:#7c3aed"></i>
+            If the captured video does not clearly show both goalposts or the playing surface, use the <strong>Recapture</strong> button to redo — do not submit a poor-quality video.
+          </div>
+        </div>
+
+        <div class="video-record-section">
+
+          <!-- Live camera / placeholder area -->
+          <div class="video-record-preview-wrap">
+
+            ${!recording && !videoReady ? html`
+              <div class="video-no-stream">
+                <i class="fas fa-video-slash"></i>
+                Camera activates when recording starts
+                <p>GPS is captured automatically alongside the video</p>
+              </div>` : ''}
+
+            ${recording ? html`
+              <video ref=${liveVideoRef} muted playsinline autoplay
+                style="width:100%;display:block;max-height:260px;object-fit:cover"></video>
+              <div class="video-rec-timer">
+                <span class="video-rec-dot"></span> REC ${fmtTime(recSecs)} / 0:10
+              </div>` : ''}
+
+            ${!recording && videoReady ? html`
+              <div class="video-no-stream" style="padding:2.5rem 1rem">
+                <i class="fas fa-check-circle" style="color:#4ade80;font-size:2.6rem;opacity:1"></i>
+                <p style="color:rgba(255,255,255,.7);margin-top:8px;font-size:.84rem;font-weight:600">Video captured successfully</p>
+                <p style="color:rgba(255,255,255,.35);font-size:.72rem;margin-top:4px">${f.video ? fmtBytes(f.video.size) : ''}</p>
+              </div>` : ''}
+
+            <!-- GPS overlay — shown during live recording -->
+            ${recording && gpsStatus === 'captured' && f.gps ? html`
+              <div class="video-gps-overlay">
+                <span class="stamp-coord">GPS: ${gpsStampText}</span>
+                <span class="stamp-acc class=${gpsAccClass}">Accuracy: ±${f.gps.acc.toFixed(0)}m</span>
+                <span class="stamp-ts">${gpsTs}</span>
+              </div>` : ''}
+
+            <!-- Acquiring GPS indicator while recording waits -->
+            ${gpsStatus === 'acquiring' ? html`
+              <div class="video-gps-acquiring">
+                <i class="fas fa-spinner fa-spin"></i> Acquiring GPS…
+              </div>` : ''}
+
+          </div>
+
+          <!-- Controls bar -->
+          <div class="video-record-controls">
+
+            ${!recording && !videoReady ? html`
+              <button type="button" class="btn-record" onClick=${startRecording}>
+                <i class="fas fa-circle"></i> Start Recording
+              </button>
+              <span class="video-hint">Tap to record up to 10 s — GPS captured automatically at start</span>` : ''}
+
+            ${recording ? html`
+              <button type="button" class="btn-record stop" onClick=${stopRecording}>
+                <i class="fas fa-stop"></i> Stop Recording
+              </button>
+              <span class="video-hint">
+                ${gpsStatus === 'acquired' || gpsStatus === 'captured'
+                  ? html`<i class="fas fa-satellite-dish" style="color:var(--success)"></i> GPS locked — auto-stops at 10 s`
+                  : gpsStatus === 'acquiring'
+                  ? html`<i class="fas fa-spinner fa-spin"></i> Acquiring GPS…`
+                  : 'Recording… auto-stops at 10 s'}
+              </span>` : ''}
+
+            ${!recording && videoReady ? html`
+              <span class="video-ready-badge">
+                <i class="fas fa-check-circle"></i> Video Ready
+              </span>
+              <button type="button" class="btn-recapture" onClick=${discardVideo}>
+                <i class="fas fa-redo-alt"></i> Recapture
+              </button>` : ''}
+
+          </div>
+        </div>
+
+        <!-- GPS result display (below video card, after recording) -->
+        ${videoReady && f.gps ? html`
+          <div class="gps-live-display" style="margin-top:.75rem">
+            <div class="gps-live-label">
+              <i class="fas fa-satellite-dish"></i> On-Site GPS — Liveness Verified
+            </div>
+            <div class="gps-coords-big">${f.gps.lat.toFixed(6)}, ${f.gps.lng.toFixed(6)}</div>
+            <div class=${'gps-live-acc ' + gpsAccClass}>
+              ${f.gps.acc <= GPS_ACCURACY_THRESHOLD
+                ? html`<i class="fas fa-check-circle"></i> Excellent accuracy ±${f.gps.acc.toFixed(0)}m`
+                : f.gps.acc <= GPS_ACCURACY_THRESHOLD * 3
+                ? html`<i class="fas fa-exclamation-triangle"></i> Fair accuracy ±${f.gps.acc.toFixed(0)}m — submission allowed`
+                : html`<i class="fas fa-times-circle"></i> Poor accuracy ±${f.gps.acc.toFixed(0)}m — consider re-recording in an open area`}
+            </div>
+            ${gpsTs ? html`<div class="gps-live-ts">Captured: ${gpsTs}</div>` : ''}
+          </div>` : ''}
+
+        ${gpsStatus === 'failed' ? html`
+          <div class="gps-acquiring-banner" style="background:linear-gradient(135deg,#3a0a0a,#4a1a1a);border-color:rgba(248,113,113,.2);color:#fecaca">
+            <i class="fas fa-exclamation-triangle" style="color:#f87171"></i>
+            GPS failed — ensure location permissions are enabled in your browser settings, then try recording again.
+          </div>` : ''}
+
+        ${!f.video ? html`
+          <p class="helper-text" style="margin-top:6px;color:var(--danger)">
+            <i class="fas fa-exclamation-circle"></i> Venue video is required.
+          </p>` : ''}
+      </div>
+
+      <button class="registration-button" type="submit" disabled=${isLoading || submitting}>
+        ${isLoading || submitting
+          ? html`<div class="loading-spinner"></div>`
+          : html`<i class="fas fa-map-marker-alt"></i>`}
+        ${isLoading || submitting ? 'Registering Venue…' : 'Review & Register Venue'}
+      </button>
+
+      ${formMessage && html`<div class=${'registration-message ' + msgType}>${formMessage}</div>`}
+    </form>
+
+    <!-- ── Confirmation Modal ── -->
+    ${showConfirm && html`
+      <div class="modal-overlay" style="display:flex">
+        <div class="modal">
+          <div class="modal-header">
+            <h3><i class="fas fa-map-marker-alt"></i> Confirm Venue Registration</h3>
+            <button class="modal-close" onClick=${() => setShowConfirm(false)}>&times;</button>
+          </div>
+          <div class="modal-body">
+            <p style="margin-bottom:12px;font-size:.88rem;color:var(--gray)">Please review the details below before submitting:</p>
+            <div style="background:#f8fafc;padding:.9rem;border-radius:10px;font-size:.84rem;border:1px solid #e9ecef">
+              ${[
+                ['Venue Name',    f.venueName],
+                ['Venue Type',    f.venueType],
+                ['Surface',       f.surfaceType || '—'],
+                ['Capacity',      f.capacity    || '—'],
+                ['Country',       f.country],
+                ['State',         f.state       || '—'],
+                ['LGA',           f.lga         || '—'],
+                ['Address',       f.fullAddress],
+                ['Video',         f.video ? '✓ Recorded (' + fmtBytes(f.video.size) + ')' : '—'],
+                ['Registered By', currentUser?.name || '—'],
+
+              ].map(([k, v]) => html`
+                <div style="display:flex;justify-content:space-between;padding:.3rem 0;border-bottom:1px solid #e9ecef;gap:1rem">
+                  <strong style="flex-shrink:0;color:var(--dark)">${k}:</strong>
+                  <span style="text-align:right;color:var(--gray)">${v || '—'}</span>
+                </div>`)}
+            </div>
+            <div style="background:#eef5ff;border:1px solid rgba(0,74,173,.2);border-radius:10px;padding:.85rem;margin-top:1rem;font-size:.82rem;display:flex;align-items:flex-start;gap:8px">
+              <i class="fas fa-shield-alt" style="color:var(--primary);margin-top:2px;flex-shrink:0"></i>
+              <div><strong>GPS Liveness Verified</strong> — location confirmed on-site at the time of recording. GPS coordinates are <strong>not</strong> stored in the database.</div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="modal-btn secondary" onClick=${() => setShowConfirm(false)}>
+              <i class="fas fa-arrow-left"></i> Edit
+            </button>
+            <button class="modal-btn primary" onClick=${handleConfirm} disabled=${isLoading || submitting}>
+              ${isLoading || submitting
+                ? html`<div class="loading-spinner"></div> Registering…`
+                : html`<i class="fas fa-check"></i> Confirm & Register`}
+            </button>
+          </div>
+        </div>
+      </div>`}
+  `;
+}
+
+
+function PlayerBioUpdate({ currentUser, metrics, setMetrics, isLoading, setIsLoading }) {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [selectedPlayer, setSelectedPlayer] = useState(null);
+  const [bio, setBio] = useState('');
+  const [achievements, setAchievements] = useState([]);
+  const [loadingSearch, setLoadingSearch] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState('');
+  const searchTimer = useRef();
+
+  const searchPlayers = useCallback(async value => {
+    const q = String(value || '').trim();
+    if (q.length < 2) { setResults([]); return; }
+    setLoadingSearch(true); setMessage('');
+    try {
+      const response = await apiFetch(`${API.searchPlayers}?${new URLSearchParams({ q }).toString()}`);
+       const raw = Array.isArray(response?.results) ? response.results : [];
+      // Do not group or de-duplicate: same-name players are separate records.
+      setResults(Array.isArray(raw) ? raw : []);
+    } catch (err) {
+      setResults([]); setMessage(err.message || 'Unable to search players'); setMessageType('error');
+    } finally { setLoadingSearch(false); }
+  }, []);
+
+  const handleSearchInput = e => {
+    const value = e.target.value;
+    setQuery(value);
+    clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => searchPlayers(value), 280);
+  };
+  useEffect(() => () => clearTimeout(searchTimer.current), []);
+
+  const selectPlayer = player => {
+    const source = player?.player || player?.profile || player?.data || player;
+    const raw = source?.achievements || source?.awards || source?.player_achievements || [];
+    const list = Array.isArray(raw) ? raw : [raw];
+    setSelectedPlayer(player);
+    setBio(playerValue(source, ['bio', 'biography'], ''));
+    setAchievements(list.filter(Boolean).map((item, index) => normalizeEditorAchievement(item, index)));
+    setMessage(''); setMessageType('');
+  };
+  const updateAchievement = (index, key, value) => {
+    setAchievements(previous => previous.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item));
+  };
+  const addAchievement = () => setAchievements(previous => [...previous, normalizeEditorAchievement({ title:'', category:'Award', icon:'fa-trophy' }, previous.length)]);
+  const removeAchievement = index => setAchievements(previous => previous.filter((_, itemIndex) => itemIndex !== index));
+
+  const handleSave = async e => {
+    e.preventDefault();
+    if (!selectedPlayer) { setMessage('Search for and select a player before saving.'); setMessageType('error'); return; }
+    const playerId = playerIdValue(selectedPlayer);
+    if (!playerId) { setMessage('The selected player has no usable player ID.'); setMessageType('error'); return; }
+    if (achievements.some(item => !item.title.trim())) {
+      setMessage('Give each achievement a title or remove the empty achievement row.'); setMessageType('error'); return;
+    }
+    const cleanAchievements = achievements.filter(item => item.title.trim()).map((item, index) => ({
+      id: item.id || `achievement-${index}`, title: item.title.trim(), category: item.category || 'Award',
+      description: item.description.trim(), date: item.date || '', organizer: item.organizer.trim(), icon: item.icon || 'fa-trophy',
+    }));
+    setSaving(true); setIsLoading(true); setMessage('');
+    try {
+       const payload = new FormData();
+       payload.append('playerId', playerId);
+       payload.append('target_id', playerId);
+       payload.append('entity_type', 'player');
+       payload.append('bio', bio.trim());
+       payload.append('achievements', JSON.stringify(cleanAchievements));
+       const response = await apiFetchFormData(API.updateBio, payload);
+      try {
+        localStorage.setItem(PROFILE_UPDATE_STORAGE_PREFIX + playerId, JSON.stringify({
+           player_id: playerId, bio: bio.trim(), achievements: cleanAchievements, saved_at: new Date().toISOString()
+        }));
+      } catch (_) {}
+      setAchievements(cleanAchievements.map((item, index) => normalizeEditorAchievement(item, index)));
+      setMessage(response?.message || 'Bio and achievements saved successfully.'); setMessageType('success');
+      showNotification(response?.message || 'Bio and achievements saved successfully.', 'success');
+      loadMetrics().then(setMetrics).catch(() => {});
+    } catch (err) {
+      setMessage(err.message || 'Unable to save bio and achievements.'); setMessageType('error');
+      showNotification(err.message || 'Unable to save bio and achievements.', 'error');
+    } finally { setSaving(false); setIsLoading(false); }
+  };
+
+  const selectedId = playerIdValue(selectedPlayer);
+  const selectedName = selectedPlayer ? playerNameValue(selectedPlayer) : '';
+  const selectedPhoto = playerPhotoValue(selectedPlayer);
+  const selectedInitials = selectedName.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || '?';
+  const resultFields = player => [
+    ['fa-id-card', playerIdValue(player)], ['fa-futbol', playerValue(player, ['preferred_position', 'preferredPosition', 'position'])],
+    ['fa-shield-alt', playerValue(player, ['current_club', 'currentClub', 'club'])], ['fa-globe-africa', playerValue(player, ['nationality', 'country'])],
+    ['fa-calendar', playerValue(player, ['dob', 'date_of_birth'])], ['fa-layer-group', playerValue(player, ['player_level', 'playerLevel', 'playing_category', 'category'])],
+  ].filter(([, value]) => value);
+
+  return html`
+    <div class="bio-update-panel">
+      <div class="bio-update-content">
+        <div class="bio-update-header">
+          <div><h2><i class="fas fa-user-edit"></i> Bio &amp; Achievements Update</h2><p>Search registered players, select the exact profile, then update the biography and achievement cards shown on the player dashboard.</p></div>
+          ${metrics?.bioUpdateCost != null ? html`<div class="token-cost-info" style="margin:0;padding:.65rem .8rem"><i class="fas fa-coins" style="color:var(--gold);margin-right:5px"></i><strong>${metrics.bioUpdateCost} token</strong> update</div>` : ''}
+        </div>
+        <div class="bio-update-grid">
+          <section class="bio-update-card">
+            <div class="bio-update-card-title"><i class="fas fa-search"></i> Find a player</div>
+            <div class="form-group">
+              <label for="bio-player-search">Search by name or player detail</label>
+              <div class="input-group">
+                <input id="bio-player-search" class="form-control" value=${query} onInput=${handleSearchInput} onFocus=${() => query.length >= 2 && searchPlayers(query)} placeholder="Name, player ID, club, position…" autocomplete="off"/>
+                <span class="input-icon">${loadingSearch ? html`<i class="fas fa-spinner fa-spin"></i>` : html`<i class="fas fa-search"></i>`}</span>
+              </div>
+              <p class="helper-text">Every matching player is shown separately, including players with identical names.</p>
+            </div>
+            <div class="player-search-results" aria-live="polite">
+              ${loadingSearch && !results.length ? html`<div class="search-empty"><i class="fas fa-spinner fa-spin"></i> Searching players…</div>` : ''}
+              ${!loadingSearch && query.trim().length >= 2 && !results.length ? html`<div class="search-empty"><i class="fas fa-user-slash"></i> No matching players found.</div>` : ''}
+              ${!query.trim() ? html`<div class="search-empty"><i class="fas fa-users"></i> Start typing to see matching player cards.</div>` : ''}
+              ${results.map((player, index) => {
+                const name = playerNameValue(player); const id = playerIdValue(player) || `result-${index}`;
+                const photo = playerPhotoValue(player); const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || '?';
+                return html`
+                  <button type="button" key=${id + '-' + index} class=${'player-search-card' + (selectedId && selectedId === id ? ' selected' : '')} onClick=${() => selectPlayer(player)} aria-pressed=${selectedId === id}>
+                    ${photo ? html`<img class="player-search-avatar" src=${photo} alt="" onError=${e => { e.currentTarget.style.display='none'; e.currentTarget.nextElementSibling.style.display='flex'; }}/><span class="player-search-avatar" style="display:none;align-items:center;justify-content:center;font-size:.78rem;font-weight:800;color:var(--primary)">${initials}</span>` : html`<span class="player-search-avatar" style="display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:800;color:var(--primary)">${initials}</span>`}
+                    <span class="player-search-info"><span class="player-search-name">${name}</span>${playerIdValue(player) ? html`<span class="player-search-id">${playerIdValue(player)}</span>` : ''}<span class="player-search-fields">${resultFields(player).map(([icon, value]) => html`<span class="player-search-field" key=${icon + value}><i class=${'fas ' + icon}></i>${value}</span>`)}</span></span>
+                    <i class="fas fa-chevron-right" style="color:var(--primary);font-size:.75rem;margin-top:15px;flex-shrink:0"></i>
+                  </button>`;
+              })}
+            </div>
+          </section>
+          <form class="bio-update-card" onSubmit=${handleSave}>
+            <div class="bio-update-card-title"><i class="fas fa-pen-to-square"></i> Edit selected profile</div>
+            ${selectedPlayer ? html`
+              <div class="selected-player-banner">
+                ${selectedPhoto ? html`<img class="player-search-avatar" src=${selectedPhoto} alt="" onError=${e => { e.currentTarget.style.display='none'; }}/>` : html`<span class="player-search-avatar" style="display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:800;color:var(--primary)">${selectedInitials}</span>`}
+                <div style="min-width:0"><strong>${selectedName}</strong><small>${selectedId || 'Player ID unavailable'} · ${playerValue(selectedPlayer, ['current_club', 'currentClub', 'club'], 'Free Agent')}</small></div><i class="fas fa-check-circle" style="color:var(--success);margin-left:auto;flex-shrink:0"></i>
+              </div>
+              <div class="form-group"><label for="player-bio">Player biography</label><textarea id="player-bio" class="form-control bio-editor-textarea" value=${bio} onInput=${e => setBio(e.target.value)} placeholder="Write a concise, accurate player biography…"></textarea><p class="helper-text">This text is rendered in the Player Bio card on the dashboard.</p></div>
+              <div class="form-group">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:.55rem"><label style="margin:0">Achievements &amp; awards</label><button type="button" class="bio-add-btn" onClick=${addAchievement}><i class="fas fa-plus"></i> Add achievement</button></div>
+                <div class="achievement-editor-list">
+                  ${achievements.length ? achievements.map((achievement, index) => html`
+                    <div class="achievement-editor-item" key=${achievement.id || index}>
+                      <div class="achievement-editor-top"><span class="achievement-number"><i class="fas fa-medal"></i> Achievement ${index + 1}</span><button type="button" class="bio-remove-btn" onClick=${() => removeAchievement(index)}><i class="fas fa-trash"></i> Remove</button></div>
+                      <div class="form-row"><div class="form-group"><label>Title <span class="req">*</span></label><input class="form-control" value=${achievement.title} onInput=${e => updateAchievement(index, 'title', e.target.value)} placeholder="e.g. Best Defender"/></div><div class="form-group"><label>Category</label><select class="form-control" value=${achievement.category} onChange=${e => updateAchievement(index, 'category', e.target.value)}>${ACHIEVEMENT_CATEGORIES.map(category => html`<option key=${category}>${category}</option>`)}</select></div></div>
+                      <div class="form-group"><label>Achievement icon</label><div class="icon-picker">${ACHIEVEMENT_ICON_OPTIONS.map(([icon, label]) => html`<button type="button" key=${icon} class=${'icon-choice' + (achievement.icon === icon ? ' active' : '')} onClick=${() => updateAchievement(index, 'icon', icon)} title=${label} aria-label=${label}><i class=${'fas ' + icon}></i><span>${label}</span></button>`)}</div></div>
+                      <div class="form-row"><div class="form-group"><label>Date / year</label><input type="date" class="form-control" value=${achievement.date} onInput=${e => updateAchievement(index, 'date', e.target.value)}/></div><div class="form-group"><label>Organizer</label><input class="form-control" value=${achievement.organizer} onInput=${e => updateAchievement(index, 'organizer', e.target.value)} placeholder="League, club or organisation"/></div></div>
+                      <div class="form-group" style="margin-bottom:0"><label>Description</label><textarea class="form-control" rows="2" value=${achievement.description} onInput=${e => updateAchievement(index, 'description', e.target.value)} placeholder="What did the player achieve?"></textarea></div>
+                    </div>
+                  `) : html`<div class="search-empty"><i class="fas fa-medal"></i> No achievements yet. Use “Add achievement” to create the first card.</div>`}
+                </div>
+              </div>
+              <div class="bio-update-actions"><button type="submit" class="bio-save-btn" disabled=${saving || isLoading}>${saving ? html`<i class="fas fa-spinner fa-spin"></i> Saving…` : html`<i class="fas fa-save"></i> Save bio &amp; achievements`}</button></div>
+              ${message ? html`<div class=${'registration-message ' + messageType} role="status">${message}</div>` : ''}
+            ` : html`<div class="search-empty" style="min-height:260px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px"><i class="fas fa-hand-pointer" style="font-size:1.6rem;color:var(--primary)"></i><strong>Select a player card to load the editable details.</strong><span>The editor will expand to fit the full biography and achievement list.</span></div>`}
+          </form>
+        </div>
+      </div>
+    </div>`;
+}
+
+ function PlayerRegistration({ metrics, setMetrics, isLoading, setIsLoading, countries, currentUser }) {
+  const [playerLevels, setPlayerLevels] = useState([]);
+  const [levelsError,  setLevelsError]  = useState(false);
+  useEffect(() => {
+    apiFetch(API.playerLevels)
+      .then(d => setPlayerLevels(d.levels || d.data || d || []))
+      .catch(() => setLevelsError(true));
+  }, []);
+
+  const EMPTY = {
+    email: '', password: '', confirmPassword: '',
+    phone: '', whatsapp: '', samePhone: false,
+    firstName: '', middleName: '', lastName: '',
+    dob: '', dobVisible: false,
+    gender: '',
+    country: 'NG', nationality: '',
+    state: '', lga: '',
+    detailedAddress: '',
+    gps: null,
+    profilePhoto: null,
+    playerLevel: '',
+    height: '', weight: '',
+    dominantFoot: '',
+    positionCategory: '', preferredPosition: '',
+    secondaryPositions: [],
+    currentClub: '', clubId: '',
+    privacyAccepted: false, termsAccepted: false, legalAcceptance: null
+  };
+
+  const [f, setF] = useState(EMPTY);
+  const set = useCallback((k, v) => setF(prev => ({ ...prev, [k]: v })), []);
+
+  const [showPw,      setShowPw]      = useState(false);
+  const [showCp,      setShowCp]      = useState(false);
+  const [emailExists, setEmailExists] = useState(false);
+  const [formMessage, setFormMessage] = useState('');
+  const [msgType,     setMsgType]     = useState('');
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  // Location cascades
+  const [states, statesLoading, regionLabel]  = useStates(f.country);
+  const [lgas,   lgasLoading,   subregionLabel] = useLGAs(f.country, f.state);
+
+  useEffect(() => { set('state', ''); set('lga', ''); }, [f.country]);
+  useEffect(() => { set('lga', ''); }, [f.state]);
+
+  const pwStatus  = f.confirmPassword.length > 0 ? (f.password === f.confirmPassword) : null;
+   const tokenCost = f.playerLevel ? getPlayerTokenCost(f.playerLevel, metrics.tokenCosts?.player) : null;
+  const positions = f.positionCategory ? (POSITION_CATEGORIES[f.positionCategory] || []) : [];
+  const allPositions = useMemo(() => Object.values(POSITION_CATEGORIES).flat(), []);
+
+  const handleReview = e => {
+    e.preventDefault();
+    if (!f.playerLevel)              { setFormMessage('Please select player level'); setMsgType('error'); return; }
+    if (tokenCost !== null && metrics.tokenBalance < tokenCost) {
+      setFormMessage(`Insufficient tokens. Required: ${tokenCost}, Available: ${metrics.tokenBalance}`);
+      setMsgType('error'); return;
+    }
+    if (!f.firstName.trim() || !f.lastName.trim()) { setFormMessage('First name and last name are required'); setMsgType('error'); return; }
+    if (!f.dob)                      { setFormMessage('Date of birth is required'); setMsgType('error'); return; }
+    if (!f.gender)                   { setFormMessage('Gender is required'); setMsgType('error'); return; }
+    if (!f.country)                  { setFormMessage('Country is required'); setMsgType('error'); return; }
+    if (!f.state)                    { setFormMessage('State / Region is required'); setMsgType('error'); return; }
+    if (!f.detailedAddress.trim())   { setFormMessage('Street / detailed address is required'); setMsgType('error'); return; }
+    if (!f.gps)                      { setFormMessage('GPS location is required — click "Get GPS Location"'); setMsgType('error'); return; }
+    if (!f.dominantFoot)             { setFormMessage('Dominant foot is required'); setMsgType('error'); return; }
+    if (!f.positionCategory)         { setFormMessage('Position category is required'); setMsgType('error'); return; }
+    if (!f.preferredPosition)        { setFormMessage('Preferred position is required'); setMsgType('error'); return; }
+    if (!f.email)                    { setFormMessage('Email address is required'); setMsgType('error'); return; }
+    if (emailExists)                 { setFormMessage('This email is already registered'); setMsgType('error'); return; }
+    if (!f.phone.trim())             { setFormMessage('Phone number is required'); setMsgType('error'); return; }
+    if (!f.password)                 { setFormMessage('Password is required'); setMsgType('error'); return; }
+    if (pwStatus === false)          { setFormMessage('Passwords do not match'); setMsgType('error'); return; }
+    if (!f.privacyAccepted || !f.termsAccepted) {
+      setFormMessage('You must accept both Privacy Policy and Terms of Service'); setMsgType('error'); return;
+    }
+    setShowConfirm(true);
+  };
+
+  const handleConfirm = async () => {
+    setShowConfirm(false); setIsLoading(true); setFormMessage('');
+    try {
+      const fd = new FormData();
+      fd.append('role', 'player');
+      fd.append('registered_by', 'dco');
+      fd.append('player_level', f.playerLevel);
+      fd.append('first_name', toTitleCase(f.firstName));
+      if (f.middleName) fd.append('middle_name', toTitleCase(f.middleName));
+      fd.append('last_name', toTitleCase(f.lastName));
+      fd.append('dob', f.dob);
+      fd.append('dob_visible', f.dobVisible ? 'true' : 'false');
+      fd.append('gender', f.gender);
+      if (f.height) fd.append('height', parseInt(f.height));
+      if (f.weight) fd.append('weight', parseInt(f.weight));
+      fd.append('nationality', f.nationality || f.country);
+      fd.append('dominant_foot', f.dominantFoot);
+      fd.append('position_category', f.positionCategory);
+      fd.append('preferred_position', POSITION_SHORT_TO_FULL[f.preferredPosition] || f.preferredPosition);
+      fd.append('secondary_positions', JSON.stringify(f.secondaryPositions.map(p => POSITION_SHORT_TO_FULL[p] || p)));
+      fd.append('current_club', f.currentClub);
+      if (f.clubId) fd.append('club_id', f.clubId);
+      fd.append('country', f.country);
+      fd.append('state', f.state);
+      fd.append('lga', f.lga);
+      fd.append('detailed_address', f.detailedAddress);
+      if (f.gps) { fd.append('gps_lat', f.gps.lat); fd.append('gps_lng', f.gps.lng); fd.append('gps_acc', f.gps.acc); }
+      fd.append('email', f.email);
+      fd.append('phone', f.phone);
+      fd.append('whatsapp', f.samePhone ? f.phone : (f.whatsapp || f.phone));
+      fd.append('password', f.password);
+      fd.append('confirm_password', f.confirmPassword);
+       fd.append('privacy_accepted', 'true');
+       fd.append('terms_accepted',   'true');
+       if (f.legalAcceptance) fd.append('legal_acceptance', JSON.stringify(f.legalAcceptance));
+      if (f.profilePhoto) fd.append('photo', f.profilePhoto);
+      if (currentUser?.id)   fd.append('registered_by_dco_id',   currentUser.id);
+      if (currentUser?.name) fd.append('registered_by_dco_name', currentUser.name);
+
+       const res = await apiFetchFormData(API.registerPlayer, fd);
+      showNotification(res.message || 'Player registered successfully!', 'success');
+      loadMetrics().then(setMetrics).catch(() => {});
+      setF(EMPTY);
+      setEmailExists(false); setShowPw(false); setShowCp(false);
+    } catch (err) {
+      setFormMessage(err.message); setMsgType('error');
+      showNotification(`Registration failed: ${err.message}`, 'error');
+    } finally { setIsLoading(false); }
+  };
+
+  const cname = code => (countries || []).find(c => c.code === code)?.name || code || '—';
+
+  return html`
+    <form class="registration-section" onSubmit=${handleReview}>
+      <h2><i class="fas fa-user"></i> Player Registration</h2>
+
+      <!-- 1. Account Credentials -->
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-lock"></i> Account Credentials</div>
+        <${EmailField} value=${f.email} onChange=${v => set('email', v)} existsCb=${taken => setEmailExists(taken)}/>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Password <span class="req">*</span></label>
+            <div class="input-group">
+              <input type=${showPw ? 'text' : 'password'} class="form-control"
+                value=${f.password} onInput=${e => set('password', e.target.value)}
+                placeholder="Create password" autocomplete="new-password"/>
+              <span class="input-icon clickable" style="cursor:pointer;pointer-events:all"
+                onClick=${() => setShowPw(s => !s)}>
+                <i class=${'fas fa-eye' + (showPw ? '-slash' : '')}></i>
+              </span>
+            </div>
+            <${PasswordStrength} pw=${f.password}/>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>Confirm Password <span class="req">*</span></label>
+            <div class="input-group">
+              <input type=${showCp ? 'text' : 'password'} class="form-control"
+                value=${f.confirmPassword} onInput=${e => set('confirmPassword', e.target.value)}
+                placeholder="Repeat password" autocomplete="new-password"/>
+              <span class="input-icon clickable" style="cursor:pointer;pointer-events:all"
+                onClick=${() => setShowCp(s => !s)}>
+                <i class=${'fas fa-eye' + (showCp ? '-slash' : '')}></i>
+              </span>
+            </div>
+            ${pwStatus === true  ? html`<p class="success-text"><i class="fas fa-check-circle"></i> Passwords match</p>` : ''}
+            ${pwStatus === false ? html`<p class="error-text"><i class="fas fa-times-circle"></i> Passwords do not match</p>` : ''}
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Contact -->
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-phone"></i> Contact</div>
+        <div class="form-row">
+          <div class="form-group" style="margin-bottom:0">
+            <label>Phone Number <span class="req">*</span></label>
+            <input type="tel" class="form-control" value=${f.phone}
+              onInput=${e => set('phone', e.target.value)} placeholder="+234 800 000 0000" autocomplete="tel"/>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>WhatsApp</label>
+            <input type="tel" class="form-control"
+              value=${f.samePhone ? f.phone : f.whatsapp}
+              onInput=${e => set('whatsapp', e.target.value)}
+              placeholder="+234 800 000 0000"
+              disabled=${!!f.samePhone}/>
+            <div class="same-phone-row">
+              <input type="checkbox" id="sameph-player" checked=${!!f.samePhone}
+                onChange=${e => set('samePhone', e.target.checked)} style="accent-color:var(--primary)"/>
+              <label for="sameph-player">Same as phone</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Personal Details -->
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-user"></i> Personal Details</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>First Name <span class="req">*</span></label>
+            <input class="form-control" required value=${f.firstName}
+              onInput=${e => set('firstName', toTitleCase(e.target.value))}
+              placeholder="First name" autocomplete="given-name"/>
+          </div>
+          <div class="form-group">
+            <label>Middle Name</label>
+            <input class="form-control" value=${f.middleName}
+              onInput=${e => set('middleName', toTitleCase(e.target.value))}
+              placeholder="Optional"/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Last Name <span class="req">*</span></label>
+          <input class="form-control" required value=${f.lastName}
+            onInput=${e => set('lastName', toTitleCase(e.target.value))}
+            placeholder="Last name / Surname" autocomplete="family-name"/>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Date of Birth <span class="req">*</span></label>
+            <input type="date" class="form-control" required value=${f.dob}
+              onChange=${e => set('dob', e.target.value)} autocomplete="bday"/>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>Gender <span class="req">*</span></label>
+            <select class="form-control" required value=${f.gender}
+              onChange=${e => set('gender', e.target.value)}>
+              <option value="">Select</option>
+              <option>Male</option><option>Female</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem;margin-top:.25rem">
+          <input type="checkbox" id="dobvis-player" checked=${!!f.dobVisible}
+            onChange=${e => set('dobVisible', e.target.checked)}
+            style="accent-color:var(--primary);width:15px;height:15px"/>
+          <label for="dobvis-player" style="font-size:.83rem;color:var(--dark);cursor:pointer;font-weight:400;margin-bottom:0">
+            Show my age / DOB publicly on my profile
+          </label>
+        </div>
+        <div class="form-row">
+          <${CountrySelect} label="Country / Nationality" value=${f.country || ''}
+            onChange=${v => { set('country', v); set('nationality', v); set('state', ''); set('lga', ''); }}
+            countries=${countries} required=${true}/>
+          <div class="form-group" style="margin-bottom:0">
+            <label>${regionLabel} <span class="req">*</span></label>
+            <${StateSelect} states=${states} loading=${statesLoading} regionLabel=${regionLabel}
+              value=${f.state || ''}
+              onChange=${v => { set('state', v); set('lga', ''); }}/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>${subregionLabel}</label>
+          <${LGASelect} lgas=${lgas} loading=${lgasLoading} subregionLabel=${subregionLabel}
+            value=${f.lga || ''} onChange=${v => set('lga', v)}/>
+        </div>
+        <div class="form-group">
+          <label>Street / Detailed Address <span class="req">*</span></label>
+          <textarea class="form-control" rows="2" value=${f.detailedAddress}
+            onInput=${e => set('detailedAddress', e.target.value)}
+            placeholder="House number, street, area, town…"></textarea>
+        </div>
+        <${GPSCapture} value=${f.gps} onChange=${v => set('gps', v)} label="Current GPS Location" required=${true}/>
+        <div style="margin-top:1rem">
+          <${FileUpload} id="player-photo" label="Profile Photo" accept="image/*" maxMB=${0.5}
+            value=${f.profilePhoto} onChange=${file => set('profilePhoto', file)} hint="Max 500 KB"/>
+        </div>
+      </div>
+
+      <!-- 4. Football Profile -->
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-futbol"></i> Football Profile</div>
+        <div class="form-group">
+          <label>Player Level <span class="req">*</span></label>
+          <select class="form-control" required value=${f.playerLevel}
+            onChange=${e => set('playerLevel', e.target.value)}
+            disabled=${levelsError || playerLevels.length === 0}>
+            <option value="">${levelsError ? '⚠ Failed to load levels — refresh to retry' : playerLevels.length === 0 ? 'Loading…' : 'Select Player Level'}</option>
+            ${playerLevels.map(l => html`<option key=${l}>${l}</option>`)}
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Height (cm) <span class="req">*</span></label>
+            <input type="number" class="form-control" value=${f.height}
+              onInput=${e => set('height', e.target.value)}
+              placeholder="e.g. 178" min="140" max="220"/>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>Weight (kg) <span class="req">*</span></label>
+            <input type="number" class="form-control" value=${f.weight}
+              onInput=${e => set('weight', e.target.value)}
+              placeholder="e.g. 72" min="30" max="180"/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Dominant Foot <span class="req">*</span></label>
+          <select class="form-control" required value=${f.dominantFoot}
+            onChange=${e => set('dominantFoot', e.target.value)}>
+            <option value="">Select</option>
+            <option>Right</option><option>Left</option><option>Both</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Position Category <span class="req">*</span></label>
+            <select class="form-control" required value=${f.positionCategory}
+              onChange=${e => { set('positionCategory', e.target.value); set('preferredPosition', ''); }}>
+              <option value="">Select category</option>
+              ${Object.keys(POSITION_CATEGORIES).map(k => html`<option key=${k}>${k}</option>`)}
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>Preferred Position <span class="req">*</span></label>
+            <select class="form-control" required value=${f.preferredPosition}
+              onChange=${e => set('preferredPosition', e.target.value)}
+              disabled=${!f.positionCategory}>
+              <option value="">${f.positionCategory ? 'Select position' : 'Select category first'}</option>
+              ${positions.map(p => html`<option key=${p}>${p}</option>`)}
+            </select>
+          </div>
+        </div>
+        <${ChipGroup} label="Secondary Positions"
+          options=${allPositions.filter(p => p !== f.preferredPosition)}
+          value=${f.secondaryPositions}
+          onChange=${v => set('secondaryPositions', v)}/>
+        <${ClubSearch}
+          value=${f.currentClub} clubId=${f.clubId} level=${f.playerLevel}
+          country=${f.country} state=${f.state} lga=${f.lga}
+          required=${true}
+          onSelect=${(name, id) => { set('currentClub', name); set('clubId', id); }}/>
+      </div>
+
+      ${tokenCost !== null ? html`
+        <div class="token-cost-info">
+          <div style="display:flex;align-items:center;gap:9px;margin-bottom:5px">
+            <i class="fas fa-coins" style="color:var(--gold)"></i>
+            <strong>Token Cost:</strong> <span>${tokenCost} tokens</span>
+          </div>
+          <div style="font-size:.85rem;color:var(--gray)">Your balance: <strong>${metrics.tokenBalance}</strong></div>
+        </div>` : ''}
+
+      <${LegalConsent}
+        id="player"
+        accepted=${!!f.privacyAccepted && !!f.termsAccepted}
+        formData=${f}
+        role="player"
+        onAccepted=${record => setF(prev => ({...prev, privacyAccepted:true, termsAccepted:true, legalAcceptance:record}))}
+        onDeclined=${() => setF(prev => ({...prev, privacyAccepted:false, termsAccepted:false, legalAcceptance:null}))}/>
+
+      <button class="registration-button" type="submit"
+        disabled=${isLoading || emailExists || pwStatus === false || !f.privacyAccepted || !f.termsAccepted}>
+        ${isLoading ? html`<div class="loading-spinner"></div>` : html`<i class="fas fa-user-plus"></i>`}
+        Review & Confirm
+      </button>
+      ${formMessage && html`<div class=${'registration-message ' + msgType}>${formMessage}</div>`}
+    </form>
+
+    ${showConfirm && html`
+      <div class="modal-overlay active">
+        <div class="modal">
+          <div class="modal-header">
+            <h3><i class="fas fa-check-circle"></i> Confirm Player Registration</h3>
+            <button class="modal-close" onClick=${() => setShowConfirm(false)}>&times;</button>
+          </div>
+          <div class="modal-body">
+            <p style="margin-bottom:12px;font-size:.88rem">Please review before submitting:</p>
+            <div style="background:#f8fafc;padding:.9rem;border-radius:8px;font-size:.84rem">
+              ${[
+                ['Player Level',   f.playerLevel],
+                ['Name',           [f.firstName, f.middleName, f.lastName].filter(Boolean).join(' ')],
+                ['DOB',            f.dob],
+                ['Gender',         f.gender],
+                ['Country',        cname(f.country)],
+                ['State',          f.state || '—'],
+                ['LGA',            f.lga   || '—'],
+                ['Height / Weight',(f.height || '—') + 'cm / ' + (f.weight || '—') + 'kg'],
+                ['Dominant Foot',  f.dominantFoot],
+                ['Position',       f.positionCategory && f.preferredPosition ? f.positionCategory + ' → ' + f.preferredPosition : '—'],
+                ['Secondary',      f.secondaryPositions.length ? f.secondaryPositions.join(', ') : 'None'],
+                ['Club',           f.currentClub || '—'],
+                ['Email',          f.email],
+                ['Phone',          f.phone],
+                ['Token Cost',     (tokenCost || 0) + ' tokens'],
+                ['Registered Via', 'DCO — ' + (currentUser?.name || '')],
+              ].map(([k, v]) => html`
+                <div style="display:flex;justify-content:space-between;padding:.25rem 0;border-bottom:1px solid #e9ecef;gap:1rem">
+                  <strong style="flex-shrink:0">${k}:</strong>
+                  <span style="text-align:right">${v || '—'}</span>
+                </div>`)}
+            </div>
+            <p style="color:var(--danger);margin-top:10px;font-size:.84rem">
+              <i class="fas fa-exclamation-triangle"></i> Tokens will be deducted upon confirmation.
+            </p>
+          </div>
+          <div class="modal-footer">
+            <button class="modal-btn secondary" onClick=${() => setShowConfirm(false)}>Edit</button>
+            <button class="modal-btn primary" onClick=${handleConfirm} disabled=${isLoading}>
+            ${isLoading ? html`<div class="loading-spinner"></div>` : 'Confirm & Submit'}
+            </button>
+          </div>
+        </div>
+      </div>`}
+  `;
+}
+
+/* ══════════════════════════════════════════════════════════
+   CLUB REGISTRATION
+   Section order (mirrors standalone ClubFields + CommonFields):
+   1. Club Level
+   2. Club Location  (country → state → LGA → city + GPS for office)
+   3. Club Details   (name, nickname, founded, contact email/phone, website)
+   4. Registration Status (CAC radio cards)
+   5. Primary Ground  (VenueGroundSearch, required)
+   6. Secondary Ground (VenueGroundSearch, optional)
+   7. Club Logo (required)
+   8. Admin Account Credentials (contact name, email with live check, password+confirm show/hide)
+   9. Contact (phone, WhatsApp)
+   10. Token cost / consent / submit
+══════════════════════════════════════════════════════════ */
+function ClubRegistration({ metrics, setMetrics, isLoading, setIsLoading, countries, currentUser }) {
+  const [clubLevels, setClubLevels] = useState([]);
+  const [levelsError, setLevelsError] = useState(false);
+  useEffect(() => {
+    apiFetch(API.clubLevels)
+      .then(d => setClubLevels(d.levels || d.data || d || []))
+      .catch(() => setLevelsError(true));
+  }, []);
+
+  const EMPTY_CLUB = {
+    clubLevel: '',
+    country: 'NG', state: '', lga: '', city: '',
+    clubOfficeGps: null,
+    clubName: '', clubNickname: '', founded: '',
+    clubEmail: '', clubPhone: '', website: '',
+    isRegistered: '', cacNumber: '',
+    primaryGround: null, secondaryGround: null,
+    logo: null,
+    fullName: '',
+    email: '', password: '', confirmPassword: '',
+    phone: '', whatsapp: '', samePhone: false,
+    privacyAccepted: false, termsAccepted: false, legalAcceptance: null
+  };
+
+  const [f, setF] = useState(EMPTY_CLUB);
+  const set = useCallback((k, v) => setF(prev => ({ ...prev, [k]: v })), []);
+
+  const [showPw,      setShowPw]      = useState(false);
+  const [showCp,      setShowCp]      = useState(false);
+  const [emailExists, setEmailExists] = useState(false);
+  const [formMessage, setFormMessage] = useState('');
+  const [msgType,     setMsgType]     = useState('');
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  // Location cascades
+  const [states, statesLoading, regionLabel]  = useStates(f.country);
+  const [lgas,   lgasLoading,   subregionLabel] = useLGAs(f.country, f.state);
+
+  useEffect(() => { set('state', ''); set('lga', ''); }, [f.country]);
+  useEffect(() => { set('lga', ''); }, [f.state]);
+
+  const pwStatus  = f.confirmPassword.length > 0 ? (f.password === f.confirmPassword) : null;
+   const tokenCost = f.clubLevel ? getClubTokenCost(f.clubLevel, metrics.tokenCosts?.club) : null;
+
+  const handleReview = e => {
+    e.preventDefault();
+    if (!f.clubLevel)            { setFormMessage('Please select club level'); setMsgType('error'); return; }
+    if (tokenCost !== null && metrics.tokenBalance < tokenCost) {
+      setFormMessage(`Insufficient tokens. Required: ${tokenCost}, Available: ${metrics.tokenBalance}`);
+      setMsgType('error'); return;
+    }
+    if (!f.country)              { setFormMessage('Country is required'); setMsgType('error'); return; }
+    if (!f.state)                { setFormMessage('State / Region is required'); setMsgType('error'); return; }
+    if (!f.city.trim())          { setFormMessage('City / District is required'); setMsgType('error'); return; }
+    if (!f.clubOfficeGps)        { setFormMessage('Club Office GPS is required — capture your GPS coordinates'); setMsgType('error'); return; }
+    if (!f.clubName.trim())      { setFormMessage('Club name is required'); setMsgType('error'); return; }
+    if (!f.primaryGround)        { setFormMessage('Primary Ground is required — register the venue first in the Venues tab, then select it here'); setMsgType('error'); return; }
+    if (!f.logo)                 { setFormMessage('Club logo is required'); setMsgType('error'); return; }
+    if (!f.fullName.trim())      { setFormMessage('Contact person name is required'); setMsgType('error'); return; }
+    if (!f.email)                { setFormMessage('Admin email is required'); setMsgType('error'); return; }
+    if (emailExists)             { setFormMessage('This email is already registered'); setMsgType('error'); return; }
+    if (!f.phone.trim())         { setFormMessage('Phone number is required'); setMsgType('error'); return; }
+    if (!f.password)             { setFormMessage('Password is required'); setMsgType('error'); return; }
+    if (pwStatus === false)      { setFormMessage('Passwords do not match'); setMsgType('error'); return; }
+    if (!f.privacyAccepted || !f.termsAccepted) {
+      setFormMessage('You must accept both Privacy Policy and Terms of Service'); setMsgType('error'); return;
+    }
+    setShowConfirm(true);
+  };
+
+  const handleConfirm = async () => {
+    setShowConfirm(false); setIsLoading(true); setFormMessage('');
+    try {
+      const fd = new FormData();
+      fd.append('role', 'club');
+      fd.append('registered_by', 'dco');
+      fd.append('club_level',  f.clubLevel);
+      fd.append('club_name',   toTitleCase(f.clubName));
+      if (f.clubNickname) fd.append('club_nickname', toTitleCase(f.clubNickname));
+      if (f.founded)      fd.append('founded',       f.founded);
+      if (f.clubEmail)    fd.append('club_email',    f.clubEmail);
+      if (f.clubPhone)    fd.append('club_phone',    f.clubPhone);
+      if (f.website)      fd.append('website',       f.website);
+      fd.append('country', f.country);
+      fd.append('state',   f.state);
+      fd.append('lga',     f.lga);
+      fd.append('city',    f.city);
+      // Club office GPS
+      if (f.clubOfficeGps) {
+        fd.append('club_office_gps_lat', f.clubOfficeGps.lat);
+        fd.append('club_office_gps_lng', f.clubOfficeGps.lng);
+        fd.append('gps_lat', f.clubOfficeGps.lat);
+        fd.append('gps_lng', f.clubOfficeGps.lng);
+      }
+      // Primary ground
+      if (f.primaryGround) {
+        const pgId = f.primaryGround._id || f.primaryGround.venue_id || f.primaryGround.id;
+        if (pgId) fd.append('primary_ground_id', pgId);
+        fd.append('stadium', f.primaryGround.venue_name || f.primaryGround.name || '');
+        if (f.primaryGround.full_address || f.primaryGround.address)
+          fd.append('stadium_address', f.primaryGround.full_address || f.primaryGround.address);
+        if (f.primaryGround.gps?.lat) {
+          fd.append('stadium_gps_lat', f.primaryGround.gps.lat);
+          fd.append('stadium_gps_lng', f.primaryGround.gps.lng);
+        }
+      }
+      // Secondary ground (optional)
+      if (f.secondaryGround) {
+        const sgId = f.secondaryGround._id || f.secondaryGround.venue_id || f.secondaryGround.id;
+        if (sgId) fd.append('secondary_ground_id', sgId);
+        fd.append('stadium2', f.secondaryGround.venue_name || f.secondaryGround.name || '');
+        if (f.secondaryGround.full_address || f.secondaryGround.address)
+          fd.append('stadium2_address', f.secondaryGround.full_address || f.secondaryGround.address);
+        fd.append('has_secondary_stadium', '1');
+      } else {
+        fd.append('has_secondary_stadium', '0');
+      }
+      fd.append('is_registered', f.isRegistered);
+      if (f.isRegistered === 'registered' && f.cacNumber) fd.append('cac_number', f.cacNumber);
+      if (f.logo) fd.append('logo', f.logo);
+      fd.append('full_name', toTitleCase(f.fullName));
+      fd.append('email',           f.email);
+      fd.append('phone',           f.phone);
+      fd.append('whatsapp',        f.samePhone ? f.phone : (f.whatsapp || f.phone));
+      fd.append('password',        f.password);
+      fd.append('confirm_password', f.confirmPassword);
+       fd.append('privacy_accepted', 'true');
+       fd.append('terms_accepted',   'true');
+       if (f.legalAcceptance) fd.append('legal_acceptance', JSON.stringify(f.legalAcceptance));
+      if (currentUser?.id)   fd.append('registered_by_dco_id',   currentUser.id);
+      if (currentUser?.name) fd.append('registered_by_dco_name', currentUser.name);
+
+      const res = await apiFetchFormData(API.registerClub, fd);
+      showNotification(res.message || 'Club registered successfully!', 'success');
+      loadMetrics().then(setMetrics).catch(() => {});
+      setF(EMPTY_CLUB);
+      setEmailExists(false); setShowPw(false); setShowCp(false);
+    } catch (err) {
+      setFormMessage(err.message); setMsgType('error');
+      showNotification(`Registration failed: ${err.message}`, 'error');
+    } finally { setIsLoading(false); }
+  };
+
+  const cname = code => (countries || []).find(c => c.code === code)?.name || code || '—';
+
+  return html`
+    <form class="registration-section" onSubmit=${handleReview}>
+      <h2><i class="fas fa-users"></i> Club Registration</h2>
+
+      <!-- 1. Club Level -->
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-layer-group"></i> Club Level <span class="req">*</span></div>
+        <div class="form-group" style="margin-bottom:0">
+          <select class="form-control" required value=${f.clubLevel}
+            onChange=${e => set('clubLevel', e.target.value)}
+            disabled=${levelsError || clubLevels.length === 0}>
+            <option value="">${levelsError ? '⚠ Failed to load levels — refresh to retry' : clubLevels.length === 0 ? 'Loading…' : 'Select Club Level'}</option>
+            ${clubLevels.map(l => html`<option key=${l}>${l}</option>`)}
+          </select>
+          ${tokenCost !== null ? html`
+            <div class="token-cost-info" style="margin-top:.75rem;margin-bottom:0">
+              <div style="display:flex;align-items:center;gap:9px;margin-bottom:3px">
+                <i class="fas fa-coins" style="color:var(--gold)"></i>
+                <strong>Token Cost:</strong> <span>${tokenCost} tokens</span>
+              </div>
+              <div style="font-size:.82rem;color:var(--gray)">Your balance: <strong>${metrics.tokenBalance}</strong></div>
+            </div>` : ''}
+        </div>
+      </div>
+
+      <!-- 2. Club Location -->
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-map-marker-alt"></i> Club Location</div>
+        <div class="form-row">
+          <${CountrySelect} label="Country" value=${f.country || ''}
+            onChange=${v => { set('country', v); set('state', ''); set('lga', ''); }}
+            countries=${countries} required=${true}/>
+          <div class="form-group" style="margin-bottom:0">
+            <label>${regionLabel} <span class="req">*</span></label>
+            <${StateSelect} states=${states} loading=${statesLoading} regionLabel=${regionLabel}
+              value=${f.state || ''}
+              onChange=${v => { set('state', v); set('lga', ''); }}/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>${subregionLabel}</label>
+          <${LGASelect} lgas=${lgas} loading=${lgasLoading} subregionLabel=${subregionLabel}
+            value=${f.lga || ''} onChange=${v => set('lga', v)}/>
+        </div>
+        <div class="form-group">
+          <label>City / District <span class="req">*</span></label>
+          <input class="form-control" required value=${f.city}
+            onInput=${e => set('city', toTitleCase(e.target.value))}
+            placeholder="City, town or district name"/>
+        </div>
+        <${GPSCapture} label="Club Office / Location GPS" required=${true}
+          value=${f.clubOfficeGps} onChange=${v => set('clubOfficeGps', v)}/>
+      </div>
+
+      <!-- 3. Club Details -->
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-building"></i> Club Details</div>
+        <div class="form-group">
+          <label>Club Name <span class="req">*</span></label>
+          <input class="form-control" required value=${f.clubName}
+            onInput=${e => set('clubName', toTitleCase(e.target.value))}
+            placeholder="Official club name"/>
+        </div>
+        <div class="form-group">
+          <label>Club Nickname <span style="font-weight:400;font-size:.72rem">(optional)</span></label>
+          <input class="form-control" value=${f.clubNickname}
+            onInput=${e => set('clubNickname', toTitleCase(e.target.value))}
+            placeholder="e.g. The Lions, Eagles…"/>
+        </div>
+        <div class="form-group">
+          <label>Year Founded <span style="font-weight:400;font-size:.72rem">(optional)</span></label>
+          <input type="number" class="form-control" value=${f.founded}
+            onInput=${e => set('founded', e.target.value)}
+            placeholder="e.g. 1998" min="1800" max=${YEAR_NOW}/>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Club Email <span style="font-weight:400;font-size:.72rem">(optional)</span></label>
+            <input type="email" class="form-control" value=${f.clubEmail}
+              onInput=${e => set('clubEmail', e.target.value)} placeholder="club@example.com"/>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>Club Phone <span style="font-weight:400;font-size:.72rem">(optional)</span></label>
+            <input type="tel" class="form-control" value=${f.clubPhone}
+              onInput=${e => set('clubPhone', e.target.value)} placeholder="+234…"/>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>Website <span style="font-weight:400;font-size:.72rem">(optional)</span></label>
+          <input type="url" class="form-control" value=${f.website}
+            onInput=${e => set('website', e.target.value)} placeholder="https://…"/>
+        </div>
+      </div>
+
+      <!-- 4. Registration Status -->
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-certificate"></i> Club Registration Status</div>
+        <div class="radio-group">
+          ${[
+            {v:'registered',   l:'Officially Registered (CAC)', d:'Has Corporate Affairs Commission number'},
+            {v:'unregistered', l:'Not Yet Registered',           d:'Operating without formal registration'},
+            {v:'pending',      l:'Registration Pending',          d:'Applied but not yet confirmed'},
+          ].map(t => html`
+            <div key=${t.v} class=${'radio-card' + (f.isRegistered === t.v ? ' active' : '')}
+              onClick=${() => set('isRegistered', t.v)}>
+              <h5>${t.l}</h5><p>${t.d}</p>
+            </div>`)}
+        </div>
+        ${f.isRegistered === 'registered' ? html`
+          <div class="form-group" style="margin-top:.75rem;margin-bottom:0">
+            <label>CAC Registration Number <span class="req">*</span></label>
+            <input class="form-control" value=${f.cacNumber}
+              onInput=${e => set('cacNumber', e.target.value)} placeholder="RC000000"/>
+          </div>` : ''}
+      </div>
+
+      <!-- 5. Primary Ground -->
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-futbol"></i> Primary Ground <span class="req">*</span></div>
+        <p class="helper-text" style="margin-bottom:.75rem">
+          Select the club's home ground from registered venues.
+          If not listed, register it in the <strong>Venues</strong> tab first.
+        </p>
+        <${VenueGroundSearch}
+          value=${f.primaryGround ? (f.primaryGround.venue_name || f.primaryGround.name || '') : ''}
+          venueData=${f.primaryGround}
+          onSelect=${v => { set('primaryGround', v); if (v) set('stadiumAddress', v.full_address || v.address || ''); }}
+          country=${f.country} state=${f.state} lga=${f.lga}
+          label="Primary Ground / Home Venue"
+          required=${true}
+          placeholder="Type venue name to search…"/>
+        ${f.primaryGround && (f.primaryGround.full_address || f.primaryGround.address) ? html`
+          <p class="helper-text" style="margin-top:8px;color:var(--success)">
+            <i class="fas fa-map-marker-alt" style="margin-right:4px"></i>
+            <strong>Address on record:</strong> ${f.primaryGround.full_address || f.primaryGround.address}
+          </p>` : ''}
+      </div>
+
+      <!-- 6. Secondary / Alternate Ground -->
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-map-pin"></i> Secondary / Alternate Ground
+          <span style="font-weight:400;font-size:.75rem">(optional)</span>
+        </div>
+        <p class="helper-text" style="margin-bottom:.75rem">
+          Does this club play at a second ground? Select it below (also from registered venues).
+        </p>
+        <${VenueGroundSearch}
+          value=${f.secondaryGround ? (f.secondaryGround.venue_name || f.secondaryGround.name || '') : ''}
+          venueData=${f.secondaryGround}
+          onSelect=${v => set('secondaryGround', v)}
+          country=${f.country} state=${f.state} lga=${f.lga}
+          label="Secondary / Alternate Ground"
+          required=${false}
+          placeholder="Type venue name to search…"/>
+      </div>
+
+      <!-- 7. Club Logo -->
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-image"></i> Club Logo <span class="req">*</span></div>
+        <${FileUpload} id="club-logo" label="Club Logo / Crest" accept="image/*" maxMB=${1}
+          required=${true} value=${f.logo}
+          onChange=${file => set('logo', file)}
+          hint="Required — Max 1 MB · PNG or JPEG recommended"/>
+        ${!f.logo ? html`<p class="error-text" style="margin-top:5px"><i class="fas fa-exclamation-circle"></i> Club logo is required.</p>` : ''}
+      </div>
+
+      <!-- 8. Admin Account Credentials -->
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-lock"></i> Admin Account Credentials</div>
+        <div class="form-group">
+          <label>Contact Person Name <span class="req">*</span></label>
+          <input class="form-control" required value=${f.fullName}
+            onInput=${e => set('fullName', toTitleCase(e.target.value))}
+            placeholder="Full name of contact person"/>
+        </div>
+        <${EmailField} value=${f.email} onChange=${v => set('email', v)} existsCb=${taken => setEmailExists(taken)}/>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Password <span class="req">*</span></label>
+            <div class="input-group">
+              <input type=${showPw ? 'text' : 'password'} class="form-control"
+                value=${f.password} onInput=${e => set('password', e.target.value)}
+                placeholder="Create password" autocomplete="new-password"/>
+              <span class="input-icon clickable" style="cursor:pointer;pointer-events:all"
+                onClick=${() => setShowPw(s => !s)}>
+                <i class=${'fas fa-eye' + (showPw ? '-slash' : '')}></i>
+              </span>
+            </div>
+            <${PasswordStrength} pw=${f.password}/>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>Confirm Password <span class="req">*</span></label>
+            <div class="input-group">
+              <input type=${showCp ? 'text' : 'password'} class="form-control"
+                value=${f.confirmPassword} onInput=${e => set('confirmPassword', e.target.value)}
+                placeholder="Repeat password" autocomplete="new-password"/>
+              <span class="input-icon clickable" style="cursor:pointer;pointer-events:all"
+                onClick=${() => setShowCp(s => !s)}>
+                <i class=${'fas fa-eye' + (showCp ? '-slash' : '')}></i>
+              </span>
+            </div>
+            ${pwStatus === true  ? html`<p class="success-text"><i class="fas fa-check-circle"></i> Passwords match</p>` : ''}
+            ${pwStatus === false ? html`<p class="error-text"><i class="fas fa-times-circle"></i> Passwords do not match</p>` : ''}
+          </div>
+        </div>
+      </div>
+
+      <!-- 9. Contact -->
+      <div class="section-block">
+        <div class="section-block-title"><i class="fas fa-phone"></i> Contact</div>
+        <div class="form-row">
+          <div class="form-group" style="margin-bottom:0">
+            <label>Phone Number <span class="req">*</span></label>
+            <input type="tel" class="form-control" value=${f.phone}
+              onInput=${e => set('phone', e.target.value)}
+              placeholder="+234 800 000 0000" autocomplete="tel"/>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>WhatsApp</label>
+            <input type="tel" class="form-control"
+              value=${f.samePhone ? f.phone : f.whatsapp}
+              onInput=${e => set('whatsapp', e.target.value)}
+              placeholder="+234 800 000 0000"
+              disabled=${!!f.samePhone}/>
+            <div class="same-phone-row">
+              <input type="checkbox" id="sameph-club" checked=${!!f.samePhone}
+                onChange=${e => set('samePhone', e.target.checked)} style="accent-color:var(--primary)"/>
+              <label for="sameph-club">Same as phone</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <${LegalConsent}
+        id="club"
+        accepted=${!!f.privacyAccepted && !!f.termsAccepted}
+        formData=${f}
+        role="club"
+        onAccepted=${record => setF(prev => ({...prev, privacyAccepted:true, termsAccepted:true, legalAcceptance:record}))}
+        onDeclined=${() => setF(prev => ({...prev, privacyAccepted:false, termsAccepted:false, legalAcceptance:null}))}/>
+
+      <button class="registration-button" type="submit"
+        disabled=${isLoading || emailExists || pwStatus === false || !f.privacyAccepted || !f.termsAccepted}>
+        ${isLoading ? html`<div class="loading-spinner"></div>` : html`<i class="fas fa-users"></i>`}
+        Review & Confirm
+      </button>
+      ${formMessage && html`<div class=${'registration-message ' + msgType}>${formMessage}</div>`}
+    </form>
+
+    ${showConfirm && html`
+      <div class="modal-overlay active">
+        <div class="modal">
+          <div class="modal-header">
+            <h3><i class="fas fa-check-circle"></i> Confirm Club Registration</h3>
+            <button class="modal-close" onClick=${() => setShowConfirm(false)}>&times;</button>
+          </div>
+          <div class="modal-body">
+            <p style="margin-bottom:12px;font-size:.88rem">Please review before submitting:</p>
+            <div style="background:#f8fafc;padding:.9rem;border-radius:8px;font-size:.84rem">
+              ${[
+                ['Club Level',        f.clubLevel],
+                ['Club Name',         f.clubName],
+                ['Country',           cname(f.country)],
+                ['State',             f.state  || '—'],
+                ['LGA',               f.lga    || '—'],
+                ['City',              f.city   || '—'],
+                ['Office GPS',        f.clubOfficeGps ? f.clubOfficeGps.lat.toFixed(5) + ', ' + f.clubOfficeGps.lng.toFixed(5) : '—'],
+                ['Primary Ground',    f.primaryGround ? (f.primaryGround.venue_name || f.primaryGround.name) : '—'],
+                ['Secondary Ground',  f.secondaryGround ? (f.secondaryGround.venue_name || f.secondaryGround.name) : 'None'],
+                ['Registration',      f.isRegistered  || '—'],
+                ['Contact Person',    f.fullName || '—'],
+                ['Admin Email',       f.email],
+                ['Phone',             f.phone],
+                ['Token Cost',        (tokenCost || 0) + ' tokens'],
+                ['Registered Via',    'DCO — ' + (currentUser?.name || '')],
+              ].map(([k, v]) => html`
+                <div style="display:flex;justify-content:space-between;padding:.25rem 0;border-bottom:1px solid #e9ecef;gap:1rem">
+                  <strong style="flex-shrink:0">${k}:</strong>
+                  <span style="text-align:right">${v || '—'}</span>
+                </div>`)}
+            </div>
+            <p style="color:var(--danger);margin-top:10px;font-size:.84rem">
+              <i class="fas fa-exclamation-triangle"></i> Tokens will be deducted upon confirmation.
+            </p>
+          </div>
+          <div class="modal-footer">
+            <button class="modal-btn secondary" onClick=${() => setShowConfirm(false)}>Edit</button>
+            <button class="modal-btn primary" onClick=${handleConfirm} disabled=${isLoading}>
+            ${isLoading ? html`<div class="loading-spinner"></div>` : 'Confirm & Submit'}
+            </button>
+          </div>
+        </div>
+      </div>`}
+  `;
+}
+
+function RegisterApp() {
+  const [primaryTab, setPrimaryTab] = useState('registration');
+  const [registrationSubtab, setRegistrationSubtab] = useState('player');
+  const [updateSubtab, setUpdateSubtab] = useState('bio');
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [countries, setCountries] = useState([]);
+  const [currentUser, setCurrentUser] = useState({ name:'DCO', id:'', dco_id:'', photo:'' });
+  const [metrics, setMetrics] = useState({ tokenBalance:0 });
+
+  useEffect(() => {
+    Promise.resolve(DCOChild.getUser()).then(user => setCurrentUser({
+      ...user,
+      name: user.name || user.fullName || 'DCO',
+      id: user._id || user.id || user.dco_id || '',
+      dco_id: user.dco_id || user.id || '',
+      photo: user.photo || user.profileImage || ''
+    })).catch(() => {});
+
+    apiFetch(API.countries).then(data => {
+      const list = Array.isArray(data) ? data : (data.countries || data.data || []);
+      setCountries(list.map(c => ({
+        code: c.code || c.v || c.value || c.id,
+        name: c.name || c.l || c.label || c.code || '',
+        regionLabel: c.region_label || 'State / Region',
+        subregionLabel: c.subregion_label || 'LGA / Local Area',
+      })).filter(c => c.code && c.name));
+    }).catch(() => {});
+
+    loadMetrics().then(setMetrics).catch(() => {});
+  }, []);
+
+  useEffect(() => DCOChild.onContext(ctx => {
+    if (!ctx.user) return;
+    const user = ctx.user;
+    setCurrentUser({
+      ...user,
+      name: user.name || user.fullName || 'DCO',
+      id: user._id || user.id || user.dco_id || '',
+      dco_id: user.dco_id || user.id || '',
+      photo: user.photo || user.profileImage || ''
+    });
+  }), []);
+
+  const renderRegistration = () => html`
+    <div class="integrated-subtabs" role="tablist" aria-label="Registration type">
+      <button type="button"
+        class=${'integrated-subtab' + (registrationSubtab === 'player' ? ' active' : '')}
+        onClick=${() => setRegistrationSubtab('player')}
+        role="tab" aria-selected=${registrationSubtab === 'player'}>
+        <i class="fas fa-user"></i> Register Player
+      </button>
+      <button type="button"
+        class=${'integrated-subtab' + (registrationSubtab === 'club' ? ' active' : '')}
+        onClick=${() => setRegistrationSubtab('club')}
+        role="tab" aria-selected=${registrationSubtab === 'club'}>
+        <i class="fas fa-users"></i> Register Club
+      </button>
+      <button type="button"
+        class=${'integrated-subtab' + (registrationSubtab === 'venue' ? ' active' : '')}
+        onClick=${() => setRegistrationSubtab('venue')}
+        role="tab" aria-selected=${registrationSubtab === 'venue'}>
+        <i class="fas fa-map-marker-alt"></i> Register Venue
+      </button>
+    </div>
+
+    <div class="integrated-panel" role="tabpanel">
+      ${registrationSubtab === 'player'
+        ? html`<${PlayerRegistration} key="player" metrics=${metrics} setMetrics=${setMetrics}
+            isLoading=${isLoading} setIsLoading=${setIsLoading} countries=${countries} currentUser=${currentUser}/>`
+        : registrationSubtab === 'club'
+        ? html`<${ClubRegistration} key="club" metrics=${metrics} setMetrics=${setMetrics}
+            isLoading=${isLoading} setIsLoading=${setIsLoading} countries=${countries} currentUser=${currentUser}/>`
+        : html`<${VenueRegistration} key="venue" metrics=${metrics} setMetrics=${setMetrics}
+            isLoading=${isLoading} setIsLoading=${setIsLoading} countries=${countries} currentUser=${currentUser}/>`}
+    </div>`;
+
+  const renderUpdates = () => html`
+    <div class="integrated-subtabs" role="tablist" aria-label="Profile updates">
+      <button type="button"
+        class=${'integrated-subtab' + (updateSubtab === 'bio' ? ' active' : '')}
+        onClick=${() => setUpdateSubtab('bio')}
+        role="tab" aria-selected=${updateSubtab === 'bio'}>
+        <i class="fas fa-id-card"></i> Bio &amp; Achievements
+      </button>
+    </div>
+
+    <div class="integrated-panel" role="tabpanel">
+      ${updateSubtab === 'bio'
+        ? html`<${PlayerBioUpdate} key="bio" metrics=${metrics} setMetrics=${setMetrics}
+            isLoading=${isLoading} setIsLoading=${setIsLoading} currentUser=${currentUser}/>`
+        : ''}
+    </div>`;
+
+  return html`
+    <main>
+      <div class="integrated-primary-tabs" role="tablist" aria-label="DCO registration and profile updates">
+        <button type="button"
+          class=${'integrated-primary-tab' + (primaryTab === 'registration' ? ' active' : '')}
+          onClick=${() => setPrimaryTab('registration')}
+          role="tab" aria-selected=${primaryTab === 'registration'}>
+          <i class="fas fa-user-plus"></i> Registration
+        </button>
+        <button type="button"
+          class=${'integrated-primary-tab' + (primaryTab === 'updates' ? ' active' : '')}
+          onClick=${() => setPrimaryTab('updates')}
+          role="tab" aria-selected=${primaryTab === 'updates'}>
+          <i class="fas fa-user-edit"></i> Profile Updates
+        </button>
+      </div>
+
+      <div class="integrated-content">
+        ${primaryTab === 'registration' ? renderRegistration() : renderUpdates()}
+      </div>
+    </main>`;
+}
+
+render(html`<${RegisterApp}/>`, document.getElementById('app'));
+
+/* Let the DCO shell expand this iframe to the real registration height instead
+   of trapping the registration form inside a shortened scrolling frame. */
+(function reportFrameHeight() {
+  if (window.parent === window) return;
+  const send = () => {
+    const body = document.body;
+    const root = document.documentElement;
+    const height = Math.max(body ? body.scrollHeight : 0, root ? root.scrollHeight : 0);
+    window.parent.postMessage({ type: 'eneji:iframe-height', height }, '*');
+  };
+  window.addEventListener('load', send);
+  window.addEventListener('resize', send);
+  if (window.ResizeObserver) new ResizeObserver(send).observe(document.documentElement);
+  setTimeout(send, 250);
+  setTimeout(send, 900);
+})();
+  </script>
+</body>
+</html>

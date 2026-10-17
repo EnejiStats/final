@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Dashboard · EnejiStats</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="/static/dco-dashboard/styles/dco-portal.css">
+<script src="https://cdn.jsdelivr.net/npm/preact@10.19.3/dist/preact.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/preact@10.19.3/hooks/dist/hooks.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.umd.js"></script>
+<script src="/static/dco-dashboard/dco-iframe-bridge.js"></script>
+<script src="/static/dco-dashboard/dco-portal-tabs.js"></script>
+</head><body><div id="app"></div><script>(function(){const {h,render}=preact;const {useState,useEffect}=preactHooks;const html=htm.bind(h);
+function App(){const [user,setUser]=useState(DCOChild.getUser()||null);useEffect(function(){return DCOChild.onContext(function(ctx){setUser(ctx.user||null);});},[]);
+const onUser=function(next){setUser(next);window.parent.postMessage({type:'DCO_USER_UPDATE',user:next},window.location.origin);};
+const navigate=function(section){window.parent.postMessage({type:'DCO_NAVIGATE',section:section},window.location.origin);};
+if(!user)return html`<div class="dcox"><main class="dcox-main"><div class="dcox-empty">Loading account…</div></main></div>`;
+return html`<div class="dcox"><main class="dcox-main"><${DCOPortalPages.DCOUnifiedDashboard} user=${user} onUser=${onUser} navigate=${navigate}/></main></div>`;}
+render(html`<${App}/>`,document.getElementById('app'));})();</script></body></html>
