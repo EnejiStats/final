@@ -89,6 +89,40 @@ fetch('/api/auth/me',{credentials:'include',cache:'no-store'})
 .club-match-metric{min-height:34px;padding:.28rem .45rem}
 .club-match-value{font-size:.74rem}
 .club-detail-match-meta{gap:.28rem .75rem}
+.club-stats-panel{max-width:1120px;margin:0 auto}
+.club-stats-panel .card{border-radius:14px;box-shadow:0 5px 20px rgba(15,23,42,.055)}
+.club-summary-grid{grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:.7rem}
+.club-summary-grid .stat-overview-card{min-height:84px;display:flex;flex-direction:column;justify-content:center;border:1px solid #dbe5f1;border-top:3px solid var(--primary);border-radius:10px;box-shadow:0 3px 12px rgba(15,23,42,.045);padding:.75rem .55rem}
+.club-summary-grid .stat-ov-value{font-size:clamp(1.3rem,2vw,1.8rem)}
+.club-summary-grid .stat-ov-label{font-size:.67rem;letter-spacing:.45px}
+.club-matchday-navigator{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:.75rem;padding:.65rem .8rem;margin:0 0 .75rem;border:1px solid #dbe5f1;border-radius:10px;background:linear-gradient(135deg,#fff,#f7faff)}
+.club-matchday-navigator button{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;min-width:94px;padding:.5rem .7rem;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:var(--primary);font:inherit;font-size:.75rem;font-weight:800;cursor:pointer}
+.club-matchday-navigator button:hover:not(:disabled){background:#eff6ff;border-color:var(--primary)}
+.club-matchday-navigator button:disabled{opacity:.45;cursor:not-allowed}
+.club-matchday-current{text-align:center;min-width:0}
+.club-matchday-current strong{display:block;color:#0f172a;font-size:.85rem}
+.club-matchday-current small{display:block;color:#64748b;font-size:.7rem;margin-top:.15rem;overflow-wrap:anywhere}
+.club-detail-match-head{padding:1rem 1.1rem;background:linear-gradient(135deg,#f8fbff,#edf4ff)}
+.club-detail-match-teams{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:.85rem}
+.club-detail-team{font-size:1rem}
+.club-detail-score{font-size:1.15rem;padding:.45rem .85rem;box-shadow:0 3px 9px rgba(0,74,173,.16)}
+.club-detail-match-meta{justify-content:center}
+.club-centre-stats{padding:.85rem;max-width:900px;margin:0 auto}
+.club-centre-stats-head,.club-centre-stat-row{display:grid;grid-template-columns:minmax(90px,1fr) minmax(120px,1.35fr) minmax(90px,1fr);align-items:center;gap:.7rem}
+.club-centre-stats-head{padding:.7rem .75rem;margin-bottom:.35rem;border:1px solid #dbe5f1;border-radius:9px;background:#f7faff}
+.club-centre-team{font-size:.76rem;font-weight:900;overflow-wrap:anywhere}
+.club-centre-home{text-align:left;color:var(--primary)}
+.club-centre-away{text-align:right;color:#c62828}
+.club-centre-metric-heading{text-align:center;color:#64748b;font-size:.62rem;font-weight:900;text-transform:uppercase;letter-spacing:.55px}
+.club-centre-stat-row{min-height:48px;padding:.45rem .75rem;border-bottom:1px solid #eef2f7}
+.club-centre-stat-value{font-size:.82rem;font-weight:900;font-variant-numeric:tabular-nums}
+.club-centre-stat-main{text-align:center;min-width:0}
+.club-centre-stat-label{display:block;color:#334155;font-size:.73rem;font-weight:750}
+.club-centre-stat-bar{display:flex;height:5px;gap:2px;max-width:280px;margin:.35rem auto 0;overflow:hidden;border-radius:999px;background:#e2e8f0}
+.club-centre-stat-bar i{display:block;height:100%}
+.club-centre-home-fill{background:var(--primary);border-radius:999px 0 0 999px}
+.club-centre-away-fill{background:#ef4444;border-radius:0 999px 999px 0}
+@media(max-width:640px){.club-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:.45rem}.club-summary-grid .stat-overview-card{min-height:72px;padding:.55rem .35rem}.club-matchday-navigator{gap:.4rem;padding:.5rem}.club-matchday-navigator button{min-width:0;padding:.45rem .5rem;font-size:.67rem}.club-matchday-current strong{font-size:.75rem}.club-matchday-current small{font-size:.63rem}.club-centre-stats{padding:.55rem .35rem}.club-centre-stats-head,.club-centre-stat-row{grid-template-columns:minmax(56px,.85fr) minmax(95px,1.5fr) minmax(56px,.85fr);gap:.35rem;padding-left:.35rem;padding-right:.35rem}.club-centre-team{font-size:.64rem}.club-centre-stat-row{min-height:44px}.club-centre-stat-value{font-size:.72rem}.club-centre-stat-label{font-size:.66rem}.club-detail-team{font-size:.78rem}.club-detail-score{font-size:.9rem;padding:.3rem .45rem}}
 .club-print-report{display:none}
 .club-print-header{border-bottom:3px solid var(--primary);padding:0 0 .65rem;margin:0 0 .8rem}
 .club-print-header-top{display:flex;align-items:center;justify-content:space-between}
@@ -144,38 +178,6 @@ fetch('/api/auth/me',{credentials:'include',cache:'no-store'})
   .club-print-footer-contacts{font-size:.62rem!important;gap:.3rem .65rem!important}
   .club-print-footer-disclaimer{font-size:.6rem!important}
 }
-
-/* Refined club statistics presentation — keeps all existing data and actions intact */
-.club-summary-grid{grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:.7rem}
-.club-summary-grid .stat-overview-card{position:relative;min-height:86px;display:flex;flex-direction:column;justify-content:center;gap:.4rem;padding:.85rem .6rem;border:1px solid #e2e8f0;border-top:3px solid var(--primary);border-radius:10px;box-shadow:0 3px 12px rgba(15,23,42,.055);transition:transform .18s,box-shadow .18s}
-.club-summary-grid .stat-overview-card:hover{transform:translateY(-2px);box-shadow:0 7px 18px rgba(0,74,173,.1)}
-.club-summary-grid .stat-ov-value{font-size:clamp(1.25rem,2vw,1.75rem);letter-spacing:-.035em}
-.club-summary-grid .stat-ov-label{font-size:.63rem;line-height:1.35;letter-spacing:.45px}
-.club-metric-matrix .matrix-card-body{padding:.85rem}
-.club-metric-matrix .category-block{padding:.2rem 0 .55rem;margin-bottom:.8rem}
-.club-metric-matrix .cat-chip{font-size:.68rem;padding:.32rem .65rem;border-radius:5px;margin-bottom:.55rem}
-.club-metric-matrix .fields-grid{grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:.5rem}
-.club-metric-matrix .stat-field{min-height:54px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:.32rem;padding:.6rem .7rem;border:1px solid #e5eaf2;border-radius:8px;background:linear-gradient(145deg,#fff,#f8fbff)}
-.club-metric-matrix .stat-field .label{font-size:.7rem;line-height:1.35;color:#64748b}
-.club-metric-matrix .stat-field .value{font-size:1.05rem;color:var(--primary);font-weight:900}
-.club-match-breakdown-premium{padding:.8rem}
-.club-match-breakdown-premium .club-match-breakdown-head{align-items:center;margin-bottom:.75rem}
-.club-match-breakdown-premium .club-match-breakdown-head>span{font-size:.82rem;letter-spacing:.45px}
-.club-detail-metric-categories{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:.7rem;margin-top:.7rem}
-.club-detail-metric-category{min-width:0;border:1px solid #e5eaf2;border-radius:9px;overflow:hidden;background:#fff}
-.club-detail-metric-category-title{display:flex;align-items:center;gap:.45rem;padding:.62rem .75rem;background:linear-gradient(100deg,#f1f6fd,#fbfdff);border-bottom:1px solid #e5eaf2;color:var(--primary);font-size:.69rem;font-weight:900;letter-spacing:.5px}
-.club-detail-metric-list{padding:.15rem .65rem}
-.club-detail-metric-row{display:grid;grid-template-columns:minmax(38px,.55fr) minmax(0,2fr) minmax(38px,.55fr);align-items:center;gap:.55rem;padding:.58rem .1rem;border-bottom:1px solid #f0f4f8}
-.club-detail-metric-row:last-child{border-bottom:0}
-.club-detail-metric-value{font-family:var(--mono);font-size:.8rem;font-weight:900;white-space:nowrap}
-.club-detail-metric-value.home-side{text-align:left;color:var(--primary)}
-.club-detail-metric-value.away-side{text-align:right;color:#dc2626}
-.club-detail-metric-center{min-width:0}
-.club-detail-metric-label{text-align:center;font-size:.7rem;font-weight:750;color:#334155;line-height:1.3;overflow-wrap:anywhere}
-.club-detail-metric-bar{display:flex;height:4px;gap:2px;overflow:hidden;border-radius:99px;background:#eef2f7;margin-top:.4rem}
-.club-detail-metric-bar .home-fill{display:block;background:var(--primary);border-radius:99px 0 0 99px}
-.club-detail-metric-bar .away-fill{display:block;background:#dc2626;border-radius:0 99px 99px 0;margin-left:auto}
-@media(max-width:520px){.club-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.club-detail-metric-categories{grid-template-columns:1fr}.club-match-breakdown-premium{padding:.55rem}.club-detail-metric-row{gap:.35rem}.club-detail-metric-label{font-size:.67rem}}
 </style>
 </head><body><div id="root"></div>
 <script>(function() {
@@ -197,7 +199,7 @@ const copyToClipboard = (text) => { navigator.clipboard.writeText(text).catch(()
 const CLUB_STAT_SCHEMA = [
 { id:'attack', title:'ATTACK', fields:[
 {key:'goals_for', label:'Goals For'},{key:'goals_against', label:'Goals Against'},
-{key:'shots_total', label:'Shots'},{key:'shots_on_target', label:'Shots On Target'},
+{key:'shots_total', label:'Total Shots'},{key:'shots_on_target', label:'Shots On Target'},
 {key:'big_chances', label:'Big Chances'},{key:'corners', label:'Corner Kicks'},
 {key:'offsides', label:'Offsides'},
 ]},
@@ -205,15 +207,15 @@ const CLUB_STAT_SCHEMA = [
 {key:'possession', label:'Possession %'},
 ]},
 { id:'passing', title:'PASSING', fields:[
-{key:'passes_total', label:'Passes'},{key:'passes_accurate', label:'Acc. Passes'},
+{key:'passes_total', label:'Total Passes'},{key:'passes_accurate', label:'Acc. Passes'},
 {key:'pass_accuracy', label:'Pass Accuracy %'},{key:'key_passes', label:'Key Passes'},
-{key:'crosses_total', label:'Crosses'},{key:'crosses_accurate', label:'Acc. Crosses'},
+{key:'crosses_total', label:'Total Crosses'},{key:'crosses_accurate', label:'Acc. Crosses'},
 ]},
 { id:'defence', title:'DEFENCE', fields:[
-{key:'clean_sheets', label:'Clean Sheets'},{key:'tackles_total', label:'Tackles'},
+{key:'clean_sheets', label:'Clean Sheets'},{key:'tackles_total', label:'Total Tackles'},
 {key:'tackles_won', label:'Tackles Won'},{key:'interceptions', label:'Interceptions'},
 {key:'clearances', label:'Clearances'},{key:'aerial_duels_won', label:'Aerial Duels Won'},
-{key:'aerial_duels_total', label:'Aerial Duels'},
+{key:'aerial_duels_total', label:'Aerial Duels Total'},
 ]},
 { id:'goalkeeping', title:'GOALKEEPING', fields:[
 {key:'saves', label:'Saves'},{key:'shots_faced', label:'Shots Faced'},{key:'penalty_saves', label:'Penalty Saves'},
@@ -226,15 +228,15 @@ const CLUB_STAT_SCHEMA = [
 ];
 const MATCH_COMPARE_STATS = [
 {key:'possession', label:'Ball Possession', unit:'%'},
-{key:'shots_total', label:'Shots'},
+{key:'shots_total', label:'Total Shots'},
 {key:'shots_on_target', label:'Shots on Target'},
 {key:'big_chances', label:'Big Chances'},
 {key:'corners', label:'Corner Kicks'},
-{key:'passes_total', label:'Passes'},
+{key:'passes_total', label:'Total Passes'},
 {key:'pass_accuracy', label:'Pass Accuracy', unit:'%'},
 {key:'key_passes', label:'Key Passes'},
-{key:'crosses_total', label:'Crosses'},
-{key:'tackles_total', label:'Tackles'},
+{key:'crosses_total', label:'Total Crosses'},
+{key:'tackles_total', label:'Total Tackles'},
 {key:'interceptions', label:'Interceptions'},
 {key:'aerial_duels_won', label:'Aerial Duels Won'},
 {key:'fouls_committed', label:'Fouls Committed'},
@@ -252,7 +254,6 @@ tackles_won: { attempts:'tackles_total' },
 aerial_duels_won: { attempts:'aerial_duels_total' },
 saves: { attempts:'shots_faced', rate:'save_percentage' },
 };
-const CLUB_ATTEMPT_ONLY_KEYS = new Set(Object.values(CLUB_SUCCESS_ATTEMPTS).map(pair => pair.attempts));
 const CLUB_PLAYER_METRIC_ALIASES = {
 goals_for:['goals_for','goals','goals_scored'],
 shots_total:['shots_total','shots','total_shots'],
@@ -327,7 +328,6 @@ const pair = CLUB_SUCCESS_ATTEMPTS[key];
 return !!pair && clubNumeric(stats?.[pair.attempts]) !== null;
 }
 function shouldHideClubMetric(stats, key) {
-if (CLUB_ATTEMPT_ONLY_KEYS.has(key)) return true;
 const duplicateRate = Object.entries(CLUB_SUCCESS_ATTEMPTS).some(([successKey, pair]) =>
 pair.rate === key && clubMetricHasPair(stats, successKey));
 return duplicateRate;
@@ -338,21 +338,16 @@ let value = clubNumeric(stats?.[key]);
 const attempts = pair ? clubNumeric(stats?.[pair.attempts]) : null;
 const rateValue = pair?.rate ? clubNumeric(stats?.[pair.rate]) : null;
 if (value === null && pair && attempts !== null && rateValue !== null) value = Math.round(attempts * rateValue / 100);
-if (value === null) return pair && attempts !== null ? `— (${fmt2(attempts)})` : '—';
+if (value === null) return '—';
 let text = fmt2(value);
 if (pair) {
 if (attempts !== null) {
-text += ` (${fmt2(attempts)})`;
 const rate = attempts > 0 ? (rateValue ?? Math.round((value / attempts) * 1000) / 10) : 0;
 text += ` · ${fmt2(rate)}%`;
 }
 }
 if (CLUB_PERCENT_METRICS.has(key) && !pair) text += '%';
 return text;
-}
-function clubPrimaryMetricDisplay(stats, key) {
-const formatted = formatClubMetric(stats, key);
-return String(formatted).replace(/\s*\([^)]*\)/g, '').replace(/\s*·\s*[\d.]+%?/, '').trim();
 }
 function clubFlag(value) {
 return value === true || ['true','1','yes','y','starter'].includes(String(value || '').trim().toLowerCase());
@@ -492,6 +487,55 @@ return {stats, derivedKeys, xiCount:xi.length || Math.min(players.length, 11), p
 }
 function normalizeClubLabel(value) {
 return String(value || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+const CLUB_SEARCH_METRIC_ALIASES = {
+possession:['possession','avg_possession','average_possession','possession_avg','possession_percentage','possession_pct'],
+short_passes:['short_passes','successful_short_passes','short_passes_completed','short_passes_accurate','accurate_short_passes'],
+long_passes:['long_passes','successful_long_passes','long_passes_completed','long_passes_accurate','accurate_long_passes'],
+goals_scored:['goals_scored','goals_for','goals','total_goals'],
+goals_conceded:['goals_conceded','goals_against','goals_allowed'],
+win_rate:['win_rate','win_rate_pct','win_percentage','wins_percentage'],
+};
+const CLUB_SEARCH_METRIC_BOUNDS = {
+possession:[0,100], short_passes:[0,1000], long_passes:[0,1000],
+goals_scored:[0,20], goals_conceded:[0,20], win_rate:[0,100]
+};
+function getClubSearchMetric(club, key) {
+const aliases = CLUB_SEARCH_METRIC_ALIASES[key] || [key];
+const sources = [
+club, club?.stats, club?.season_stats, club?.seasonStats, club?.club_stats, club?.clubStats,
+club?.performance, club?.summary, club?.summary_stats, club?.summaryStats, club?.stats_summary, club?.statsSummary,
+club?.results_summary, club?.resultsSummary
+].filter(value => value && typeof value === 'object');
+for (const source of sources) for (const alias of aliases) {
+const raw = source[alias];
+const direct = clubNumeric(raw);
+if (direct !== null) return direct;
+if (raw && typeof raw === 'object') {
+for (const nestedKey of ['average','avg','value','percentage','pct','total']) {
+const nested = clubNumeric(raw[nestedKey]);
+if (nested !== null) return nested;
+}
+}
+}
+if (key === 'win_rate') {
+const wins = sources.map(source => clubNumeric(source.wins ?? source.win_count)).find(value => value !== null);
+const played = sources.map(source => clubNumeric(source.matches_played ?? source.matchesPlayed ?? source.played)).find(value => value !== null);
+if (wins !== undefined && played > 0) return (wins / played) * 100;
+}
+return null;
+}
+function clubMatchesMetricRanges(club, filters) {
+for (const key of Object.keys(CLUB_SEARCH_METRIC_ALIASES)) {
+const minRaw = filters?.[`${key}_min`];
+const maxRaw = filters?.[`${key}_max`];
+const min = minRaw === '' || minRaw == null ? null : Number(minRaw);
+const max = maxRaw === '' || maxRaw == null ? null : Number(maxRaw);
+if (min === null && max === null) continue;
+const value = getClubSearchMetric(club, key);
+if (value === null || (min !== null && value < min) || (max !== null && value > max)) return false;
+}
+return true;
 }
 function getClubMatchSide(match, club, clubName) {
 const ownIds = [club?.club_id, club?._id, club?.user_id, club?.id].filter(Boolean).map(String);
@@ -644,7 +688,7 @@ ${filtered.map(cat => html`
 ${cat.fields.filter(f => !shouldHideClubMetric(stats, f.key)).map(f => html`
 <div key=${f.key} class="stat-field">
 <span class="label">${f.label}</span>
-<span class="value">${clubPrimaryMetricDisplay(stats, f.key)}</span>
+<span class="value">${formatClubMetric(stats, f.key)}</span>
 </div>
 `)}
 </div>
@@ -695,60 +739,42 @@ return html`
 </div>
 `;
 }
-function ClubMatchStatsBreakdown({ match, homeName, awayName }) {
-const home = getMatchTeamStats(match, 'home');
-const away = getMatchTeamStats(match, 'away');
-const hiddenField = field => CLUB_ATTEMPT_ONLY_KEYS.has(field.key) ||
-  field.key === 'goals_for' || field.key === 'goals_against' ||
-  Object.entries(CLUB_SUCCESS_ATTEMPTS).some(([successKey,pair]) =>
-    pair.rate === field.key && (clubMetricHasPair(home.stats,successKey) || clubMetricHasPair(away.stats,successKey)));
-const visibleCategories = CLUB_STAT_SCHEMA.map(category => ({
-  ...category,
-  fields: category.fields.filter(field => !hiddenField(field) &&
-    (clubMetricHasData(home.stats,field.key) || clubMetricHasData(away.stats,field.key)))
-})).filter(category => category.fields.length);
-const hasAny = visibleCategories.length > 0;
-const display = (key, value) => {
-  const n = clubNumeric(value);
-  if (n === null) return '—';
-  const formatted = fmt2(n);
-  return CLUB_PERCENT_METRICS.has(key) ? `${formatted}%` : formatted;
+function ClubMatchCentreStatsCompare({ match, homeName, awayName }) {
+const home = getMatchTeamStats(match, 'home').stats;
+const away = getMatchTeamStats(match, 'away').stats;
+const valueText = (stats, metric) => {
+const value = clubNumeric(stats?.[metric.key]);
+return value === null ? '—' : `${fmt2(value)}${metric.unit === '%' ? '%' : ''}`;
 };
+const numericValue = (stats, key) => clubNumeric(stats?.[key]);
 return html`
-<div class="club-match-breakdown club-match-breakdown-premium">
-  <div class="club-match-breakdown-head">
-    <span><i class="fas fa-chart-column"></i> Match Statistics</span>
-    <small>Home and away team comparison</small>
-  </div>
-  <div class="club-match-side-head"><span class="home-side">${homeName||'Home'}</span><span>Metric</span><span class="away-side">${awayName||'Away'}</span></div>
-  ${!hasAny && html`<div class="empty-state club-stats-empty"><i class="fas fa-chart-bar"></i><div>No tracked team metrics are available for this match.</div></div>`}
-  <div class="club-detail-metric-categories">
-  ${visibleCategories.map(category => html`
-    <section class="club-detail-metric-category" key=${category.id}>
-      <header class="club-detail-metric-category-title"><i class=${`fas ${category.id==='attack'?'fa-bullseye':category.id==='passing'?'fa-arrows-left-right':category.id==='defence'?'fa-shield-halved':category.id==='goalkeeping'?'fa-hand':'fa-chart-line'}`}></i>${category.title}</header>
-      <div class="club-detail-metric-list">
-      ${category.fields.map(field => {
-        const hv = clubNumeric(home.stats[field.key]), av = clubNumeric(away.stats[field.key]);
-        const homeText = CLUB_SUCCESS_ATTEMPTS[field.key] ? clubPrimaryMetricDisplay(home.stats,field.key) : display(field.key,home.stats[field.key]);
-        const awayText = CLUB_SUCCESS_ATTEMPTS[field.key] ? clubPrimaryMetricDisplay(away.stats,field.key) : display(field.key,away.stats[field.key]);
-        const total = Math.abs(hv || 0) + Math.abs(av || 0);
-        const hw = total ? Math.max(2,(Math.abs(hv || 0)/total)*100) : 50;
-        const aw = total ? Math.max(2,(Math.abs(av || 0)/total)*100) : 50;
-        return html`
-          <div class="club-detail-metric-row" key=${field.key}>
-            <span class="club-detail-metric-value home-side">${homeText}</span>
-            <div class="club-detail-metric-center">
-              <div class="club-detail-metric-label">${field.label.replace(/\s*\([^)]*\)/g,'').replace(/\bTotal\b/gi,'').replace(/\s+/g,' ').trim()}</div>
-              ${hv !== null && av !== null ? html`<div class="club-detail-metric-bar"><span class="home-fill" style=${`width:${hw}%;`}></span><span class="away-fill" style=${`width:${aw}%;`}></span></div>` : ''}
-            </div>
-            <span class="club-detail-metric-value away-side">${awayText}</span>
-          </div>`;
-      })}
-      </div>
-    </section>
-  `)}
-  </div>
+<section class="club-centre-stats" aria-label="Home and away match statistics comparison">
+<div class="club-centre-stats-head">
+<span class="club-centre-team club-centre-home">${homeName || 'Home'}</span>
+<span class="club-centre-metric-heading">Match metric</span>
+<span class="club-centre-team club-centre-away">${awayName || 'Away'}</span>
+</div>
+${MATCH_COMPARE_STATS.map(metric => {
+const homeValue = numericValue(home, metric.key);
+const awayValue = numericValue(away, metric.key);
+const total = Math.abs(homeValue || 0) + Math.abs(awayValue || 0);
+const homeWidth = total > 0 ? (Math.abs(homeValue || 0) / total) * 100 : 50;
+const awayWidth = total > 0 ? (Math.abs(awayValue || 0) / total) * 100 : 50;
+return html`
+<div class="club-centre-stat-row" key=${metric.key}>
+<span class="club-centre-stat-value club-centre-home">${valueText(home, metric)}</span>
+<div class="club-centre-stat-main">
+<span class="club-centre-stat-label">${metric.label}</span>
+${homeValue !== null || awayValue !== null ? html`
+<span class="club-centre-stat-bar" aria-hidden="true">
+<i class="club-centre-home-fill" style=${`width:${homeWidth}%;`}></i>
+<i class="club-centre-away-fill" style=${`width:${awayWidth}%;`}></i>
+</span>` : ''}
+</div>
+<span class="club-centre-stat-value club-centre-away">${valueText(away, metric)}</span>
 </div>`;
+})}
+</section>`;
 }
 // ── MATCH EVENTS TIMELINE (left=home, right=away, with timestamps) ──
 function MatchEventsTimeline({ events, homeName, awayName, homePhoto, awayPhoto }) {
@@ -1431,6 +1457,7 @@ const [matchCentreSubTab, setMatchCentreSubTab] = useState('results');
 const [statsView, setStatsView] = useState('summary');
 const [statsMetricMode, setStatsMetricMode] = useState('summary');
 const [statsSearch, setStatsSearch] = useState('');
+const [clubCurrentMatchIdx, setClubCurrentMatchIdx] = useState(0);
 const [operationsSubTab, setOperationsSubTab] = useState('stats-tracking');
 const [accountSubTab, setAccountSubTab] = useState('settings');
 const [expandedMatchId, setExpandedMatchId] = useState(null);
@@ -1674,6 +1701,7 @@ if (matchFilter.result !== 'all' && (m.result||'').toUpperCase() !== matchFilter
 if (matchFilter.search) { const q = matchFilter.search.toLowerCase(); if (!(m.home_team||'').toLowerCase().includes(q) && !(m.away_team||'').toLowerCase().includes(q) && !(m.competition||'').toLowerCase().includes(q)) return false; }
 return true;
 }), [matchData, matchFilter]);
+const filteredMrClubs = useMemo(() => mrClubs.filter(club => clubMatchesMetricRanges(club, mrMetricFilters)), [mrClubs, mrMetricFilters]);
 const matchPerPage = 10;
 const matchPages = Math.max(1, Math.ceil(filteredMatches.length / matchPerPage));
 const pagedMatches = filteredMatches.slice((matchPage - 1) * matchPerPage, matchPage * matchPerPage);
@@ -1682,6 +1710,10 @@ if (!statsSearch) return true;
 const q = statsSearch.toLowerCase();
 return [m.home_team,m.homeTeam,m.away_team,m.awayTeam,m.competition,m.venue,m.venue_address].some(v => String(v||'').toLowerCase().includes(q));
 }), [matchData, statsSearch]);
+const currentClubDetailMatch = detailedStatsMatches[clubCurrentMatchIdx] || null;
+useEffect(() => {
+if (clubCurrentMatchIdx >= detailedStatsMatches.length) setClubCurrentMatchIdx(Math.max(0, detailedStatsMatches.length - 1));
+}, [clubCurrentMatchIdx, detailedStatsMatches.length]);
 const clubSeasonMetrics = useMemo(() => {
 const totals = {}, averages = {}, metricSums = {}, metricCounts = {}, pairedMetricSums = {};
 let coveredMatches = 0;
@@ -1834,7 +1866,7 @@ clubMetricHasData(clubSeasonMetrics.totals,field.key)).map(field => [field.label
 const gridRows = Math.ceil(metricRows.length / 3);
 const canvas = document.createElement('canvas');
 canvas.width = 1080;
-canvas.height = isDetailed ? 1350 : Math.max(1350, 470 + gridRows * 100);
+canvas.height = isDetailed ? 1340 : Math.max(1350, 470 + gridRows * 100);
 const ctx = canvas.getContext('2d');
 if (!ctx) throw new Error('This browser cannot create share images.');
 const template = await loadClubShareTemplate();
@@ -1862,9 +1894,8 @@ fitClubCanvasText(ctx,value,x+20,y+60,250,25,900,'#ffffff');
 });
 } else {
 const details = pageMatches;
-const metricKeys = ['possession','shots_on_target','passes_accurate','crosses_accurate','tackles_won','aerial_duels_won','saves','corners'];
-const labels = Object.fromEntries(CLUB_STAT_SCHEMA.flatMap(category=>category.fields.map(field=>[field.key,field.label])));
-const boxTop = 375, boxH = 300, gap = 14;
+const rowHeight = 37;
+const boxTop = 375, boxH = 166 + (MATCH_COMPARE_STATS.length * rowHeight), gap = 18;
 details.forEach((match,index) => {
 const y = boxTop + index * (boxH + gap);
 const homeName = match.home_team || match.homeTeam || 'Home';
@@ -1874,18 +1905,32 @@ const hs = match.home_score ?? match.score?.home ?? match.score?.home_score ?? '
 const as = match.away_score ?? match.score?.away ?? match.score?.away_score ?? '—';
 ctx.fillStyle = '#142052'; ctx.fillRect(58,y,964,boxH);
 ctx.fillStyle = '#ffbd00'; ctx.fillRect(58,y,7,boxH);
-fitClubCanvasText(ctx,`${homeName}  ${hs} – ${as}  ${awayName}`,82,y+34,910,20,900,'#ffffff');
+fitClubCanvasText(ctx,homeName,290,y+46,330,22,900,'#9fc1ff','right');
+fitClubCanvasText(ctx,`${hs}  –  ${as}`,540,y+46,170,24,900,'#ffffff','center');
+fitClubCanvasText(ctx,awayName,790,y+46,330,22,900,'#ffb4b4','left');
 const detailsLine = [fmtDate(match.date||match.match_date),match.time||match.match_time,match.competition,match.venue||match.venue_address,match.attendance ? `${Number(match.attendance).toLocaleString()} attendance` : null,match.result].filter(Boolean).join('  ·  ');
-wrapClubCanvasText(ctx,detailsLine,82,y+59,910,17,2,'#82d6b1');
-fitClubCanvasText(ctx,homeName,365,y+99,280,12,800,'#9fc1ff','right');
-fitClubCanvasText(ctx,'METRIC',540,y+99,220,12,800,'#dce7ff','center');
-fitClubCanvasText(ctx,awayName,715,y+99,280,12,800,'#ffb4b4','left');
-metricKeys.forEach((key,row) => {
-const top = y + 112 + row * 22;
-if (row % 2 === 0) { ctx.fillStyle='rgba(255,255,255,.045)'; ctx.fillRect(76,top-16,926,23); }
-fitClubCanvasText(ctx,formatClubMetric(home,key),365,top,280,13,800,'#ffffff','right');
-fitClubCanvasText(ctx,labels[key] || key,540,top,220,12,700,'#cbd5e1','center');
-fitClubCanvasText(ctx,formatClubMetric(away,key),715,top,280,13,800,'#ffffff','left');
+wrapClubCanvasText(ctx,detailsLine || 'Match details unavailable',82,y+75,910,18,2,'#82d6b1');
+fitClubCanvasText(ctx,homeName,286,y+119,300,12,800,'#9fc1ff','right');
+fitClubCanvasText(ctx,'MATCH METRICS',540,y+119,240,12,900,'#dce7ff','center');
+fitClubCanvasText(ctx,awayName,794,y+119,300,12,800,'#ffb4b4','left');
+MATCH_COMPARE_STATS.forEach((metric,row) => {
+const top = y + 132 + row * rowHeight;
+const hv = clubNumeric(home?.[metric.key]);
+const av = clubNumeric(away?.[metric.key]);
+const total = Math.abs(hv || 0) + Math.abs(av || 0);
+const barWidth = 252;
+const homeShare = total > 0 ? Math.abs(hv || 0) / total : .5;
+const homeText = hv === null ? '—' : `${fmt2(hv)}${metric.unit === '%' ? '%' : ''}`;
+const awayText = av === null ? '—' : `${fmt2(av)}${metric.unit === '%' ? '%' : ''}`;
+if (row % 2 === 0) { ctx.fillStyle='rgba(255,255,255,.045)'; ctx.fillRect(76,top-12,928,rowHeight); }
+fitClubCanvasText(ctx,homeText,286,top+11,300,14,850,'#ffffff','right');
+fitClubCanvasText(ctx,metric.label,540,top+11,240,12,750,'#dce7ff','center');
+fitClubCanvasText(ctx,awayText,794,top+11,300,14,850,'#ffffff','left');
+if (hv !== null || av !== null) {
+ctx.fillStyle='rgba(255,255,255,.15)'; ctx.fillRect(414,top+19,barWidth,5);
+ctx.fillStyle='#4e9be8'; ctx.fillRect(414,top+19,barWidth*homeShare,5);
+ctx.fillStyle='#ef6b73'; ctx.fillRect(414+(barWidth*homeShare),top+19,barWidth*(1-homeShare),5);
+}
 });
 });
 }
@@ -1904,7 +1949,7 @@ if (statsView !== 'detailed') {
 const blob = await createClubStatsPng();
 downloadClubPngBlob(blob,`${safeName}-enejistats-${statsMetricMode}.png`);
 } else {
-const pageSize = 3;
+const pageSize = 1;
 const pages = Math.max(1,Math.ceil(detailedStatsMatches.length/pageSize));
 for (let page=0; page<pages; page++) {
 const matches = detailedStatsMatches.slice(page*pageSize,(page+1)*pageSize);
@@ -1918,11 +1963,17 @@ addToast('Branded club PNG report saved.', 'success', 4000);
 const handlePrintStats = () => {
 window.print();
 };
+const clubTrackingUnitCost = Number(tokenCosts.club_stats_tracking ?? tokenCosts.club_tracking ?? 3);
+const combinedTrackingUnitCost = Number(tokenCosts.club_and_player_tracking ?? tokenCosts.full_tracking ?? 5);
+const playerTrackingUnitCost = Number(tokenCosts.player_stats_tracking ?? tokenCosts.player_tracking ?? Math.max(0, combinedTrackingUnitCost - clubTrackingUnitCost));
 const stTrackingCost = useMemo(() => {
+const count = stSelectedPlayers.length;
 if (stTrackingType === 'no_tracking') return 0;
-if (stTrackingType === 'club_only') return tokenCosts.club_stats_tracking || tokenCosts.club_tracking || 3;
-return tokenCosts.club_and_player_tracking || tokenCosts.full_tracking || 5;
-}, [stTrackingType, tokenCosts]);
+if (stTrackingType === 'club_only') return clubTrackingUnitCost;
+if (stTrackingType === 'player_only') return playerTrackingUnitCost * count;
+if (stTrackingType === 'club_and_players') return clubTrackingUnitCost + playerTrackingUnitCost * count;
+return 0;
+}, [stTrackingType, stSelectedPlayers.length, clubTrackingUnitCost, playerTrackingUnitCost]);
 const mrTrackingCost = useMemo(() => {
 const type = mrForm.tracking_type;
 if (!type || type === 'no_tracking') return 0;
@@ -2042,19 +2093,24 @@ const handleStatsTrackingSubmit = async (e) => {
 e.preventDefault();
 if (stTrackingType !== 'no_tracking' && availableTokens < stTrackingCost) { addToast('Insufficient tokens', 'error'); return; }
 setStSubmitting(true);
-const payload = {
+const basePayload = {
 match_date: stMatchDate, match_time: stMatchTime, match_type: stMatchType,
 home_team: stHomeTeam, away_team: stAwayTeam,
 club_role: stRole, venue_address: stVenue, venue_country: stCountry, venue_country_code: stCountryCode, venue_state: stState, venue_lga: stLGA, venue_city: stCity,
 jersey_color: stJerseyColor, tracking_type: stTrackingType, contact_phone: stContactPhone, notes: stNotes,
-player_ids: (stTrackingType === 'club_and_players' || stTrackingType === 'player_only') ? stSelectedPlayers : [],
+player_ids: [],
 };
 if (stTrackingCost > 0 && !e.__tokenConfirmed) {
+const selectedCount = stSelectedPlayers.length;
 setTokenConfirmation({
 title: 'Stats tracking request',
 cost: stTrackingCost,
 available: availableTokens,
-details: stTrackingType === 'club_and_players' ? 'Club coverage + player coverage.' : 'Club coverage only.',
+details: stTrackingType === 'club_and_players'
+? `Club coverage plus individual coverage for ${selectedCount} selected player${selectedCount===1?'':'s'}.`
+: stTrackingType === 'player_only'
+? `Individual stats coverage for ${selectedCount} selected player${selectedCount===1?'':'s'}.`
+: 'Club coverage only.',
 onConfirm: () => {
 setTokenConfirmation(null);
 handleStatsTrackingSubmit({ preventDefault:()=>{}, __tokenConfirmed:true });
@@ -2064,23 +2120,99 @@ setStSubmitting(false);
 return;
 }
 try {
-const r = await apiCall(`/club/${(club?.club_id || club?.user_id)}/stats-request`, { method: 'POST', body: JSON.stringify(payload) });
+const selectedPlayers = stSelectedPlayers.map(String);
+const batchReference = `ES-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2,8).toUpperCase()}`;
+const selectedPlayerInfo = new Map(squadPlayers.map(player => [String(player._id||player.player_id||player.id||''), player]));
+const requestJobs = (stTrackingType === 'club_and_players' || stTrackingType === 'player_only')
+? selectedPlayers.map((playerId,index) => {
+const player = selectedPlayerInfo.get(playerId);
+const playerName = player?.name || [player?.firstName,player?.lastName].filter(Boolean).join(' ') || 'Player';
+const isFirstCombinedRequest = stTrackingType === 'club_and_players' && index === 0;
+const safePlayerId = playerId.replace(/[^a-z0-9_-]/gi,'').slice(-24) || `player-${index+1}`;
+return {
+payload: {
+...basePayload,
+tracking_type: isFirstCombinedRequest ? 'club_and_players' : 'player_only',
+player_ids: [playerId]
+},
+player_id: playerId,
+player_name: playerName,
+client_request_id: `${batchReference}-${index+1}-${safePlayerId}`,
+reserved_cost: isFirstCombinedRequest ? clubTrackingUnitCost + playerTrackingUnitCost : playerTrackingUnitCost
+};
+})
+: [{
+payload: {...basePayload, player_ids: []},
+client_request_id: `${batchReference}-club`,
+reserved_cost: stTrackingType === 'club_only' ? clubTrackingUnitCost : 0
+}];
+const acceptedRequests = [];
+const usedReferences = new Set(statsRequests.map(request => String(request.reference_id||request.referenceId||request.request_id||request.requestId||request.id||request._id||'')));
+let reservedTokens = 0;
+let submissionError = null;
+for (const job of requestJobs) {
+try {
+const r = await apiCall(`/club/${(club?.club_id || club?.user_id)}/stats-request`, { method: 'POST', body: JSON.stringify(job.payload) });
 const nestedRequest = [r?.request, r?.stats_request, r?.statsRequest, r?.data, r?.result].find(value => value && typeof value === 'object' && !Array.isArray(value)) || {};
 const savedRequest = { ...nestedRequest, ...(r && typeof r === 'object' ? r : {}) };
 const requestId = savedRequest.request_id || savedRequest.requestId || savedRequest.stats_request_id || savedRequest.statsRequestId || savedRequest.reference_id || savedRequest.referenceId || savedRequest.id || savedRequest._id;
 const responseStatus = String(savedRequest.status || '').trim().toLowerCase();
-if (requestId || savedRequest.success === true || ['submitted', 'pending', 'created', 'accepted'].includes(responseStatus)) {
-addToast(`Stats tracking requested! ${stTrackingType !== 'no_tracking' ? stTrackingCost + ' tokens reserved.' : ''}`, 'success');
-if (stTrackingType !== 'no_tracking') setTokens(p => ({...p, locked: (p.locked||0) + stTrackingCost}));
-setStatsRequests(p => [{...payload, ...savedRequest, request_id: savedRequest.request_id || requestId, reference_id: savedRequest.reference_id || savedRequest.referenceId || requestId, status: savedRequest.status || 'Pending', submitted_at: savedRequest.submitted_at || savedRequest.submittedAt || new Date().toISOString()}, ...p]);
+if (!(requestId || savedRequest.success === true || ['submitted', 'pending', 'created', 'accepted'].includes(responseStatus))) {
+throw new Error(savedRequest.detail || savedRequest.message || 'Request was not accepted by the server.');
+}
+const clientReference = job.client_request_id;
+let referenceId = savedRequest.reference_id || savedRequest.referenceId || requestId || clientReference;
+if (usedReferences.has(String(referenceId))) referenceId = clientReference;
+usedReferences.add(String(referenceId));
+acceptedRequests.push({
+...job.payload,
+...savedRequest,
+request_id: savedRequest.request_id || savedRequest.requestId || requestId || clientReference,
+reference_id: referenceId,
+client_request_id: clientReference,
+player_id: job.player_id || savedRequest.player_id || '',
+player_name: job.player_name || savedRequest.player_name || '',
+tracking_type: job.payload.tracking_type,
+player_ids: job.payload.player_ids,
+status: savedRequest.status || 'Pending',
+submitted_at: savedRequest.submitted_at || savedRequest.submittedAt || new Date().toISOString()
+});
+reservedTokens += job.reserved_cost || 0;
+} catch (error) {
+submissionError = error;
+break;
+}
+}
+if (acceptedRequests.length) {
+setStatsRequests(p => [...acceptedRequests, ...p]);
+if (reservedTokens > 0) setTokens(p => ({...p, locked: (p.locked||0) + reservedTokens}));
+}
+if (submissionError) {
+if (acceptedRequests.length) {
+setStSubTab('history');
+addToast(`Submitted ${acceptedRequests.length} of ${requestJobs.length} individual requests. Check Request History before retrying; a failed response may still have reached the server.`, 'warning', 6500);
+} else addToast(submissionError?.message || 'Request failed', 'error');
+} else {
+addToast(`Stats tracking requested${reservedTokens ? `; ${reservedTokens} tokens reserved` : ''}. Each selected player has an individual reference.`, 'success', 5000);
 setStMatchDate(''); setStMatchTime(''); setStAwayTeam(''); setStVenue(''); setStCountry('Nigeria'); setStCountryCode('NG'); setStState(''); setStLGA(''); setStCity(''); setStJerseyColor(''); setStContactPhone(''); setStNotes(''); setStSelectedPlayers([]); setStStadiumSuggestions([]);
 setStSubTab('history');
-} else addToast(r?.detail || 'Request failed', 'error');
+}
 } catch (err) { addToast(err?.message || 'Request failed', 'error'); }
 finally { setStSubmitting(false); }
 };
 // Match requests
 const loadClubsForMatch = async () => {
+for (const key of Object.keys(CLUB_SEARCH_METRIC_ALIASES)) {
+const minRaw = mrMetricFilters[`${key}_min`], maxRaw = mrMetricFilters[`${key}_max`];
+const min = minRaw === '' ? null : Number(minRaw), max = maxRaw === '' ? null : Number(maxRaw);
+const [lowerBound,upperBound] = CLUB_SEARCH_METRIC_BOUNDS[key];
+if ((min !== null && (!Number.isFinite(min) || min < lowerBound || min > upperBound)) ||
+(max !== null && (!Number.isFinite(max) || max < lowerBound || max > upperBound)) ||
+(min !== null && max !== null && min > max)) {
+addToast(`Check the ${key.replace(/_/g,' ')} range: enter values from ${lowerBound} to ${upperBound}, with minimum no greater than maximum.`, 'warning');
+return;
+}
+}
 setMrLoading(true);
 try {
 const params = new URLSearchParams({ limit: 12, page: mrPage });
@@ -2089,7 +2221,7 @@ if (mrState) params.append('state', mrState);
 if (mrSearchQuery) params.append('q', mrSearchQuery);
 Object.entries(mrMetricFilters).forEach(([key,value]) => { if (value !== '') params.append(key, value); });
 const res = await apiCall(`/clubs/search?${params}`);
-setMrClubs(Array.isArray(res) ? res : res.clubs || []);
+setMrClubs(Array.isArray(res) ? res : res.clubs || res.results || res.data?.clubs || []);
 } catch { setMrClubs([]); }
 setMrLoading(false);
 };
@@ -2253,7 +2385,10 @@ ${m.attendance?html`<span>${Number(m.attendance).toLocaleString()} attendance</s
 ${m.result?html`<span>${m.result}</span>`:''}
 </div>
 </header>
-<${ClubMatchStatsBreakdown} match=${m} homeName=${m.home_team||m.homeTeam||'Home'} awayName=${m.away_team||m.awayTeam||'Away'} />
+<div class="club-match-breakdown">
+<div class="club-match-breakdown-head"><span><i class="fas fa-chart-column"></i> Match Statistics</span></div>
+<${ClubMatchCentreStatsCompare} match=${m} homeName=${m.home_team||m.homeTeam||'Home'} awayName=${m.away_team||m.awayTeam||'Away'} />
+</div>
 </article>
 `)}
 </div>
@@ -3124,11 +3259,22 @@ ${statsMetricMode==='summary'
 ${statsView==='detailed' && html`
 <div class="card">
 <div class="card-title"><i class="fas fa-table"></i> Detailed Match Stats</div>
-<input type="search" value=${statsSearch} onInput=${e=>setStatsSearch(e.target.value)} placeholder="Search opponent, competition or venue..." style="width:100%;margin-bottom:.75rem;" />
-<div class="club-match-detail-list">
-${detailedStatsMatches.length===0 ? html`<div class="empty-state"><i class="fas fa-futbol"></i><div>No detailed match stats available</div></div>` :
-detailedStatsMatches.map((m,i)=>html`
-<article key=${m._id||m.id||i} class="club-detail-match">
+<input type="search" value=${statsSearch} onInput=${e=>{setStatsSearch(e.target.value);setClubCurrentMatchIdx(0);}} placeholder="Search opponent, competition or venue..." style="width:100%;margin-bottom:.75rem;" />
+${detailedStatsMatches.length===0 ? html`<div class="empty-state"><i class="fas fa-futbol"></i><div>No detailed match stats available</div></div>` : html`
+<div class="club-matchday-navigator no-print" aria-label="Match navigation">
+<button type="button" onClick=${()=>setClubCurrentMatchIdx(index=>Math.max(0,index-1))} disabled=${clubCurrentMatchIdx<=0}>
+<i class="fas fa-chevron-left"></i> Previous match
+</button>
+<div class="club-matchday-current">
+<strong>Match ${clubCurrentMatchIdx+1} of ${detailedStatsMatches.length}</strong>
+<small>${currentClubDetailMatch?.competition||'Match details'}${currentClubDetailMatch?.date||currentClubDetailMatch?.match_date?` · ${fmtDate(currentClubDetailMatch.date||currentClubDetailMatch.match_date)}`:''}</small>
+</div>
+<button type="button" onClick=${()=>setClubCurrentMatchIdx(index=>Math.min(detailedStatsMatches.length-1,index+1))} disabled=${clubCurrentMatchIdx>=detailedStatsMatches.length-1}>
+Next match <i class="fas fa-chevron-right"></i>
+</button>
+</div>
+${currentClubDetailMatch && (()=>{const m=currentClubDetailMatch; return html`
+<article key=${m._id||m.id||clubCurrentMatchIdx} class="club-detail-match">
 <header class="club-detail-match-head">
 <div class="club-detail-match-teams">
 <div class="club-detail-team">${m.home_team||m.homeTeam||'Home'}</div>
@@ -3137,16 +3283,20 @@ detailedStatsMatches.map((m,i)=>html`
 </div>
 <div class="club-detail-match-meta">
 ${m.date||m.match_date?html`<span><i class="fas fa-calendar"></i> ${fmtDate(m.date||m.match_date)}</span>`:''}
+${m.time||m.match_time?html`<span><i class="fas fa-clock"></i> ${m.time||m.match_time}</span>`:''}
 ${m.competition?html`<span><i class="fas fa-trophy"></i> ${m.competition}</span>`:''}
 ${m.venue||m.venue_address?html`<span><i class="fas fa-location-dot"></i> ${m.venue||m.venue_address}</span>`:''}
 ${m.attendance?html`<span><i class="fas fa-users"></i> ${Number(m.attendance).toLocaleString()} attendance</span>`:''}
 ${m.result?html`<span class=${`result-badge ${getResultClass(m.result)}`}>${m.result}</span>`:''}
 </div>
 </header>
-<${ClubMatchStatsBreakdown} match=${m} homeName=${m.home_team||m.homeTeam||'Home'} awayName=${m.away_team||m.awayTeam||'Away'} />
-</article>
-`)}
+<div class="club-match-breakdown">
+<div class="club-match-breakdown-head"><span><i class="fas fa-chart-column"></i> Match Statistics</span></div>
+<${ClubMatchCentreStatsCompare} match=${m} homeName=${m.home_team||m.homeTeam||'Home'} awayName=${m.away_team||m.awayTeam||'Away'} />
 </div>
+</article>
+`;})()}
+`}
 </div>
 `}
 </div>
@@ -3197,8 +3347,8 @@ ${isDone?html`<i class="fas fa-check" style="font-size:0.6rem;"></i>`:(i+1)}
 ${stTrackingType!=='no_tracking' && html`
 <div class="token-cost-breakdown">
 <div class="token-cost-breakdown-title"><i class="fas fa-coins"></i> Token Cost Breakdown</div>
-<div class="token-cost-row"><span>Club Stats Coverage</span><span style="font-weight:700;">${stTrackingType==='club_and_players'?'3':'3'} tokens</span></div>
-${stTrackingType==='club_and_players'&&html`<div class="token-cost-row"><span>Player Stats Coverage</span><span style="font-weight:700;">+2 tokens</span></div>`}
+${stTrackingType!=='player_only'&&html`<div class="token-cost-row"><span>Club Stats Coverage</span><span style="font-weight:700;">${clubTrackingUnitCost} tokens</span></div>`}
+${(stTrackingType==='club_and_players'||stTrackingType==='player_only')&&html`<div class="token-cost-row"><span>Player Stats Coverage <small>· ${stSelectedPlayers.length} selected</small></span><span style="font-weight:700;">${playerTrackingUnitCost} × ${stSelectedPlayers.length} = ${playerTrackingUnitCost*stSelectedPlayers.length} tokens</span></div>`}
 <div class="token-cost-row tcr-total"><span>Total Reserved</span><span>${stTrackingCost} tokens</span></div>
 <div style="font-size:0.75rem;color:#78350f;margin-top:0.3rem;"><i class="fas fa-info-circle"></i> Available balance: <strong>${availableTokens} tokens</strong></div>
 </div>
@@ -3354,14 +3504,15 @@ ${stSubTab==='history' && html`
 <div class="card-title"><i class="fas fa-history"></i> Request History</div>
 ${statsRequests.length === 0 ? html`<div class="empty-state"><i class="fas fa-satellite-dish"></i><div>No tracking requests yet</div></div>` :
 statsRequests.map((r,i) => html`
-<div key=${r.reference_id||r.referenceId||r.request_id||r.requestId||r.id||r._id||i} class="request-item-card">
+<div key=${r.reference_id||r.referenceId||r.request_id||r.requestId||r.client_request_id||r.id||r._id||i} class="request-item-card">
 <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.4rem;">
 <div style="font-size:0.88rem;font-weight:800;">${r.home_team||r.homeTeam||'—'} vs ${r.away_team||r.awayTeam||'—'}</div>
 <span class=${`badge ${['approved','completed'].includes(String(r.status||'').toLowerCase())?'badge-green':['rejected','cancelled','canceled'].includes(String(r.status||'').toLowerCase())?'badge-red':'badge-yellow'}`}>${r.status||'Pending'}</span>
 </div>
 <div class="request-detail-grid">
 <div><span class="req-label">Date</span><br/><span class="req-value">${fmtDate(r.match_date||r.matchDate||r.submitted_at)}</span></div>
-<div><span class="req-label">Ref ID</span><br/><span class="req-value" style="font-family:var(--mono);font-size:0.75rem;">${r.reference_id||r.referenceId||r.request_id||r.requestId||r.stats_request_id||r.statsRequestId||r.id||r._id||'—'}</span></div>
+${(r.player_name||r.playerName||r.player_id||r.playerId)?html`<div><span class="req-label">Player</span><br/><span class="req-value">${r.player_name||r.playerName||r.player_id||r.playerId}</span></div>`:''}
+<div><span class="req-label">Ref ID</span><br/><span class="req-value" style="font-family:var(--mono);font-size:0.75rem;">${r.reference_id||r.referenceId||r.request_id||r.requestId||r.stats_request_id||r.statsRequestId||r.client_request_id||r.id||r._id||'—'}</span></div>
 <div><span class="req-label">Tracking</span><br/><span class="req-value">${(r.tracking_type||r.trackingType||'—').replace(/_/g,' ')}</span></div>
 <div><span class="req-label">Venue State</span><br/><span class="req-value">${r.venue_state||r.state||'—'}</span></div>
 <div><span class="req-label">Match Type</span><br/><span class="req-value">${r.match_type||r.matchType||'—'}</span></div>
@@ -3434,9 +3585,9 @@ ${mrLoading?html`<i class="fas fa-spinner fa-spin"></i> Searching...`:html`<i cl
 </div>
 </div>
 </div>
-${mrClubs.length > 0 && html`
+${filteredMrClubs.length > 0 && html`
 <div>
-${mrClubs.map(c => {
+${filteredMrClubs.map(c => {
 const cBadge = c.photo_url || c.badge_url || c.logo || c.photo;
 return html`
 <div key=${c._id||c.club_id} class="club-search-card" onClick=${()=>{ setMrSelectedClub(c); setMrModalOpen(true); setMrForm({}); }}>
@@ -3452,7 +3603,7 @@ ${(c.home_ground||c.stadium)?html`<div style="font-size:0.72rem;color:var(--text
 })}
 </div>
 `}
-${mrClubs.length === 0 && !mrLoading && html`<div class="card"><div class="empty-state"><i class="fas fa-search"></i><div>Search for clubs to send a match request</div></div></div>`}
+${filteredMrClubs.length === 0 && !mrLoading && html`<div class="card"><div class="empty-state"><i class="fas fa-search"></i><div>${mrClubs.length ? 'No clubs meet these performance ranges' : 'Search for clubs to send a match request'}</div></div></div>`}
 </div>
 `}
 ${mrSubTab==='sent' && html`
