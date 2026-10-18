@@ -144,6 +144,38 @@ fetch('/api/auth/me',{credentials:'include',cache:'no-store'})
   .club-print-footer-contacts{font-size:.62rem!important;gap:.3rem .65rem!important}
   .club-print-footer-disclaimer{font-size:.6rem!important}
 }
+
+/* Refined club statistics presentation — keeps all existing data and actions intact */
+.club-summary-grid{grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:.7rem}
+.club-summary-grid .stat-overview-card{position:relative;min-height:86px;display:flex;flex-direction:column;justify-content:center;gap:.4rem;padding:.85rem .6rem;border:1px solid #e2e8f0;border-top:3px solid var(--primary);border-radius:10px;box-shadow:0 3px 12px rgba(15,23,42,.055);transition:transform .18s,box-shadow .18s}
+.club-summary-grid .stat-overview-card:hover{transform:translateY(-2px);box-shadow:0 7px 18px rgba(0,74,173,.1)}
+.club-summary-grid .stat-ov-value{font-size:clamp(1.25rem,2vw,1.75rem);letter-spacing:-.035em}
+.club-summary-grid .stat-ov-label{font-size:.63rem;line-height:1.35;letter-spacing:.45px}
+.club-metric-matrix .matrix-card-body{padding:.85rem}
+.club-metric-matrix .category-block{padding:.2rem 0 .55rem;margin-bottom:.8rem}
+.club-metric-matrix .cat-chip{font-size:.68rem;padding:.32rem .65rem;border-radius:5px;margin-bottom:.55rem}
+.club-metric-matrix .fields-grid{grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:.5rem}
+.club-metric-matrix .stat-field{min-height:54px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:.32rem;padding:.6rem .7rem;border:1px solid #e5eaf2;border-radius:8px;background:linear-gradient(145deg,#fff,#f8fbff)}
+.club-metric-matrix .stat-field .label{font-size:.7rem;line-height:1.35;color:#64748b}
+.club-metric-matrix .stat-field .value{font-size:1.05rem;color:var(--primary);font-weight:900}
+.club-match-breakdown-premium{padding:.8rem}
+.club-match-breakdown-premium .club-match-breakdown-head{align-items:center;margin-bottom:.75rem}
+.club-match-breakdown-premium .club-match-breakdown-head>span{font-size:.82rem;letter-spacing:.45px}
+.club-detail-metric-categories{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:.7rem;margin-top:.7rem}
+.club-detail-metric-category{min-width:0;border:1px solid #e5eaf2;border-radius:9px;overflow:hidden;background:#fff}
+.club-detail-metric-category-title{display:flex;align-items:center;gap:.45rem;padding:.62rem .75rem;background:linear-gradient(100deg,#f1f6fd,#fbfdff);border-bottom:1px solid #e5eaf2;color:var(--primary);font-size:.69rem;font-weight:900;letter-spacing:.5px}
+.club-detail-metric-list{padding:.15rem .65rem}
+.club-detail-metric-row{display:grid;grid-template-columns:minmax(38px,.55fr) minmax(0,2fr) minmax(38px,.55fr);align-items:center;gap:.55rem;padding:.58rem .1rem;border-bottom:1px solid #f0f4f8}
+.club-detail-metric-row:last-child{border-bottom:0}
+.club-detail-metric-value{font-family:var(--mono);font-size:.8rem;font-weight:900;white-space:nowrap}
+.club-detail-metric-value.home-side{text-align:left;color:var(--primary)}
+.club-detail-metric-value.away-side{text-align:right;color:#dc2626}
+.club-detail-metric-center{min-width:0}
+.club-detail-metric-label{text-align:center;font-size:.7rem;font-weight:750;color:#334155;line-height:1.3;overflow-wrap:anywhere}
+.club-detail-metric-bar{display:flex;height:4px;gap:2px;overflow:hidden;border-radius:99px;background:#eef2f7;margin-top:.4rem}
+.club-detail-metric-bar .home-fill{display:block;background:var(--primary);border-radius:99px 0 0 99px}
+.club-detail-metric-bar .away-fill{display:block;background:#dc2626;border-radius:0 99px 99px 0;margin-left:auto}
+@media(max-width:520px){.club-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.club-detail-metric-categories{grid-template-columns:1fr}.club-match-breakdown-premium{padding:.55rem}.club-detail-metric-row{gap:.35rem}.club-detail-metric-label{font-size:.67rem}}
 </style>
 </head><body><div id="root"></div>
 <script>(function() {
@@ -165,7 +197,7 @@ const copyToClipboard = (text) => { navigator.clipboard.writeText(text).catch(()
 const CLUB_STAT_SCHEMA = [
 { id:'attack', title:'ATTACK', fields:[
 {key:'goals_for', label:'Goals For'},{key:'goals_against', label:'Goals Against'},
-{key:'shots_total', label:'Total Shots'},{key:'shots_on_target', label:'Shots On Target'},
+{key:'shots_total', label:'Shots'},{key:'shots_on_target', label:'Shots On Target'},
 {key:'big_chances', label:'Big Chances'},{key:'corners', label:'Corner Kicks'},
 {key:'offsides', label:'Offsides'},
 ]},
@@ -173,15 +205,15 @@ const CLUB_STAT_SCHEMA = [
 {key:'possession', label:'Possession %'},
 ]},
 { id:'passing', title:'PASSING', fields:[
-{key:'passes_total', label:'Total Passes'},{key:'passes_accurate', label:'Acc. Passes'},
+{key:'passes_total', label:'Passes'},{key:'passes_accurate', label:'Acc. Passes'},
 {key:'pass_accuracy', label:'Pass Accuracy %'},{key:'key_passes', label:'Key Passes'},
-{key:'crosses_total', label:'Total Crosses'},{key:'crosses_accurate', label:'Acc. Crosses'},
+{key:'crosses_total', label:'Crosses'},{key:'crosses_accurate', label:'Acc. Crosses'},
 ]},
 { id:'defence', title:'DEFENCE', fields:[
-{key:'clean_sheets', label:'Clean Sheets'},{key:'tackles_total', label:'Total Tackles'},
+{key:'clean_sheets', label:'Clean Sheets'},{key:'tackles_total', label:'Tackles'},
 {key:'tackles_won', label:'Tackles Won'},{key:'interceptions', label:'Interceptions'},
 {key:'clearances', label:'Clearances'},{key:'aerial_duels_won', label:'Aerial Duels Won'},
-{key:'aerial_duels_total', label:'Aerial Duels Total'},
+{key:'aerial_duels_total', label:'Aerial Duels'},
 ]},
 { id:'goalkeeping', title:'GOALKEEPING', fields:[
 {key:'saves', label:'Saves'},{key:'shots_faced', label:'Shots Faced'},{key:'penalty_saves', label:'Penalty Saves'},
@@ -194,15 +226,15 @@ const CLUB_STAT_SCHEMA = [
 ];
 const MATCH_COMPARE_STATS = [
 {key:'possession', label:'Ball Possession', unit:'%'},
-{key:'shots_total', label:'Total Shots'},
+{key:'shots_total', label:'Shots'},
 {key:'shots_on_target', label:'Shots on Target'},
 {key:'big_chances', label:'Big Chances'},
 {key:'corners', label:'Corner Kicks'},
-{key:'passes_total', label:'Total Passes'},
+{key:'passes_total', label:'Passes'},
 {key:'pass_accuracy', label:'Pass Accuracy', unit:'%'},
 {key:'key_passes', label:'Key Passes'},
-{key:'crosses_total', label:'Total Crosses'},
-{key:'tackles_total', label:'Total Tackles'},
+{key:'crosses_total', label:'Crosses'},
+{key:'tackles_total', label:'Tackles'},
 {key:'interceptions', label:'Interceptions'},
 {key:'aerial_duels_won', label:'Aerial Duels Won'},
 {key:'fouls_committed', label:'Fouls Committed'},
@@ -317,6 +349,10 @@ text += ` · ${fmt2(rate)}%`;
 }
 if (CLUB_PERCENT_METRICS.has(key) && !pair) text += '%';
 return text;
+}
+function clubPrimaryMetricDisplay(stats, key) {
+const formatted = formatClubMetric(stats, key);
+return String(formatted).replace(/\s*\([^)]*\)/g, '').replace(/\s*·\s*[\d.]+%?/, '').trim();
 }
 function clubFlag(value) {
 return value === true || ['true','1','yes','y','starter'].includes(String(value || '').trim().toLowerCase());
@@ -608,7 +644,7 @@ ${filtered.map(cat => html`
 ${cat.fields.filter(f => !shouldHideClubMetric(stats, f.key)).map(f => html`
 <div key=${f.key} class="stat-field">
 <span class="label">${f.label}</span>
-<span class="value">${formatClubMetric(stats, f.key)}</span>
+<span class="value">${clubPrimaryMetricDisplay(stats, f.key)}</span>
 </div>
 `)}
 </div>
@@ -662,58 +698,57 @@ return html`
 function ClubMatchStatsBreakdown({ match, homeName, awayName }) {
 const home = getMatchTeamStats(match, 'home');
 const away = getMatchTeamStats(match, 'away');
-const visibleCategories = CLUB_STAT_SCHEMA.filter(category => category.fields.some(field =>
-!CLUB_ATTEMPT_ONLY_KEYS.has(field.key) && field.key !== 'goals_for' && field.key !== 'goals_against' &&
-!(Object.entries(CLUB_SUCCESS_ATTEMPTS).some(([successKey,pair]) => pair.rate === field.key &&
-(clubMetricHasPair(home.stats,successKey) || clubMetricHasPair(away.stats,successKey)))) &&
-(clubMetricHasData(home.stats,field.key) || clubMetricHasData(away.stats,field.key))));
+const hiddenField = field => CLUB_ATTEMPT_ONLY_KEYS.has(field.key) ||
+  field.key === 'goals_for' || field.key === 'goals_against' ||
+  Object.entries(CLUB_SUCCESS_ATTEMPTS).some(([successKey,pair]) =>
+    pair.rate === field.key && (clubMetricHasPair(home.stats,successKey) || clubMetricHasPair(away.stats,successKey)));
+const visibleCategories = CLUB_STAT_SCHEMA.map(category => ({
+  ...category,
+  fields: category.fields.filter(field => !hiddenField(field) &&
+    (clubMetricHasData(home.stats,field.key) || clubMetricHasData(away.stats,field.key)))
+})).filter(category => category.fields.length);
 const hasAny = visibleCategories.length > 0;
 const display = (key, value) => {
-const n = clubNumeric(value);
-if (n === null) return '—';
-const text = fmt2(n);
- return CLUB_PERCENT_METRICS.has(key) ? `${text}%` : text;
+  const n = clubNumeric(value);
+  if (n === null) return '—';
+  const formatted = fmt2(n);
+  return CLUB_PERCENT_METRICS.has(key) ? `${formatted}%` : formatted;
 };
 return html`
-<div class="club-match-breakdown">
-<div class="club-match-breakdown-head">
-<span><i class="fas fa-chart-column"></i> Team Match Metrics</span>
-</div>
-<div class="club-match-side-head"><span class="home-side">${homeName||'Home'}</span><span>Metric</span><span class="away-side">${awayName||'Away'}</span></div>
-${!hasAny && html`<div class="empty-state club-stats-empty"><i class="fas fa-chart-bar"></i><div>No tracked team metrics are available for this match.</div></div>`}
-${visibleCategories.map(category => html`
-<section class="club-match-category" key=${category.id}>
-<div class="club-match-category-title">${category.title}</div>
-${category.fields.filter(field => !CLUB_ATTEMPT_ONLY_KEYS.has(field.key) &&
-!(field.key === 'goals_for' || field.key === 'goals_against') &&
-!(Object.entries(CLUB_SUCCESS_ATTEMPTS).some(([successKey,pair]) => pair.rate === field.key &&
-((clubMetricHasPair(home.stats, successKey)) || (clubMetricHasPair(away.stats, successKey)))))).map(field => {
-const homeValue = clubNumeric(home.stats[field.key]);
-const awayValue = clubNumeric(away.stats[field.key]);
-const total = Math.abs(homeValue || 0) + Math.abs(awayValue || 0);
-const homeWidth = total > 0 ? Math.max(3, (Math.abs(homeValue || 0) / total) * 100) : 50;
-const awayWidth = total > 0 ? Math.max(3, (Math.abs(awayValue || 0) / total) * 100) : 50;
-const homeText = CLUB_SUCCESS_ATTEMPTS[field.key] ? formatClubMetric(home.stats, field.key) : display(field.key, home.stats[field.key]);
-const awayText = CLUB_SUCCESS_ATTEMPTS[field.key] ? formatClubMetric(away.stats, field.key) : display(field.key, away.stats[field.key]);
-if (!clubMetricHasData(home.stats,field.key) && !clubMetricHasData(away.stats,field.key)) return null;
-return html`
-<div class="club-match-metric" key=${field.key}>
-<span class="club-match-value home-side">${homeText}</span>
-<div class="club-match-metric-center">
-<div class="club-match-metric-label">${field.label}</div>
-${homeValue !== null && awayValue !== null ? html`
-<div class="club-match-metric-bar" aria-label=${`${homeName||'Home'} ${homeText}, ${awayName||'Away'} ${awayText}`}>
-<span class="home-fill" style=${`width:${homeWidth}%;`}></span><span class="away-fill" style=${`width:${awayWidth}%;`}></span>
-</div>` : ''}
-</div>
-<span class="club-match-value away-side">${awayText}</span>
-</div>
-`;
-})}
-</section>
-`)}
-</div>
-`;
+<div class="club-match-breakdown club-match-breakdown-premium">
+  <div class="club-match-breakdown-head">
+    <span><i class="fas fa-chart-column"></i> Match Statistics</span>
+    <small>Home and away team comparison</small>
+  </div>
+  <div class="club-match-side-head"><span class="home-side">${homeName||'Home'}</span><span>Metric</span><span class="away-side">${awayName||'Away'}</span></div>
+  ${!hasAny && html`<div class="empty-state club-stats-empty"><i class="fas fa-chart-bar"></i><div>No tracked team metrics are available for this match.</div></div>`}
+  <div class="club-detail-metric-categories">
+  ${visibleCategories.map(category => html`
+    <section class="club-detail-metric-category" key=${category.id}>
+      <header class="club-detail-metric-category-title"><i class=${`fas ${category.id==='attack'?'fa-bullseye':category.id==='passing'?'fa-arrows-left-right':category.id==='defence'?'fa-shield-halved':category.id==='goalkeeping'?'fa-hand':'fa-chart-line'}`}></i>${category.title}</header>
+      <div class="club-detail-metric-list">
+      ${category.fields.map(field => {
+        const hv = clubNumeric(home.stats[field.key]), av = clubNumeric(away.stats[field.key]);
+        const homeText = CLUB_SUCCESS_ATTEMPTS[field.key] ? clubPrimaryMetricDisplay(home.stats,field.key) : display(field.key,home.stats[field.key]);
+        const awayText = CLUB_SUCCESS_ATTEMPTS[field.key] ? clubPrimaryMetricDisplay(away.stats,field.key) : display(field.key,away.stats[field.key]);
+        const total = Math.abs(hv || 0) + Math.abs(av || 0);
+        const hw = total ? Math.max(2,(Math.abs(hv || 0)/total)*100) : 50;
+        const aw = total ? Math.max(2,(Math.abs(av || 0)/total)*100) : 50;
+        return html`
+          <div class="club-detail-metric-row" key=${field.key}>
+            <span class="club-detail-metric-value home-side">${homeText}</span>
+            <div class="club-detail-metric-center">
+              <div class="club-detail-metric-label">${field.label.replace(/\s*\([^)]*\)/g,'').replace(/\bTotal\b/gi,'').replace(/\s+/g,' ').trim()}</div>
+              ${hv !== null && av !== null ? html`<div class="club-detail-metric-bar"><span class="home-fill" style=${`width:${hw}%;`}></span><span class="away-fill" style=${`width:${aw}%;`}></span></div>` : ''}
+            </div>
+            <span class="club-detail-metric-value away-side">${awayText}</span>
+          </div>`;
+      })}
+      </div>
+    </section>
+  `)}
+  </div>
+</div>`;
 }
 // ── MATCH EVENTS TIMELINE (left=home, right=away, with timestamps) ──
 function MatchEventsTimeline({ events, homeName, awayName, homePhoto, awayPhoto }) {
