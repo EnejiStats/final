@@ -37,6 +37,41 @@ fetch('/api/auth/me',{credentials:'include',cache:'no-store'})
 .matchday-actions .btn{font-size:.72rem}
 @media(max-width:850px){.matchday-shell{grid-template-columns:1fr}.matchday-pitch{max-height:64vh}}
 @media(max-width:480px){.matchday-squad-pool{grid-template-columns:1fr 1fr}.matchday-board{padding:.55rem}.matchday-insight{padding:.5rem}}
+.club-summary-note{margin:-.15rem 0 .8rem;color:#64748b;font-size:.75rem;line-height:1.5}
+.club-match-detail-list{display:grid;gap:.75rem}
+.club-detail-match{overflow:hidden;border:1px solid var(--border);border-radius:12px;background:#fff;box-shadow:0 2px 10px rgba(15,23,42,.045)}
+.club-detail-match-head{padding:.85rem 1rem;background:linear-gradient(135deg,#f8fbff,#eef5ff);border-bottom:1px solid var(--border)}
+.club-detail-match-teams{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:.65rem}
+.club-detail-team{font-size:.95rem;font-weight:850;color:#1e293b;overflow-wrap:anywhere}
+.club-detail-team:last-child{text-align:right}
+.club-detail-score{padding:.35rem .7rem;border-radius:8px;background:var(--primary);color:#fff;font-family:var(--mono);font-size:1.05rem;font-weight:900;white-space:nowrap}
+.club-detail-match-meta{display:flex;flex-wrap:wrap;gap:.35rem .9rem;margin-top:.55rem;color:#64748b;font-size:.72rem}
+.club-detail-match-meta span{display:inline-flex;align-items:center;gap:.28rem}
+.club-match-breakdown{padding:.75rem}
+.club-match-breakdown-head{display:flex;justify-content:space-between;align-items:flex-start;gap:.75rem;margin-bottom:.6rem}
+.club-match-breakdown-head>span{font-size:.78rem;font-weight:850;color:var(--primary);text-transform:uppercase;letter-spacing:.35px}
+.club-match-breakdown-head small{max-width:430px;color:#64748b;font-size:.68rem;line-height:1.45;text-align:right}
+.club-match-side-head,.club-match-metric{display:grid;grid-template-columns:minmax(58px,.8fr) minmax(130px,2fr) minmax(58px,.8fr);align-items:center;gap:.65rem}
+.club-match-side-head{padding:.48rem .55rem;border-radius:7px;background:#f8fafc;color:#64748b;font-size:.66rem;font-weight:850;text-align:center;text-transform:uppercase;letter-spacing:.35px}
+.club-match-side-head .home-side,.club-match-side-head .away-side{color:var(--primary)}
+.club-match-side-head .away-side{color:#dc2626}
+.club-match-category{margin-top:.7rem}
+.club-match-category-title{padding:.35rem .5rem;border-left:3px solid var(--primary);background:#f1f6fd;color:var(--primary);font-size:.66rem;font-weight:900;letter-spacing:.4px}
+.club-match-metric{min-height:42px;padding:.42rem .5rem;border-bottom:1px solid #eef2f7}
+.club-match-value{font-family:var(--mono);font-size:.8rem;font-weight:900;white-space:nowrap}
+.club-match-value.home-side{color:var(--primary);text-align:right}
+.club-match-value.away-side{color:#dc2626}
+.club-match-metric-center{min-width:0;text-align:center}
+.club-match-metric-label{font-size:.72rem;font-weight:750;color:#334155}
+.club-match-metric-bar{display:flex;height:4px;gap:2px;overflow:hidden;margin:.28rem auto 0;max-width:260px;border-radius:99px;background:#e2e8f0}
+.club-match-metric-bar .home-fill{background:var(--primary);border-radius:99px 0 0 99px}
+.club-match-metric-bar .away-fill{background:#ef4444;border-radius:0 99px 99px 0}
+.club-match-metric-missing{margin-top:2px;color:#94a3b8;font-size:.61rem}
+.club-player-aggregation-note{display:flex;gap:.4rem;align-items:flex-start;margin-top:.7rem;padding:.55rem .65rem;border:1px solid #dbeafe;border-radius:7px;background:#f8fbff;color:#475569;font-size:.68rem;line-height:1.5}
+.club-player-aggregation-note i{margin-top:.1rem;color:var(--primary)}
+.club-stats-empty{padding:.8rem}
+@media(max-width:640px){.club-match-breakdown{padding:.55rem}.club-match-breakdown-head{display:block}.club-match-breakdown-head small{display:block;max-width:none;margin-top:.25rem;text-align:left}.club-match-side-head,.club-match-metric{grid-template-columns:minmax(48px,.75fr) minmax(95px,2fr) minmax(48px,.75fr);gap:.35rem}.club-match-metric{padding:.4rem .25rem}.club-match-value{font-size:.72rem}.club-match-metric-label{font-size:.66rem}.club-detail-match-head{padding:.7rem}.club-detail-team{font-size:.78rem}.club-detail-score{font-size:.9rem;padding:.3rem .45rem}}
+@media print{.club-detail-match,.club-match-category{break-inside:avoid;page-break-inside:avoid}.club-match-metric-missing{display:none}}
 </style>
 </head><body><div id="root"></div><div class="print-header"><div class="print-header-logo">EnejiStats</div><div class="print-header-sub">Africa's Football Intelligence Platform &nbsp;|&nbsp; Club Dashboard Report</div><div style="font-size:0.78rem;color:#64748b;margin-top:6px;" id="print-club-meta"></div></div><div class="print-footer"> &#128241; +2348083940039 &nbsp;&nbsp;&#128222; +2347065556569 &nbsp;&nbsp;&#9993; enejistats@gmail.com &nbsp;&nbsp;&#127760; www.enejistats.com<br/> &#9917; <strong>EnejiStats</strong> &mdash; Africa's Football Intelligence Platform
 </div>
@@ -62,6 +97,9 @@ const CLUB_STAT_SCHEMA = [
 {key:'shots_total', label:'Total Shots'},{key:'shots_on_target', label:'Shots On Target'},
 {key:'big_chances', label:'Big Chances'},{key:'corners', label:'Corner Kicks'},
 {key:'offsides', label:'Offsides'},
+]},
+{ id:'control', title:'MATCH CONTROL', fields:[
+{key:'possession', label:'Possession %'},
 ]},
 { id:'passing', title:'PASSING', fields:[
 {key:'passes_total', label:'Total Passes'},{key:'passes_accurate', label:'Acc. Passes'},
@@ -100,6 +138,228 @@ const MATCH_COMPARE_STATS = [
 {key:'red_cards', label:'Red Cards'},
 {key:'saves', label:'GK Saves'},
 ];
+const CLUB_RATE_METRICS = new Set(['possession','pass_accuracy','goals_against_avg','save_percentage']);
+const CLUB_PLAYER_METRIC_ALIASES = {
+goals_for:['goals_for','goals','goals_scored'],
+shots_total:['shots_total','shots','total_shots'],
+shots_on_target:['shots_on_target','shots_on_goal'],
+big_chances:['big_chances','big_chances_created'],
+corners:['corners','corner_kicks'],
+offsides:['offsides'],
+passes_total:['passes_total','passes','passes_attempted'],
+passes_accurate:['passes_accurate','passes_completed','accurate_passes'],
+key_passes:['key_passes'],
+crosses_total:['crosses_total','crosses'],
+crosses_accurate:['crosses_accurate','accurate_crosses'],
+tackles_total:['tackles_total','tackles'],
+tackles_won:['tackles_won'],
+interceptions:['interceptions'],
+clearances:['clearances'],
+aerial_duels_won:['aerial_duels_won'],
+saves:['saves'],
+penalty_saves:['penalty_saves'],
+yellow_cards:['yellow_cards','yellow_card'],
+red_cards:['red_cards','red_card'],
+fouls_committed:['fouls_committed','fouls'],
+fouls_won:['fouls_won'],
+};
+const CLUB_TEAM_METRIC_ALIASES = {
+goals_for:['goals_for','goals','goals_scored'],
+goals_against:['goals_against','goals_conceded'],
+shots_total:['shots_total','shots','total_shots'],
+shots_on_target:['shots_on_target','shots_on_goal','on_target_shots'],
+big_chances:['big_chances','big_chances_created'],
+corners:['corners','corner_kicks'],
+offsides:['offsides','offside'],
+possession:['possession','possession_pct','possession_percentage'],
+passes_total:['passes_total','passes','passes_attempted','total_passes'],
+passes_accurate:['passes_accurate','passes_completed','accurate_passes','successful_passes'],
+pass_accuracy:['pass_accuracy','passing_accuracy','pass_accuracy_pct'],
+key_passes:['key_passes'],
+crosses_total:['crosses_total','crosses','total_crosses'],
+crosses_accurate:['crosses_accurate','accurate_crosses','successful_crosses'],
+clean_sheets:['clean_sheets','clean_sheet'],
+tackles_total:['tackles_total','tackles','total_tackles'],
+tackles_won:['tackles_won','successful_tackles'],
+interceptions:['interceptions'],
+clearances:['clearances'],
+aerial_duels_won:['aerial_duels_won'],
+saves:['saves','goalkeeper_saves'],
+penalty_saves:['penalty_saves'],
+goals_against_avg:['goals_against_avg'],
+save_percentage:['save_percentage','save_pct'],
+yellow_cards:['yellow_cards','yellow_card'],
+red_cards:['red_cards','red_card'],
+fouls_committed:['fouls_committed','fouls','fouls_given'],
+fouls_won:['fouls_won'],
+};
+function clubNumeric(value) {
+if (value === null || value === undefined || value === '') return null;
+const n = Number(typeof value === 'string' ? value.trim().replace(/%$/, '') : value);
+return Number.isFinite(n) ? n : null;
+}
+function clubFlag(value) {
+return value === true || ['true','1','yes','y','starter'].includes(String(value || '').trim().toLowerCase());
+}
+function clubRecordStats(value) {
+if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+return {...(value.statistics && typeof value.statistics === 'object' ? value.statistics : {}), ...(value.stats && typeof value.stats === 'object' ? value.stats : {}), ...value};
+}
+function getMatchTeamPlayers(match, side) {
+const sideLineup = match?.lineups?.[side] || match?.lineups?.[side === 'home' ? 'home_team' : 'away_team'];
+const directLineup = match?.[`${side}_lineup`] || match?.[`${side}Lineup`];
+const candidates = [
+sideLineup?.players, Array.isArray(sideLineup) ? sideLineup : null,
+directLineup?.players, Array.isArray(directLineup) ? directLineup : null,
+match?.[`${side}_players`], match?.[`${side}Players`],
+match?.player_stats?.[side], match?.playerStats?.[side],
+];
+const players = candidates.find(Array.isArray);
+if (players) return players.map(clubRecordStats);
+const all = match?.player_stats || match?.playerStats;
+if (Array.isArray(all)) return all.filter(p => String(p?.team_side || p?.side || '').toLowerCase() === side).map(clubRecordStats);
+return [];
+}
+function getStartingEleven(players) {
+const rows = Array.isArray(players) ? players : [];
+const hasStarterFlags = rows.some(p => p?.is_starter != null || p?.starter != null || p?.starting != null || p?.started != null);
+const hasSubstituteFlags = rows.some(p => p?.substitute != null || p?.is_substitute != null || p?.bench != null);
+let starters = hasStarterFlags
+? rows.filter(p => clubFlag(p?.is_starter) || clubFlag(p?.starter) || clubFlag(p?.starting) || clubFlag(p?.started))
+: rows.filter(p => !clubFlag(p?.substitute) && !clubFlag(p?.is_substitute) && !clubFlag(p?.bench));
+if (starters.length !== 11 && !hasStarterFlags && !hasSubstituteFlags && rows.length === 11) starters = rows;
+const unique = [];
+const seen = new Set();
+for (const p of starters) {
+const id = p?.player_id ?? p?.playerId ?? p?._id ?? p?.id ?? p?.number ?? p?.name;
+const key = id == null ? p : String(id).trim().toLowerCase();
+if (!seen.has(key)) { seen.add(key); unique.push(p); }
+}
+return unique.length === 11 ? unique : [];
+}
+function getPlayerMetricValue(player, aliases) {
+for (const key of aliases || []) {
+const value = clubNumeric(player?.[key]);
+if (value !== null) return value;
+}
+return null;
+}
+function sumStartingElevenMetric(players, metric) {
+const xi = getStartingEleven(players);
+const aliases = CLUB_PLAYER_METRIC_ALIASES[metric];
+if (xi.length !== 11 || !aliases) return null;
+const values = xi.map(p => getPlayerMetricValue(p, aliases));
+return values.every(v => v !== null) ? values.reduce((a, b) => a + b, 0) : null;
+}
+function getRecordedMatchTeamStats(match, side) {
+const sides = match?.team_stats || match?.teamStats || match?.club_stats || match?.clubStats || {};
+const nestedStats = match?.stats && typeof match.stats === 'object' ? match.stats : {};
+const tracking = match?.club_tracking || match?.clubTracking || {};
+const trackerStats = tracking?.stats && typeof tracking.stats === 'object' ? tracking.stats : {};
+const trackerDerived = tracking?.derived && typeof tracking.derived === 'object' ? tracking.derived : {};
+const trackerPossession = tracking?.possession && typeof tracking.possession === 'object' ? tracking.possession : {};
+const trackerFlat = {};
+for (const [key,value] of Object.entries(trackerStats)) {
+if (value && typeof value === 'object' && !Array.isArray(value) && value[side] != null) trackerFlat[key] = value[side];
+}
+const selectTrackerTeam = value => value && typeof value === 'object' && !Array.isArray(value) && value[side] && typeof value[side] === 'object' ? value[side] : value;
+const directTrackerTeamStats = trackerStats[side] || trackerStats[`${side}_stats`] || {};
+const trackerGrouped = {};
+const passGroup = selectTrackerTeam(trackerStats.passes || trackerStats.passing || directTrackerTeamStats.passes || directTrackerTeamStats.passing);
+if (passGroup && typeof passGroup === 'object') {
+trackerGrouped.passes_total = passGroup.attempted ?? passGroup.attempts ?? passGroup.total ?? passGroup.total_passes;
+trackerGrouped.passes_accurate = passGroup.completed ?? passGroup.accurate ?? passGroup.successful;
+trackerGrouped.pass_accuracy = passGroup.accuracy ?? passGroup.pass_accuracy;
+}
+const shotGroup = selectTrackerTeam(trackerStats.shots || trackerStats.shooting || directTrackerTeamStats.shots || directTrackerTeamStats.shooting);
+if (shotGroup && typeof shotGroup === 'object') {
+trackerGrouped.shots_total = shotGroup.total ?? shotGroup.attempted ?? shotGroup.attempts;
+trackerGrouped.shots_on_target = shotGroup.on_target ?? shotGroup.on_goal ?? shotGroup.target;
+}
+const crossGroup = selectTrackerTeam(trackerStats.crosses || trackerStats.crossing || directTrackerTeamStats.crosses || directTrackerTeamStats.crossing);
+if (crossGroup && typeof crossGroup === 'object') {
+trackerGrouped.crosses_total = crossGroup.total ?? crossGroup.attempted ?? crossGroup.attempts;
+trackerGrouped.crosses_accurate = crossGroup.accurate ?? crossGroup.completed ?? crossGroup.successful;
+}
+const tackleGroup = selectTrackerTeam(trackerStats.tackles || trackerStats.tackling || directTrackerTeamStats.tackles || directTrackerTeamStats.tackling);
+if (tackleGroup && typeof tackleGroup === 'object') {
+trackerGrouped.tackles_total = tackleGroup.total ?? tackleGroup.attempted ?? tackleGroup.attempts;
+trackerGrouped.tackles_won = tackleGroup.won ?? tackleGroup.successful;
+}
+for (const [key,value] of Object.entries(trackerGrouped)) if (value == null) delete trackerGrouped[key];
+const trackerTeam = {
+...trackerFlat,
+...(directTrackerTeamStats && typeof directTrackerTeamStats === 'object' ? directTrackerTeamStats : {}),
+...(trackerDerived[side] && typeof trackerDerived[side] === 'object' ? trackerDerived[side] : {}),
+...(trackerPossession[side] && typeof trackerPossession[side] === 'object' ? trackerPossession[side] : {}),
+...trackerGrouped,
+};
+const candidates = [
+trackerTeam,
+match?.[`${side}_stats`], match?.[`${side}Stats`],
+sides?.[side], sides?.[`${side}_stats`], sides?.[`${side}Stats`],
+nestedStats?.[side], nestedStats?.[`${side}_stats`],
+match?.[`${side}_team`]?.stats, match?.[`${side}Team`]?.stats,
+];
+const stats = candidates.reduce((out, value) => Object.assign(out, clubRecordStats(value)), {});
+for (const [metric, aliases] of Object.entries(CLUB_TEAM_METRIC_ALIASES)) {
+if (clubNumeric(stats[metric]) !== null) continue;
+const alias = aliases.find(key => clubNumeric(stats[key]) !== null);
+if (alias) stats[metric] = stats[alias];
+}
+return stats;
+}
+function getMatchTeamStats(match, side) {
+const stats = getRecordedMatchTeamStats(match, side);
+const derivedKeys = [];
+const players = getMatchTeamPlayers(match, side);
+const xi = getStartingEleven(players);
+for (const category of CLUB_STAT_SCHEMA) for (const field of category.fields) {
+const key = field.key;
+if (clubNumeric(stats[key]) !== null || CLUB_RATE_METRICS.has(key)) continue;
+const total = sumStartingElevenMetric(players, key);
+if (total !== null) { stats[key] = total; derivedKeys.push(key); }
+}
+const goalsForKey = side === 'home' ? 'home_score' : 'away_score';
+const goalsAgainstKey = side === 'home' ? 'away_score' : 'home_score';
+const goalsFor = match?.[goalsForKey] ?? match?.score?.[side] ?? match?.score?.[side === 'home' ? 'home_score' : 'away_score'];
+const goalsAgainst = match?.[goalsAgainstKey] ?? match?.score?.[side === 'home' ? 'away' : 'home'] ?? match?.score?.[side === 'home' ? 'away_score' : 'home_score'];
+if (clubNumeric(stats.goals_for) === null && clubNumeric(goalsFor) !== null) stats.goals_for = clubNumeric(goalsFor);
+if (clubNumeric(stats.goals_against) === null && clubNumeric(goalsAgainst) !== null) stats.goals_against = clubNumeric(goalsAgainst);
+if (clubNumeric(stats.clean_sheets) === null && clubNumeric(goalsAgainst) !== null) stats.clean_sheets = clubNumeric(goalsAgainst) === 0 ? 1 : 0;
+if (clubNumeric(stats.pass_accuracy) === null) {
+const attempted = sumStartingElevenMetric(players, 'passes_total');
+const completed = sumStartingElevenMetric(players, 'passes_accurate');
+if (attempted > 0 && completed !== null) { stats.pass_accuracy = Math.round((completed / attempted) * 1000) / 10; derivedKeys.push('pass_accuracy'); }
+}
+return {stats, derivedKeys, xiCount:xi.length || Math.min(players.length, 11), playerCount:players.length};
+}
+function normalizeClubLabel(value) {
+return String(value || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+function getClubMatchSide(match, club, clubName) {
+const ownIds = [club?.club_id, club?._id, club?.user_id, club?.id].filter(Boolean).map(String);
+for (const side of ['home', 'away']) {
+const ids = [match?.[`${side}_club_id`], match?.[`${side}_team_id`], match?.[`${side}ClubId`], match?.[`${side}TeamId`]].filter(Boolean).map(String);
+if (ownIds.some(id => ids.includes(id))) return side;
+}
+const ownNames = [clubName, club?.club_name, club?.name].map(normalizeClubLabel).filter(Boolean);
+for (const side of ['home', 'away']) {
+const name = normalizeClubLabel(match?.[`${side}_team`] || match?.[`${side}Team`]);
+if (name && ownNames.includes(name)) return side;
+}
+const explicit = String(match?.club_side || match?.club_position || match?.team_side || match?.team_position || match?.home_away || '').toLowerCase();
+if (['home','h','host'].includes(explicit)) return 'home';
+if (['away','a','visitor'].includes(explicit)) return 'away';
+if (match?.is_home === true || match?.home === true) return 'home';
+if (match?.is_home === false || match?.away === true) return 'away';
+return null;
+}
+function getOwnClubMatchStats(match, side) {
+if (side) return getMatchTeamStats(match, side).stats;
+const raw = match?.club_stats || match?.clubStats || match?.team_stats?.club || match?.teamStats?.club || match?.stats?.club || match?.stats;
+return clubRecordStats(raw);
+}
 async function apiCall(endpoint, opts = {}) {
 const url = `${API_BASE}${endpoint}`;
 const _token = localStorage.getItem('enejistats_token');
@@ -268,6 +528,57 @@ return html`
 </div>
 `;
 })}
+</div>
+`;
+}
+function ClubMatchStatsBreakdown({ match, homeName, awayName }) {
+const home = getMatchTeamStats(match, 'home');
+const away = getMatchTeamStats(match, 'away');
+const hasAny = CLUB_STAT_SCHEMA.some(cat => cat.fields.some(f => clubNumeric(home.stats[f.key]) !== null || clubNumeric(away.stats[f.key]) !== null));
+const display = (key, value) => {
+const n = clubNumeric(value);
+if (n === null) return '—';
+const text = fmt2(n);
+return CLUB_RATE_METRICS.has(key) ? `${text}%` : text;
+};
+return html`
+<div class="club-match-breakdown">
+<div class="club-match-breakdown-head">
+<span><i class="fas fa-chart-column"></i> Team Match Metrics</span>
+<small>Recorded club metrics are preferred; player totals fill a gap only when all 11 starters have that metric.</small>
+</div>
+<div class="club-match-side-head"><span class="home-side">${homeName||'Home'}</span><span>Metric</span><span class="away-side">${awayName||'Away'}</span></div>
+${!hasAny && html`<div class="empty-state club-stats-empty"><i class="fas fa-chart-bar"></i><div>No tracked team metrics are available for this match.</div></div>`}
+${CLUB_STAT_SCHEMA.map(category => html`
+<section class="club-match-category" key=${category.id}>
+<div class="club-match-category-title">${category.title}</div>
+${category.fields.map(field => {
+const homeValue = clubNumeric(home.stats[field.key]);
+const awayValue = clubNumeric(away.stats[field.key]);
+const total = Math.abs(homeValue || 0) + Math.abs(awayValue || 0);
+const homeWidth = total > 0 ? Math.max(3, (Math.abs(homeValue || 0) / total) * 100) : 50;
+const awayWidth = total > 0 ? Math.max(3, (Math.abs(awayValue || 0) / total) * 100) : 50;
+return html`
+<div class="club-match-metric" key=${field.key}>
+<span class="club-match-value home-side">${display(field.key, home.stats[field.key])}</span>
+<div class="club-match-metric-center">
+<div class="club-match-metric-label">${field.label}</div>
+${homeValue !== null && awayValue !== null ? html`
+<div class="club-match-metric-bar" aria-label=${`${homeName||'Home'} ${display(field.key,homeValue)}, ${awayName||'Away'} ${display(field.key,awayValue)}`}>
+<span class="home-fill" style=${`width:${homeWidth}%;`}></span><span class="away-fill" style=${`width:${awayWidth}%;`}></span>
+</div>` : html`<div class="club-match-metric-missing">Values appear when the tracker has a recorded metric.</div>`}
+</div>
+<span class="club-match-value away-side">${display(field.key, away.stats[field.key])}</span>
+</div>
+`;
+})}
+</section>
+`)}
+<div class="club-player-aggregation-note">
+<i class="fas fa-circle-info"></i>
+Player-derived metrics available: ${home.derivedKeys.length} for ${homeName||'home'} and ${away.derivedKeys.length} for ${awayName||'away'}.
+Each sum requires exactly 11 unique starters with that specific metric present; partial XIs and missing values are never treated as zero.
+</div>
 </div>
 `;
 }
@@ -1200,8 +1511,53 @@ const pagedMatches = filteredMatches.slice((matchPage - 1) * matchPerPage, match
 const detailedStatsMatches = useMemo(() => matchData.filter(m => {
 if (!statsSearch) return true;
 const q = statsSearch.toLowerCase();
-return [m.home_team,m.away_team,m.competition,m.venue].some(v => String(v||'').toLowerCase().includes(q));
+return [m.home_team,m.homeTeam,m.away_team,m.awayTeam,m.competition,m.venue,m.venue_address].some(v => String(v||'').toLowerCase().includes(q));
 }), [matchData, statsSearch]);
+const clubSeasonMetrics = useMemo(() => {
+const totals = {}, averages = {}, metricSums = {}, metricCounts = {};
+let coveredMatches = 0;
+for (const match of matchData) {
+const side = getClubMatchSide(match, club, clubName);
+const stats = getOwnClubMatchStats(match, side);
+let matchHasStats = false;
+for (const category of CLUB_STAT_SCHEMA) for (const field of category.fields) {
+const value = clubNumeric(stats[field.key]);
+if (value === null) continue;
+matchHasStats = true;
+metricSums[field.key] = (metricSums[field.key] || 0) + value;
+metricCounts[field.key] = (metricCounts[field.key] || 0) + 1;
+}
+if (matchHasStats) coveredMatches++;
+}
+const played = Math.max(1, Number(summaryStats?.matchesPlayed || summaryStats?.matches_played || matchData.length || 1));
+for (const category of CLUB_STAT_SCHEMA) for (const field of category.fields) {
+const key = field.key;
+const count = metricCounts[key] || 0;
+const fallbackKeys = key === 'possession' ? ['possession_avg','possession'] : [key, `${key}_avg`];
+const fallbackValue = fallbackKeys.map(k => clubNumeric(seasonStats?.[k])).find(v => v !== null);
+if (key === 'goals_against_avg' && metricCounts.goals_against) {
+const concededMean = metricSums.goals_against / metricCounts.goals_against;
+totals[key] = averages[key] = Math.round(concededMean * 100) / 100;
+continue;
+}
+if (count) {
+const mean = metricSums[key] / count;
+if (CLUB_RATE_METRICS.has(key)) totals[key] = averages[key] = Math.round(mean * 10) / 10;
+else {
+totals[key] = Math.round(metricSums[key] * 100) / 100;
+averages[key] = Math.round(mean * 100) / 100;
+}
+} else if (fallbackValue !== undefined) {
+totals[key] = fallbackValue;
+averages[key] = CLUB_RATE_METRICS.has(key) ? fallbackValue : Math.round((fallbackValue / played) * 100) / 100;
+}
+}
+if (!metricCounts.pass_accuracy && (metricSums.passes_total || 0) > 0 && metricCounts.passes_accurate) {
+const weighted = (metricSums.passes_accurate / metricSums.passes_total) * 100;
+totals.pass_accuracy = averages.pass_accuracy = Math.round(weighted * 10) / 10;
+}
+return {totals, averages, metricCounts, coveredMatches};
+}, [matchData, club, clubName, seasonStats, summaryStats]);
 const exportStatsPng = () => {
 const canvas = document.createElement('canvas');
 const rows = detailedStatsMatches.slice(0, 30);
@@ -2361,36 +2717,48 @@ ${statsView==='summary' && html`
 <div class="stat-overview-card"><div class="stat-ov-value">${summaryStats?.wins||0}</div><div class="stat-ov-label">Wins</div></div>
 <div class="stat-overview-card"><div class="stat-ov-value">${summaryStats?.draws||0}</div><div class="stat-ov-label">Draws</div></div>
 <div class="stat-overview-card"><div class="stat-ov-value">${summaryStats?.losses||0}</div><div class="stat-ov-label">Losses</div></div>
-<div class="stat-overview-card"><div class="stat-ov-value">${summaryStats?.goalsFor||seasonStats?.goals_for||0}</div><div class="stat-ov-label">Goals For</div></div>
-<div class="stat-overview-card"><div class="stat-ov-value">${summaryStats?.goalsAgainst||seasonStats?.goals_against||0}</div><div class="stat-ov-label">Goals Against</div></div>
-<div class="stat-overview-card"><div class="stat-ov-value">${summaryStats?.cleanSheets||seasonStats?.clean_sheets||0}</div><div class="stat-ov-label">Clean Sheets</div></div>
-<div class="stat-overview-card"><div class="stat-ov-value">${seasonStats?.possession_avg||0}%</div><div class="stat-ov-label">Avg Poss.</div></div>
+<div class="stat-overview-card"><div class="stat-ov-value">${clubSeasonMetrics.totals.goals_for??summaryStats?.goalsFor??summaryStats?.goals_for??0}</div><div class="stat-ov-label">Goals For</div></div>
+<div class="stat-overview-card"><div class="stat-ov-value">${clubSeasonMetrics.totals.goals_against??summaryStats?.goalsAgainst??summaryStats?.goals_against??0}</div><div class="stat-ov-label">Goals Against</div></div>
+<div class="stat-overview-card"><div class="stat-ov-value">${clubSeasonMetrics.totals.clean_sheets??summaryStats?.cleanSheets??seasonStats?.clean_sheets??0}</div><div class="stat-ov-label">Clean Sheets</div></div>
+<div class="stat-overview-card"><div class="stat-ov-value">${clubSeasonMetrics.averages.possession??seasonStats?.possession_avg??0}%</div><div class="stat-ov-label">Avg Poss.</div></div>
 </div>
 </div>
-<${ClubMatrixCard} title="Full Season Stats" stats=${seasonStats} filterCat="all" />
+<div class="card">
+<div class="card-title"><i class="fas fa-chart-line"></i> Cumulative Club Metrics</div>
+<div class="club-summary-note">Match-record totals are used where the tracker provides values; missing fields fall back to the club season summary. Percentages and rate metrics remain rates rather than being added together. ${clubSeasonMetrics.coveredMatches} of ${matchData.length} match records contain at least one club metric.</div>
+<${ClubMatrixCard} title="Season Totals & Rates" stats=${clubSeasonMetrics.totals} filterCat="all" />
+</div>
+<div class="card">
+<div class="card-title"><i class="fas fa-chart-simple"></i> Average Per Tracked Match</div>
+<div class="club-summary-note">Each metric is averaged only across matches where that value exists; unavailable data is shown as a dash, never counted as zero.</div>
+<${ClubMatrixCard} title="Per-Match Averages" stats=${clubSeasonMetrics.averages} filterCat="all" />
+</div>
 `}
 ${statsView==='detailed' && html`
 <div class="card">
 <div class="card-title"><i class="fas fa-table"></i> Detailed Match Stats</div>
 <input type="search" value=${statsSearch} onInput=${e=>setStatsSearch(e.target.value)} placeholder="Search opponent, competition or venue..." style="width:100%;margin-bottom:.75rem;" />
-<div class="table-scroll">
-<table class="stats-detail-table">
-<thead><tr><th>Date</th><th>Fixture</th><th>Score</th><th>Result</th><th>Competition</th><th>Venue</th><th>Possession</th><th>Shots</th></tr></thead>
-<tbody>
-${detailedStatsMatches.length===0 ? html`<tr><td colspan="8"><div class="empty-state">No detailed match stats available</div></td></tr>` :
+<div class="club-match-detail-list">
+${detailedStatsMatches.length===0 ? html`<div class="empty-state"><i class="fas fa-futbol"></i><div>No detailed match stats available</div><small>Submitted club match records will appear here when available.</small></div>` :
 detailedStatsMatches.map((m,i)=>html`
-<tr key=${m._id||m.id||i}>
-<td>${fmtDate(m.date||m.match_date)}</td>
-<td>${m.home_team||'Home'} vs ${m.away_team||'Away'}</td>
-<td>${m.home_score??'—'} – ${m.away_score??'—'}</td>
-<td><span class=${`result-badge ${getResultClass(m.result)}`}>${m.result||'D'}</span></td>
-<td>${m.competition||'—'}</td><td>${m.venue||'—'}</td>
-<td>${m.home_stats?.possession??'—'}${m.home_stats?.possession!=null?'%':''}</td>
-<td>${m.home_stats?.shots_total??m.home_stats?.shots??'—'} / ${m.away_stats?.shots_total??m.away_stats?.shots??'—'}</td>
-</tr>
+<article key=${m._id||m.id||i} class="club-detail-match">
+<header class="club-detail-match-head">
+<div class="club-detail-match-teams">
+<div class="club-detail-team">${m.home_team||m.homeTeam||'Home'}</div>
+<div class="club-detail-score">${m.home_score??m.score?.home??'—'} – ${m.away_score??m.score?.away??'—'}</div>
+<div class="club-detail-team">${m.away_team||m.awayTeam||'Away'}</div>
+</div>
+<div class="club-detail-match-meta">
+${m.date||m.match_date?html`<span><i class="fas fa-calendar"></i> ${fmtDate(m.date||m.match_date)}</span>`:''}
+${m.competition?html`<span><i class="fas fa-trophy"></i> ${m.competition}</span>`:''}
+${m.venue||m.venue_address?html`<span><i class="fas fa-location-dot"></i> ${m.venue||m.venue_address}</span>`:''}
+${m.attendance?html`<span><i class="fas fa-users"></i> ${Number(m.attendance).toLocaleString()} attendance</span>`:''}
+${m.result?html`<span class=${`result-badge ${getResultClass(m.result)}`}>${m.result}</span>`:''}
+</div>
+</header>
+<${ClubMatchStatsBreakdown} match=${m} homeName=${m.home_team||m.homeTeam||'Home'} awayName=${m.away_team||m.awayTeam||'Away'} />
+</article>
 `)}
-</tbody>
-</table>
 </div>
 </div>
 `}
