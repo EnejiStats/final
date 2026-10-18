@@ -72,9 +72,80 @@ fetch('/api/auth/me',{credentials:'include',cache:'no-store'})
 .club-stats-empty{padding:.8rem}
 @media(max-width:640px){.club-match-breakdown{padding:.55rem}.club-match-breakdown-head{display:block}.club-match-breakdown-head small{display:block;max-width:none;margin-top:.25rem;text-align:left}.club-match-side-head,.club-match-metric{grid-template-columns:minmax(48px,.75fr) minmax(95px,2fr) minmax(48px,.75fr);gap:.35rem}.club-match-metric{padding:.4rem .25rem}.club-match-value{font-size:.72rem}.club-match-metric-label{font-size:.66rem}.club-detail-match-head{padding:.7rem}.club-detail-team{font-size:.78rem}.club-detail-score{font-size:.9rem;padding:.3rem .45rem}}
 @media print{.club-detail-match,.club-match-category{break-inside:avoid;page-break-inside:avoid}.club-match-metric-missing{display:none}}
+.club-stats-toolbar .btn{white-space:nowrap}
+.club-metric-toggle{display:flex;align-items:center;gap:.45rem;margin-left:auto}
+.club-metric-toggle button{border:1px solid #cbd5e1;border-radius:7px;background:#f8fafc;color:var(--primary);padding:.38rem .65rem;font:inherit;font-size:.72rem;font-weight:800;cursor:pointer}
+.club-metric-toggle button:hover{background:#eef5ff;border-color:var(--primary)}
+.club-metric-toggle-state{font-size:.68rem;font-weight:800;color:#64748b}
+.club-summary-grid{grid-template-columns:repeat(auto-fit,minmax(108px,1fr));gap:.45rem}
+.club-summary-grid .stat-overview-card{min-width:0;padding:.55rem .4rem}
+.club-metric-matrix .matrix-card-body{padding:.1rem 0 0}
+.club-metric-matrix .category-block{margin:.45rem 0;padding:.5rem;border-radius:8px}
+.club-metric-matrix .fields-grid{grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:.35rem}
+.club-metric-matrix .stat-field{min-height:43px;padding:.38rem .5rem}
+.club-metric-matrix .stat-field .label{font-size:.72rem}
+.club-metric-matrix .stat-field .value{font-size:.84rem;font-weight:900}
+.club-match-breakdown-head small,.club-player-aggregation-note,.club-match-metric-missing,.club-summary-note{display:none!important}
+.club-match-metric{min-height:34px;padding:.28rem .45rem}
+.club-match-value{font-size:.74rem}
+.club-detail-match-meta{gap:.28rem .75rem}
+.club-print-report{display:none}
+.club-print-header{border-bottom:3px solid var(--primary);padding:0 0 .65rem;margin:0 0 .8rem}
+.club-print-header-top{display:flex;align-items:center;justify-content:space-between}
+.club-print-header-logo{font-size:1.55rem;font-weight:900;color:var(--primary);letter-spacing:1.2px;line-height:1}
+.club-print-header-tagline{font-size:.64rem;color:#64748b;margin-top:.12rem}
+.club-print-confidential{font-size:.62rem;font-weight:800;color:#dc2626;border:1px solid #dc2626;border-radius:4px;padding:1px 6px}
+.club-print-identity{font-size:.7rem;line-height:1.2;font-weight:800;color:#334155;margin-top:.3rem}
+.club-print-section-title{font-size:.9rem;font-weight:900;color:#1e293b;margin:0 0 .5rem}
+.club-print-footer{border-top:2px solid var(--primary);padding-top:.55rem;margin-top:.8rem;text-align:center;color:#475569}
+.club-print-footer-brand{font-size:.9rem;font-weight:900;color:var(--primary);letter-spacing:.6px}
+.club-print-footer-contacts{display:flex;justify-content:center;flex-wrap:wrap;gap:.4rem .85rem;margin:.3rem 0;font-size:.64rem;font-weight:700}
+.club-print-footer-disclaimer{font-size:.6rem;color:#64748b}
+@media print{
+  @page{size:A4 portrait;margin:12mm 10mm 14mm}
+  html,body{height:auto!important;min-height:0!important;overflow:visible!important;background:#fff!important}
+  body *{visibility:hidden!important}
+  .club-print-report,.club-print-report *{visibility:visible!important}
+  .club-print-report{display:block!important;position:absolute!important;inset:0 auto auto 0!important;width:100%!important;background:#fff!important;color:#172033!important;font-size:12pt;line-height:1.28}
+  .dashboard-header,.sidebar,.nav-overlay,.main-content,.toast-container,.modal-overlay,.support-fab,.demo-banner{display:none!important}
+  .club-print-header{display:block!important;padding-bottom:.55rem!important;margin-bottom:.65rem!important}
+  .club-print-header-logo{font-size:1.55rem!important}
+  .club-print-header-tagline{font-size:.64rem!important}
+  .club-print-identity{font-size:.66rem!important}
+  .club-print-section-title{font-size:.9rem!important}
+  .club-print-report .card{box-shadow:none!important;border:1px solid #cbd5e1!important;border-radius:8px!important;padding:.55rem!important;margin:0 0 .55rem!important;break-inside:avoid;page-break-inside:avoid}
+  .club-print-report .stats-row-cards{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:3px!important}
+  .club-print-report .stat-overview-card{padding:4px!important;min-height:0!important}
+  .club-print-report .stat-ov-value{font-size:1.05rem!important;line-height:1.1!important}
+  .club-print-report .stat-ov-label{font-size:.63rem!important}
+  .club-print-report .club-metric-matrix .matrix-card-body{padding:0!important}
+  .club-print-report .club-metric-matrix .category-block{padding:.35rem!important;margin:.32rem 0!important;break-inside:avoid;page-break-inside:avoid}
+  .club-print-report .club-metric-matrix .cat-chip{font-size:.72rem!important;padding:3px 6px!important;margin-bottom:4px!important}
+  .club-print-report .club-metric-matrix .fields-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:3px!important}
+  .club-print-report .club-metric-matrix .stat-field{min-height:0!important;padding:4px 5px!important;border-radius:6px!important;box-shadow:none!important}
+  .club-print-report .club-metric-matrix .stat-field .label{font-size:.72rem!important;line-height:1.1!important}
+  .club-print-report .club-metric-matrix .stat-field .value{font-size:.82rem!important;line-height:1.12!important}
+  .club-print-report .club-detail-match{margin-bottom:.45rem!important;box-shadow:none!important;break-inside:avoid;page-break-inside:avoid}
+  .club-print-report .club-detail-match-head{padding:.48rem .58rem!important}
+  .club-print-report .club-detail-team{font-size:.72rem!important}
+  .club-print-report .club-detail-score{font-size:.8rem!important;padding:.24rem .4rem!important}
+  .club-print-report .club-detail-match-meta{font-size:.62rem!important;margin-top:.3rem!important}
+  .club-print-report .club-match-breakdown{padding:.4rem!important}
+  .club-print-report .club-match-breakdown-head{margin-bottom:.25rem!important}
+  .club-print-report .club-match-breakdown-head>span{font-size:.68rem!important}
+  .club-print-report .club-match-side-head{font-size:.6rem!important;padding:.3rem!important}
+  .club-print-report .club-match-category{margin-top:.36rem!important}
+  .club-print-report .club-match-category-title{font-size:.6rem!important;padding:.22rem .35rem!important}
+  .club-print-report .club-match-metric{min-height:0!important;padding:.2rem .3rem!important}
+  .club-print-report .club-match-value{font-size:.72rem!important}
+  .club-print-report .club-match-metric-label{font-size:.72rem!important}
+  .club-print-footer{display:block!important;margin-top:.65rem!important;padding-top:.45rem!important}
+  .club-print-footer-brand{font-size:.9rem!important}
+  .club-print-footer-contacts{font-size:.62rem!important;gap:.3rem .65rem!important}
+  .club-print-footer-disclaimer{font-size:.6rem!important}
+}
 </style>
-</head><body><div id="root"></div><div class="print-header"><div class="print-header-logo">EnejiStats</div><div class="print-header-sub">Africa's Football Intelligence Platform &nbsp;|&nbsp; Club Dashboard Report</div><div style="font-size:0.78rem;color:#64748b;margin-top:6px;" id="print-club-meta"></div></div><div class="print-footer"> &#128241; +2348083940039 &nbsp;&nbsp;&#128222; +2347065556569 &nbsp;&nbsp;&#9993; enejistats@gmail.com &nbsp;&nbsp;&#127760; www.enejistats.com<br/> &#9917; <strong>EnejiStats</strong> &mdash; Africa's Football Intelligence Platform
-</div>
+</head><body><div id="root"></div>
 <script>(function() {
 const { h, render } = preact;
 const { useState, useEffect, useCallback, useRef, useMemo } = preactHooks;
@@ -110,9 +181,10 @@ const CLUB_STAT_SCHEMA = [
 {key:'clean_sheets', label:'Clean Sheets'},{key:'tackles_total', label:'Total Tackles'},
 {key:'tackles_won', label:'Tackles Won'},{key:'interceptions', label:'Interceptions'},
 {key:'clearances', label:'Clearances'},{key:'aerial_duels_won', label:'Aerial Duels Won'},
+{key:'aerial_duels_total', label:'Aerial Duels Total'},
 ]},
 { id:'goalkeeping', title:'GOALKEEPING', fields:[
-{key:'saves', label:'Saves'},{key:'penalty_saves', label:'Penalty Saves'},
+{key:'saves', label:'Saves'},{key:'shots_faced', label:'Shots Faced'},{key:'penalty_saves', label:'Penalty Saves'},
 {key:'goals_against_avg', label:'Goals Ag. Avg'},{key:'save_percentage', label:'Save %'},
 ]},
 { id:'discipline', title:'DISCIPLINE', fields:[
@@ -139,6 +211,16 @@ const MATCH_COMPARE_STATS = [
 {key:'saves', label:'GK Saves'},
 ];
 const CLUB_RATE_METRICS = new Set(['possession','pass_accuracy','goals_against_avg','save_percentage']);
+const CLUB_PERCENT_METRICS = new Set(['possession','pass_accuracy','save_percentage']);
+const CLUB_SUCCESS_ATTEMPTS = {
+shots_on_target: { attempts:'shots_total' },
+passes_accurate: { attempts:'passes_total', rate:'pass_accuracy' },
+crosses_accurate: { attempts:'crosses_total' },
+tackles_won: { attempts:'tackles_total' },
+aerial_duels_won: { attempts:'aerial_duels_total' },
+saves: { attempts:'shots_faced', rate:'save_percentage' },
+};
+const CLUB_ATTEMPT_ONLY_KEYS = new Set(Object.values(CLUB_SUCCESS_ATTEMPTS).map(pair => pair.attempts));
 const CLUB_PLAYER_METRIC_ALIASES = {
 goals_for:['goals_for','goals','goals_scored'],
 shots_total:['shots_total','shots','total_shots'],
@@ -156,7 +238,9 @@ tackles_won:['tackles_won'],
 interceptions:['interceptions'],
 clearances:['clearances'],
 aerial_duels_won:['aerial_duels_won'],
+aerial_duels_total:['aerial_duels_total','aerial_duels','aerial_duels_attempted'],
 saves:['saves'],
+shots_faced:['shots_faced','shots_faced_total','opponent_shots_on_target'],
 penalty_saves:['penalty_saves'],
 yellow_cards:['yellow_cards','yellow_card'],
 red_cards:['red_cards','red_card'],
@@ -184,7 +268,9 @@ tackles_won:['tackles_won','successful_tackles'],
 interceptions:['interceptions'],
 clearances:['clearances'],
 aerial_duels_won:['aerial_duels_won'],
+aerial_duels_total:['aerial_duels_total','aerial_duels','aerial_duels_attempted'],
 saves:['saves','goalkeeper_saves'],
+shots_faced:['shots_faced','shots_faced_total','opponent_shots_on_target'],
 penalty_saves:['penalty_saves'],
 goals_against_avg:['goals_against_avg'],
 save_percentage:['save_percentage','save_pct'],
@@ -197,6 +283,40 @@ function clubNumeric(value) {
 if (value === null || value === undefined || value === '') return null;
 const n = Number(typeof value === 'string' ? value.trim().replace(/%$/, '') : value);
 return Number.isFinite(n) ? n : null;
+}
+function clubMetricHasPair(stats, successKey) {
+const pair = CLUB_SUCCESS_ATTEMPTS[successKey];
+return !!pair && clubNumeric(stats?.[pair.attempts]) !== null &&
+(clubNumeric(stats?.[successKey]) !== null || (pair.rate && clubNumeric(stats?.[pair.rate]) !== null));
+}
+function clubMetricHasData(stats, key) {
+if (clubNumeric(stats?.[key]) !== null) return true;
+const pair = CLUB_SUCCESS_ATTEMPTS[key];
+return !!pair && clubNumeric(stats?.[pair.attempts]) !== null;
+}
+function shouldHideClubMetric(stats, key) {
+if (CLUB_ATTEMPT_ONLY_KEYS.has(key)) return true;
+const duplicateRate = Object.entries(CLUB_SUCCESS_ATTEMPTS).some(([successKey, pair]) =>
+pair.rate === key && clubMetricHasPair(stats, successKey));
+return duplicateRate;
+}
+function formatClubMetric(stats, key) {
+const pair = CLUB_SUCCESS_ATTEMPTS[key];
+let value = clubNumeric(stats?.[key]);
+const attempts = pair ? clubNumeric(stats?.[pair.attempts]) : null;
+const rateValue = pair?.rate ? clubNumeric(stats?.[pair.rate]) : null;
+if (value === null && pair && attempts !== null && rateValue !== null) value = Math.round(attempts * rateValue / 100);
+if (value === null) return pair && attempts !== null ? `— (${fmt2(attempts)})` : '—';
+let text = fmt2(value);
+if (pair) {
+if (attempts !== null) {
+text += ` (${fmt2(attempts)})`;
+const rate = attempts > 0 ? (rateValue ?? Math.round((value / attempts) * 1000) / 10) : 0;
+text += ` · ${fmt2(rate)}%`;
+}
+}
+if (CLUB_PERCENT_METRICS.has(key) && !pair) text += '%';
+return text;
 }
 function clubFlag(value) {
 return value === true || ['true','1','yes','y','starter'].includes(String(value || '').trim().toLowerCase());
@@ -475,31 +595,39 @@ ${person && html`<button class="btn btn-danger" onClick=${onDelete}><i class="fa
 `;
 }
 // ── CLUB STAT MATRIX ──
-function ClubMatrixCard({ title, stats, filterCat }) {
+function ClubMatrixCard({ title, stats, filterCat, embedded = false }) {
 const filtered = filterCat === 'all' ? CLUB_STAT_SCHEMA : CLUB_STAT_SCHEMA.filter(s => s.id === filterCat);
 return html`
-<div class="matrix-card">
-<div class="matrix-card-hd">
-<div class="matrix-card-title">${title}</div>
-</div>
+<div class=${embedded ? 'club-metric-matrix' : 'matrix-card'}>
+${!embedded && title && html`<div class="matrix-card-hd"><div class="matrix-card-title">${title}</div></div>`}
 <div class="matrix-card-body">
 ${filtered.map(cat => html`
 <div key=${cat.id} class="category-block">
 <div class="cat-chip">${cat.title}</div>
 <div class="fields-grid">
-${cat.fields.map(f => html`
+${cat.fields.filter(f => !shouldHideClubMetric(stats, f.key)).map(f => html`
 <div key=${f.key} class="stat-field">
 <span class="label">${f.label}</span>
-<span class="value">${stats[f.key] != null ? stats[f.key] : '—'}</span>
+<span class="value">${formatClubMetric(stats, f.key)}</span>
 </div>
 `)}
 </div>
 </div>
 `)}
-${filtered.every(cat=>cat.fields.every(f=>!stats[f.key]&&stats[f.key]!==0)) && html`<div class="empty-state" style="padding:1rem;"><i class="fas fa-chart-bar"></i><div>No stats data yet</div></div>`}
+${filtered.every(cat=>cat.fields.every(f=>!clubMetricHasData(stats,f.key))) && html`<div class="empty-state" style="padding:1rem;"><i class="fas fa-chart-bar"></i><div>No stats data yet</div></div>`}
 </div>
 </div>
 `;
+}
+function ClubSummaryGrid({ summary }) {
+const cards = [
+['Played', summary.matchesPlayed],['Wins', summary.wins],['Draws', summary.draws],['Losses', summary.losses],
+['Points', summary.points],['Win Rate', summary.winRate == null ? '—' : `${fmt2(summary.winRate)}%`],
+['Goals For', summary.goalsFor],['Goals Against', summary.goalsAgainst],['Clean Sheets', summary.cleanSheets],['Avg Possession',summary.avgPossession == null ? '—' : `${fmt2(summary.avgPossession)}%`],
+];
+return html`<div class="stats-row-cards club-summary-grid">${cards.map(([label,value])=>html`
+<div key=${label} class="stat-overview-card"><div class="stat-ov-value">${value ?? '—'}</div><div class="stat-ov-label">${label}</div></div>
+`)}</div>`;
 }
 // ── MATCH STATS COMPARE ──
 function MatchStatsCompare({ homeStats, awayStats, homeName, awayName }) {
@@ -534,51 +662,56 @@ return html`
 function ClubMatchStatsBreakdown({ match, homeName, awayName }) {
 const home = getMatchTeamStats(match, 'home');
 const away = getMatchTeamStats(match, 'away');
-const hasAny = CLUB_STAT_SCHEMA.some(cat => cat.fields.some(f => clubNumeric(home.stats[f.key]) !== null || clubNumeric(away.stats[f.key]) !== null));
+const visibleCategories = CLUB_STAT_SCHEMA.filter(category => category.fields.some(field =>
+!CLUB_ATTEMPT_ONLY_KEYS.has(field.key) && field.key !== 'goals_for' && field.key !== 'goals_against' &&
+!(Object.entries(CLUB_SUCCESS_ATTEMPTS).some(([successKey,pair]) => pair.rate === field.key &&
+(clubMetricHasPair(home.stats,successKey) || clubMetricHasPair(away.stats,successKey)))) &&
+(clubMetricHasData(home.stats,field.key) || clubMetricHasData(away.stats,field.key))));
+const hasAny = visibleCategories.length > 0;
 const display = (key, value) => {
 const n = clubNumeric(value);
 if (n === null) return '—';
 const text = fmt2(n);
-return CLUB_RATE_METRICS.has(key) ? `${text}%` : text;
+ return CLUB_PERCENT_METRICS.has(key) ? `${text}%` : text;
 };
 return html`
 <div class="club-match-breakdown">
 <div class="club-match-breakdown-head">
 <span><i class="fas fa-chart-column"></i> Team Match Metrics</span>
-<small>Recorded club metrics are preferred; player totals fill a gap only when all 11 starters have that metric.</small>
 </div>
 <div class="club-match-side-head"><span class="home-side">${homeName||'Home'}</span><span>Metric</span><span class="away-side">${awayName||'Away'}</span></div>
 ${!hasAny && html`<div class="empty-state club-stats-empty"><i class="fas fa-chart-bar"></i><div>No tracked team metrics are available for this match.</div></div>`}
-${CLUB_STAT_SCHEMA.map(category => html`
+${visibleCategories.map(category => html`
 <section class="club-match-category" key=${category.id}>
 <div class="club-match-category-title">${category.title}</div>
-${category.fields.map(field => {
+${category.fields.filter(field => !CLUB_ATTEMPT_ONLY_KEYS.has(field.key) &&
+!(field.key === 'goals_for' || field.key === 'goals_against') &&
+!(Object.entries(CLUB_SUCCESS_ATTEMPTS).some(([successKey,pair]) => pair.rate === field.key &&
+((clubMetricHasPair(home.stats, successKey)) || (clubMetricHasPair(away.stats, successKey)))))).map(field => {
 const homeValue = clubNumeric(home.stats[field.key]);
 const awayValue = clubNumeric(away.stats[field.key]);
 const total = Math.abs(homeValue || 0) + Math.abs(awayValue || 0);
 const homeWidth = total > 0 ? Math.max(3, (Math.abs(homeValue || 0) / total) * 100) : 50;
 const awayWidth = total > 0 ? Math.max(3, (Math.abs(awayValue || 0) / total) * 100) : 50;
+const homeText = CLUB_SUCCESS_ATTEMPTS[field.key] ? formatClubMetric(home.stats, field.key) : display(field.key, home.stats[field.key]);
+const awayText = CLUB_SUCCESS_ATTEMPTS[field.key] ? formatClubMetric(away.stats, field.key) : display(field.key, away.stats[field.key]);
+if (!clubMetricHasData(home.stats,field.key) && !clubMetricHasData(away.stats,field.key)) return null;
 return html`
 <div class="club-match-metric" key=${field.key}>
-<span class="club-match-value home-side">${display(field.key, home.stats[field.key])}</span>
+<span class="club-match-value home-side">${homeText}</span>
 <div class="club-match-metric-center">
 <div class="club-match-metric-label">${field.label}</div>
 ${homeValue !== null && awayValue !== null ? html`
-<div class="club-match-metric-bar" aria-label=${`${homeName||'Home'} ${display(field.key,homeValue)}, ${awayName||'Away'} ${display(field.key,awayValue)}`}>
+<div class="club-match-metric-bar" aria-label=${`${homeName||'Home'} ${homeText}, ${awayName||'Away'} ${awayText}`}>
 <span class="home-fill" style=${`width:${homeWidth}%;`}></span><span class="away-fill" style=${`width:${awayWidth}%;`}></span>
-</div>` : html`<div class="club-match-metric-missing">Values appear when the tracker has a recorded metric.</div>`}
+</div>` : ''}
 </div>
-<span class="club-match-value away-side">${display(field.key, away.stats[field.key])}</span>
+<span class="club-match-value away-side">${awayText}</span>
 </div>
 `;
 })}
 </section>
 `)}
-<div class="club-player-aggregation-note">
-<i class="fas fa-circle-info"></i>
-Player-derived metrics available: ${home.derivedKeys.length} for ${homeName||'home'} and ${away.derivedKeys.length} for ${awayName||'away'}.
-Each sum requires exactly 11 unique starters with that specific metric present; partial XIs and missing values are never treated as zero.
-</div>
 </div>
 `;
 }
@@ -1261,6 +1394,7 @@ const [expandedNotif, setExpandedNotif] = useState(null);
 const [notifSubTab, setNotifSubTab] = useState('all');
 const [matchCentreSubTab, setMatchCentreSubTab] = useState('results');
 const [statsView, setStatsView] = useState('summary');
+const [statsMetricMode, setStatsMetricMode] = useState('summary');
 const [statsSearch, setStatsSearch] = useState('');
 const [operationsSubTab, setOperationsSubTab] = useState('stats-tracking');
 const [accountSubTab, setAccountSubTab] = useState('settings');
@@ -1514,7 +1648,7 @@ const q = statsSearch.toLowerCase();
 return [m.home_team,m.homeTeam,m.away_team,m.awayTeam,m.competition,m.venue,m.venue_address].some(v => String(v||'').toLowerCase().includes(q));
 }), [matchData, statsSearch]);
 const clubSeasonMetrics = useMemo(() => {
-const totals = {}, averages = {}, metricSums = {}, metricCounts = {};
+const totals = {}, averages = {}, metricSums = {}, metricCounts = {}, pairedMetricSums = {};
 let coveredMatches = 0;
 for (const match of matchData) {
 const side = getClubMatchSide(match, club, clubName);
@@ -1527,6 +1661,12 @@ matchHasStats = true;
 metricSums[field.key] = (metricSums[field.key] || 0) + value;
 metricCounts[field.key] = (metricCounts[field.key] || 0) + 1;
 }
+for (const [successKey,pair] of Object.entries(CLUB_SUCCESS_ATTEMPTS)) {
+const success = clubNumeric(stats[successKey]), attempts = clubNumeric(stats[pair.attempts]);
+if (success === null || attempts === null) continue;
+const sums = pairedMetricSums[successKey] || (pairedMetricSums[successKey] = {success:0,attempts:0,count:0});
+sums.success += success; sums.attempts += attempts; sums.count++;
+}
 if (matchHasStats) coveredMatches++;
 }
 const played = Math.max(1, Number(summaryStats?.matchesPlayed || summaryStats?.matches_played || matchData.length || 1));
@@ -1535,6 +1675,7 @@ const key = field.key;
 const count = metricCounts[key] || 0;
 const fallbackKeys = key === 'possession' ? ['possession_avg','possession'] : [key, `${key}_avg`];
 const fallbackValue = fallbackKeys.map(k => clubNumeric(seasonStats?.[k])).find(v => v !== null);
+if (key === 'pass_accuracy' || key === 'save_percentage') continue;
 if (key === 'goals_against_avg' && metricCounts.goals_against) {
 const concededMean = metricSums.goals_against / metricCounts.goals_against;
 totals[key] = averages[key] = Math.round(concededMean * 100) / 100;
@@ -1552,25 +1693,195 @@ totals[key] = fallbackValue;
 averages[key] = CLUB_RATE_METRICS.has(key) ? fallbackValue : Math.round((fallbackValue / played) * 100) / 100;
 }
 }
-if (!metricCounts.pass_accuracy && (metricSums.passes_total || 0) > 0 && metricCounts.passes_accurate) {
-const weighted = (metricSums.passes_accurate / metricSums.passes_total) * 100;
-totals.pass_accuracy = averages.pass_accuracy = Math.round(weighted * 10) / 10;
+for (const [successKey,pair] of Object.entries(CLUB_SUCCESS_ATTEMPTS)) {
+const sums = pairedMetricSums[successKey];
+if (sums?.count) {
+totals[successKey] = Math.round(sums.success * 100) / 100;
+totals[pair.attempts] = Math.round(sums.attempts * 100) / 100;
+averages[successKey] = Math.round((sums.success / sums.count) * 100) / 100;
+averages[pair.attempts] = Math.round((sums.attempts / sums.count) * 100) / 100;
+} else if ((metricCounts[successKey] || metricCounts[pair.attempts]) &&
+clubNumeric(totals[successKey]) !== null && clubNumeric(totals[pair.attempts]) !== null) {
+delete totals[pair.attempts];
+delete averages[pair.attempts];
+}
+}
+const passPair = pairedMetricSums.passes_accurate;
+if (passPair?.attempts > 0) totals.pass_accuracy = averages.pass_accuracy = Math.round((passPair.success / passPair.attempts) * 1000) / 10;
+else {
+const fallback = clubNumeric(seasonStats?.pass_accuracy ?? seasonStats?.passing_accuracy);
+if (fallback !== null) totals.pass_accuracy = averages.pass_accuracy = fallback;
+}
+const savePair = pairedMetricSums.saves;
+if (savePair?.attempts > 0) totals.save_percentage = averages.save_percentage = Math.round((savePair.success / savePair.attempts) * 1000) / 10;
+else {
+const fallback = clubNumeric(seasonStats?.save_percentage ?? seasonStats?.save_pct);
+if (fallback !== null) totals.save_percentage = averages.save_percentage = fallback;
 }
 return {totals, averages, metricCounts, coveredMatches};
 }, [matchData, club, clubName, seasonStats, summaryStats]);
-const exportStatsPng = () => {
+const clubResultsSummary = useMemo(() => {
+const results = {played:0,wins:0,draws:0,losses:0,goalsFor:0,goalsAgainst:0,scoreMatches:0};
+for (const match of matchData) {
+const side = getClubMatchSide(match, club, clubName);
+const home = clubNumeric(match?.home_score ?? match?.score?.home ?? match?.score?.home_score);
+const away = clubNumeric(match?.away_score ?? match?.score?.away ?? match?.score?.away_score);
+if (side && home !== null && away !== null) {
+const gf = side === 'home' ? home : away, ga = side === 'home' ? away : home;
+results.played++; results.scoreMatches++; results.goalsFor += gf; results.goalsAgainst += ga;
+if (gf > ga) results.wins++; else if (gf === ga) results.draws++; else results.losses++;
+continue;
+}
+const explicit = String(match?.result || '').trim().toLowerCase();
+if (explicit === 'w' || explicit === 'win') { results.played++; results.wins++; }
+else if (explicit === 'd' || explicit === 'draw') { results.played++; results.draws++; }
+else if (explicit === 'l' || explicit === 'loss') { results.played++; results.losses++; }
+}
+const rawPlayed = clubNumeric(summaryStats?.matchesPlayed ?? summaryStats?.matches_played);
+const played = results.played || rawPlayed || matchData.length || 0;
+const wins = results.played ? results.wins : clubNumeric(summaryStats?.wins) ?? 0;
+const draws = results.played ? results.draws : clubNumeric(summaryStats?.draws) ?? 0;
+const losses = results.played ? results.losses : clubNumeric(summaryStats?.losses) ?? 0;
+const goalsFor = clubSeasonMetrics.totals.goals_for ?? (results.scoreMatches ? results.goalsFor : clubNumeric(summaryStats?.goalsFor ?? summaryStats?.goals_for) ?? '—');
+const goalsAgainst = clubSeasonMetrics.totals.goals_against ?? (results.scoreMatches ? results.goalsAgainst : clubNumeric(summaryStats?.goalsAgainst ?? summaryStats?.goals_against) ?? '—');
+const cleanSheets = clubSeasonMetrics.totals.clean_sheets ?? clubNumeric(summaryStats?.cleanSheets ?? summaryStats?.clean_sheets ?? seasonStats?.clean_sheets) ?? '—';
+const points = clubNumeric(summaryStats?.points ?? summaryStats?.points_earned) ?? ((wins * 3) + draws);
+const avgPossession = clubSeasonMetrics.averages.possession ?? clubNumeric(seasonStats?.possession_avg ?? seasonStats?.possession);
+return {matchesPlayed:played,wins,draws,losses,points,winRate:played ? Math.round((wins / played) * 1000) / 10 : null,goalsFor,goalsAgainst,cleanSheets,avgPossession};
+}, [matchData, club, clubName, summaryStats, seasonStats, clubSeasonMetrics]);
+const loadClubShareTemplate = async () => {
+const src = window.ENEJISTATS_SHARE_TEMPLATE_URL || '/static/images/players-match-report-template.png';
+return new Promise(resolve => {
+const image = new Image();
+image.onload = () => resolve(image);
+image.onerror = () => resolve(null);
+image.src = src;
+});
+};
+const fitClubCanvasText = (ctx, text, x, y, maxWidth, size, weight = 700, color = '#ffffff', align = 'left') => {
+const value = text === null || text === undefined || text === '' ? '—' : String(text);
+let fontSize = size;
+ctx.textAlign = align;
+do {
+ctx.font = `${weight} ${fontSize}px Arial, sans-serif`;
+fontSize -= 1;
+} while (ctx.measureText(value).width > maxWidth && fontSize > 12);
+ctx.fillStyle = color;
+ctx.fillText(value, x, y);
+ctx.textAlign = 'left';
+};
+const wrapClubCanvasText = (ctx, text, x, y, maxWidth, lineHeight, maxLines = 2, color = '#82d6b1') => {
+const words = String(text || '').split(/\s+/).filter(Boolean);
+const lines = [];
+let line = '';
+ctx.font = '700 14px Arial, sans-serif';
+for (const word of words) {
+const next = line ? `${line} ${word}` : word;
+if (line && ctx.measureText(next).width > maxWidth) { lines.push(line); line = word; }
+else line = next;
+}
+if (line) lines.push(line);
+const visible = lines.slice(0,maxLines);
+if (lines.length > maxLines && visible.length) visible[visible.length-1] = `${visible[visible.length-1].slice(0,Math.max(0,visible[visible.length-1].length-3))}...`;
+visible.forEach((value,index)=>fitClubCanvasText(ctx,value,x,y+(index*lineHeight),maxWidth,14,700,color));
+};
+const createClubStatsPng = async ({ pageMatches = null, pageNumber = 1, pageCount = 1 } = {}) => {
+const isDetailed = Array.isArray(pageMatches);
+const metricRows = isDetailed ? [] : statsMetricMode === 'summary'
+? [
+['Played',clubResultsSummary.matchesPlayed],['Wins',clubResultsSummary.wins],['Draws',clubResultsSummary.draws],
+['Losses',clubResultsSummary.losses],['Points',clubResultsSummary.points],['Win Rate',clubResultsSummary.winRate == null ? '—' : `${fmt2(clubResultsSummary.winRate)}%`],
+['Goals For',clubResultsSummary.goalsFor],['Goals Against',clubResultsSummary.goalsAgainst],['Clean Sheets',clubResultsSummary.cleanSheets],
+['Avg Possession',clubResultsSummary.avgPossession == null ? '—' : `${fmt2(clubResultsSummary.avgPossession)}%`],
+]
+: CLUB_STAT_SCHEMA.flatMap(category => category.fields.filter(field => !shouldHideClubMetric(clubSeasonMetrics.totals, field.key) &&
+clubMetricHasData(clubSeasonMetrics.totals,field.key)).map(field => [field.label,formatClubMetric(clubSeasonMetrics.totals,field.key)]));
+const gridRows = Math.ceil(metricRows.length / 3);
 const canvas = document.createElement('canvas');
-const rows = detailedStatsMatches.slice(0, 30);
-canvas.width = 1200; canvas.height = 190 + rows.length * 34;
+canvas.width = 1080;
+canvas.height = isDetailed ? 1350 : Math.max(1350, 470 + gridRows * 100);
 const ctx = canvas.getContext('2d');
-ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,canvas.width,canvas.height);
-ctx.fillStyle = '#004aad'; ctx.font = 'bold 28px Arial'; ctx.fillText(clubName + ' — Club Statistics', 36, 48);
-ctx.fillStyle = '#334155'; ctx.font = '16px Arial'; ctx.fillText('EnejiStats | Match performance report', 36, 76);
-ctx.fillStyle = '#f1f5f9'; ctx.fillRect(30,105,1140,38);
-ctx.fillStyle = '#004aad'; ctx.font = 'bold 14px Arial'; ctx.fillText('Date',45,129); ctx.fillText('Fixture',190,129); ctx.fillText('Score',700,129); ctx.fillText('Result',810,129); ctx.fillText('Competition',920,129);
-ctx.font = '14px Arial';
-rows.forEach((m,i) => { const y=166+i*34; ctx.fillStyle=i%2?'#f8fafc':'#ffffff'; ctx.fillRect(30,y-22,1140,34); ctx.fillStyle='#334155'; ctx.fillText(fmtDate(m.date||m.match_date),45,y); ctx.fillText(String((m.home_team||'Home')+' vs '+(m.away_team||'Away')).slice(0,48),190,y); ctx.fillText(String((m.home_score??'—')+' – '+(m.away_score??'—')),700,y); ctx.fillText(m.result||'D',810,y); ctx.fillText(String(m.competition||'—').slice(0,22),920,y); });
-const link=document.createElement('a'); link.download=(clubName||'club')+'-stats.png'; link.href=canvas.toDataURL('image/png'); link.click();
+if (!ctx) throw new Error('This browser cannot create share images.');
+const template = await loadClubShareTemplate();
+if (template) ctx.drawImage(template, 0, 0, canvas.width, canvas.height);
+else {
+ctx.fillStyle = '#0d174f'; ctx.fillRect(0,0,canvas.width,canvas.height);
+ctx.strokeStyle = '#ffbd00'; ctx.lineWidth = 12; ctx.strokeRect(8,8,1064,canvas.height-16);
+ctx.fillStyle = '#ffffff'; ctx.font = '900 56px Arial'; ctx.fillText('Eneji',72,112);
+ctx.fillStyle = '#ffbd00'; ctx.fillText('Stats',235,112);
+}
+ctx.fillStyle = 'rgba(13,23,79,.97)'; ctx.fillRect(38,190,1004,canvas.height-225);
+ctx.fillStyle = '#ffbd00'; ctx.fillRect(38,190,1004,7);
+fitClubCanvasText(ctx, isDetailed ? `${clubName} · Match Detail` : `${clubName} · ${statsMetricMode === 'summary' ? 'Season Summary' : 'Season Totals'}`, 76,267,920,38,900,'#ffffff');
+fitClubCanvasText(ctx, `${club?.club_category || club?.category || 'Club'}  ·  ID ${club?.club_id || club?.user_id || club?._id || '—'}  ·  EnejiStats`, 78,310,920,19,700,'#dce7ff');
+fitClubCanvasText(ctx, isDetailed ? `Match detail page ${pageNumber} of ${pageCount}` : `Generated ${new Date().toLocaleDateString('en-GB')}`, 78,344,920,16,700,'#82d6b1');
+if (!isDetailed) {
+const cols = [72, 397, 722];
+metricRows.forEach(([label,value], index) => {
+const col = index % 3, row = Math.floor(index / 3), x = cols[col], y = 405 + row * 100;
+ctx.fillStyle = index % 2 ? '#182663' : '#142052'; ctx.fillRect(x,y,286,78);
+ctx.fillStyle = ['#ff8a22','#62c28b','#4e9be8','#f3c548','#a3c9f7','#71d8a0','#e8bc45','#ca8ad3','#ffbd00'][index%9];
+ctx.fillRect(x,y,6,78);
+fitClubCanvasText(ctx,label.toUpperCase(),x+20,y+27,250,15,800,'#dce7ff');
+fitClubCanvasText(ctx,value,x+20,y+60,250,25,900,'#ffffff');
+});
+} else {
+const details = pageMatches;
+const metricKeys = ['possession','shots_on_target','passes_accurate','crosses_accurate','tackles_won','aerial_duels_won','saves','corners'];
+const labels = Object.fromEntries(CLUB_STAT_SCHEMA.flatMap(category=>category.fields.map(field=>[field.key,field.label])));
+const boxTop = 375, boxH = 300, gap = 14;
+details.forEach((match,index) => {
+const y = boxTop + index * (boxH + gap);
+const homeName = match.home_team || match.homeTeam || 'Home';
+const awayName = match.away_team || match.awayTeam || 'Away';
+const home = getMatchTeamStats(match,'home').stats, away = getMatchTeamStats(match,'away').stats;
+const hs = match.home_score ?? match.score?.home ?? match.score?.home_score ?? '—';
+const as = match.away_score ?? match.score?.away ?? match.score?.away_score ?? '—';
+ctx.fillStyle = '#142052'; ctx.fillRect(58,y,964,boxH);
+ctx.fillStyle = '#ffbd00'; ctx.fillRect(58,y,7,boxH);
+fitClubCanvasText(ctx,`${homeName}  ${hs} – ${as}  ${awayName}`,82,y+34,910,20,900,'#ffffff');
+const detailsLine = [fmtDate(match.date||match.match_date),match.time||match.match_time,match.competition,match.venue||match.venue_address,match.attendance ? `${Number(match.attendance).toLocaleString()} attendance` : null,match.result].filter(Boolean).join('  ·  ');
+wrapClubCanvasText(ctx,detailsLine,82,y+59,910,17,2,'#82d6b1');
+fitClubCanvasText(ctx,homeName,365,y+99,280,12,800,'#9fc1ff','right');
+fitClubCanvasText(ctx,'METRIC',540,y+99,220,12,800,'#dce7ff','center');
+fitClubCanvasText(ctx,awayName,715,y+99,280,12,800,'#ffb4b4','left');
+metricKeys.forEach((key,row) => {
+const top = y + 112 + row * 22;
+if (row % 2 === 0) { ctx.fillStyle='rgba(255,255,255,.045)'; ctx.fillRect(76,top-16,926,23); }
+fitClubCanvasText(ctx,formatClubMetric(home,key),365,top,280,13,800,'#ffffff','right');
+fitClubCanvasText(ctx,labels[key] || key,540,top,220,12,700,'#cbd5e1','center');
+fitClubCanvasText(ctx,formatClubMetric(away,key),715,top,280,13,800,'#ffffff','left');
+});
+});
+}
+return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('Unable to encode the share image.')),'image/png'));
+};
+const downloadClubPngBlob = (blob, fileName) => {
+const link = document.createElement('a');
+const url = URL.createObjectURL(blob);
+link.href = url; link.download = fileName; link.click();
+setTimeout(()=>URL.revokeObjectURL(url),1000);
+};
+const exportStatsPng = async () => {
+const safeName = String(clubName || 'club').trim().replace(/[^a-z0-9]+/gi,'-').replace(/^-|-$/g,'').toLowerCase() || 'club';
+try {
+if (statsView !== 'detailed') {
+const blob = await createClubStatsPng();
+downloadClubPngBlob(blob,`${safeName}-enejistats-${statsMetricMode}.png`);
+} else {
+const pageSize = 3;
+const pages = Math.max(1,Math.ceil(detailedStatsMatches.length/pageSize));
+for (let page=0; page<pages; page++) {
+const matches = detailedStatsMatches.slice(page*pageSize,(page+1)*pageSize);
+const blob = await createClubStatsPng({pageMatches:matches,pageNumber:page+1,pageCount:pages});
+downloadClubPngBlob(blob,`${safeName}-enejistats-match-details-${String(page+1).padStart(2,'0')}.png`);
+}
+}
+addToast('Branded club PNG report saved.', 'success', 4000);
+} catch (error) { addToast(error?.message || 'Unable to create the club PNG.', 'error', 4500); }
+};
+const handlePrintStats = () => {
+window.print();
 };
 const stTrackingCost = useMemo(() => {
 if (stTrackingType === 'no_tracking') return 0;
@@ -1880,6 +2191,56 @@ if (tName.includes(myName) || myName.includes(tName)) return badgeUrl;
 return null;
 };
 return html`
+<section class="club-print-report">
+<header class="club-print-header">
+<div class="club-print-header-top">
+<div><div class="club-print-header-logo">EnejiStats</div><div class="club-print-header-tagline">Africa's Football Intelligence Platform</div></div>
+<span class="club-print-confidential">CONFIDENTIAL</span>
+</div>
+<div class="club-print-identity">${clubName} — ${club?.club_category||club?.category||'Club'} — ID: ${club?.club_id||club?.user_id||club?._id||'—'}</div>
+</header>
+${statsView==='detailed' ? html`
+<div class="club-print-section-title">Detailed Match Stats · ${detailedStatsMatches.length} ${detailedStatsMatches.length===1?'match':'matches'}</div>
+<div class="club-match-detail-list">
+${detailedStatsMatches.map((m,i)=>html`
+<article key=${m._id||m.id||i} class="club-detail-match">
+<header class="club-detail-match-head">
+<div class="club-detail-match-teams">
+<div class="club-detail-team">${m.home_team||m.homeTeam||'Home'}</div>
+<div class="club-detail-score">${m.home_score??m.score?.home??'—'} – ${m.away_score??m.score?.away??'—'}</div>
+<div class="club-detail-team">${m.away_team||m.awayTeam||'Away'}</div>
+</div>
+<div class="club-detail-match-meta">
+${m.date||m.match_date?html`<span>${fmtDate(m.date||m.match_date)}</span>`:''}
+${m.competition?html`<span>${m.competition}</span>`:''}
+${m.venue||m.venue_address?html`<span>${m.venue||m.venue_address}</span>`:''}
+${m.attendance?html`<span>${Number(m.attendance).toLocaleString()} attendance</span>`:''}
+${m.result?html`<span>${m.result}</span>`:''}
+</div>
+</header>
+<${ClubMatchStatsBreakdown} match=${m} homeName=${m.home_team||m.homeTeam||'Home'} awayName=${m.away_team||m.awayTeam||'Away'} />
+</article>
+`)}
+</div>
+` : html`
+<div class="club-print-section-title">${statsMetricMode==='summary'?'Season Summary':'Season Totals'}</div>
+<div class="card">
+${statsMetricMode==='summary'
+? html`<${ClubSummaryGrid} summary=${clubResultsSummary} />`
+: html`<${ClubMatrixCard} stats=${clubSeasonMetrics.totals} filterCat="all" embedded=${true} />`}
+</div>
+`}
+<footer class="club-print-footer">
+<div class="club-print-footer-brand">EnejiStats</div>
+<div class="club-print-footer-contacts">
+<span><i class="fas fa-mobile-screen-button"></i> +2348083940039</span>
+<span><i class="fas fa-phone"></i> +2347065556569</span>
+<span><i class="fas fa-envelope"></i> enejistats@gmail.com</span>
+<span><i class="fas fa-globe"></i> www.enejistats.com</span>
+</div>
+<div class="club-print-footer-disclaimer">Africa's Football Intelligence Platform · Generated ${new Date().toLocaleDateString('en-GB')}</div>
+</footer>
+</section>
 <${ToastContainer} toasts=${toasts} removeToast=${removeToast} />
 <${TokenConfirmationModal}
 request=${tokenConfirmation}
@@ -1952,8 +2313,8 @@ ${tab.id==='notifications'&&unreadCount>0?html`<span style="background:#ef4444;c
 </div>
 <div class="page-inner">
 <div class="action-btns no-print">
-<button class="action-btn btn-print" onClick=${() => window.print()}><i class="fas fa-print"></i> Print</button>
-<button class="btn-download-pdf" onClick=${() => window.print()}><i class="fas fa-file-pdf"></i> Download PDF</button>
+<button class="action-btn btn-print" onClick=${handlePrintStats}><i class="fas fa-print"></i> Print</button>
+<button class="btn-download-pdf" onClick=${handlePrintStats}><i class="fas fa-file-pdf"></i> Download PDF</button>
 </div>
 <!-- ══ OVERVIEW TAB ══ -->
 ${activeTab==='__overview_removed__' && html`
@@ -2702,7 +3063,7 @@ ${f.competition?html`<span><i class="fas fa-trophy"></i> ${f.competition}</span>
 ${activeTab==='stats' && html`
 <div>
 <div class="club-stats-toolbar no-print">
-<button class="btn btn-outline" onClick=${()=>window.print()}><i class="fas fa-print"></i> Print Stats</button>
+<button class="btn btn-outline" onClick=${handlePrintStats}><i class="fas fa-print"></i> Print Stats</button>
 <button class="btn btn-primary" onClick=${exportStatsPng}><i class="fas fa-image"></i> Download PNG</button>
 </div>
 <div class="stats-view-tabs">
@@ -2711,27 +3072,18 @@ ${activeTab==='stats' && html`
 </div>
 ${statsView==='summary' && html`
 <div class="card">
-<div class="card-title"><i class="fas fa-chart-bar"></i> Season Statistics</div>
-<div class="stats-row-cards">
-<div class="stat-overview-card"><div class="stat-ov-value">${summaryStats?.matchesPlayed||summaryStats?.matches_played||0}</div><div class="stat-ov-label">Played</div></div>
-<div class="stat-overview-card"><div class="stat-ov-value">${summaryStats?.wins||0}</div><div class="stat-ov-label">Wins</div></div>
-<div class="stat-overview-card"><div class="stat-ov-value">${summaryStats?.draws||0}</div><div class="stat-ov-label">Draws</div></div>
-<div class="stat-overview-card"><div class="stat-ov-value">${summaryStats?.losses||0}</div><div class="stat-ov-label">Losses</div></div>
-<div class="stat-overview-card"><div class="stat-ov-value">${clubSeasonMetrics.totals.goals_for??summaryStats?.goalsFor??summaryStats?.goals_for??0}</div><div class="stat-ov-label">Goals For</div></div>
-<div class="stat-overview-card"><div class="stat-ov-value">${clubSeasonMetrics.totals.goals_against??summaryStats?.goalsAgainst??summaryStats?.goals_against??0}</div><div class="stat-ov-label">Goals Against</div></div>
-<div class="stat-overview-card"><div class="stat-ov-value">${clubSeasonMetrics.totals.clean_sheets??summaryStats?.cleanSheets??seasonStats?.clean_sheets??0}</div><div class="stat-ov-label">Clean Sheets</div></div>
-<div class="stat-overview-card"><div class="stat-ov-value">${clubSeasonMetrics.averages.possession??seasonStats?.possession_avg??0}%</div><div class="stat-ov-label">Avg Poss.</div></div>
+<div class="card-title club-performance-title">
+<span><i class="fas fa-chart-bar"></i> Club Performance</span>
+<div class="club-metric-toggle">
+<span class="club-metric-toggle-state">${statsMetricMode==='summary'?'Summary':'Season Totals'}</span>
+<button type="button" aria-label=${`Switch to ${statsMetricMode==='summary'?'season totals':'summary stats'}`} onClick=${()=>setStatsMetricMode(mode=>mode==='summary'?'totals':'summary')}>
+<i class="fas fa-repeat"></i> Show ${statsMetricMode==='summary'?'Season Totals':'Summary'}
+</button>
 </div>
 </div>
-<div class="card">
-<div class="card-title"><i class="fas fa-chart-line"></i> Cumulative Club Metrics</div>
-<div class="club-summary-note">Match-record totals are used where the tracker provides values; missing fields fall back to the club season summary. Percentages and rate metrics remain rates rather than being added together. ${clubSeasonMetrics.coveredMatches} of ${matchData.length} match records contain at least one club metric.</div>
-<${ClubMatrixCard} title="Season Totals & Rates" stats=${clubSeasonMetrics.totals} filterCat="all" />
-</div>
-<div class="card">
-<div class="card-title"><i class="fas fa-chart-simple"></i> Average Per Tracked Match</div>
-<div class="club-summary-note">Each metric is averaged only across matches where that value exists; unavailable data is shown as a dash, never counted as zero.</div>
-<${ClubMatrixCard} title="Per-Match Averages" stats=${clubSeasonMetrics.averages} filterCat="all" />
+${statsMetricMode==='summary'
+? html`<${ClubSummaryGrid} summary=${clubResultsSummary} />`
+: html`<${ClubMatrixCard} stats=${clubSeasonMetrics.totals} filterCat="all" embedded=${true} />`}
 </div>
 `}
 ${statsView==='detailed' && html`
@@ -2739,7 +3091,7 @@ ${statsView==='detailed' && html`
 <div class="card-title"><i class="fas fa-table"></i> Detailed Match Stats</div>
 <input type="search" value=${statsSearch} onInput=${e=>setStatsSearch(e.target.value)} placeholder="Search opponent, competition or venue..." style="width:100%;margin-bottom:.75rem;" />
 <div class="club-match-detail-list">
-${detailedStatsMatches.length===0 ? html`<div class="empty-state"><i class="fas fa-futbol"></i><div>No detailed match stats available</div><small>Submitted club match records will appear here when available.</small></div>` :
+${detailedStatsMatches.length===0 ? html`<div class="empty-state"><i class="fas fa-futbol"></i><div>No detailed match stats available</div></div>` :
 detailedStatsMatches.map((m,i)=>html`
 <article key=${m._id||m.id||i} class="club-detail-match">
 <header class="club-detail-match-head">
