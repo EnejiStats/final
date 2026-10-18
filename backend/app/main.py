@@ -2853,6 +2853,7 @@ _APP_DIR = Path(__file__).resolve().parent
 _BASE_DIR = _APP_DIR.parent
 _TEMPLATES_DIR = (_BASE_DIR / "templates").resolve()
 _STATIC_DIR = (_BASE_DIR / "static").resolve()
+_DCO_DASHBOARD_STATIC_DIR = (_STATIC_DIR / "dco-dashboard").resolve()
 
 logger.info(f"APP DIR:       {_APP_DIR}")
 logger.info(f"BASE DIR:      {_BASE_DIR}")
@@ -2869,6 +2870,9 @@ except Exception as e:
 # STATIC FILES
 # ============================================================
 
+# The single /static mount below serves the DCO dashboard's nested
+# tabs, shared scripts, and styles at /static/dco-dashboard/ as well.
+# Keep this on the existing mount to avoid duplicate static routes.
 app.mount(
     "/static",
     StaticFiles(directory=str(_STATIC_DIR)),
@@ -2876,6 +2880,16 @@ app.mount(
 )
 
 logger.info(f"Static files mounted at '/static' -> {_STATIC_DIR}")
+if _DCO_DASHBOARD_STATIC_DIR.is_dir():
+    logger.info(
+        "DCO dashboard assets served at '/static/dco-dashboard' -> %s",
+        _DCO_DASHBOARD_STATIC_DIR,
+    )
+else:
+    logger.warning(
+        "DCO dashboard static directory is missing: %s",
+        _DCO_DASHBOARD_STATIC_DIR,
+    )
 
 # ============================================================
 # HTML SERVE HELPER
