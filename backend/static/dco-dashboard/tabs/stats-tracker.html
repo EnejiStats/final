@@ -28,11 +28,37 @@ async function apiFetch(endpoint, options = {}) {
   try {
     const isJson = options.body && !(options.body instanceof FormData);
     const { headers: optionHeaders = {}, ...requestOptions } = options;
-    const res = await DCOChild.fetch(endpoint, { credentials: 'include', headers: { ...(isJson ? { 'Content-Type': 'application/json' } : {}), ...optionHeaders }, ...requestOptions, authRedirectStatuses: [401, 403] });
-    if (!res.ok) { const txt = await res.text(); const e = new Error(`HTTP ${res.status}: ${txt}`); e.status = res.status; throw e; }
-    const responseText = await res.text(); if (!responseText.trim()) return null;
-    try { return JSON.parse(responseText); } catch (parseError) { const e = new Error('Invalid JSON response from server'); e.status = res.status; e.responseText = responseText.slice(0, 500); throw e; }
-  } catch (err) { if (!err.status) console.error(`API error (${endpoint}):`, err); throw err; }
+    const res = await DCOChild.fetch(endpoint, {
+      credentials: 'include',
+      headers: { ...(isJson ? { 'Content-Type': 'application/json' } : {}), ...optionHeaders },
+      ...requestOptions,
+      authRedirectStatuses: [401, 403]
+    });
+    if (!res.ok) {
+      if (res.status === 401 || res.status === 403) {
+        const e = new Error('Session expired');
+        e.status = res.status;
+        throw e;
+      }
+      const txt = await res.text();
+      const e = new Error(`HTTP ${res.status}: ${txt}`);
+      e.status = res.status;
+      throw e;
+    }
+    const responseText = await res.text();
+    if (!responseText.trim()) return null;
+    try {
+      return JSON.parse(responseText);
+    } catch (parseError) {
+      const e = new Error('Invalid JSON response from server');
+      e.status = res.status;
+      e.responseText = responseText.slice(0, 500);
+      throw e;
+    }
+  } catch (err) {
+    if (!err.status) console.error(`API error (${endpoint}):`, err);
+    throw err;
+  }
 }
 
 const DCO_SHARED_KEY = 'eneji-matchday-shared-v1';
@@ -77,6 +103,22 @@ const player = a.player || request.player || {};
 const hasPlayer = !!(a.player_id || a.playerId || a.player_name || a.playerName || player.id || player._id || player.name || player.full_name);
 return hasClub && !hasPlayer || tracking.indexOf('club') === 0;
 }
+function assignmentHasPassedDay(assignment) {
+  if (!assignment || typeof assignment !== 'object') return false;
+  const rawStatus = String(assignment.status || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+  if (['completed','complete','submitted','declined','rejected','cancelled','canceled','expired'].includes(rawStatus)) return false;
+  const candidates = [assignment.matchDate, assignment.match_date, assignment.kickoffDate, assignment.kickoff_date, assignment.dueDate, assignment.due_date, assignment.endDate, assignment.end_date, assignment.expiresAt, assignment.expires_at, assignment.deadline];
+  const value = candidates.find(v => v !== undefined && v !== null && String(v).trim() !== '');
+  if (!value) return false;
+  const raw = String(value).trim(); const match = raw.match(/^(\d{4}-\d{2}-\d{2})/); let day = match ? match[1] : '';
+  if (!day) { const parsed = new Date(raw); if (!Number.isFinite(parsed.getTime())) return false; day = `${parsed.getFullYear()}-${String(parsed.getMonth()+1).padStart(2,'0')}-${String(parsed.getDate()).padStart(2,'0')}`; }
+  const now = new Date(); const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  return day < today;
+}
+function markExpiredAssignmentRejected(assignment) {
+  if (!assignmentHasPassedDay(assignment)) return assignment;
+  return { ...assignment, status: 'declined', rejection_reason: assignment.rejection_reason || 'Assignment date passed without completion', hiddenFromCards: true, autoRejectedExpired: true };
+}
 function normalizeDCOAssignment(source = {}) {
 const raw = source && typeof source === 'object' ? source : {};
 const request = raw.stats_request || raw.statsRequest || raw.request || raw.stats_request_data || {};
@@ -97,7 +139,7 @@ const statsRequestId = String(raw.stats_request_id ?? raw.statsRequestId ?? requ
 const referenceId = String(raw.reference_id ?? raw.referenceId ?? request.reference_id ?? request.referenceId ?? '').trim();
 const statusRaw = String(raw.status ?? request.status ?? 'assigned').trim().toLowerCase();
 const status = statusRaw === 'pending' && (raw.assigned_dco_id || raw.assignedDcoId || raw.assigned_scout_id || raw.assignedScoutId) ? 'assigned' : statusRaw;
-return { ...merged, id: id || requestId || statsRequestId || referenceId || undefined, assignmentId: id || requestId || statsRequestId || referenceId || undefined,
+const normalized = { ...merged, id: id || requestId || statsRequestId || referenceId || undefined, assignmentId: id || requestId || statsRequestId || referenceId || undefined,
 assignment_id: id || requestId || statsRequestId || referenceId || undefined, request_id: requestId || undefined,
 stats_request_id: statsRequestId || undefined, reference_id: referenceId || undefined, entityType: isClub ? 'club' : 'player',
 entity_type: isClub ? 'club' : 'player', requestType: isClub ? 'club' : 'player', request_type: isClub ? 'club' : 'player',
@@ -153,6 +195,7 @@ assigned_scout_name: raw.assigned_scout_name ?? raw.assignedScout ?? request.ass
 notes: raw.notes ?? request.notes ?? request.additional_notes ?? request.additionalNotes ?? '', submitted_at: raw.submitted_at ?? raw.submittedAt ?? request.submitted_at ?? request.submittedAt ?? raw.created_at ?? request.created_at ?? '',
 submittedAt: raw.submittedAt ?? raw.submitted_at ?? request.submittedAt ?? request.submitted_at ?? raw.created_at ?? request.created_at ?? '',
 status, _assignment_entity: isClub ? 'club' : 'player' };
+return markExpiredAssignmentRejected(normalized);
 }
 function normalizeDCOListResponse(value, keys = []) {
 if (Array.isArray(value)) return value;
@@ -953,9 +996,22 @@ h('button',{type:'button',className:'modal-btn secondary',onClick:onCancel,disab
 ' Back to Tracking'), h('button',{type:'button',className:'modal-btn primary',onClick:onConfirm,disabled:submitting},
 submitting ? h(Fragment,null,h('div',{className:'loading-spinner',style:{width:'15px',height:'15px',borderWidth:'2px'}}),
 ' Submitting...') : h(Fragment,null,h('i',{className:'fas fa-paper-plane'}),' Confirm & Submit Stats') ) ) ) ); }
-async function sendLivenessHeartbeat(dcoId) { if (!dcoId) return; try { await DCOChild.fetch(`/api/dco/${dcoId}/liveness/heartbeat`, { method: 'POST', authRedirectStatuses: [] }); } catch (e) {} }
-async function deactivateLiveness(dcoId) { if (!dcoId) return; try { await DCOChild.fetch(`/api/dco/${dcoId}/liveness/heartbeat`, { method: 'DELETE', authRedirectStatuses: [] }); } catch (e) {} }
-
+async function sendLivenessHeartbeat(dcoId) {
+  if (!dcoId) return;
+  try {
+    await DCOChild.fetch(`/api/dco/${dcoId}/liveness/heartbeat`, {
+      method: 'POST', credentials: 'include', authRedirectStatuses: []
+    });
+  } catch (e) {}
+}
+async function deactivateLiveness(dcoId) {
+  if (!dcoId) return;
+  try {
+    await DCOChild.fetch(`/api/dco/${dcoId}/liveness/heartbeat`, {
+      method: 'DELETE', credentials: 'include', authRedirectStatuses: []
+    });
+  } catch (e) {}
+}
 function createTrackedPlayer(slotIndex, initialData = {}, team = 'home') {
 const assignmentId = canonicalAssignmentId(initialData); const backendPlayerId = getBackendPlayerId(initialData); const sourceId = backendPlayerId || assignmentId; const isClubAssignment = isClubTrackingAssignment(initialData); const resolvedTeam = resolvePlayerTeam(initialData,
 team); return { tabId: `player-tab-${slotIndex + 1}`, playerId: backendPlayerId || null, assignmentId: assignmentId || null,
@@ -1811,7 +1867,7 @@ apiFetch(API.assignments), apiFetch(API.submissions) ]); const shared = readDCOS
 ['assignments', 'results', 'data']); const fallbackAssignments = normalizeDCOListResponse( local?.assignments || shared.assignments,
 ['assignments', 'results', 'data'] ); const records = normalizeDCOListResponse(submissionsData, ['submissions',
 'results', 'data']) .map(normalizeDCOSubmission); const fallbackRecords = normalizeDCOListResponse( local?.stats || shared.stats,
-['submissions', 'results', 'data'] ).map(normalizeDCOSubmission); const nextAssignments = (assignmentsFailed ? fallbackAssignments : assignmentList) .map(normalizeDCOAssignment) .filter(item => item && typeof item === 'object'); const nextRecords = submissionsFailed ? fallbackRecords : records; const hasLiveData = metricsResult.status === 'fulfilled' || assignmentsResult.status === 'fulfilled' || submissionsResult.status === 'fulfilled'; if (!hasLiveData && !nextAssignments.length && !nextRecords.length) {
+['submissions', 'results', 'data'] ).map(normalizeDCOSubmission); const nextAssignments = (assignmentsFailed ? fallbackAssignments : assignmentList) .map(normalizeDCOAssignment) .filter(item => item && typeof item === 'object'); if (!assignmentsFailed) { nextAssignments.filter(item => item.autoRejectedExpired && canonicalAssignmentId(item)).forEach(item => { const expiredId = canonicalAssignmentId(item); const key = 'enejistats_expired_assignment_rejected_' + expiredId; if (!sessionStorage.getItem(key)) { sessionStorage.setItem(key, '1'); apiFetch(API.declineAssignment, { method: 'POST', body: JSON.stringify({ assignmentId: expiredId, assignment_id: expiredId, reason: 'expired', rejection_reason: 'Assignment date passed without completion' }) }).catch(() => { sessionStorage.removeItem(key); }); } }); } const nextRecords = submissionsFailed ? fallbackRecords : records; const hasLiveData = metricsResult.status === 'fulfilled' || assignmentsResult.status === 'fulfilled' || submissionsResult.status === 'fulfilled'; if (!hasLiveData && !nextAssignments.length && !nextRecords.length) {
 throw metricsResult.reason || assignmentsResult.reason || submissionsResult.reason || new Error('No DCO data source available'); }
 setMetrics({ assigned_players: Number(metricsData.assigned_players ?? local?.metrics?.assigned_players ?? shared.metrics?.assigned_players) || 0,
 stats_today: Number(metricsData.stats_today ?? local?.metrics?.stats_today ?? shared.metrics?.stats_today) || 0,
@@ -1862,13 +1918,13 @@ showDCONotification('Failed to decline assignment: ' + error.message, 'error'); 
 }
 const getFilteredAssignments = () => {
 const filtered = assignedPlayers.filter(a => {
-  if (!a || a.hiddenFromCards || locallyCompletedIds.has(canonicalAssignmentId(a))) return false;
+  if (!a || a.hiddenFromCards || assignmentHasPassedDay(a) || locallyCompletedIds.has(canonicalAssignmentId(a))) return false;
   const status = String(a.status || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
   return !['completed', 'complete', 'passed', 'pass', 'submitted', 'declined', 'cancelled', 'canceled'].includes(status);
 }); switch (assignmentView) {
 case 'assigned': return filtered.filter(p => ['assigned','pending'].includes(String(p.status || '').toLowerCase())); case 'accepted': return filtered.filter(p => String(p.status || '').toLowerCase() === 'accepted'); default: return filtered; }
 }
-; const filteredAssignments = getFilteredAssignments(); const playerAssignments = filteredAssignments.filter(a => !isClubAssignmentRecord(a)); const clubAssignments = filteredAssignments.filter(a => isClubAssignmentRecord(a)); const effectiveAssignmentEntityView = playerAssignments.length ? (clubAssignments.length && assignmentEntityView === 'club' ? 'club' : 'player') : 'club'; const acceptedRecords = assignedPlayers.filter(p => p && !locallyCompletedIds.has(canonicalAssignmentId(p)) && String(p.status || '').trim().toLowerCase()==='accepted'); const acceptedPlayers = acceptedRecords.filter(p => !isClubAssignmentRecord(p)); const acceptedClubs = acceptedRecords.filter(p => isClubAssignmentRecord(p)); const selectedAssignments = acceptedPlayers.filter(player => selectedAssignmentIds.includes(canonicalAssignmentId(player))); const toggleAssignmentSelection = (assignmentId) => {
+; const filteredAssignments = getFilteredAssignments(); const playerAssignments = filteredAssignments.filter(a => !isClubAssignmentRecord(a)); const clubAssignments = filteredAssignments.filter(a => isClubAssignmentRecord(a)); const effectiveAssignmentEntityView = playerAssignments.length ? (clubAssignments.length && assignmentEntityView === 'club' ? 'club' : 'player') : 'club'; const acceptedRecords = assignedPlayers.filter(p => p && !p.hiddenFromCards && !assignmentHasPassedDay(p) && !locallyCompletedIds.has(canonicalAssignmentId(p)) && String(p.status || '').trim().toLowerCase()==='accepted'); const acceptedPlayers = acceptedRecords.filter(p => !isClubAssignmentRecord(p)); const acceptedClubs = acceptedRecords.filter(p => isClubAssignmentRecord(p)); const selectedAssignments = acceptedPlayers.filter(player => selectedAssignmentIds.includes(canonicalAssignmentId(player))); const toggleAssignmentSelection = (assignmentId) => {
 const id = canonicalAssignmentId(assignmentId); setSelectedAssignmentIds(prev => {
 if (prev.includes(id)) return prev.filter(value => value !== id); if (prev.length >= maxMountablePlayers) {
 showDCONotification(`You can mount up to ${maxMountablePlayers} players at once`,'warning'); return prev; }
@@ -1963,7 +2019,7 @@ catch (e) {
 }
 return () => document.body.classList.remove('theme-dark'); }
 , [theme]); useEffect(() => {
-Promise.resolve(DCOChild.getUser()) .then(u => {
+apiFetch(API.userInfo) .then(u => {
 const user = u && typeof u === 'object' ? u : {}; setCurrentUser({ id: user._id || user.id || '', name: user.name || user.fullName || 'DCO',
 dco_id: user.dco_id || user.id || '', photo: user.photo || user.profileImage || '' }); }
 ) .catch(() => {
@@ -1971,13 +2027,13 @@ dco_id: user.dco_id || user.id || '', photo: user.photo || user.profileImage || 
 );  try {
 const saved = sessionStorage.getItem('statsTrackerData'); if (saved) {
 const data = normalizeTrackingAssignment(JSON.parse(saved)); if (isClubTrackingAssignment(data) || hasMountedPlayers(data)) {
-setWidgetData(data); setActiveTab('match-widget'); sessionStorage.removeItem('statsTrackerData'); }
+setWidgetData(data); setActiveTab(isClubTrackingAssignment(data) || isClubAssignmentRecord(data) ? 'club-tracker' : 'player-tracker'); sessionStorage.removeItem('statsTrackerData'); }
 }
 }
 catch (e) {
 }
 }
- , []); useEffect(() => DCOChild.onContext(ctx => { const user = ctx.user || {}; setCurrentUser({ id: user._id || user.id || '', name: user.name || user.fullName || 'DCO', dco_id: user.dco_id || user.id || '', photo: user.photo || user.profileImage || '' }); }), []); const widgetUser = { id: currentUser.id || currentUser.dco_id || '', name: currentUser.name || 'DCO' }; return html`
+, []); const widgetUser = { id: currentUser.id || currentUser.dco_id || '', name: currentUser.name || 'DCO' }; return html`
 <div>
 <!-- Stats Tracker Content -->
 <main class="tabs-container">
@@ -1987,10 +2043,8 @@ catch (e) {
 onClick=${() => setActiveTab('assignments')} role="tab">
 <i class="fas fa-clipboard-list"></i> Assignments
 </button>
-<button type="button" class=${'sub-tab-btn' + (activeTab==='match-widget' ? ' active-sub-tab' : '')}
-onClick=${() => setActiveTab('match-widget')} role="tab">
-<i class="fas fa-stopwatch"></i> Match Widget
-</button>
+${widgetData && !isClubTrackingAssignment(widgetData) && !isClubAssignmentRecord(widgetData) && hasMountedPlayers(widgetData) ? html`<button type="button" role="tab" aria-selected=${activeTab==='player-tracker'} class=${'sub-tab-btn'+(activeTab==='player-tracker'?' active-sub-tab':'')} onClick=${()=>setActiveTab('player-tracker')}><i class="fas fa-user"></i> Player Tracker</button>` : null}
+${widgetData && (isClubTrackingAssignment(widgetData) || isClubAssignmentRecord(widgetData)) ? html`<button type="button" role="tab" aria-selected=${activeTab==='club-tracker'} class=${'sub-tab-btn'+(activeTab==='club-tracker'?' active-sub-tab':'')} onClick=${()=>setActiveTab('club-tracker')}><i class="fas fa-shield-alt"></i> Club Tracker</button>` : null}
 <button type="button" class="sub-tab-btn theme-toggle" style="margin-left:auto" onClick=${() => setTheme(theme === 'dark' ? 'light' : 'dark')}
 aria-label=${theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
 ${theme === 'dark' ? '☀ Light' : '☾ Dark'}
@@ -2002,16 +2056,16 @@ ${theme === 'dark' ? '☀ Light' : '☾ Dark'}
 const prepared = normalizeTrackingAssignment(data);
 if (isClubTrackingAssignment(prepared) || hasMountedPlayers(prepared)) {
 setWidgetData(prepared);
-setActiveTab('match-widget');
+setActiveTab(isClubTrackingAssignment(prepared) || isClubAssignmentRecord(prepared) ? 'club-tracker' : 'player-tracker');
 }
 }}/>
 </div>
 <!-- Match Widget Sub-Tab -->
-<div class=${'sub-tab-content' + (activeTab==='match-widget' ? ' active' : '')} role="tabpanel">
-${!(isClubTrackingAssignment(widgetData) || hasMountedPlayers(widgetData)) ? html` <div style="text-align:center;padding:3rem 1rem;color:var(--gray)"> <i class="fas fa-clipboard-list" style="font-size:3rem;margin-bottom:1rem;opacity:.4;display:block"></i> <h3 style="margin-bottom:.5rem;color:var(--dark)">No Assignment Loaded</h3> <p style="font-size:.9rem">Go to the <strong>Assignments</strong> tab, accept an assignment, and click <strong>Track</strong> to begin live stat tracking.</p> </div> ` : html` <div class="page-content" style="padding:0.75rem 0.5rem"> <${MatchWidgetApp} key=${canonicalAssignmentId(widgetData)||widgetData.matchId||widgetData.match_id||widgetData.id} currentUser=${widgetUser} initialData=${widgetData} onAssignmentCompleted=${markAssignmentsCompleted} onSubmissionComplete=${(details) => {
-markAssignmentsCompleted(details);
-setWidgetData(null); setAssignmentRefreshToken(value => value + 1); setActiveTab('assignments'); }
-} /> </div>`}
+<div class=${'sub-tab-content' + (activeTab==='player-tracker' && widgetData && !isClubTrackingAssignment(widgetData) && !isClubAssignmentRecord(widgetData) && hasMountedPlayers(widgetData) ? ' active' : '')} role="tabpanel" aria-label="Player Tracker">
+${activeTab==='player-tracker' && widgetData && !isClubTrackingAssignment(widgetData) && !isClubAssignmentRecord(widgetData) && hasMountedPlayers(widgetData) ? html`<div class="page-content" style="padding:0.75rem 0.5rem"><${MatchWidgetApp} key=${canonicalAssignmentId(widgetData)||widgetData.matchId||widgetData.match_id||widgetData.id} currentUser=${widgetUser} initialData=${widgetData} onAssignmentCompleted=${markAssignmentsCompleted} onSubmissionComplete=${(details) => { markAssignmentsCompleted(details); setWidgetData(null); setAssignmentRefreshToken(value => value + 1); setActiveTab('assignments'); }} /></div>` : null}
+</div>
+<div class=${'sub-tab-content' + (activeTab==='club-tracker' && widgetData && (isClubTrackingAssignment(widgetData) || isClubAssignmentRecord(widgetData)) ? ' active' : '')} role="tabpanel" aria-label="Club Tracker">
+${activeTab==='club-tracker' && widgetData && (isClubTrackingAssignment(widgetData) || isClubAssignmentRecord(widgetData)) ? html`<div class="page-content" style="padding:0.75rem 0.5rem"><${MatchWidgetApp} key=${canonicalAssignmentId(widgetData)||widgetData.matchId||widgetData.match_id||widgetData.id} currentUser=${widgetUser} initialData=${widgetData} onAssignmentCompleted=${markAssignmentsCompleted} onSubmissionComplete=${(details) => { markAssignmentsCompleted(details); setWidgetData(null); setAssignmentRefreshToken(value => value + 1); setActiveTab('assignments'); }} /></div>` : null}
 </div>
 </div>
 </main>
@@ -2032,7 +2086,7 @@ function mergeRows(a,b){const map=new Map((Array.isArray(a)?a:[]).map(x=>[rowKey
 function publish(patch,source){const cur=read(),next=Object.assign({},cur,{schemaVersion:VERSION});Object.keys(patch||{}).forEach(k=>{next[k]=Array.isArray(patch[k])?mergeRows(next[k],patch[k]):patch[k];});next.updatedAt=Date.now();next.lastSource=source||document.title||'dashboard';try{localStorage.setItem(KEY,JSON.stringify(next));}catch(e){}try{if(!bc&&'BroadcastChannel'in window)bc=new BroadcastChannel(CHANNEL);if(bc)bc.postMessage({type:'ecosystem-update',updatedAt:next.updatedAt,source:next.lastSource});}catch(e){}window.dispatchEvent(new CustomEvent('enejistats:ecosystem-updated',{detail:next}));return next;}
 function notify(){window.dispatchEvent(new CustomEvent('enejistats:ecosystem-updated',{detail:read()}));}
 window.EnejiStatsEcosystem={version:VERSION,key:KEY,read,publish,mergeRows,notify};
-async function api(path,options){const r=await DCOChild.fetch(path,Object.assign({credentials:'include',cache:'no-store',authRedirectStatuses:[]},options||{}));if(!r.ok)throw new Error('HTTP '+r.status);const t=await r.text();if(!t)return {};try{return JSON.parse(t);}catch(e){return {};}}
+async function api(path,options){const r=await DCOChild.fetch(path,Object.assign({credentials:'include',cache:'no-store'},options||{},{authRedirectStatuses:[]}));if(!r.ok)throw new Error('HTTP '+r.status);const t=await r.text();if(!t)return {};try{return JSON.parse(t);}catch(e){return {};}}
 const title=(document.title||'').toLowerCase(),isDco=title.includes('stats tracker'),isSupervisor=title.includes('supervisor dashboard'),isMatchCentre=title.includes('match centre');
 async function syncDco(){try{const [a,s]=await Promise.allSettled([api('/api/dco/assignments'),api('/api/dco/submissions')]);const assignments=a.status==='fulfilled'?arr(a.value,['assignments','results','data']):[];const submissions=s.status==='fulfilled'?arr(s.value,['submissions','results','data']):[];if(assignments.length||submissions.length)publish({assignments,stats:submissions,submissions},'dco');}catch(e){}}
 async function syncSupervisor(){try{const [m,d,a,s]=await Promise.allSettled([api('/api/supervisor/matches'),api('/api/supervisor/available-dcos'),api('/api/admin/assignments?limit=200'),api('/api/dco/submissions')]);const matches=m.status==='fulfilled'?arr(m.value,['matches','results','data']):[];const dcos=d.status==='fulfilled'?arr(d.value,['dcos','users','results','data']):[];const assignments=a.status==='fulfilled'?arr(a.value,['assignments','results','data']):[];const submissions=s.status==='fulfilled'?arr(s.value,['submissions','results','data']):[];if(matches.length||dcos.length||assignments.length||submissions.length)publish({matches,dcos,assignments,stats:submissions,submissions},'supervisor');}catch(e){}}
