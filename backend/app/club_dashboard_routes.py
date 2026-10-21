@@ -349,6 +349,7 @@ class StatsRequestBody(BaseModel):
     # Keep these on the persisted request; older Pydantic models silently
     # discarded the frontend's player_ids field.
     player_ids: List[str] = Field(default_factory=list)
+    player_name: Optional[str] = None
     contact_phone: str
     notes: Optional[str] = None
     player_stat_categories: Optional[List[str]] = Field(default_factory=list)
@@ -426,6 +427,14 @@ async def _resolve_club(uid: str) -> Optional[dict]:
 _CLUB_METRIC_ALIASES = {
     "goals_for": ("goals_for", "goals", "goals_scored"),
     "goals_against": ("goals_against", "goals_conceded", "conceded"),
+    "short_passes": (
+        "short_passes", "successful_short_passes", "short_passes_completed",
+        "short_passes_accurate", "accurate_short_passes",
+    ),
+    "long_passes": (
+        "long_passes", "successful_long_passes", "long_passes_completed",
+        "long_passes_accurate", "accurate_long_passes",
+    ),
     "shots_total": ("shots_total", "shots", "total_shots"),
     "shots_on_target": ("shots_on_target", "shots_on_goal", "on_target_shots"),
     "big_chances": ("big_chances", "big_chances_created"),
@@ -1146,6 +1155,202 @@ async def _club_match_records(
     return merged[offset:offset + limit]
 
 
+_CLUB_SEARCH_METRIC_ALIASES = {
+    "possession": ("possession", "avg_possession", "average_possession", "possession_avg", "possession_percentage", "possession_pct"),
+    "short_passes": ("short_passes", "successful_short_passes", "short_passes_completed", "short_passes_accurate", "accurate_short_passes"),
+    "long_passes": ("long_passes", "successful_long_passes", "long_passes_completed", "long_passes_accurate", "accurate_long_passes"),
+    "goals_scored": ("goals_scored", "goals_for", "goals", "total_goals"),
+    "goals_conceded": ("goals_conceded", "goals_against", "goals_allowed"),
+    "win_rate": ("win_rate", "win_rate_pct", "win_percentage", "wins_percentage"),
+}
+
+_CLUB_SEARCH_METRIC_BOUNDS = {
+    "possession": (0.0, 100.0),
+    "short_passes": (0.0, 1000.0),
+    "long_passes": (0.0, 1000.0),
+    "goals_scored": (0.0, 20.0),
+    "goals_conceded": (0.0, 20.0),
+    "win_rate": (0.0, 100.0),
+}
+
+
+def _club_search_performance(club: dict, matches: List[dict]) -> Dict[str, Any]:
+    """Build the per-match metrics the match-request range controls consume."""
+    sources = [
+        club.get("stats"),
+        club.get("season_stats"),
+        club.get("seasonStats"),
+        club.get("club_stats"),
+        club.get("clubStats"),
+        club.get("performance"),
+        club.get("summary"),
+        club.get("summary_stats"),
+        club.get("summaryStats"),
+        club.get("stats_summary"),
+        club.get("statsSummary"),
+        club.get("results_summary"),
+        club.get("resultsSummary"),
+    ]
+    profile_stats: Dict[str, Any] = {}
+    direct_keys = {
+        alias
+        for aliases in _CLUB_SEARCH_METRIC_ALIASES.values()
+        for alias in aliases
+    }
+    direct_keys.update({"wins", "win_count", "matches_played", "matchesPlayed", "played"})
+    for key in direct_keys:
+        if club.get(key) is not None:
+            profile_stats[key] = club[key]
+    for source in reversed(sources):
+        if isinstance(source, dict):
+            profile_stats.update(source)
+
+    ids = {
+        str(value).strip()
+        for value in (
+            club.get("club_id"), club.get("user_id"), club.get("unique_id"),
+            club.get("_id"), club.get("id"),
+        )
+        if value not in (None, "")
+    }
+    names = {
+        _club_name_key(value)
+        for value in (club.get("club_name"), club.get("name"))
+        if value
+    }
+    metric_sums: Dict[str, float] = {}
+    metric_counts: Dict[str, int] = {}
+    result_matches = wins = 0
+    goals_scored_sum = goals_conceded_sum = 0.0
+    goals_scored_count = goals_conceded_count = 0
+
+    for match in matches:
+        side = _club_key(match.get("club_side") or match.get("club_position") or "")
+        if side not in {"home", "away"}:
+            for candidate_side in ("home", "away"):
+                side_ids = {
+                    str(match.get(f"{candidate_side}_{field}") or "").strip()
+                    for field in ("club_id", "team_id", "user_id")
+                }
+                if ids.intersection(side_ids):
+                    side = candidate_side
+                    break
+                team_name = _club_name_key(
+                    match.get(f"{candidate_side}_team")
+                    or match.get(f"{candidate_side}Team")
+                )
+                if team_name and team_name in names:
+                    side = candidate_side
+                    break
+
+        home_score = _numeric_metric(
+            match.get("home_score")
+            if match.get("home_score") is not None
+            else (match.get("score") or {}).get("home")
+            if isinstance(match.get("score"), dict)
+            else None
+        )
+        away_score = _numeric_metric(
+            match.get("away_score")
+            if match.get("away_score") is not None
+            else (match.get("score") or {}).get("away")
+            if isinstance(match.get("score"), dict)
+            else None
+        )
+
+        if side in {"home", "away"} and home_score is not None and away_score is not None:
+            result_matches += 1
+            own_score = home_score if side == "home" else away_score
+            opponent_score = away_score if side == "home" else home_score
+            goals_scored_sum += own_score
+            goals_conceded_sum += opponent_score
+            goals_scored_count += 1
+            goals_conceded_count += 1
+            if own_score > opponent_score:
+                wins += 1
+        else:
+            result = str(match.get("result") or "").strip().lower()
+            if result in {"w", "win", "won"}:
+                result_matches += 1
+                wins += 1
+            elif result in {"d", "draw", "drawn"}:
+                result_matches += 1
+            elif result in {"l", "loss", "lost"}:
+                result_matches += 1
+
+        raw_stats = match.get("club_stats")
+        if not isinstance(raw_stats, dict) or not raw_stats:
+            raw_stats = match.get(f"{side}_stats") if side in {"home", "away"} else None
+        if not isinstance(raw_stats, dict) or not raw_stats:
+            raw_stats = (
+                _team_metrics_from_container(match, side)
+                if side in {"home", "away"}
+                else match.get("stats")
+            )
+        canonical = _canonical_club_metrics(raw_stats) if isinstance(raw_stats, dict) else {}
+        if not goals_scored_count and canonical.get("goals_for") is not None:
+            goals_scored_sum += canonical["goals_for"]
+            goals_scored_count += 1
+        if not goals_conceded_count and canonical.get("goals_against") is not None:
+            goals_conceded_sum += canonical["goals_against"]
+            goals_conceded_count += 1
+        for metric, value in canonical.items():
+            metric_sums[metric] = metric_sums.get(metric, 0.0) + value
+            metric_counts[metric] = metric_counts.get(metric, 0) + 1
+
+    performance: Dict[str, Any] = dict(profile_stats)
+    for metric, total in metric_sums.items():
+        count = metric_counts.get(metric, 0)
+        if count:
+            performance[metric] = round(total / count, 2)
+    if goals_scored_count:
+        performance["goals_scored"] = round(goals_scored_sum / goals_scored_count, 2)
+        performance["goals_for"] = performance["goals_scored"]
+    if goals_conceded_count:
+        performance["goals_conceded"] = round(goals_conceded_sum / goals_conceded_count, 2)
+        performance["goals_against"] = performance["goals_conceded"]
+    if result_matches:
+        performance["win_rate"] = round(wins * 100 / result_matches, 2)
+        performance["wins"] = wins
+        performance["matches_played"] = result_matches
+        performance["matchesPlayed"] = result_matches
+    elif _numeric_metric(performance.get("win_rate")) is None:
+        wins_value = _numeric_metric(performance.get("wins"))
+        played_value = _numeric_metric(
+            performance.get("matches_played") or performance.get("matchesPlayed")
+        )
+        if wins_value is not None and played_value and played_value > 0:
+            performance["win_rate"] = round(wins_value * 100 / played_value, 2)
+    return performance
+
+
+def _club_search_metric(performance: Dict[str, Any], metric: str) -> Optional[float]:
+    for alias in _CLUB_SEARCH_METRIC_ALIASES[metric]:
+        value = performance.get(alias)
+        if isinstance(value, dict):
+            value = next(
+                (
+                    value.get(key)
+                    for key in ("average", "avg", "value", "percentage", "pct", "total")
+                    if value.get(key) is not None
+                ),
+                None,
+            )
+        parsed = _numeric_metric(value)
+        if parsed is not None:
+            return parsed
+    if metric == "win_rate":
+        wins = _numeric_metric(performance.get("wins") or performance.get("win_count"))
+        played = _numeric_metric(
+            performance.get("matches_played")
+            or performance.get("matchesPlayed")
+            or performance.get("played")
+        )
+        if wins is not None and played is not None and played > 0:
+            return wins * 100 / played
+    return None
+
+
 def _require_auth(current_user: dict, uid: str) -> None:
     """
     Raise 403 if the authenticated user is not the requested club,
@@ -1164,6 +1369,45 @@ def _require_auth(current_user: dict, uid: str) -> None:
         if val and str(val) == str(uid):
             return
     raise HTTPException(status_code=403, detail="Access denied")
+
+
+def _stats_tracking_costs(level: str) -> Dict[str, int]:
+    """Return the canonical club/player token split used by pricing and writes."""
+    try:
+        full_cost = int(pricing_service.get_stats_request_cost("club", level))
+    except Exception:
+        full_cost = 10
+    full_cost = max(2, full_cost)
+    club_cost = max(1, int(full_cost * 0.6))
+    player_cost = max(1, full_cost - club_cost)
+    return {
+        "club_only": club_cost,
+        "player_only": player_cost,
+        "club_and_players": full_cost,
+    }
+
+
+def _tracking_request_cost(
+    tracking_type: Optional[str],
+    costs: Dict[str, int],
+    player_count: int = 0,
+) -> int:
+    """Calculate authoritative token cost for one club tracking request."""
+    tracking_type = str(tracking_type or "no_tracking").strip().lower()
+    if tracking_type == "no_tracking":
+        return 0
+    if tracking_type == "club_only":
+        return costs["club_only"]
+    if tracking_type == "player_only":
+        if player_count < 1:
+            raise HTTPException(
+                status_code=422,
+                detail="Select at least one player for player-only tracking.",
+            )
+        return costs["player_only"] * player_count
+    if tracking_type == "club_and_players":
+        return costs["club_only"] + costs["player_only"] * player_count
+    raise HTTPException(status_code=422, detail="Unsupported tracking_type.")
 
 
 # ============================================================
@@ -1694,16 +1938,10 @@ async def get_token_costs(request: Request):
         except Exception:
             packages = []
 
-        # Stats-request costs per tracking type (flat pricing)
-        try:
-            club_and_players_cost = pricing_service.get_stats_request_cost("club", level)
-        except Exception:
-            club_and_players_cost = 10
-
-        try:
-            club_only_cost = max(1, int(club_and_players_cost * 0.6))
-        except Exception:
-            club_only_cost = 6
+        stats_costs = _stats_tracking_costs(level)
+        club_and_players_cost = stats_costs["club_and_players"]
+        club_only_cost = stats_costs["club_only"]
+        player_only_cost = stats_costs["player_only"]
 
         # Key names MUST match what the frontend reads (line 1632-1633 of club-dashboard.html):
         #   tokenCosts.club_stats_tracking || tokenCosts.club_tracking        (club_only)
@@ -1715,10 +1953,13 @@ async def get_token_costs(request: Request):
                 "full_tracking":            club_and_players_cost,   # fallback key  (frontend line 1633)
                 "club_stats_tracking":      club_only_cost,          # primary key (frontend line 1632)
                 "club_tracking":            club_only_cost,          # fallback key  (frontend line 1632)
+                "player_stats_tracking":    player_only_cost,
+                "player_tracking":          player_only_cost,
                 "no_tracking":              0,
                 # Legacy/extra aliases kept for compatibility
                 "club_and_players":         club_and_players_cost,
                 "club_only":               club_only_cost,
+                "player_only":             player_only_cost,
             },
         })
     except HTTPException:
@@ -2350,20 +2591,23 @@ async def submit_stats_request(uid: str, request: Request, body: StatsRequestBod
         if not club:
             raise HTTPException(status_code=404, detail="Club not found")
 
-        # Determine token cost
-        level = club.get("category") or club.get("club_category") or "professional"
-        token_cost = 0
-        if body.tracking_type != "no_tracking":
-            try:
-                raw_cost = pricing_service.get_stats_request_cost("club", level)
-                if body.tracking_type == "club_only":
-                    token_cost = max(1, int(raw_cost * 0.6))
-                else:
-                    token_cost = int(raw_cost)
-            except Exception:
-                token_cost = 10
+        player_ids = list(dict.fromkeys(
+            str(pid).strip() for pid in (body.player_ids or []) if str(pid).strip()
+        ))
+        tracking_type = str(body.tracking_type or "club_and_players").strip().lower()
+        if tracking_type in {"club_and_players", "player_only"} and not player_ids:
+            raise HTTPException(
+                status_code=422,
+                detail="Select at least one player for player tracking.",
+            )
 
-            # Check balance
+        level = club.get("category") or club.get("club_category") or "professional"
+        token_costs = _stats_tracking_costs(level)
+        token_cost = _tracking_request_cost(
+            tracking_type, token_costs, len(player_ids)
+        )
+        if token_cost:
+            # Check and lock the authoritative backend-calculated amount.
             token_rec = await club_tokens_collection.find_one(
                 {"$or": [{"club_id": uid}, {"user_id": uid}]}
             )
@@ -2386,16 +2630,10 @@ async def submit_stats_request(uid: str, request: Request, body: StatsRequestBod
                 },
             )
 
-        reference_id = (
-            _make_stats_request_ref()
-            if callable(_make_stats_request_ref)
-            else f"SR-{uid[:6].upper()}-{uuid.uuid4().hex[:8].upper()}"
-        )
-        player_ids = list(dict.fromkeys(
-            str(pid) for pid in (body.player_ids or []) if pid
-        ))
+        reference_id = f"SR-{uid[:6].upper()}-{uuid.uuid4().hex.upper()}"
         doc = {
             "reference_id":   reference_id,
+            "request_id":     reference_id,
             "club_id":        uid,
             "user_id":        uid,
             "club_name":      club.get("club_name", ""),
@@ -2416,8 +2654,10 @@ async def submit_stats_request(uid: str, request: Request, body: StatsRequestBod
             "venue_city":     body.venue_city,
             "venue_detailed_address": body.venue_detailed_address,
             "jersey_color":   body.jersey_color,
-            "tracking_type":           body.tracking_type,
+            "tracking_type":           tracking_type,
             "player_ids":              player_ids,
+            "player_id":               player_ids[0] if len(player_ids) == 1 else None,
+            "player_name":             body.player_name,
             "player_request_states":   [
                 {"player_id": pid, "status": "Pending"} for pid in player_ids
             ],
@@ -2432,28 +2672,48 @@ async def submit_stats_request(uid: str, request: Request, body: StatsRequestBod
             "updated_at":     MongoSerializer.now_utc(),
         }
 
-        await stats_requests_collection.insert_one(doc)
+        try:
+            await stats_requests_collection.insert_one(doc)
+        except Exception:
+            if token_cost:
+                await club_tokens_collection.update_one(
+                    {"$or": [{"club_id": uid}, {"user_id": uid}]},
+                    {
+                        "$inc": {"balance": token_cost, "locked": -token_cost},
+                        "$set": {"updated_at": MongoSerializer.now_utc()},
+                    },
+                )
+            raise
 
         # Debit transaction record
         if token_cost > 0:
-            await transactions_collection.insert_one({
-                "club_id":     uid,
-                "user_id":     uid,
-                "entity":      "club",
-                "type":        "debit",
-                "description": f"Stats tracking request ({body.tracking_type})",
-                "amount":      0,
-                "tokens":      token_cost,
-                "status":      "completed",
-                "reference":   reference_id,
-                "created_at":  MongoSerializer.now_utc(),
-            })
+            try:
+                await transactions_collection.insert_one({
+                    "club_id":     uid,
+                    "user_id":     uid,
+                    "entity":      "club",
+                    "type":        "debit",
+                    "description": f"Stats tracking request ({tracking_type})",
+                    "amount":      0,
+                    "tokens":      token_cost,
+                    "status":      "completed",
+                    "reference":   reference_id,
+                    "created_at":  MongoSerializer.now_utc(),
+                })
+            except Exception as transaction_error:
+                logger.error(
+                    f"Stats request {reference_id} saved but transaction log failed: "
+                    f"{transaction_error}"
+                )
 
         return MongoJSONResponse({
             "ok":           True,
             "reference_id": reference_id,
+            "request_id":   reference_id,
             "status":       "SUBMITTED",
             "tokens_locked": token_cost,
+            "player_id":    player_ids[0] if len(player_ids) == 1 else None,
+            "player_name":  body.player_name,
         })
     except HTTPException:
         raise
@@ -2477,6 +2737,18 @@ async def search_clubs(
     city: str = "",
     limit: int = 20,
     page: int = 1,
+    possession_min: Optional[float] = None,
+    possession_max: Optional[float] = None,
+    short_passes_min: Optional[float] = None,
+    short_passes_max: Optional[float] = None,
+    long_passes_min: Optional[float] = None,
+    long_passes_max: Optional[float] = None,
+    goals_scored_min: Optional[float] = None,
+    goals_scored_max: Optional[float] = None,
+    goals_conceded_min: Optional[float] = None,
+    goals_conceded_max: Optional[float] = None,
+    win_rate_min: Optional[float] = None,
+    win_rate_max: Optional[float] = None,
 ):
     """
     Search registered clubs — used by the Match Request form to
@@ -2484,7 +2756,32 @@ async def search_clubs(
     """
     try:
         limit = max(1, min(limit, 50))
-        skip  = (max(1, page) - 1) * limit
+        page = max(1, page)
+        skip = (page - 1) * limit
+        filters = {
+            "possession": (possession_min, possession_max),
+            "short_passes": (short_passes_min, short_passes_max),
+            "long_passes": (long_passes_min, long_passes_max),
+            "goals_scored": (goals_scored_min, goals_scored_max),
+            "goals_conceded": (goals_conceded_min, goals_conceded_max),
+            "win_rate": (win_rate_min, win_rate_max),
+        }
+        for metric, (minimum, maximum) in filters.items():
+            lower_bound, upper_bound = _CLUB_SEARCH_METRIC_BOUNDS[metric]
+            if (
+                (minimum is not None and not lower_bound <= minimum <= upper_bound)
+                or (maximum is not None and not lower_bound <= maximum <= upper_bound)
+                or (minimum is not None and maximum is not None and minimum > maximum)
+            ):
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Invalid {metric} range.",
+                )
+        active_filters = {
+            metric: pair
+            for metric, pair in filters.items()
+            if pair[0] is not None or pair[1] is not None
+        }
 
         query: Dict[str, Any] = {}
 
@@ -2505,30 +2802,101 @@ async def search_clubs(
         for _clause in build_club_location_filter(country=country, state=state, lga=lga, city=city):
             query.setdefault("$and", []).append(_clause)
 
-        clubs = await (
-            clubs_collection.find(query)
-            .skip(skip)
-            .limit(limit)
-            .to_list(length=limit)
-        )
+        results: List[Dict[str, Any]] = []
+        matching_count = 0
+        scan_offset = 0
+        scan_exhausted = False
+        batch_size = max(20, min(limit * 2, 100))
+        target_count = skip + limit + 1
 
-        results = []
-        for c in clubs:
-            results.append({
-                "_id":        str(c.get("_id", "")),
-                "club_id":    c.get("club_id", ""),
-                "club_name":  c.get("club_name", ""),
-                "name":       c.get("club_name", ""),
-                "category":   c.get("category", ""),
-                "state":      c.get("state", "") or c.get("region", ""),
-                "lga":        c.get("lga", ""),
-                "city":       c.get("city", "") or c.get("town", ""),
-                "country":    c.get("country", ""),
-                "photo_url":  c.get("photo_url", ""),
-                "is_verified": c.get("is_verified", False),
-            })
+        while matching_count < target_count:
+            clubs = await (
+                clubs_collection.find(query)
+                .sort("club_name", 1)
+                .skip(scan_offset)
+                .limit(batch_size)
+                .to_list(length=batch_size)
+            )
+            if not clubs:
+                scan_exhausted = True
+                break
+            scan_offset += len(clubs)
 
-        return MongoJSONResponse({"clubs": results, "total": len(results)})
+            for c in clubs:
+                performance = _club_search_performance(c, [])
+                if active_filters:
+                    # Use profile aggregates when present; otherwise derive the
+                    # same per-match values from this club's recorded fixtures.
+                    missing_filter_metric = any(
+                        _club_search_metric(performance, metric) is None
+                        for metric in active_filters
+                    )
+                    if missing_filter_metric:
+                        candidate_uid = str(
+                            c.get("club_id") or c.get("user_id") or c.get("_id") or ""
+                        )
+                        match_rows = await _club_match_records(
+                            candidate_uid, c, limit=1000
+                        )
+                        if match_rows:
+                            performance = _club_search_performance(c, match_rows)
+
+                    matched = True
+                    for metric, (minimum, maximum) in active_filters.items():
+                        value = _club_search_metric(performance, metric)
+                        if value is None or (
+                            minimum is not None and value < minimum
+                        ) or (
+                            maximum is not None and value > maximum
+                        ):
+                            matched = False
+                            break
+                    if not matched:
+                        continue
+
+                matching_count += 1
+                if matching_count > skip + limit:
+                    break
+                if matching_count > skip and len(results) < limit:
+                    results.append({
+                        "_id": str(c.get("_id", "")),
+                        "club_id": c.get("club_id", ""),
+                        "club_name": c.get("club_name", ""),
+                        "name": c.get("club_name", ""),
+                        "category": c.get("category", ""),
+                        "club_category": c.get("club_category") or c.get("category", ""),
+                        "state": c.get("state", "") or c.get("region", ""),
+                        "lga": c.get("lga", ""),
+                        "city": c.get("city", "") or c.get("town", ""),
+                        "country": c.get("country", ""),
+                        "photo_url": c.get("photo_url", ""),
+                        "badge_url": c.get("badge_url") or c.get("logo_url", ""),
+                        "home_ground": c.get("home_ground") or c.get("stadium", ""),
+                        "is_verified": c.get("is_verified", False),
+                        "stats": performance,
+                        "performance": performance,
+                        "season_stats": performance,
+                    })
+
+            if matching_count > skip + limit:
+                break
+            if len(clubs) < batch_size:
+                scan_exhausted = True
+                break
+
+        if not active_filters:
+            total_count = await clubs_collection.count_documents(query)
+        elif scan_exhausted:
+            total_count = matching_count
+        else:
+            total_count = None
+        return MongoJSONResponse({
+            "clubs": results,
+            "total": total_count,
+            "has_more": matching_count > skip + len(results),
+            "page": page,
+            "limit": limit,
+        })
     except HTTPException:
         raise
     except Exception as e:
@@ -2551,7 +2919,30 @@ async def send_match_request(uid: str, request: Request, body: MatchRequestBody)
         if not club:
             raise HTTPException(status_code=404, detail="Club not found")
 
-        reference_id = f"MR-{uuid.uuid4().hex[:8].upper()}"
+        tracking_type = str(body.tracking_type or "no_tracking").strip().lower()
+        level = club.get("category") or club.get("club_category") or "professional"
+        token_cost = _tracking_request_cost(
+            tracking_type, _stats_tracking_costs(level), player_count=1
+        )
+        if token_cost:
+            token_rec = await club_tokens_collection.find_one(
+                {"$or": [{"club_id": uid}, {"user_id": uid}]}
+            )
+            balance = token_rec.get("balance", 0) if token_rec else 0
+            if balance < token_cost:
+                raise HTTPException(
+                    status_code=402,
+                    detail=f"Insufficient tokens. Required: {token_cost}, Available: {balance}",
+                )
+            await club_tokens_collection.update_one(
+                {"$or": [{"club_id": uid}, {"user_id": uid}]},
+                {
+                    "$inc": {"balance": -token_cost, "locked": token_cost},
+                    "$set": {"updated_at": MongoSerializer.now_utc()},
+                },
+            )
+
+        reference_id = f"MR-{uuid.uuid4().hex.upper()}"
 
         doc = {
             "reference_id":         reference_id,
@@ -2572,7 +2963,8 @@ async def send_match_request(uid: str, request: Request, body: MatchRequestBody)
             "venue_detailed_address": body.venue_detailed_address,
             "venue_address":        body.venue_address,
             "jersey_color":         body.jersey_color,
-            "tracking_type":        body.tracking_type or "no_tracking",
+            "tracking_type":        tracking_type,
+            "token_cost":           token_cost,
             "contact_phone":        body.contact_phone,
             "notes":                body.notes,
             "status":               "pending",
@@ -2580,31 +2972,312 @@ async def send_match_request(uid: str, request: Request, body: MatchRequestBody)
             "updated_at":           MongoSerializer.now_utc(),
         }
 
-        await match_requests_collection.insert_one(doc)
+        try:
+            await match_requests_collection.insert_one(doc)
+        except Exception:
+            if token_cost:
+                await club_tokens_collection.update_one(
+                    {"$or": [{"club_id": uid}, {"user_id": uid}]},
+                    {
+                        "$inc": {"balance": token_cost, "locked": -token_cost},
+                        "$set": {"updated_at": MongoSerializer.now_utc()},
+                    },
+                )
+            raise
 
         # Notify the receiving club
-        await notifications_collection.insert_one({
-            "user_id":   body.requested_club_id,
-            "unique_id": body.requested_club_id,
-            "user_type": "club",
-            "title":     "New Match Request",
-            "message":   f"{club.get('club_name', 'A club')} has sent you a match request for {body.match_date or 'an upcoming date'}.",
-            "type":      "match_request",
-            "read":      False,
-            "reference_id": reference_id,
-            "created_at": MongoSerializer.now_utc(),
-        })
+        try:
+            await notifications_collection.insert_one({
+                "user_id":   body.requested_club_id,
+                "unique_id": body.requested_club_id,
+                "user_type": "club",
+                "title":     "New Match Request",
+                "message":   f"{club.get('club_name', 'A club')} has sent you a match request for {body.match_date or 'an upcoming date'}.",
+                "type":      "match_request",
+                "read":      False,
+                "reference_id": reference_id,
+                "created_at": MongoSerializer.now_utc(),
+            })
+        except Exception as notify_error:
+            logger.warning(f"Match request {reference_id} saved but notification failed: {notify_error}")
+
+        if token_cost:
+            try:
+                await transactions_collection.insert_one({
+                    "club_id": uid,
+                    "user_id": uid,
+                    "entity": "club",
+                    "type": "debit",
+                    "description": f"Match request tracking ({tracking_type})",
+                    "amount": 0,
+                    "tokens": token_cost,
+                    "status": "completed",
+                    "reference": reference_id,
+                    "created_at": MongoSerializer.now_utc(),
+                })
+            except Exception as transaction_error:
+                logger.error(f"Match request {reference_id} saved but transaction log failed: {transaction_error}")
 
         return MongoJSONResponse({
             "ok":           True,
             "reference_id": reference_id,
             "request_id":   reference_id,
             "status":       "pending",
+            "tokens_locked": token_cost,
+            "token_cost": token_cost,
         })
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"send_match_request error: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# ============================================================
+# 28. MODIFY OR CANCEL A SENT MATCH REQUEST
+# ============================================================
+
+def _match_request_id_filter(req_id: str) -> Dict[str, Any]:
+    clauses: List[Dict[str, Any]] = [{"reference_id": req_id}]
+    if len(req_id) == 24:
+        try:
+            clauses.append({"_id": ObjectId(req_id)})
+        except Exception:
+            pass
+    return {"$or": clauses}
+
+
+@router.put("/club/{uid}/match-requests/{req_id}/modify")
+async def modify_match_request(
+    uid: str,
+    req_id: str,
+    request: Request,
+    body: MatchRequestBody,
+):
+    """Update a pending request sent by this club and reconcile token locks."""
+    try:
+        current_user = await get_current_user(request)
+        _require_auth(current_user, uid)
+        owner_filter = {
+            "$or": [
+                {"requesting_club_id": uid},
+                {"club_id": uid},
+                {"user_id": uid},
+            ]
+        }
+        request_filter = {
+            "$and": [_match_request_id_filter(req_id), owner_filter]
+        }
+        existing = await match_requests_collection.find_one(request_filter)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Match request not found")
+        if str(existing.get("status") or "").lower() != "pending":
+            raise HTTPException(status_code=409, detail="Only pending requests can be modified")
+
+        club = await _resolve_club(uid)
+        if not club:
+            raise HTTPException(status_code=404, detail="Club not found")
+        level = club.get("category") or club.get("club_category") or "professional"
+        costs = _stats_tracking_costs(level)
+        new_tracking_type = str(body.tracking_type or "no_tracking").strip().lower()
+        new_cost = _tracking_request_cost(new_tracking_type, costs, player_count=1)
+        old_cost = int(existing.get("token_cost") or 0)
+        delta = new_cost - old_cost
+        applied_delta = delta
+        if delta > 0:
+            token_rec = await club_tokens_collection.find_one(
+                {"$or": [{"club_id": uid}, {"user_id": uid}]}
+            )
+            balance = token_rec.get("balance", 0) if token_rec else 0
+            if balance < delta:
+                raise HTTPException(
+                    status_code=402,
+                    detail=f"Insufficient tokens. Required: {delta}, Available: {balance}",
+                )
+            await club_tokens_collection.update_one(
+                {"$or": [{"club_id": uid}, {"user_id": uid}]},
+                {
+                    "$inc": {"balance": -delta, "locked": delta},
+                    "$set": {"updated_at": MongoSerializer.now_utc()},
+                },
+            )
+        elif delta < 0:
+            token_rec = await club_tokens_collection.find_one(
+                {"$or": [{"club_id": uid}, {"user_id": uid}]}
+            )
+            locked = int(token_rec.get("locked", 0)) if token_rec else 0
+            release = min(abs(delta), max(0, locked))
+            if release:
+                await club_tokens_collection.update_one(
+                    {"$or": [{"club_id": uid}, {"user_id": uid}]},
+                    {
+                        "$inc": {"balance": release, "locked": -release},
+                        "$set": {"updated_at": MongoSerializer.now_utc()},
+                    },
+                )
+            applied_delta = -release
+
+        update_fields = body.dict(exclude_unset=True)
+        update_fields.pop("_stadiumSuggs", None)
+        update_fields.update({
+            "tracking_type": new_tracking_type,
+            "token_cost": new_cost,
+            "updated_at": MongoSerializer.now_utc(),
+            "status": "pending",
+        })
+        try:
+            result = await match_requests_collection.update_one(
+                request_filter,
+                {"$set": update_fields},
+            )
+        except Exception:
+            if applied_delta:
+                await club_tokens_collection.update_one(
+                    {"$or": [{"club_id": uid}, {"user_id": uid}]},
+                    {
+                        "$inc": {"balance": applied_delta, "locked": -applied_delta},
+                        "$set": {"updated_at": MongoSerializer.now_utc()},
+                    },
+                )
+            raise
+        if result.matched_count == 0:
+            if applied_delta:
+                await club_tokens_collection.update_one(
+                    {"$or": [{"club_id": uid}, {"user_id": uid}]},
+                    {
+                        "$inc": {"balance": applied_delta, "locked": -applied_delta},
+                        "$set": {"updated_at": MongoSerializer.now_utc()},
+                    },
+                )
+            raise HTTPException(status_code=404, detail="Match request not found")
+
+        if applied_delta:
+            try:
+                await transactions_collection.insert_one({
+                    "club_id": uid,
+                    "user_id": uid,
+                    "entity": "club",
+                    "type": "debit" if applied_delta > 0 else "credit",
+                    "description": "Match request tracking adjustment",
+                    "amount": 0,
+                    "tokens": abs(applied_delta),
+                    "status": "completed",
+                    "reference": existing.get("reference_id") or req_id,
+                    "created_at": MongoSerializer.now_utc(),
+                })
+            except Exception as transaction_error:
+                logger.error(f"Match request {req_id} updated but adjustment log failed: {transaction_error}")
+        return MongoJSONResponse({
+            "ok": True,
+            "reference_id": existing.get("reference_id") or req_id,
+            "request_id": existing.get("reference_id") or req_id,
+            "status": "pending",
+            "token_cost": new_cost,
+            "tokens_locked_delta": applied_delta,
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"modify_match_request error: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.patch("/club/{uid}/match-requests/{req_id}/cancel")
+async def cancel_match_request(uid: str, req_id: str, request: Request):
+    """Cancel a pending sent request and release its remaining token lock."""
+    try:
+        current_user = await get_current_user(request)
+        _require_auth(current_user, uid)
+        owner_filter = {
+            "$or": [
+                {"requesting_club_id": uid},
+                {"club_id": uid},
+                {"user_id": uid},
+            ]
+        }
+        request_filter = {
+            "$and": [_match_request_id_filter(req_id), owner_filter]
+        }
+        existing = await match_requests_collection.find_one(request_filter)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Match request not found")
+        if str(existing.get("status") or "").lower() != "pending":
+            raise HTTPException(status_code=409, detail="Only pending requests can be cancelled")
+
+        cancel_filter = {
+            "$and": [request_filter, {"status": existing.get("status")}]
+        }
+        result = await match_requests_collection.update_one(
+            cancel_filter,
+            {
+                "$set": {
+                    "status": "cancelled",
+                    "updated_at": MongoSerializer.now_utc(),
+                }
+            },
+        )
+        if result.matched_count == 0:
+            raise HTTPException(status_code=409, detail="Match request is no longer pending")
+        cancelled_filter = {
+            "$and": [request_filter, {"status": "cancelled"}]
+        }
+
+        token_rec = await club_tokens_collection.find_one(
+            {"$or": [{"club_id": uid}, {"user_id": uid}]}
+        )
+        locked = int(token_rec.get("locked", 0)) if token_rec else 0
+        release = min(max(0, int(existing.get("token_cost") or 0)), max(0, locked))
+        if release:
+            try:
+                await club_tokens_collection.update_one(
+                    {"$or": [{"club_id": uid}, {"user_id": uid}]},
+                    {
+                        "$inc": {"balance": release, "locked": -release},
+                        "$set": {"updated_at": MongoSerializer.now_utc()},
+                    },
+                )
+            except Exception:
+                await match_requests_collection.update_one(
+                    cancelled_filter,
+                    {"$set": {"status": existing.get("status")}},
+                )
+                raise
+            try:
+                await transactions_collection.insert_one({
+                    "club_id": uid,
+                    "user_id": uid,
+                    "entity": "club",
+                    "type": "credit",
+                    "description": "Cancelled match request token release",
+                    "amount": 0,
+                    "tokens": release,
+                    "status": "completed",
+                    "reference": existing.get("reference_id") or req_id,
+                    "created_at": MongoSerializer.now_utc(),
+                })
+            except Exception as transaction_error:
+                logger.error(f"Match request {req_id} cancelled but token release log failed: {transaction_error}")
+
+        await match_requests_collection.update_one(
+            cancelled_filter,
+            {
+                "$set": {
+                    "tokens_unlocked": release,
+                    "cancelled_at": MongoSerializer.now_utc(),
+                    "updated_at": MongoSerializer.now_utc(),
+                }
+            },
+        )
+        return MongoJSONResponse({
+            "ok": True,
+            "reference_id": existing.get("reference_id") or req_id,
+            "status": "cancelled",
+            "tokens_unlocked": release,
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"cancel_match_request error: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
