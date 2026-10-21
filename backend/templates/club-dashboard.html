@@ -564,11 +564,23 @@ async function apiCall(endpoint, opts = {}) {
 const url = `${API_BASE}${endpoint}`;
 const _token = localStorage.getItem('enejistats_token');
 const _authHeader = _token ? { 'Authorization': 'Bearer ' + _token } : {};
-const options = { credentials: 'include', headers: { 'Content-Type': 'application/json', ..._authHeader, ...(opts.headers || {}) }, ...opts };
-if (opts.body instanceof FormData) delete options.headers['Content-Type'];
+const options = {
+...opts,
+credentials: opts.credentials || 'include',
+headers: { 'Content-Type': 'application/json', ..._authHeader, ...(opts.headers || {}) }
+};
+if (typeof FormData !== 'undefined' && opts.body instanceof FormData) delete options.headers['Content-Type'];
 const res = await fetch(url, options);
-if (!res.ok) { const err = await res.json().catch(() => ({})); const e = new Error(err.detail || `HTTP ${res.status}`); e.status = res.status; throw e; }
-return res.json();
+const contentType = res.headers.get('content-type') || '';
+const data = res.status === 204 ? null : contentType.includes('application/json') ? await res.json().catch(() => ({})) : await res.text().catch(() => '');
+if (!res.ok) {
+const detail = data && typeof data === 'object' ? (data.detail || data.message) : data;
+const e = new Error(detail || `HTTP ${res.status}`);
+e.status = res.status;
+e.data = data;
+throw e;
+}
+return data;
 }
 function normalizeStatsRequestList(value, depth = 0) {
 if (Array.isArray(value)) return value;
@@ -957,7 +969,7 @@ return html`<div class=${`brand-mark ${className}`}>
 //  UNIFIED PAYMENT WIZARD  —  paste this block in Player, Club, DCO
 //  Requires: preact (h, Fragment), preactHooks (useState, useEffect, useCallback, useRef)
 // ══════════════════════════════════════════════════════════════
-function usePaymentWizard(type, role) {
+function usePaymentWizard(type, role, onCheckout, onClose) {
 var _s0  = useState('PLAN_SELECT'),  step         = _s0[0],  setStep         = _s0[1];
 var _s1  = useState(false),          loading      = _s1[0],  setLoading      = _s1[1];
 var _s2  = useState(''),             error        = _s2[0],  setError        = _s2[1];
@@ -970,63 +982,52 @@ var _s8  = useState(null),           receiptFile  = _s8[0],  setReceiptFile  = _
 var _s9  = useState(0),              uploadPct    = _s9[0],  setUploadPct    = _s9[1];
 var _s10 = useState(false),          dragOver     = _s10[0], setDragOver     = _s10[1];
 useEffect(function () {
-setLoading(true);
 setError('');
-var url = type === 'SUBSCRIPTION' ? '/subscription/pricing' : '/token/pricing';
-apiCall(url)
+if (type !== 'TOKEN_PURCHASE') {
+setPlans([]);
+setSelectedPlan(null);
+setError('Subscription checkout is not implemented by the attached club FastAPI routes.');
+setLoading(false);
+return;
+}
+setLoading(true);
+apiCall('/token/costs')
 .then(function (data) {
-var raw  = type === 'SUBSCRIPTION' ? (data.plans || []) : (data.packages || []);
-var list = raw.map(function (p) {
-var amt = p.amount || p.price || 0;
+var raw = Array.isArray(data && data.packages) ? data.packages : [];
+var list = raw.map(function (p, index) {
+var amount = Number(p.amount ?? p.price ?? 0);
+var tokens = Number(p.tokens ?? p.token_count ?? p.tokenCount ?? 0);
 return Object.assign({}, p, {
-label:  type === 'SUBSCRIPTION'
-? (p.name || ((p.durationMonths || p.months || 1) + ' Month' +
-((p.durationMonths || p.months || 1) > 1 ? 's' : '')))
-: (p.label || (p.tokens + ' Token' + (p.tokens !== 1 ? 's' : ''))),
-key:    type === 'SUBSCRIPTION'
-? (p.key || ((p.durationMonths || p.months || 1) + '_MONTH'))
-: (p.key || ('tokens_' + p.tokens)),
-price:  amt,
-amount: amt,
+label: p.label || p.name || (tokens + ' Token' + (tokens !== 1 ? 's' : '')),
+key: p.key || p.id || ('tokens_' + tokens + '_' + index),
+price: amount,
+amount: amount,
+tokens: tokens,
 });
-});
+}).filter(function (p) { return p.tokens > 0 && p.price > 0; });
 setPlans(list);
-if (list.length > 0) setSelectedPlan(list[0]);
+setSelectedPlan(list[0] || null);
+if (!list.length) setError('No valid token packages are configured by the backend.');
 setLoading(false);
 })
-.catch(function () {
-setError('Unable to load pricing. Please try again.');
+.catch(function (err) {
+setError(err && err.message ? err.message : 'Unable to load token packages.');
 setLoading(false);
 });
 }, [type]);
-var createIntent = useCallback(function () {
-if (!selectedPlan) return;
+var createIntent = useCallback(async function () {
+if (!selectedPlan || type !== 'TOKEN_PURCHASE') return;
 setLoading(true);
 setError('');
-var body = type === 'SUBSCRIPTION'
-? { paymentType: 'SUBSCRIPTION',     selectedPlan: selectedPlan.key, role: role,
-level: selectedPlan.level || undefined }
-: { paymentType: 'TOKEN_PURCHASE',   selectedPlan: selectedPlan.key, role: role,
-tokens: selectedPlan.tokens };
-apiCall('/payment/bank-transfer/intent', {
-method: 'POST',
-body: JSON.stringify(body),
-})
-.then(function (data) {
-setIntentId(data.intentId || data.intent_id || '');
-setReference(data.reference || data.ref || '');
-return apiCall('/bank-details/active');
-})
-.then(function (bd) {
-setBankDetails(bd);
+try {
+var started = await onCheckout(selectedPlan);
+if (started && onClose) onClose();
+else if (!started) setError('The backend did not start Flutterwave checkout.');
+} catch (err) {
+setError(err && err.message ? err.message : 'Unable to start checkout.');
+}
 setLoading(false);
-setStep('TRANSFER_DETAILS');
-})
-.catch(function () {
-setError('Unable to create payment intent. Please try again.');
-setLoading(false);
-});
-}, [selectedPlan, type, role]);
+}, [selectedPlan, type, onCheckout, onClose]);
 var goToUpload = useCallback(function () { setStep('RECEIPT_UPLOAD'); }, []);
 var handleFile = useCallback(function (file) {
 if (!file) return;
@@ -1040,34 +1041,8 @@ setError('');
 setReceiptFile(file);
 }, []);
 var uploadReceipt = useCallback(function () {
-if (!receiptFile || !intentId) return;
-setLoading(true);
-setError('');
-setUploadPct(0);
-var fd = new FormData();
-fd.append('intentId',    intentId);
-fd.append('receiptFile', receiptFile);
-var xhr = new XMLHttpRequest();
-xhr.open('POST', '/api/payment/bank-transfer/receipt');
-xhr.withCredentials = true;
-var _receiptToken = localStorage.getItem('enejistats_token');
-if (_receiptToken) xhr.setRequestHeader('Authorization', 'Bearer ' + _receiptToken);
-xhr.upload.onprogress = function (e) {
-if (e.lengthComputable) setUploadPct(Math.round(e.loaded / e.total * 100));
-};
-xhr.onload = function () {
-if (xhr.status >= 200 && xhr.status < 300) {
-setUploadPct(100);
-setLoading(false);
-setStep('SUBMITTED');
-} else {
-setError('Unable to upload receipt. Please try again.');
-setLoading(false);
-}
-};
-xhr.onerror = function () { setError('Upload failed. Please try again.'); setLoading(false); };
-xhr.send(fd);
-}, [receiptFile, intentId]);
+setError('Receipt upload is not part of the configured Flutterwave API flow.');
+}, []);
 return {
 step: step, setStep: setStep,
 loading: loading, error: error, setError: setError,
@@ -1083,11 +1058,13 @@ function PaymentWizard(props) {
 var type       = props.type;
 var role       = props.role;
 var onClose    = props.onClose;
-var onComplete = props.onComplete;   // optional callback after SUBMITTED
-var wiz        = usePaymentWizard(type, role);
+var onComplete = props.onComplete;
+var wiz        = usePaymentWizard(type, role, props.onCheckout, onClose);
 var fileRef    = useRef(null);
-var STEP_LABELS = ['Select Plan', 'Bank Transfer', 'Upload Receipt', 'Done'];
-var STEP_KEYS   = ['PLAN_SELECT', 'TRANSFER_DETAILS', 'RECEIPT_UPLOAD', 'SUBMITTED'];
+var STEP_LABELS = type === 'SUBSCRIPTION'
+? ['Subscription', 'Unavailable']
+: ['Select Token Package', 'Flutterwave Checkout'];
+var STEP_KEYS   = ['PLAN_SELECT', 'SUBMITTED'];
 var curIdx      = STEP_KEYS.indexOf(wiz.step);
 var pwCopy = useCallback(function (text) {
 if (navigator.clipboard) {
@@ -1171,7 +1148,7 @@ onClick: wiz.createIntent,
 },
 wiz.loading
 ? [h('i', { className: 'fas fa-spinner fa-spin' }), ' Creating intent…']
-: [h('i', { className: 'fas fa-university' }), ' Bank Transfer'])
+: [h('i', { className: 'fas fa-lock' }), ' Pay securely with Flutterwave'])
 )
 );
 }
@@ -1427,7 +1404,6 @@ const [tokenPackages, setTokenPackages] = useState([
 {tokens:100, price:7500, bonus:'Best Value'},
 {tokens:200, price:14000, bonus:'Pro Pack'},
 ]);
-const [bankTransfer, setBankTransfer] = useState({});
 const [notifications, setNotifications] = useState([]);
 const [achievements, setAchievements] = useState([]);
 const [competitions, setCompetitions] = useState([]);
@@ -1604,7 +1580,7 @@ return () => { clearTimeout(timer); events.forEach(e => window.removeEventListen
 }, [authState]);
 async function loadDashboard(uid) {
 try {
-const [profileData, statsData, matchHistoryData, fixturesData, tokenData, notifData, achieveData, txData, compData, costsData, bankData, stReqData, mrSentData, mrRecvData, squadData] = await Promise.allSettled([
+const [profileData, statsData, matchHistoryData, fixturesData, tokenData, notifData, achieveData, txData, compData, costsData, stReqData, mrSentData, mrRecvData, squadData] = await Promise.allSettled([
 apiCall(`/club/${uid}/profile`),
 apiCall(`/club/${uid}/stats/summary`),
 apiCall(`/club/${uid}/matches`),
@@ -1615,7 +1591,6 @@ apiCall(`/club/${uid}/achievements`),
 apiCall(`/club/${uid}/transactions`),
 apiCall(`/competitions`),
 apiCall('/token/costs'),
-apiCall('/payment/config'),
 apiCall(`/club/${uid}/stats-requests`),
 apiCall(`/club/${uid}/match-requests/sent`),
 apiCall(`/club/${uid}/match-requests/received`),
@@ -1641,7 +1616,6 @@ if (v(achieveData)) setAchievements(Array.isArray(v(achieveData)) ? v(achieveDat
 if (v(txData)) setTransactions(Array.isArray(v(txData)) ? v(txData) : v(txData).transactions || []);
 if (v(compData)) setCompetitions(Array.isArray(v(compData)) ? v(compData) : v(compData).competitions || []);
 if (v(costsData)) { const cd = v(costsData); setTokenCosts(cd?.costs || cd); if (cd?.packages) setTokenPackages(cd.packages); }
-if (v(bankData)) { const bd = v(bankData); setBankTransfer(bd?.bank || bd); }
 if (v(stReqData)) setStatsRequests(normalizeStatsRequestList(v(stReqData)));
 if (v(mrSentData)) setMatchRequests(p => ({...p, sent: Array.isArray(v(mrSentData)) ? v(mrSentData) : v(mrSentData).requests || []}));
 if (v(mrRecvData)) setMatchRequests(p => ({...p, received: Array.isArray(v(mrRecvData)) ? v(mrRecvData) : v(mrRecvData).requests || []}));
@@ -1976,22 +1950,27 @@ return 0;
 }, [stTrackingType, stSelectedPlayers.length, clubTrackingUnitCost, playerTrackingUnitCost]);
 const mrTrackingCost = useMemo(() => {
 const type = mrForm.tracking_type;
-if (!type || type === 'no_tracking') return 0;
-if (type === 'club_only') return tokenCosts.club_stats_tracking || tokenCosts.club_tracking || 3;
-return tokenCosts.club_and_player_tracking || tokenCosts.full_tracking || 5;
-}, [mrForm.tracking_type, tokenCosts]);
+let newCost = 0;
+if (type === 'club_only') newCost = Number(tokenCosts.club_stats_tracking ?? tokenCosts.club_tracking ?? 3);
+else if (type && type !== 'no_tracking') newCost = Number(tokenCosts.club_and_player_tracking ?? tokenCosts.full_tracking ?? 5);
+if (mrEditingRequest) return newCost - Number(mrEditingRequest.token_cost || 0);
+return newCost;
+}, [mrForm.tracking_type, tokenCosts, mrEditingRequest]);
 // ── HANDLERS ──
 const markNotifRead = async (id) => {
-try { await apiCall(`/club/${(club?.club_id || club?.user_id)}/notifications/${id}/read`, { method: 'PATCH' }); } catch {}
+try { await apiCall(`/club/${(club?.club_id || club?.user_id)}/notifications/${encodeURIComponent(id)}/read`, { method: 'PATCH' }); }
+catch (e) { addToast(e?.message || 'Could not mark notification as read.', 'error'); return; }
 setNotifications(p => p.map(n => (n._id === id || n.id === id) ? {...n, read: true} : n));
 };
 const markAllRead = async () => {
-try { await apiCall(`/club/${(club?.club_id || club?.user_id)}/notifications/read-all`, { method: 'PATCH' }); } catch {}
+try { await apiCall(`/club/${(club?.club_id || club?.user_id)}/notifications/read-all`, { method: 'PATCH' }); }
+catch (e) { addToast(e?.message || 'Could not mark notifications as read.', 'error'); return; }
 setNotifications(p => p.map(n => ({...n, read: true})));
 };
-const deleteNotif = (id) => {
+const deleteNotif = async (id) => {
+try { await apiCall(`/club/${(club?.club_id || club?.user_id)}/notifications/${encodeURIComponent(id)}`, { method: 'DELETE' }); }
+catch (e) { addToast(e?.message || 'Could not delete notification.', 'error'); return; }
 setNotifications(p => p.filter(n => (n._id||n.id) !== id));
-try { apiCall(`/club/${(club?.club_id || club?.user_id)}/notifications/${id}`, { method: 'DELETE' }); } catch {}
 };
 const handleSettingsPhotoSelect = (e) => {
 const file = e.target.files[0]; if (!file) return;
@@ -2004,27 +1983,29 @@ const handleProfilePhotoSave = async () => {
 if (!editPhotoFile) return;
 try {
 const fd = new FormData(); fd.append('photo', editPhotoFile);
-await apiCall(`/club/${(club?.club_id || club?.user_id)}/logo`, { method: 'POST', headers: {}, body: fd });
-setClub(p => ({...p, photo_url: editPhotoPreview}));
+const saved = await apiCall(`/club/${(club?.club_id || club?.user_id)}/logo`, { method: 'POST', headers: {}, body: fd });
+setClub(p => ({...p, photo_url: saved?.photo_url || editPhotoPreview}));
 addToast('Club badge updated!', 'success');
 setEditPhotoFile(null);
-} catch { addToast('Failed to upload badge', 'error'); }
+} catch (e) { addToast(e?.message || 'Failed to upload badge', 'error'); }
 };
 const handleMgmtSave = async (data) => {
 const updated = mgmtEditTarget === -1
 ? [...managementTeam, data]
 : managementTeam.map((m, i) => i === mgmtEditTarget ? data : m);
-setManagementTeam(updated);
-setMgmtModalOpen(false);
-try { await apiCall(`/club/${(club?.club_id || club?.user_id)}/management`, { method: 'PUT', body: JSON.stringify({ management: updated }) }); addToast('Management team updated', 'success'); }
-catch { addToast('Saved locally', 'info'); }
+try {
+await apiCall(`/club/${(club?.club_id || club?.user_id)}/management`, { method: 'PUT', body: JSON.stringify({ management: updated }) });
+setManagementTeam(updated); setMgmtModalOpen(false);
+addToast('Management team updated', 'success');
+} catch (e) { addToast(e?.message || 'Could not save the management team.', 'error'); }
 };
 const handleMgmtDelete = async () => {
 const updated = managementTeam.filter((_, i) => i !== mgmtEditTarget);
-setManagementTeam(updated);
-setMgmtModalOpen(false);
-try { await apiCall(`/club/${(club?.club_id || club?.user_id)}/management`, { method: 'PUT', body: JSON.stringify({ management: updated }) }); addToast('Personnel removed', 'success'); }
-catch { addToast('Removed locally', 'info'); }
+try {
+await apiCall(`/club/${(club?.club_id || club?.user_id)}/management`, { method: 'PUT', body: JSON.stringify({ management: updated }) });
+setManagementTeam(updated); setMgmtModalOpen(false);
+addToast('Personnel removed', 'success');
+} catch (e) { addToast(e?.message || 'Could not remove this person.', 'error'); }
 };
 const handlePasswordChange = async () => {
 if (!pwForm.current || !pwForm.newpw) { addToast('Fill in all fields', 'warning'); return; }
@@ -2036,8 +2017,9 @@ addToast('Password changed!', 'success'); setPwForm({ current: '', newpw: '', co
 };
 const handleFlutterwavePayment = async (amount, tokensCount, description) => {
 try {
+if (typeof window.FlutterwaveCheckout !== 'function') throw new Error('Flutterwave checkout is unavailable. Refresh and try again.');
 const r = await apiCall(`/club/${(club?.club_id || club?.user_id)}/tokens/topup`, { method: 'POST', body: JSON.stringify({ amount, tokens: tokensCount, description, entity: 'club', entity_id: (club?.club_id || club?.user_id) }) });
-if (r?.public_key) {
+if (r?.public_key && r?.tx_ref) {
 window.FlutterwaveCheckout({
 public_key: r.public_key, tx_ref: r.tx_ref, amount, currency: 'NGN',
 payment_options: 'card,mobilemoney,ussd,banktransfer',
@@ -2046,27 +2028,44 @@ customizations: { title: 'EnejiStats Payment', description, logo: '/static/image
 callback: async (data) => {
 if (data.status === 'successful') {
 try {
-const v = await apiCall(`/club/${(club?.club_id || club?.user_id)}/tokens/verify`, { method: 'POST', body: JSON.stringify({ transaction_id: data.transaction_id, tx_ref: data.tx_ref }) });
-if (v?.tokens_credited) { setTokens(p => ({...p, balance: (p.balance||0) + v.tokens_credited})); addToast(`${v.tokens_credited} tokens credited!`, 'success'); }
-} catch {}
+const v = await apiCall(`/club/${(club?.club_id || club?.user_id)}/tokens/verify`, { method: 'POST', body: JSON.stringify({ transaction_id: data.transaction_id, tx_ref: data.tx_ref || r.tx_ref }) });
+if (!v?.ok) throw new Error('The backend could not verify this payment.');
+if (v?.tokens_credited) {
+if (Number.isFinite(Number(v.new_balance))) setTokens(p => ({...p, balance: Number(v.new_balance)}));
+else {
+const currentTokens = await apiCall(`/club/${(club?.club_id || club?.user_id)}/tokens`);
+setTokens(currentTokens);
+}
+addToast(`${v.tokens_credited} tokens credited!`, 'success');
+}
+} catch (e) { addToast(e?.message || 'Payment succeeded, but token verification failed. Contact support before paying again.', 'error', 7000); }
+} else {
+addToast('Payment was not completed.', 'info');
 }
 },
 onclose: () => {}
 });
-} else addToast('Payment initialization failed', 'error');
-} catch (e) { addToast(e?.message || 'Payment failed', 'error'); }
+return true;
+}
+throw new Error(r?.detail || 'Payment initialization failed.');
+} catch (e) { addToast(e?.message || 'Payment failed', 'error'); return false; }
 };
-const handleAddYouTubeVideo = () => {
+const handleAddYouTubeVideo = async () => {
 const ytId = extractYouTubeId(newYtUrl);
 if (!ytId) { addToast('Invalid YouTube URL', 'error'); return; }
 const v = { id: ytId, youtube_id: ytId, title: newYtTitle || 'Club Video', url: newYtUrl };
+try {
+await apiCall(`/club/${(club?.club_id || club?.user_id)}/media/youtube`, { method: 'POST', body: JSON.stringify({ url: newYtUrl, title: v.title }) });
 setYtVideos(p => [...p, v]); setNewYtUrl(''); setNewYtTitle('');
-try { apiCall(`/club/${(club?.club_id || club?.user_id)}/media/youtube`, { method: 'POST', body: JSON.stringify({ url: newYtUrl, title: v.title }) }); } catch {}
 addToast('Video added!', 'success');
+} catch (e) { addToast(e?.message || 'Could not save the video.', 'error'); }
 };
-const handleDeleteYtVideo = (ytId) => {
+const handleDeleteYtVideo = async (ytId) => {
+try {
+await apiCall(`/club/${(club?.club_id || club?.user_id)}/media/youtube/${encodeURIComponent(ytId)}`, { method: 'DELETE' });
 setYtVideos(p => p.filter(v => (v.youtube_id||v.id) !== ytId));
-try { apiCall(`/club/${(club?.club_id || club?.user_id)}/media/youtube/${ytId}`, { method: 'DELETE' }); } catch {}
+addToast('Video deleted.', 'success');
+} catch (e) { addToast(e?.message || 'Could not delete the video.', 'error'); }
 };
 const handleMediaPhotoUpload = (e) => {
 Array.from(e.target.files || []).forEach(file => {
@@ -2133,7 +2132,8 @@ return {
 payload: {
 ...basePayload,
 tracking_type: isFirstCombinedRequest ? 'club_and_players' : 'player_only',
-player_ids: [playerId]
+player_ids: [playerId],
+player_name: playerName
 },
 player_id: playerId,
 player_name: playerName,
@@ -2164,6 +2164,7 @@ const clientReference = job.client_request_id;
 let referenceId = savedRequest.reference_id || savedRequest.referenceId || requestId || clientReference;
 if (usedReferences.has(String(referenceId))) referenceId = clientReference;
 usedReferences.add(String(referenceId));
+const actualLocked = Number(savedRequest.tokens_locked ?? savedRequest.token_cost ?? job.reserved_cost ?? 0);
 acceptedRequests.push({
 ...job.payload,
 ...savedRequest,
@@ -2172,12 +2173,13 @@ reference_id: referenceId,
 client_request_id: clientReference,
 player_id: job.player_id || savedRequest.player_id || '',
 player_name: job.player_name || savedRequest.player_name || '',
+tokens_locked: Number.isFinite(actualLocked) ? actualLocked : (job.reserved_cost || 0),
 tracking_type: job.payload.tracking_type,
 player_ids: job.payload.player_ids,
 status: savedRequest.status || 'Pending',
 submitted_at: savedRequest.submitted_at || savedRequest.submittedAt || new Date().toISOString()
 });
-reservedTokens += job.reserved_cost || 0;
+reservedTokens += Number.isFinite(actualLocked) ? actualLocked : (job.reserved_cost || 0);
 } catch (error) {
 submissionError = error;
 break;
@@ -2185,7 +2187,11 @@ break;
 }
 if (acceptedRequests.length) {
 setStatsRequests(p => [...acceptedRequests, ...p]);
-if (reservedTokens > 0) setTokens(p => ({...p, locked: (p.locked||0) + reservedTokens}));
+if (reservedTokens > 0) setTokens(p => ({
+...p,
+balance: Math.max(0, (Number(p.balance)||0) - reservedTokens),
+locked: (Number(p.locked)||0) + reservedTokens
+}));
 }
 if (submissionError) {
 if (acceptedRequests.length) {
@@ -2218,6 +2224,8 @@ try {
 const params = new URLSearchParams({ limit: 12, page: mrPage });
 if (mrCategory) params.append('category', mrCategory);
 if (mrState) params.append('state', mrState);
+if (mrFilterCountry) params.append('country', mrFilterCountry);
+if (mrFilterLga) params.append('lga', mrFilterLga);
 if (mrSearchQuery) params.append('q', mrSearchQuery);
 Object.entries(mrMetricFilters).forEach(([key,value]) => { if (value !== '') params.append(key, value); });
 const res = await apiCall(`/clubs/search?${params}`);
@@ -2242,7 +2250,9 @@ setTokenConfirmation({
 title: mrEditingRequest ? 'Modify match request' : 'New match request',
 cost: mrTrackingCost,
 available: availableTokens,
-details: mrTrackingCost === 5 ? 'Club + player statistics coverage.' : 'Club statistics coverage.',
+details: mrEditingRequest
+? (mrTrackingCost > 0 ? `${mrTrackingCost} additional tokens will be reserved.` : mrTrackingCost < 0 ? `${Math.abs(mrTrackingCost)} tokens will be released.` : 'No token balance change.')
+: `${mrTrackingCost} tokens for ${mrForm.tracking_type === 'club_and_players' ? 'club and player statistics coverage' : 'club statistics coverage'}.`,
 onConfirm: () => {
 setTokenConfirmation(null);
 handleSendMatchRequest({ preventDefault:()=>{}, __tokenConfirmed:true });
@@ -2260,9 +2270,14 @@ method: editRef ? 'PUT' : 'POST', body: JSON.stringify(payload)
 });
 if (r?.reference_id || r?.request_id) {
 addToast(editRef ? 'Match request modified!' : 'Match request sent!', 'success');
-if (!editRef && mrTrackingCost > 0) setTokens(p => ({...p, locked:(p.locked||0) + mrTrackingCost}));
+ const lockDelta = Number(editRef ? r.tokens_locked_delta : (r.tokens_locked ?? mrTrackingCost));
+ if (Number.isFinite(lockDelta) && lockDelta !== 0) setTokens(p => ({
+ ...p,
+ balance: Math.max(0, (Number(p.balance)||0) - lockDelta),
+ locked: Math.max(0, (Number(p.locked)||0) + lockDelta)
+ }));
 setMatchRequests(p => ({ ...p, sent: editRef
-? p.sent.map(x => (x.reference_id||x.id)===editRef ? {...x,...payload,status:'modified'} : x)
+? p.sent.map(x => (x.reference_id||x.id)===editRef ? {...x,...payload,status:'pending',token_cost:r.token_cost} : x)
 : [{...payload, reference_id: r.reference_id || r.request_id, status: 'pending', created_at: new Date().toISOString()}, ...p.sent] }));
 setMrModalOpen(false); setMrForm({}); setMrSelectedClub(null); setMrEditingRequest(null);
 setMrSubTab('sent');
@@ -2283,7 +2298,13 @@ addToast(action === 'accepted' ? 'Match request accepted!' : 'Request declined.'
 const handleCancelMatchRequest = async (refId) => {
 if (!window.confirm('Cancel this pending match request?')) return;
 try {
-await apiCall(`/club/${(club?.club_id || club?.user_id)}/match-requests/${refId}/cancel`, { method:'PUT' });
+const result = await apiCall(`/club/${(club?.club_id || club?.user_id)}/match-requests/${refId}/cancel`, { method:'PATCH' });
+const released = Number(result?.tokens_unlocked || 0);
+if (released > 0) setTokens(p => ({
+...p,
+balance: (Number(p.balance)||0) + released,
+locked: Math.max(0, (Number(p.locked)||0) - released)
+}));
 setMatchRequests(p=>({...p,sent:p.sent.map(r=>(r.reference_id||r.id)===refId?{...r,status:'cancelled'}:r)}));
 addToast('Match request cancelled.', 'info');
 } catch (err) { addToast(err?.message || 'Could not cancel request', 'error'); }
@@ -2299,30 +2320,33 @@ const compId = comp._id || comp.id;
 if (competitionApplications[compId]) return;
 setCompetitionApplications(p => ({...p, [compId]: 'applying'}));
 try {
-await apiCall(`/club/${(club?.club_id || club?.user_id)}/competitions/${compId}/apply`, { method: 'POST', body: JSON.stringify({ competition_id: compId, club_id: clubId, club_name: clubName }) });
+await apiCall(`/club/${(club?.club_id || club?.user_id)}/competitions/${encodeURIComponent(compId)}/apply`, { method: 'POST', body: JSON.stringify({ competition_id: compId, club_id: clubId, club_name: clubName }) });
 setCompetitionApplications(p => ({...p, [compId]: 'applied'}));
 addToast(`Applied for "${comp.title || comp.name}"!`, 'success', 5000);
-} catch {
-setCompetitionApplications(p => ({...p, [compId]: 'applied'}));
-addToast(`Application recorded for "${comp.title || comp.name}"! (ID: ${clubId})`, 'success', 5000);
+} catch (err) {
+setCompetitionApplications(p => ({...p, [compId]: null}));
+addToast(err?.message || 'Could not submit the competition application.', 'error');
 }
 };
 const startSupportChat = async () => {
 if (!ticketReason) { addToast('Please select a reason', 'warning'); return; }
 try {
 const r = await apiCall('/support/tickets', { method: 'POST', body: JSON.stringify({ club_id: (club?.club_id || club?.user_id), reason: ticketReason }) });
-if (r?.ticket_id) { setChatTicket(r); setChatMessages([{ id: Date.now(), sender: 'system', text: `Ticket #${r.ticket_id} opened.`, time: new Date().toISOString() }]); }
-} catch {
-const tk = { ticket_id: 'TKT-' + Date.now(), reason: ticketReason };
-setChatTicket(tk);
-setChatMessages([{ id: Date.now(), sender: 'system', text: `Ticket #${tk.ticket_id} opened. A support agent will join shortly.`, time: new Date().toISOString() }, { id: Date.now()+1, sender: 'support', text: `Hi ${clubName}! How can we help you today?`, time: new Date().toISOString() }]);
+if (!r?.ticket_id) throw new Error('The server did not return a support ticket ID.');
+setChatTicket({...r, reason: ticketReason});
+setChatMessages([{ id: Date.now(), sender: 'system', text: `Ticket #${r.ticket_id} opened.`, time: new Date().toISOString() }]);
+} catch (err) {
+addToast(err?.message || 'Could not open a support ticket.', 'error');
 }
 };
 const sendChatMessage = async () => {
 if (!chatInput.trim()) return;
 const msg = { id: Date.now(), sender: 'club', text: chatInput.trim(), time: new Date().toISOString() };
+if (!chatTicket?.ticket_id) { addToast('Open a support ticket before sending a message.', 'warning'); return; }
+try {
+await apiCall(`/support/chat/${encodeURIComponent(chatTicket.ticket_id)}`, { method: 'POST', body: JSON.stringify({ text: msg.text }) });
 setChatMessages(p => [...p, msg]); setChatInput('');
-try { if (chatTicket) await apiCall(`/support/chat/${chatTicket?.ticket_id}`, { method: 'POST', body: JSON.stringify({ text: msg.text }) }); } catch {}
+} catch (err) { addToast(err?.message || 'Could not send the message.', 'error'); return; }
 setTimeout(() => { chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, 100);
 };
 useEffect(() => { chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMessages]);
@@ -2429,7 +2453,7 @@ ${ytModalOpen && selectedYtVideo && html`
 <${YouTubeModal} videoId=${selectedYtVideo.youtube_id||selectedYtVideo.id} title=${selectedYtVideo.title} onClose=${()=>setYtModalOpen(false)} />
 `}
 <!-- Token Purchase / Subscription Wizard -->
-${wizardOpen && html`<${PaymentWizard} type=${wizardType} role="CLUB" onClose=${()=>setWizardOpen(false)} onComplete=${()=>{addToast('Payment submitted! Our team will review within 24–48 hours.','success',7000);}} />`}
+${wizardOpen && html`<${PaymentWizard} type=${wizardType} role="CLUB" onCheckout=${plan=>handleFlutterwavePayment(Number(plan.price||plan.amount),Number(plan.tokens||plan.token_count),`${plan.tokens||plan.token_count} token purchase`)} onClose=${()=>setWizardOpen(false)} />`}
 <!-- HEADER -->
 <header class="dashboard-header">
 <button class="nav-toggle" onClick=${()=>setSidebarOpen(p=>!p)}><i class="fas fa-bars"></i></button>
