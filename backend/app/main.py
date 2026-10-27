@@ -3378,6 +3378,16 @@ async def cookies_page(request: Request):
 async def competitions_page(request: Request):
     return serve_html("competitions.html")
 
+@app.get("/match-report", response_class=HTMLResponse)
+@app.get("/match-report.html", response_class=HTMLResponse)
+async def match_report_page():
+    return serve_html("match-report.html")
+
+
+@app.get("/livescore", response_class=HTMLResponse)
+@app.get("/livescore.html", response_class=HTMLResponse)
+async def livescore_page():
+    return serve_html("livescore.html")
 
 # ------------------------------------------------------------
 # PLAYER PROFILE
