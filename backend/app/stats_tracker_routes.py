@@ -3548,18 +3548,22 @@ async def save_widget_draft(id: str, request: Request, payload: DraftRequest):
 
     async def persist(session):
         opts = _session_kwargs(session)
-        existing = await stat_drafts_collection.find_one(key, **opts)
-        if existing:
+        # One atomic upsert keyed by DCO + assignment + match. The unique index
+        # on this exact key prevents competing autosave requests from creating
+        # parallel draft documents. Existing _id/created_at are preserved.
+        update_fields = {k: v for k, v in draft.items() if k not in {"_id", "created_at"}}
+        result = await stat_drafts_collection.update_one(
+            key,
+            {"$set": update_fields, "$setOnInsert": {"_id": draft_id, "created_at": now}},
+            upsert=True,
+            **opts,
+        )
+        draft_id_local = result.upserted_id
+        if draft_id_local is None:
+            existing = await stat_drafts_collection.find_one(key, **opts)
+            if not existing or existing.get("_id") is None:
+                raise RuntimeError("Atomic draft upsert completed without a resolvable draft id")
             draft_id_local = existing["_id"]
-            draft["created_at"] = existing.get("created_at", now)
-            await stat_drafts_collection.update_one(
-                {"_id": draft_id_local},
-                {"$set": {k: v for k, v in draft.items() if k not in {"_id", "created_at"}}},
-                **opts,
-            )
-        else:
-            draft_id_local = draft_id
-            await stat_drafts_collection.insert_one(draft, **opts)
 
         await stat_draft_players_collection.delete_many({"draft_id": draft_id_local}, **opts)
         await stat_draft_events_collection.delete_many({"draft_id": draft_id_local}, **opts)

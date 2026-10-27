@@ -39,6 +39,7 @@ Design contract
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import html as html_lib
 import hashlib
@@ -77,6 +78,9 @@ player_stats_collection       = None
 stat_submissions_collection   = None
 stat_submission_players_collection = None
 stat_events_collection        = None
+stat_drafts_collection        = None
+stats_requests_collection     = None
+match_requests_collection     = None
 clubs_collection              = None
 venues_collection             = None
 match_stats_collection        = None
@@ -140,6 +144,9 @@ def _setup_dependencies(main_globals: dict) -> None:
     global stat_submissions_collection
     global stat_submission_players_collection
     global stat_events_collection
+    global stat_drafts_collection
+    global stats_requests_collection
+    global match_requests_collection
     global clubs_collection
     global venues_collection
     global match_stats_collection
@@ -196,6 +203,9 @@ def _setup_dependencies(main_globals: dict) -> None:
     stat_submissions_collection = _col("stat_submissions_collection")
     stat_submission_players_collection = _col("stat_submission_players_collection")
     stat_events_collection     = _col("stat_events_collection")
+    stat_drafts_collection     = _col("stat_drafts_collection")
+    stats_requests_collection  = _col("stats_requests_collection", "stats_request_collection")
+    match_requests_collection  = _col("match_requests_collection", "match_request_collection")
     clubs_collection           = _col("clubs_collection", "club_collection")
     # The venue-registration route persists documents in MongoDB collection
     # "venues". Prefer the application's shared handle, but bind the same
@@ -245,6 +255,12 @@ def _setup_dependencies(main_globals: dict) -> None:
             stat_submission_players_collection = database["stat_submission_players"]
         if stat_events_collection is None:
             stat_events_collection = database["stat_events"]
+        if stat_drafts_collection is None:
+            stat_drafts_collection = database["stat_drafts"]
+        if stats_requests_collection is None:
+            stats_requests_collection = database["stats_requests"]
+        if match_requests_collection is None:
+            match_requests_collection = database["match_requests"]
 
     # Callables
     MongoSerializer              = g.get("MongoSerializer")
@@ -1433,6 +1449,538 @@ async def get_player_matches(
     except Exception as exc:
         logger.error("[get_player_matches] ERROR | player_id=%r | %s\n%s", player_id, exc, traceback.format_exc())
         return JSONResponse(content={"data": [], "pages": 0, "total": 0})
+
+
+@router.get("/api/public/livescore/assigned-matches")
+async def get_public_assigned_livescore_matches(date_value: str = Query(default="", alias="date", max_length=40)):
+    """Public, read-only feed of accepted/assigned match requests.
+
+    This intentionally reads request registries and does not create fixtures or
+    mutate tracker documents. Empty results remain empty; demo fixtures are never
+    substituted for operational match requests.
+    """
+    rows = []
+    statuses = ["accepted", "approved", "confirmed", "assigned", "pending_approval", "in_progress", "live", "completed", "submitted"]
+    for collection in (stats_requests_collection, match_requests_collection):
+        if collection is None:
+            continue
+        try:
+            docs = await collection.find({"status": {"$in": statuses}}).limit(1000).to_list(length=1000)
+        except Exception:
+            logger.exception("[public_livescore] failed reading accepted/assigned requests")
+            continue
+        for doc in docs:
+            if not isinstance(doc, dict):
+                continue
+            # Include accepted requests and assigned requests only; do not expose
+            # unassigned queue items that happen to share a broad status label.
+            status = str(doc.get("status") or "").lower()
+            assigned = any(doc.get(k) not in (None, "", [], {}) for k in (
+                "assigned_to", "assignee_id", "dco_id", "assigned_dco_id",
+                "assigned_user_id", "assignment_id", "assigned_to_id", "data_collector_id"
+            )) or bool(doc.get("assignment_ids"))
+            accepted = status in {"accepted", "approved", "confirmed"}
+            assignment_active = assigned and status in {"assigned", "pending_approval", "pending_validation", "in_progress", "live", "completed", "submitted", "verified"}
+            if not (accepted or assignment_active):
+                continue
+            home = (doc.get("home_team") or doc.get("home_club") or doc.get("requesting_club")
+                    or doc.get("club_name") or doc.get("team_name") or "")
+            away = (doc.get("away_team") or doc.get("away_club") or doc.get("opponent_club")
+                    or doc.get("opponent_name") or "")
+            match_date = str(doc.get("match_date") or doc.get("event_date") or doc.get("date") or "")
+            match_time = str(doc.get("match_time") or doc.get("kickoff_time") or doc.get("time") or "")
+            if not home or not away:
+                continue
+            if date_value and match_date and match_date[:10] != date_value[:10]:
+                continue
+            rid = str(doc.get("request_id") or doc.get("match_id") or doc.get("_id") or "")
+            rows.append({
+                "match_id": str(doc.get("match_id") or rid), "request_id": rid,
+                "home_team": str(home), "away_team": str(away),
+                "home_team_name": str(home), "away_team_name": str(away),
+                "home_score": doc.get("home_score", doc.get("homeScore", "")),
+                "away_score": doc.get("away_score", doc.get("awayScore", "")),
+                "match_date": match_date, "match_time": match_time,
+                "time": match_time, "status": status,
+                "competition": str(doc.get("competition") or doc.get("match_type") or doc.get("category") or "EnejiStats Matches"),
+                "country": str(doc.get("country") or "NIGERIA"),
+                "venue": str(doc.get("venue") or doc.get("stadium") or doc.get("venue_name") or ""),
+                "source": "accepted_assigned_request",
+            })
+    # Stable deduplication across the two request registries.
+    unique = {}
+    for row in rows:
+        key = row["match_id"] or (row["home_team"].casefold(), row["away_team"].casefold(), row["match_date"][:10])
+        previous = unique.get(str(key))
+        if previous is None or (row.get("home_score") not in (None, "") or row.get("away_score") not in (None, "")):
+            unique[str(key)] = row
+    result = sorted(unique.values(), key=lambda x: (x.get("match_date", ""), x.get("match_time", ""), x.get("home_team", "").casefold()))
+    return JSONResponse(content=_json_safe({"matches": result, "total": len(result), "source": "accepted_assigned_requests", "updated_at": datetime.now(timezone.utc)}))
+
+
+@router.get("/api/public/matches/{match_id}/report")
+async def get_public_match_report(
+    request: Request,
+    match_id: str,
+    home: str = Query(default="", max_length=160),
+    away: str = Query(default="", max_length=160),
+    date_value: str = Query(default="", alias="date", max_length=40),
+):
+    """Return the latest public club-tracker snapshot for a match.
+
+    The response intentionally contains match-level fields only. It never
+    serializes the source draft/submission document, scout identity, assignment
+    details, or geo data.
+    """
+    clean_home = _clean_text(home)
+    clean_away = _clean_text(away)
+    clean_date = _clean_text(date_value)
+    identity_filters = [
+        {"match_id": match_id},
+        {"match.match_id": match_id},
+        {"match.id": match_id},
+    ]
+    if clean_home and clean_away:
+        home_pattern = re.compile(r"^\s*" + re.escape(clean_home) + r"\s*$", re.IGNORECASE)
+        away_pattern = re.compile(r"^\s*" + re.escape(clean_away) + r"\s*$", re.IGNORECASE)
+        identity_filters.append({
+            "$and": [
+                {"$or": [
+                    {"home_team": home_pattern},
+                    {"home_team_name": home_pattern},
+                    {"match.home_team_name": home_pattern},
+                    {"match.home_team": home_pattern},
+                ]},
+                {"$or": [
+                    {"away_team": away_pattern},
+                    {"away_team_name": away_pattern},
+                    {"match.away_team_name": away_pattern},
+                    {"match.away_team": away_pattern},
+                ]},
+            ]
+        })
+
+    club_record_filter = {
+        "$or": [
+            {"entity_type": "club"},
+            {"tracking_type": {"$in": ["club", "club_tracking", "club-match", "club_match"]}},
+        ]
+    }
+    query = {
+        "$and": [
+            club_record_filter,
+            {"$or": identity_filters},
+        ]
+    }
+
+    async def read_candidates(collection, candidate_query):
+        if collection is None:
+            return []
+        try:
+            return await collection.find(candidate_query).limit(100).to_list(length=100)
+        except Exception:
+            logger.exception(
+                "[get_public_match_report] Could not read public club match data | match_id=%r",
+                match_id,
+            )
+            return []
+
+    public_submission_query = {
+        "$and": [
+            query,
+            {"status": {"$in": [
+                "approved", "verified", "completed", "pending_approval",
+                "pending_validation", "submitted",
+            ]}},
+        ]
+    }
+    drafts, submissions = await asyncio.gather(
+        read_candidates(stat_drafts_collection, query),
+        read_candidates(stat_submissions_collection, public_submission_query),
+    )
+    candidates = [
+        (record, "live_draft") for record in drafts
+    ] + [
+        (record, "submission") for record in submissions
+    ]
+
+    def record_match(record):
+        nested = record.get("match") if isinstance(record.get("match"), dict) else {}
+        return {**record, **nested}
+
+    def match_date(record):
+        match = record_match(record)
+        return str(
+            match.get("match_date")
+            or match.get("matchDate")
+            or match.get("date")
+            or record.get("match_date")
+            or ""
+        ).strip()
+
+    def candidate_rank(item):
+        record, source = item
+        match = record_match(record)
+        record_id = str(
+            record.get("match_id")
+            or match.get("match_id")
+            or match.get("id")
+            or ""
+        ).strip()
+        date_match = bool(
+            clean_date
+            and match_date(record)
+            and match_date(record)[:10].casefold() == clean_date[:10].casefold()
+        )
+        timestamp = (
+            record.get("updated_at")
+            or record.get("submitted_at")
+            or record.get("created_at")
+        )
+        if isinstance(timestamp, datetime):
+            if timestamp.tzinfo is None:
+                timestamp = timestamp.replace(tzinfo=timezone.utc)
+            stamp = timestamp.timestamp()
+        else:
+            try:
+                parsed = datetime.fromisoformat(str(timestamp).replace("Z", "+00:00"))
+                if parsed.tzinfo is None:
+                    parsed = parsed.replace(tzinfo=timezone.utc)
+                stamp = parsed.timestamp()
+            except (TypeError, ValueError, OverflowError):
+                stamp = 0
+        return (record_id == match_id, date_match, stamp, source == "submission")
+
+    selected = max(candidates, key=candidate_rank) if candidates else None
+    record, source = selected if selected else ({}, "unavailable")
+    raw_match = record.get("match") if isinstance(record.get("match"), dict) else {}
+    match_source = {**record, **raw_match}
+    home_name = _team_name(match_source, "home") or clean_home
+    away_name = _team_name(match_source, "away") or clean_away
+
+    def safe_number(value, default=0):
+        try:
+            number = float(value)
+            return int(number) if number.is_integer() else number
+        except (TypeError, ValueError, OverflowError):
+            return default
+
+    def public_clock(seconds):
+        value = int(max(0, safe_number(seconds)))
+        return f"{value // 60:02d}:{value % 60:02d}"
+
+    club_tracking = (
+        record.get("club_tracking")
+        if isinstance(record.get("club_tracking"), dict)
+        else record.get("clubTracking")
+        if isinstance(record.get("clubTracking"), dict)
+        else {}
+    )
+    raw_events = club_tracking.get("events")
+    if not isinstance(raw_events, list):
+        raw_events = []
+    public_events = []
+    for index, event in enumerate(raw_events):
+        if not isinstance(event, dict):
+            continue
+        period = 2 if safe_number(event.get("period", event.get("half", 1))) == 2 else 1
+        period_seconds = max(
+            0,
+            safe_number(
+                event.get(
+                    "period_seconds",
+                    event.get("periodSeconds", event.get("elapsed_seconds", 0)),
+                )
+            ),
+        )
+        absolute_seconds = safe_number(
+            event.get(
+                "absolute_match_time",
+                event.get("absoluteMatchTime", event.get("match_time", event.get("matchTime", -1))),
+            ),
+            -1,
+        )
+        if absolute_seconds < 0:
+            absolute_seconds = period_seconds + (45 * 60 if period == 2 else 0)
+        team_value = str(
+            event.get("team")
+            or event.get("club_team")
+            or event.get("clubTeam")
+            or event.get("team_side")
+            or ""
+        ).strip()
+        team_name = str(
+            event.get("team_name")
+            or event.get("teamName")
+            or event.get("club_name")
+            or event.get("clubName")
+            or ""
+        ).strip()
+        if team_value.casefold() not in {"home", "away"}:
+            if team_name.casefold() == home_name.casefold():
+                team_value = "home"
+            elif team_name.casefold() == away_name.casefold():
+                team_value = "away"
+        if team_value.casefold() not in {"home", "away"}:
+            continue
+        metric_key = str(
+            event.get("metric_key")
+            or event.get("metricKey")
+            or event.get("key")
+            or event.get("metric")
+            or ""
+        ).strip().lower().replace("-", "_").replace(" ", "_")
+        if not metric_key:
+            continue
+        metric_label = str(
+            event.get("metric_label")
+            or event.get("metricLabel")
+            or metric_key.replace("_", " ").title()
+        )
+        outcome = event.get("outcome") or event.get("result") or event.get("status")
+        type_label = event.get("type_label") or event.get("typeLabel") or event.get("type")
+        detail_parts = [
+            event.get("outcome_label") or event.get("outcomeLabel") or outcome,
+            type_label,
+            event.get("detail_label") or event.get("detailLabel") or event.get("detail"),
+        ]
+        public_events.append({
+            "eventId": str(event.get("event_id") or event.get("eventId") or event.get("id") or f"club-{index + 1}"),
+            "key": metric_key,
+            "metric": metric_key,
+            "metric_key": metric_key,
+            "event_type": metric_key,
+            "metric_label": metric_label,
+            "type": metric_label,
+            "type_label": str(type_label or ""),
+            "team": team_value.casefold(),
+            "team_name": team_name or (home_name if team_value.casefold() == "home" else away_name),
+            "teamName": team_name or (home_name if team_value.casefold() == "home" else away_name),
+            "outcome": outcome,
+            "result": outcome,
+            "outcome_label": event.get("outcome_label") or event.get("outcomeLabel") or "",
+            "typeLabel": str(type_label or ""),
+            "detail": " · ".join(str(part) for part in detail_parts if part not in (None, "")),
+            "period": period,
+            "half": period,
+            "period_seconds": period_seconds,
+            "elapsed_seconds": period_seconds,
+            "absolute_match_time": absolute_seconds,
+            "match_time": absolute_seconds,
+            "clock": public_clock(absolute_seconds),
+            "recorded_at": event.get("recorded_at") or event.get("recordedAt") or event.get("timestamp"),
+            "event_order": safe_number(event.get("event_order", index), index),
+        })
+
+    # Player tracker events are stored in normalized child collections rather
+    # than embedded in the submission. Join them to this one submission so the
+    # report can narrate goals, cards and substitutions without creating data.
+    if source == "submission" and record.get("_id") is not None and stat_submission_players_collection is not None and stat_events_collection is not None:
+        try:
+            player_rows = await stat_submission_players_collection.find({"submission_id": record.get("_id")}).limit(100).to_list(length=100)
+            row_ids = [row.get("_id") for row in player_rows if row.get("_id") is not None]
+            player_by_row = {str(row.get("_id")): row for row in player_rows}
+            if row_ids:
+                player_events = await stat_events_collection.find({"submission_player_id": {"$in": row_ids}}).sort("event_order", 1).limit(2000).to_list(length=2000)
+                for index, event in enumerate(player_events):
+                    if not isinstance(event, dict):
+                        continue
+                    player = player_by_row.get(str(event.get("submission_player_id")), {})
+                    metric_key = str(event.get("metric_key") or event.get("metric") or event.get("event_type") or event.get("type") or event.get("key") or "event").strip().lower().replace("-", "_").replace(" ", "_")
+                    label = str(event.get("metric_label") or event.get("event_label") or event.get("type_label") or event.get("type") or metric_key.replace("_", " ").title())
+                    period = 2 if safe_number(event.get("period", event.get("half", 1))) == 2 else 1
+                    seconds = safe_number(event.get("absolute_match_time", event.get("match_time", event.get("elapsed_seconds", 0))))
+                    if seconds < 45 * 60 and period == 2 and event.get("absolute_match_time") is None and event.get("match_time") is None:
+                        seconds += 45 * 60
+                    side = str(event.get("team_side") or event.get("team") or player.get("team_side") or player.get("team") or "").strip().lower()
+                    if side not in {"home", "away"}:
+                        pname = str(player.get("club_name") or player.get("team_name") or player.get("club") or "").casefold()
+                        if pname and pname == home_name.casefold(): side = "home"
+                        elif pname and pname == away_name.casefold(): side = "away"
+                    if side not in {"home", "away"}:
+                        continue
+                    public_events.append({
+                        "eventId": str(event.get("event_id") or event.get("_id") or f"player-event-{index+1}"),
+                        "key": metric_key, "metric": metric_key, "metric_key": metric_key,
+                        "event_type": metric_key, "type": label, "metric_label": label,
+                        "team": side, "team_name": home_name if side == "home" else away_name,
+                        "teamName": home_name if side == "home" else away_name,
+                        "player": str(event.get("player_name") or event.get("playerName") or player.get("player_name") or player.get("name") or player.get("full_name") or ""),
+                        "player_id": str(event.get("player_id") or player.get("player_id") or ""),
+                        "outcome": event.get("outcome") or event.get("result") or "",
+                        "goalType": event.get("goal_type") or event.get("goalType") or "",
+                        "cardType": event.get("card_type") or event.get("cardType") or "",
+                        "substitutionOn": event.get("player_on") or event.get("substitution_on") or event.get("on") or "",
+                        "substitutionOff": event.get("player_off") or event.get("substitution_off") or event.get("off") or "",
+                        "detail": str(event.get("detail") or event.get("notes") or ""),
+                        "period": period, "half": period, "absolute_match_time": seconds,
+                        "match_time": seconds, "clock": public_clock(seconds),
+                        "event_order": safe_number(event.get("event_order", index), index),
+                    })
+        except Exception:
+            logger.exception("[get_public_match_report] Could not join player tracker events | match_id=%r", match_id)
+
+    possession = club_tracking.get("possession")
+    if not isinstance(possession, dict):
+        possession = {}
+    switches = possession.get("switches")
+    if isinstance(switches, list):
+        for index, item in enumerate(switches):
+            if not isinstance(item, dict):
+                continue
+            team = str(item.get("team") or "").strip().lower()
+            if team not in {"home", "away"}:
+                continue
+            period = 2 if safe_number(item.get("period", 1)) == 2 else 1
+            local_seconds = max(
+                0,
+                safe_number(item.get("period_seconds", item.get("periodSeconds", 0))),
+            )
+            absolute_seconds = safe_number(
+                item.get(
+                    "absolute_match_time",
+                    item.get("absoluteMatchTime", item.get("match_time", item.get("matchTime", -1))),
+                ),
+                -1,
+            )
+            if absolute_seconds < 0:
+                absolute_seconds = local_seconds + (45 * 60 if period == 2 else 0)
+            public_events.append({
+                "eventId": f"club-possession-{index + 1}",
+                "key": "possession",
+                "metric": "possession",
+                "metric_key": "possession",
+                "type": "Possession",
+                "team": team,
+                "team_name": home_name if team == "home" else away_name,
+                "teamName": home_name if team == "home" else away_name,
+                "possessionChange": True,
+                "possession_change": True,
+                "period": period,
+                "half": period,
+                "period_seconds": local_seconds,
+                "elapsed_seconds": local_seconds,
+                "absolute_match_time": absolute_seconds,
+                "match_time": absolute_seconds,
+                "clock": public_clock(absolute_seconds),
+                "event_order": index,
+            })
+    public_events.sort(
+        key=lambda event: (
+            safe_number(event.get("absolute_match_time")),
+            safe_number(event.get("event_order")),
+        )
+    )
+
+    raw_club_stats = club_tracking.get("stats")
+    if not isinstance(raw_club_stats, dict):
+        raw_club_stats = {}
+    # Mirror the tracker metric contract instead of maintaining a second,
+    # incomplete allow-list here. Only metric-shaped dictionaries are exposed;
+    # private DCO, assignment, geo and persistence fields remain excluded.
+    public_club_stats = {}
+    for side in ("home", "away"):
+        side_stats = raw_club_stats.get(side)
+        if not isinstance(side_stats, dict):
+            continue
+        public_club_stats[side] = {
+            str(key): value
+            for key, value in side_stats.items()
+            if isinstance(key, str) and isinstance(value, dict)
+        }
+
+    home_score = _score_value(match_source, "home")
+    away_score = _score_value(match_source, "away")
+    period = 2 if safe_number(match_source.get("period", 1)) == 2 else 1
+    elapsed_seconds = max(0, safe_number(match_source.get("elapsed_seconds", 0)))
+    report_match = {
+        "match_id": str(match_source.get("match_id") or match_id),
+        "id": str(match_source.get("match_id") or match_id),
+        "home": home_name,
+        "away": away_name,
+        "home_team": home_name,
+        "away_team": away_name,
+        "home_team_name": home_name,
+        "away_team_name": away_name,
+        "home_score": home_score if home_score != "" else 0,
+        "away_score": away_score if away_score != "" else 0,
+        "homeScore": home_score if home_score != "" else 0,
+        "awayScore": away_score if away_score != "" else 0,
+        "score": {
+            "home": home_score if home_score != "" else 0,
+            "away": away_score if away_score != "" else 0,
+        },
+        "status": str(match_source.get("status") or ("live" if source == "live_draft" else "unknown")),
+        "period": period,
+        "elapsed_seconds": elapsed_seconds,
+        "clock": {
+            "period": period,
+            "elapsedSeconds": elapsed_seconds,
+            "display": public_clock(elapsed_seconds),
+        },
+        "match_date": match_source.get("match_date") or match_source.get("date") or "",
+        "match_time": match_source.get("match_time") or "",
+        "date": match_source.get("match_date") or match_source.get("date") or "",
+        "competition": match_source.get("competition") or match_source.get("match_type") or "",
+        "venue": match_source.get("venue_name") or match_source.get("venue") or "",
+        "venue_name": match_source.get("venue_name") or match_source.get("venue") or "",
+        "country": match_source.get("venue_country") or match_source.get("country") or "",
+        "round": match_source.get("round") or "",
+        "referee": match_source.get("referee") or "",
+    }
+    possession_home = possession.get("home")
+    possession_away = possession.get("away")
+    possession_pair = [
+        safe_number(possession_home) if possession_home is not None else 0,
+        safe_number(possession_away) if possession_away is not None else 0,
+    ]
+    # Preserve lineup data when it exists in the match snapshot or club tracker.
+    # Do not invent players or formations when the tracker has no lineup records.
+    raw_lineups = (club_tracking.get("lineups") if isinstance(club_tracking.get("lineups"), dict) else None)
+    if raw_lineups is None:
+        raw_lineups = (match_source.get("lineups") if isinstance(match_source.get("lineups"), dict) else {})
+    def lineup_rows(*values):
+        for value in values:
+            if isinstance(value, list):
+                return [item for item in value if isinstance(item, dict)]
+        return []
+    home_lineup = lineup_rows(raw_lineups.get("home"), raw_lineups.get("home_players"), match_source.get("home_lineup"), match_source.get("homeLineup"))
+    away_lineup = lineup_rows(raw_lineups.get("away"), raw_lineups.get("away_players"), match_source.get("away_lineup"), match_source.get("awayLineup"))
+    subs_home = lineup_rows(raw_lineups.get("subsHome"), raw_lineups.get("home_substitutes"), match_source.get("home_substitutes"))
+    subs_away = lineup_rows(raw_lineups.get("subsAway"), raw_lineups.get("away_substitutes"), match_source.get("away_substitutes"))
+    response = {
+        "available": bool(selected),
+        "source": source,
+        "updated_at": (
+            record.get("updated_at")
+            or record.get("submitted_at")
+            or record.get("created_at")
+        ),
+        "match": report_match,
+        "teamStats": {"possession": {"possession": possession_pair}},
+        "clubStats": public_club_stats,
+        "events": public_events,
+        "lineups": {
+            "home": home_lineup, "away": away_lineup,
+            "homeFormation": raw_lineups.get("homeFormation") or raw_lineups.get("home_formation") or match_source.get("home_formation") or "",
+            "awayFormation": raw_lineups.get("awayFormation") or raw_lineups.get("away_formation") or match_source.get("away_formation") or "",
+            "subsHome": subs_home, "subsAway": subs_away,
+            "coaches": lineup_rows(raw_lineups.get("coaches")),
+            "missingHome": lineup_rows(raw_lineups.get("missingHome"), raw_lineups.get("missing_home")),
+            "missingAway": lineup_rows(raw_lineups.get("missingAway"), raw_lineups.get("missing_away")),
+        },
+        "players": {"home": [], "away": []},
+        "h2h": {"summary": {"homeWins": 0, "draws": 0, "awayWins": 0}, "matches": []},
+        "standings": {"rows": []},
+        "info": {
+            "referee": report_match["referee"],
+            "venue": report_match["venue"],
+            "stadium": report_match["venue"],
+            "capacity": "",
+            "attendance": "",
+        },
+    }
+    return JSONResponse(content=_json_safe(response))
 
 
 async def _load_public_player_matches(
