@@ -1453,70 +1453,177 @@ async def get_player_matches(
 
 @router.get("/api/public/livescore/assigned-matches")
 async def get_public_assigned_livescore_matches(date_value: str = Query(default="", alias="date", max_length=40)):
-    """Public, read-only feed of accepted/assigned match requests.
+    """Public read-only score feed built from accepted/assigned requests and saved tracker records.
 
-    This intentionally reads request registries and does not create fixtures or
-    mutate tracker documents. Empty results remain empty; demo fixtures are never
-    substituted for operational match requests.
+    Requests define which fixtures are allowed into the feed; tracker snapshots and
+    final submissions enrich those fixtures with the canonical score and final state.
+    No documents are written by this endpoint.
     """
-    rows = []
-    statuses = ["accepted", "approved", "confirmed", "assigned", "pending_approval", "in_progress", "live", "completed", "submitted"]
+    def _norm(value):
+        return re.sub(r"[^a-z0-9]+", "", str(value or "").strip().casefold())
+
+    def _nested(doc):
+        match = doc.get("match") if isinstance(doc.get("match"), dict) else {}
+        details = doc.get("match_details") if isinstance(doc.get("match_details"), dict) else {}
+        return {**doc, **details, **match}
+
+    def _value(doc, *keys, default=None):
+        for key in keys:
+            value = doc.get(key)
+            if value not in (None, ""):
+                return value
+        return default
+
+    def _score(doc, side):
+        flat = ("home_score", "homeScore", "home_goals", "homeGoals", "scoreA", "score_home") if side == "home" else ("away_score", "awayScore", "away_goals", "awayGoals", "scoreB", "score_away")
+        value = _value(doc, *flat)
+        score = doc.get("score") if isinstance(doc.get("score"), dict) else {}
+        details = doc.get("details") if isinstance(doc.get("details"), dict) else {}
+        if value in (None, ""):
+            value = _value(score, side, f"{side}_score", default=_value(details, *flat))
+        tracking = doc.get("club_tracking") if isinstance(doc.get("club_tracking"), dict) else doc.get("clubTracking") if isinstance(doc.get("clubTracking"), dict) else {}
+        if value in (None, ""):
+            value = _value(tracking, *flat)
+            nested_score = tracking.get("score") if isinstance(tracking.get("score"), dict) else {}
+            if value in (None, ""):
+                value = _value(nested_score, side, f"{side}_score")
+        if isinstance(value, bool):
+            return None
+        try:
+            return int(value) if value not in (None, "") else None
+        except (TypeError, ValueError):
+            return None
+
+    request_rows = []
+    request_statuses = [
+        "accepted", "Accepted", "approved", "Approved", "confirmed", "Confirmed",
+        "assigned", "Assigned", "pending_approval", "Pending Approval",
+        "pending_validation", "in_progress", "In Progress", "live", "Live",
+        "completed", "Completed", "complete", "Complete", "finished", "Finished",
+        "ft", "FT", "full_time", "full-time", "submitted", "Submitted", "verified", "Verified",
+    ]
     for collection in (stats_requests_collection, match_requests_collection):
         if collection is None:
             continue
         try:
-            docs = await collection.find({"status": {"$in": statuses}}).limit(1000).to_list(length=1000)
+            docs = await collection.find({"status": {"$in": request_statuses}}).limit(2000).to_list(length=2000)
         except Exception:
-            logger.exception("[public_livescore] failed reading accepted/assigned requests")
+            logger.exception("[public_livescore] failed reading request registry")
             continue
         for doc in docs:
             if not isinstance(doc, dict):
                 continue
-            # Include accepted requests and assigned requests only; do not expose
-            # unassigned queue items that happen to share a broad status label.
-            status = str(doc.get("status") or "").lower()
-            assigned = any(doc.get(k) not in (None, "", [], {}) for k in (
-                "assigned_to", "assignee_id", "dco_id", "assigned_dco_id",
-                "assigned_user_id", "assignment_id", "assigned_to_id", "data_collector_id"
+            d = _nested(doc)
+            status = str(_value(d, "status", "request_status", "match_status", default="")).strip().casefold().replace(" ", "_")
+            assigned = any(_value(doc, k) not in (None, "", [], {}) for k in (
+                "assigned_to", "assignee_id", "dco_id", "assigned_dco_id", "assigned_user_id",
+                "assignment_id", "assigned_to_id", "data_collector_id", "assigned_dco", "assigned_agent_id"
             )) or bool(doc.get("assignment_ids"))
             accepted = status in {"accepted", "approved", "confirmed"}
-            assignment_active = assigned and status in {"assigned", "pending_approval", "pending_validation", "in_progress", "live", "completed", "submitted", "verified"}
-            if not (accepted or assignment_active):
+            finished_status = status in {"completed", "complete", "finished", "ft", "full_time", "full-time", "ended", "final"}
+            active_assignment = status in {
+                "assigned", "pending_approval", "pending_validation", "in_progress", "live",
+                "submitted", "verified"
+            } and (assigned or status in {"assigned", "in_progress", "live", "submitted", "verified"})
+            # Keep finished results visible even if the assignment field was cleared
+            # by the completion workflow after the final report was saved.
+            if not (accepted or active_assignment or finished_status):
                 continue
-            home = (doc.get("home_team") or doc.get("home_club") or doc.get("requesting_club")
-                    or doc.get("club_name") or doc.get("team_name") or "")
-            away = (doc.get("away_team") or doc.get("away_club") or doc.get("opponent_club")
-                    or doc.get("opponent_name") or "")
-            match_date = str(doc.get("match_date") or doc.get("event_date") or doc.get("date") or "")
-            match_time = str(doc.get("match_time") or doc.get("kickoff_time") or doc.get("time") or "")
+            home = _value(d, "home_team", "home_team_name", "home_club", "homeTeam", "home_name", "requesting_club", "club_name", "team_name")
+            away = _value(d, "away_team", "away_team_name", "away_club", "awayTeam", "away_name", "opponent_club", "opponent_name")
+            if isinstance(home, dict): home = _value(home, "name", "club_name", "team_name")
+            if isinstance(away, dict): away = _value(away, "name", "club_name", "team_name")
             if not home or not away:
                 continue
-            if date_value and match_date and match_date[:10] != date_value[:10]:
+            match_date = str(_value(d, "match_date", "matchDate", "event_date", "date", "kickoff_date", "start_date", default=""))
+            match_time = str(_value(d, "match_time", "kickoff_time", "time", "kickoff", default=""))
+            # Keep historical finished matches visible even when the date picker is on today.
+            if date_value and match_date and match_date[:10] != date_value[:10] and status not in {"completed", "complete", "finished", "ft", "full_time", "full-time"}:
                 continue
-            rid = str(doc.get("request_id") or doc.get("match_id") or doc.get("_id") or "")
-            rows.append({
-                "match_id": str(doc.get("match_id") or rid), "request_id": rid,
+            rid = str(_value(doc, "request_id", "stats_request_id", "match_id", "_id", default=""))
+            mid = str(_value(d, "match_id", "matchId", "fixture_id", "fixtureId", default=rid))
+            hs, aws = _score(d, "home"), _score(d, "away")
+            explicit = str(_value(d, "match_status", "game_status", "period_status", default=status)).casefold().replace(" ", "_")
+            finished_markers = {"completed", "complete", "finished", "ft", "full_time", "full-time", "ended", "final"}
+            live_markers = {"live", "in_progress", "inplay", "in_play", "playing"}
+            if explicit in finished_markers or status in finished_markers:
+                display_status = "finished"
+            elif explicit in live_markers or status in live_markers:
+                display_status = "live"
+            elif hs is not None and aws is not None and status in {"submitted", "verified", "approved"}:
+                display_status = "finished"
+            else:
+                display_status = "scheduled"
+            request_rows.append({
+                "match_id": mid, "request_id": rid,
                 "home_team": str(home), "away_team": str(away),
                 "home_team_name": str(home), "away_team_name": str(away),
-                "home_score": doc.get("home_score", doc.get("homeScore", "")),
-                "away_score": doc.get("away_score", doc.get("awayScore", "")),
-                "match_date": match_date, "match_time": match_time,
-                "time": match_time, "status": status,
-                "competition": str(doc.get("competition") or doc.get("match_type") or doc.get("category") or "EnejiStats Matches"),
-                "country": str(doc.get("country") or "NIGERIA"),
-                "venue": str(doc.get("venue") or doc.get("stadium") or doc.get("venue_name") or ""),
+                "home_score": hs, "away_score": aws,
+                "match_date": match_date, "match_time": match_time, "time": match_time,
+                "status": display_status,
+                "request_status": status,
+                "competition": str(_value(d, "competition", "competition_name", "league", "match_type", "category", default="EnejiStats Matches")),
+                "country": str(_value(d, "country", "country_name", default="NIGERIA")),
+                "venue": str(_value(d, "venue", "stadium", "venue_name", default="")),
                 "source": "accepted_assigned_request",
             })
-    # Stable deduplication across the two request registries.
-    unique = {}
-    for row in rows:
-        key = row["match_id"] or (row["home_team"].casefold(), row["away_team"].casefold(), row["match_date"][:10])
-        previous = unique.get(str(key))
-        if previous is None or (row.get("home_score") not in (None, "") or row.get("away_score") not in (None, "")):
-            unique[str(key)] = row
-    result = sorted(unique.values(), key=lambda x: (x.get("match_date", ""), x.get("match_time", ""), x.get("home_team", "").casefold()))
-    return JSONResponse(content=_json_safe({"matches": result, "total": len(result), "source": "accepted_assigned_requests", "updated_at": datetime.now(timezone.utc)}))
 
+    # Tracker records carry the score more reliably than a request queue. Join by
+    # stable IDs first, then by the team pair and date where old records lack IDs.
+    tracker_rows = []
+    for collection in (stat_submissions_collection, stat_drafts_collection, match_stats_collection):
+        if collection is None:
+            continue
+        try:
+            docs = await collection.find({}).sort("updated_at", -1).limit(3000).to_list(length=3000)
+        except Exception:
+            try:
+                docs = await collection.find({}).limit(3000).to_list(length=3000)
+            except Exception:
+                logger.exception("[public_livescore] failed reading tracker score snapshots")
+                continue
+        for doc in docs:
+            if not isinstance(doc, dict):
+                continue
+            d = _nested(doc)
+            hs, aws = _score(d, "home"), _score(d, "away")
+            if hs is None and aws is None:
+                continue
+            tracker_rows.append({
+                "ids": {_norm(_value(doc, "match_id", "matchId", "request_id", "stats_request_id", "assignment_id", "_id", default="")), _norm(_value(d, "match_id", "matchId", "request_id", "assignment_id", default=""))} - {""},
+                "home": _norm(_value(d, "home_team", "home_team_name", "home_club", "homeTeam", default="")),
+                "away": _norm(_value(d, "away_team", "away_team_name", "away_club", "awayTeam", default="")),
+                "date": str(_value(d, "match_date", "matchDate", "date", "event_date", default=""))[:10],
+                "home_score": hs, "away_score": aws,
+                "status": str(_value(d, "match_status", "game_status", "status", default="")).casefold().replace(" ", "_"),
+                "updated_at": str(_value(doc, "updated_at", "submitted_at", "created_at", default="")),
+            })
+
+    for row in request_rows:
+        row_ids = {_norm(row.get("match_id")), _norm(row.get("request_id"))} - {""}
+        hkey, akey, dkey = _norm(row.get("home_team")), _norm(row.get("away_team")), str(row.get("match_date") or "")[:10]
+        candidates = [t for t in tracker_rows if (row_ids & t["ids"]) or (hkey and akey and hkey == t["home"] and akey == t["away"] and (not dkey or not t["date"] or dkey == t["date"]))]
+        if candidates:
+            tracker = candidates[0]
+            if tracker.get("home_score") is not None: row["home_score"] = tracker["home_score"]
+            if tracker.get("away_score") is not None: row["away_score"] = tracker["away_score"]
+            tstatus = tracker.get("status", "")
+            if tstatus in {"completed", "complete", "finished", "ft", "full_time", "full-time", "ended", "final"} or (row["home_score"] is not None and row["away_score"] is not None and tstatus in {"submitted", "verified", "approved"}):
+                row["status"] = "finished"
+            elif tstatus in {"live", "in_progress", "inplay", "in_play", "playing"}:
+                row["status"] = "live"
+
+    # Deduplicate overlapping request collections without dropping a row that has scores.
+    unique = {}
+    for row in request_rows:
+        key = _norm(row.get("match_id")) or "|".join((_norm(row.get("home_team")), _norm(row.get("away_team")), str(row.get("match_date") or "")[:10]))
+        previous = unique.get(key)
+        has_score = row.get("home_score") is not None and row.get("away_score") is not None
+        prev_has_score = previous and previous.get("home_score") is not None and previous.get("away_score") is not None
+        if previous is None or (has_score and not prev_has_score) or (row.get("status") == "finished" and previous.get("status") != "finished"):
+            unique[key] = row
+    result = sorted(unique.values(), key=lambda x: (x.get("match_date", ""), x.get("match_time", ""), x.get("home_team", "").casefold()))
+    return JSONResponse(content=_json_safe({"matches": result, "total": len(result), "source": "accepted_assigned_requests_and_tracker", "updated_at": datetime.now(timezone.utc)}))
 
 @router.get("/api/public/matches/{match_id}/report")
 async def get_public_match_report(
