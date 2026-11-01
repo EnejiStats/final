@@ -2570,6 +2570,17 @@ async function handleLogout() {
       try { await apiCall(`/player/${(player?.user_id || player?.player_id)}/notifications/${id}/read`, { method:'PATCH' }); } catch {}
       setNotifications(p=>p.map(n=>(n._id===id||n.id===id)?{...n,read:true}:n));
     };
+    const openMatchdayStatsRequest = (notification) => {
+      const payload = notification?.action_payload || notification?.payload || {};
+      try {
+        localStorage.setItem('enejistats-player-stats-prefill', JSON.stringify({
+          ...payload,
+          match_id: notification?.match_id || payload.match_id || '',
+          source_notification_id: notification?._id || notification?.id || ''
+        }));
+      } catch {}
+      window.location.assign('/match-centre');
+    };
     const markAllRead = async () => {
       try { await apiCall(`/player/${(player?.user_id || player?.player_id)}/notifications/read-all`, { method:'PATCH' }); } catch {}
       setNotifications(p=>p.map(n=>({...n,read:true})));
@@ -3639,12 +3650,12 @@ async function handleLogout() {
                   <div class="sub-tabs notification-filter-tabs">
                     ${['all','contract','stats','token','competition','admin'].map(f=>html`<button key=${f} class=${`sub-tab-btn ${notifSubTab===f?'active':''}`} onClick=${()=>setNotifSubTab(f)}>${f.charAt(0).toUpperCase()+f.slice(1)}</button>`)}
                   </div>
-                  ${notifications.filter(n=>notifSubTab==='all'||n.type?.includes(notifSubTab)).length===0 ?
+                  ${notifications.filter(n=>notifSubTab==='all'||n.type?.includes(notifSubTab)||(notifSubTab==='stats'&&n.type==='matchday_squad_selected')).length===0 ?
                     html`<div class="empty-state"><i class="fas fa-bell-slash"></i><div>No notifications</div></div>` :
-                    notifications.filter(n=>notifSubTab==='all'||n.type?.includes(notifSubTab)).map(n=>{
+                    notifications.filter(n=>notifSubTab==='all'||n.type?.includes(notifSubTab)||(notifSubTab==='stats'&&n.type==='matchday_squad_selected')).map(n=>{
                       const nid = n._id||n.id;
                       const isExpanded = expandedNotif === nid;
-                      const iconClass = n.type==='token_credit'||n.type==='token_refund'?'fa-coins':n.type==='stats_submitted'||n.type==='stats'?'fa-futbol':n.type==='contract'?'fa-file-contract':n.type==='competition'||n.type==='trial'?'fa-trophy':n.type==='admin'?'fa-shield-halved':'fa-bell';
+                      const iconClass = n.type==='token_credit'||n.type==='token_refund'?'fa-coins':n.type==='stats_submitted'||n.type==='stats'||n.type==='matchday_squad_selected'?'fa-futbol':n.type==='contract'?'fa-file-contract':n.type==='competition'||n.type==='trial'?'fa-trophy':n.type==='admin'?'fa-shield-halved':'fa-bell';
                       return html`
                       <div key=${nid} class=${`notif-item ${!n.read?'unread':''}`} onClick=${()=>{ setExpandedNotif(isExpanded?null:nid); if(!n.read) markNotifRead(nid); }}>
                         <div class="notif-item-row">
@@ -3659,7 +3670,9 @@ async function handleLogout() {
                             <button style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:0.78rem;padding:0.15rem;" onClick=${e=>{e.stopPropagation();deleteNotif(nid);}} title="Delete"><i class="fas fa-trash"></i></button>
                           </div>
                         </div>
-                        ${isExpanded && html`<div class="notif-expanded">${n.message||n.body||'—'}</div>`}
+                        ${isExpanded && html`<div class="notif-expanded">${n.message||n.body||'—'}
+                          ${n.type==='matchday_squad_selected' && html`<button type="button" class="btn btn-sm btn-primary" style="display:block;margin-top:.65rem;" onClick=${e=>{e.stopPropagation();openMatchdayStatsRequest(n);}}><i class="fas fa-paper-plane"></i> Open prefilled stats request</button>`}
+                        </div>`}
                       </div>`;
                     })
                   }

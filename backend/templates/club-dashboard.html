@@ -1443,6 +1443,8 @@ const [squadPlayers, setSquadPlayers] = useState([]);
 const [selectedSquadPlayer, setSelectedSquadPlayer] = useState(null);
 const [matchdayFormation, setMatchdayFormation] = useState('4-3-3');
 const [matchdaySelectedIds, setMatchdaySelectedIds] = useState([]);
+const [matchdayFixtureId, setMatchdayFixtureId] = useState('');
+const [matchdayPublishing, setMatchdayPublishing] = useState(false);
 const [matchdayLineup, setMatchdayLineup] = useState({});
 const [matchdaySelectedSlot, setMatchdaySelectedSlot] = useState(null);
 const [matchdayPanel, setMatchdayPanel] = useState('board');
@@ -1524,6 +1526,10 @@ let alive=true; fetch(`/api/public/countries/${encodeURIComponent(String(stCount
 .catch(()=>{if(alive)setStSubregions([]);}); return ()=>{alive=false;};
 },[stCountryCode,stState]);
 const [stStadiumSuggestions, setStStadiumSuggestions] = useState([]);
+const [stSelectedVenue, setStSelectedVenue] = useState(null);
+const [stVenueDetailedAddress, setStVenueDetailedAddress] = useState('');
+const [stOppositionSuggestions, setStOppositionSuggestions] = useState([]);
+const [stSelectedOpposition, setStSelectedOpposition] = useState(null);
 const [stJerseyColor, setStJerseyColor] = useState('');
 const [stTrackingType, setStTrackingType] = useState('club_and_players');
 const [stContactPhone, setStContactPhone] = useState('');
@@ -1626,7 +1632,7 @@ if (v(profileData)) {
 const p = v(profileData);
 setClub(p);
 setManagementTeam(Array.isArray(p.management) ? p.management : []);
-setStHomeTeam(p.club_name || '');
+setStHomeTeam(p.club_name || ''); setStRole('home');
 if (p.youtube_videos) setYtVideos(p.youtube_videos);
 }
 if (v(statsData)) {
@@ -1672,6 +1678,55 @@ useEffect(() => {
     setMatchdayLineup(buildMatchdayLineup(squadPlayers, ids, '4-3-3'));
   }
 }, [club?.club_id, club?.user_id, squadPlayers]);
+useEffect(() => {
+  if (fixtures.length && !matchdayFixtureId) {
+    const first = fixtures.find(f => f.match_id || f._id || f.id);
+    if (first) setMatchdayFixtureId(String(first.match_id || first._id || first.id));
+  }
+}, [fixtures, matchdayFixtureId]);
+async function loadNotifications() {
+  const uid = club?.club_id || club?.user_id;
+  if (!uid) return;
+  const data = await apiCall(`/club/${encodeURIComponent(uid)}/notifications`);
+  if (data) setNotifications(Array.isArray(data) ? data : data.notifications || []);
+}
+async function publishMatchdaySquad() {
+  if (!club || !matchdaySelectedIds.length) { addToast('Select at least one player first.', 'warning'); return; }
+  const fixture = fixtures.find(f => String(f.match_id || f._id || f.id) === String(matchdayFixtureId));
+  if (!fixture) { addToast('Choose a registered upcoming fixture before publishing the squad.', 'warning'); return; }
+  const uid = club.club_id || club.user_id;
+  setMatchdayPublishing(true);
+  try {
+    const result = await apiCall(`/club/${encodeURIComponent(uid)}/matchday-squad`, {
+      method: 'POST',
+      body: JSON.stringify({
+        player_ids: matchdaySelectedIds,
+        formation: matchdayFormation,
+        lineup: matchdayLineup,
+        match: {
+          match_id: fixture.match_id || '',
+          match_date: fixture.match_date || fixture.date || '',
+          match_time: fixture.match_time || fixture.time || '',
+          match_timezone: fixture.match_timezone || fixture.timezone || 'Africa/Lagos',
+          home_team: fixture.home_team || '',
+          away_team: fixture.away_team || '',
+          match_type: fixture.match_type || fixture.competition || 'League',
+          venue_address: fixture.venue_address || fixture.venue || fixture.stadium || '',
+          venue_country: fixture.venue_country || fixture.country || 'Nigeria',
+          venue_state: fixture.venue_state || fixture.state || '',
+          venue_lga: fixture.venue_lga || fixture.lga || '',
+          venue_city: fixture.venue_city || fixture.city || ''
+        }
+      })
+    });
+    addToast(result.message || 'Matchday squad published and players notified.', 'success');
+    await loadNotifications();
+  } catch (error) {
+    addToast(error.message || 'Unable to publish matchday squad.', 'error');
+  } finally {
+    setMatchdayPublishing(false);
+  }
+}
 useEffect(() => {
   if (!club || !matchdaySelectedIds.length) return;
   const key = 'enejistats-matchday-v1:' + String(club.club_id || club.user_id || club._id || 'club');
@@ -2088,15 +2143,23 @@ e.target.value = '';
 const handleMediaPhotoDelete = (id) => {
 setMediaPhotos(prev => { const u = prev.filter(p => p.id !== id); try { localStorage.setItem(MEDIA_PHOTOS_KEY, JSON.stringify(u)); } catch {} return u; });
 };
+// Registration-backed opponent search for stats and match requests.
+const searchRegisteredOpposition = async (query, setter) => {
+  if (!query || query.trim().length < 2) { setter([]); return; }
+  try {
+    const res = await apiCall(`/public/clubs?q=${encodeURIComponent(query.trim())}&limit=12`);
+    setter((res?.clubs || res?.results || []).filter(c => String(c.club_id||c.id||c._id||'') !== String(club?.club_id||club?.user_id||'')));
+  } catch { setter([]); }
+};
 // Stats tracking submit
 const handleStatsTrackingSubmit = async (e) => {
 e.preventDefault();
 if (stTrackingType !== 'no_tracking' && availableTokens < stTrackingCost) { addToast('Insufficient tokens', 'error'); return; }
 setStSubmitting(true);
 const basePayload = {
-match_date: stMatchDate, match_time: stMatchTime, match_type: stMatchType,
+match_date: stMatchDate, match_time: stMatchTime, match_timezone: (Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Lagos'), match_type: stMatchType,
 home_team: stHomeTeam, away_team: stAwayTeam,
-club_role: stRole, venue_address: stVenue, venue_country: stCountry, venue_country_code: stCountryCode, venue_state: stState, venue_lga: stLGA, venue_city: stCity,
+club_role: stRole, home_club_id: stRole==='home'?(club?.club_id||club?.user_id||''):(stSelectedOpposition?.club_id||stSelectedOpposition?._id||''), away_club_id: stRole==='away'?(club?.club_id||club?.user_id||''):(stSelectedOpposition?.club_id||stSelectedOpposition?._id||''), opposition_club_id: stSelectedOpposition?.club_id||stSelectedOpposition?._id||'', venue_id: stSelectedVenue?.venue_id||stSelectedVenue?.id||stSelectedVenue?._id||'', venue_name: stVenue, venue_address: stVenue, venue_detailed_address: stVenueDetailedAddress||stSelectedVenue?.full_address||stSelectedVenue?.address||'', venue_country: stCountry, venue_country_code: stCountryCode, venue_state: stState, venue_lga: stLGA, venue_city: stCity, venue_region: stSelectedVenue?.region||'', venue_province: stSelectedVenue?.province||stSelectedVenue?.county||'',
 jersey_color: stJerseyColor, tracking_type: stTrackingType, contact_phone: stContactPhone, notes: stNotes,
 player_ids: [],
 };
@@ -2123,26 +2186,27 @@ try {
 const selectedPlayers = stSelectedPlayers.map(String);
 const batchReference = `ES-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2,8).toUpperCase()}`;
 const selectedPlayerInfo = new Map(squadPlayers.map(player => [String(player._id||player.player_id||player.id||''), player]));
-const requestJobs = (stTrackingType === 'club_and_players' || stTrackingType === 'player_only')
+const requestJobs = stTrackingType === 'club_and_players'
+? [{
+payload: {...basePayload, tracking_type: 'club_and_players', player_ids: selectedPlayers},
+client_request_id: `${batchReference}-club-and-players`,
+reserved_cost: clubTrackingUnitCost + playerTrackingUnitCost * selectedPlayers.length
+}]
+: stTrackingType === 'player_only'
 ? selectedPlayers.map((playerId,index) => {
 const player = selectedPlayerInfo.get(playerId);
 const playerName = player?.name || [player?.firstName,player?.lastName].filter(Boolean).join(' ') || 'Player';
-const isFirstCombinedRequest = stTrackingType === 'club_and_players' && index === 0;
 const safePlayerId = playerId.replace(/[^a-z0-9_-]/gi,'').slice(-24) || `player-${index+1}`;
 return {
-payload: {
-...basePayload,
-tracking_type: isFirstCombinedRequest ? 'club_and_players' : 'player_only',
-player_ids: [playerId]
-},
+payload: {...basePayload, tracking_type: 'player_only', player_ids: [playerId]},
 player_id: playerId,
 player_name: playerName,
 client_request_id: `${batchReference}-${index+1}-${safePlayerId}`,
-reserved_cost: isFirstCombinedRequest ? clubTrackingUnitCost + playerTrackingUnitCost : playerTrackingUnitCost
+reserved_cost: playerTrackingUnitCost
 };
 })
 : [{
-payload: {...basePayload, player_ids: []},
+payload: {...basePayload, tracking_type: 'club_only', player_ids: []},
 client_request_id: `${batchReference}-club`,
 reserved_cost: stTrackingType === 'club_only' ? clubTrackingUnitCost : 0
 }];
@@ -2193,8 +2257,8 @@ setStSubTab('history');
 addToast(`Submitted ${acceptedRequests.length} of ${requestJobs.length} individual requests. Check Request History before retrying; a failed response may still have reached the server.`, 'warning', 6500);
 } else addToast(submissionError?.message || 'Request failed', 'error');
 } else {
-addToast(`Stats tracking requested${reservedTokens ? `; ${reservedTokens} tokens reserved` : ''}. Each selected player has an individual reference.`, 'success', 5000);
-setStMatchDate(''); setStMatchTime(''); setStAwayTeam(''); setStVenue(''); setStCountry('Nigeria'); setStCountryCode('NG'); setStState(''); setStLGA(''); setStCity(''); setStJerseyColor(''); setStContactPhone(''); setStNotes(''); setStSelectedPlayers([]); setStStadiumSuggestions([]);
+addToast(`Stats tracking requested${reservedTokens ? `; ${reservedTokens} tokens reserved` : ''}. ${stTrackingType === 'club_and_players' ? 'The club and selected players share one parent reference with numbered player references.' : stTrackingType === 'club_only' ? 'Only the club request was submitted.' : 'Player requests were submitted individually.'}`, 'success', 6500);
+setStMatchDate(''); setStMatchTime(''); setStAwayTeam(''); setStVenue(''); setStSelectedVenue(null); setStVenueDetailedAddress(''); setStSelectedOpposition(null); setStCountry('Nigeria'); setStCountryCode('NG'); setStState(''); setStLGA(''); setStCity(''); setStJerseyColor(''); setStContactPhone(''); setStNotes(''); setStSelectedPlayers([]); setStStadiumSuggestions([]);
 setStSubTab('history');
 }
 } catch (err) { addToast(err?.message || 'Request failed', 'error'); }
@@ -2898,6 +2962,12 @@ ${statsToShow.map(s=>html`
   <section class="matchday-board">
     <div class="card-title"><i class="fas fa-chess-board"></i> Matchday squad & tactical board</div>
     <div class="matchday-toolbar">
+      <div class="form-group"><label for="matchday-fixture">Match fixture for squad notifications</label>
+        <select id="matchday-fixture" value=${matchdayFixtureId} onChange=${e=>setMatchdayFixtureId(e.target.value)}>
+          <option value="">Choose upcoming fixture</option>
+          ${fixtures.map(f=>{const id=String(f.match_id||f._id||f.id||'');return id?html`<option value=${id}>${f.home_team||'Home'} vs ${f.away_team||'Away'} · ${f.match_date||f.date||'Date pending'} ${f.match_time||f.time||''}</option>`:null;})}
+        </select>
+      </div>
       <div class="form-group"><label for="matchday-formation">Formation</label>
         <select id="matchday-formation" value=${matchdayFormation} onChange=${e=>{const f=e.target.value;setMatchdayFormation(f);setMatchdayLineup(buildMatchdayLineup(squadPlayers,matchdaySelectedIds,f));setMatchdaySelectedSlot(null);}}>
           ${Object.keys(MATCHDAY_FORMATIONS).map(f=>html`<option key=${f} value=${f}>${f}</option>`)}
@@ -2932,6 +3002,7 @@ ${statsToShow.map(s=>html`
       <button class="btn btn-outline btn-sm" onClick=${()=>{setMatchdayLineup(buildMatchdayLineup(squadPlayers,matchdaySelectedIds,matchdayFormation));setMatchdaySelectedSlot(null);addToast('Lineup arranged by position','success');}}><i class="fas fa-magic"></i> Auto-arrange</button>
       <button class="btn btn-outline btn-sm" onClick=${()=>{setMatchdaySelectedIds([]);setMatchdayLineup({});setMatchdaySelectedSlot(null);}}><i class="fas fa-rotate-left"></i> Clear starters</button>
       <button class="btn btn-primary btn-sm" onClick=${()=>{const starters=Object.values(matchdayLineup).filter(Boolean).length;addToast(`Matchday XI currently has ${starters} of 11 positions filled. Your lineup is saved on this device.`, 'info');}}><i class="fas fa-check"></i> Review lineup</button>
+      <button class="btn btn-primary btn-sm" disabled=${matchdayPublishing||!matchdayFixtureId||!matchdaySelectedIds.length} onClick=${publishMatchdaySquad}><i class=${matchdayPublishing?'fas fa-spinner fa-spin':'fas fa-paper-plane'}></i> ${matchdayPublishing?'Publishing…':'Publish squad & notify players'}</button>
     </div>
     <div class="card-title" style="margin-top:1rem;margin-bottom:.45rem;"><i class="fas fa-user-check"></i> Select matchday squad</div>
     <div class="matchday-help">Tick players to include them in the matchday group. The first 11 formation slots are starters; any additional selected players appear as substitutes.</div>
@@ -3321,6 +3392,7 @@ ${activeTab==='match-centre' && matchCentreSubTab==='operations-stats' && operat
 ${stSubTab==='request' && html`
 <div class="card">
 <div class="card-title"><i class="fas fa-clipboard-list"></i> Request Club Stats Tracking</div>
+<div class="matchday-alert">Club match-stats requests can be submitted only from 48 hours down to 24 hours before kickoff. The server validates the match window and duplicate requests.</div>
 <!-- Step indicator -->
 <div class="sr-step-bar">
 ${[
@@ -3377,7 +3449,7 @@ ${(stTrackingType==='club_and_players'||stTrackingType==='player_only')&&html`<d
 </div>
 <div class="form-group">
 <label>Your Club's Role</label>
-<select value=${stRole} onChange=${e=>{ setStRole(e.target.value); if(e.target.value==='home') setStHomeTeam(club?.club_name||''); else setStAwayTeam(club?.club_name||''); }}>
+<select value=${stRole} onChange=${e=>{ setStRole(e.target.value); if(e.target.value==='home') {setStHomeTeam(club?.club_name||'');setStAwayTeam('');} else {setStAwayTeam(club?.club_name||'');setStHomeTeam('');} setStSelectedOpposition(null);setStOppositionSuggestions([]); }}>
 <option value="home">Home Team</option>
 <option value="away">Away Team</option>
 </select>
@@ -3385,12 +3457,14 @@ ${(stTrackingType==='club_and_players'||stTrackingType==='player_only')&&html`<d
 </div>
 <div class="form-row">
 <div class="form-group">
-<label>Home Team *</label>
-<input type="text" value=${stHomeTeam} onInput=${e=>setStHomeTeam(e.target.value)} placeholder="Home team name" required />
+<label>Home Team * ${stRole==='home'?'(Your registered club)':'(Registered opposition)'}</label>
+<input type="text" value=${stHomeTeam} readOnly=${stRole==='home'} onInput=${e=>{setStHomeTeam(e.target.value);setStSelectedOpposition(null);searchRegisteredOpposition(e.target.value,setStOppositionSuggestions);}} placeholder="Search registered club…" required autocomplete="off" />
+${stRole==='away'&&stOppositionSuggestions.length>0&&html`<div class="venue-suggestions">${stOppositionSuggestions.map(c=>html`<div key=${c.club_id||c._id} class="venue-suggestion-item" onClick=${()=>{setStHomeTeam(c.club_name||c.name);setStSelectedOpposition(c);setStOppositionSuggestions([]);}}><strong>${c.club_name||c.name}</strong><div style="font-size:.72rem;color:#64748b">${[c.city,c.state,c.country].filter(Boolean).join(', ')}</div></div>`)}</div>`}
 </div>
 <div class="form-group">
-<label>Away Team *</label>
-<input type="text" value=${stAwayTeam} onInput=${e=>setStAwayTeam(e.target.value)} placeholder="Away team name" required />
+<label>Away Team * ${stRole==='away'?'(Your registered club)':'(Registered opposition)'}</label>
+<input type="text" value=${stAwayTeam} readOnly=${stRole==='away'} onInput=${e=>{setStAwayTeam(e.target.value);setStSelectedOpposition(null);searchRegisteredOpposition(e.target.value,setStOppositionSuggestions);}} placeholder="Search registered club…" required autocomplete="off" />
+${stRole==='home'&&stOppositionSuggestions.length>0&&html`<div class="venue-suggestions">${stOppositionSuggestions.map(c=>html`<div key=${c.club_id||c._id} class="venue-suggestion-item" onClick=${()=>{setStAwayTeam(c.club_name||c.name);setStSelectedOpposition(c);setStOppositionSuggestions([]);}}><strong>${c.club_name||c.name}</strong><div style="font-size:.72rem;color:#64748b">${[c.city,c.state,c.country].filter(Boolean).join(', ')}</div></div>`)}</div>`}
 </div>
 </div>
 <div class="form-group">
@@ -3421,7 +3495,7 @@ ${stSubregions.length?html`<select value=${stLGA} onChange=${e=>setStLGA(e.targe
 <label>Venue Match Will Take Place *</label>
 <p style="font-size:0.72rem;color:#64748b;margin-bottom:4px">Search a registered stadium or type a ground name</p>
 <input type="text" value=${stVenue} onInput=${async e=>{
-const val=e.target.value; setStVenue(val);
+const val=e.target.value; setStVenue(val); setStSelectedVenue(null); setStVenueDetailedAddress('');
 if(val.length>2){
 try {
 const params=new URLSearchParams({search:val,limit:8,country:stCountryCode});
@@ -3437,13 +3511,15 @@ const sName=s?.name||s?.stadium_name||(typeof s==='string'?s:'');
 const sAddr=s?.address||s?.location||'';
 const sCap=s?.capacity;
 return html`
-<div key=${sName} class="venue-suggestion-item" style="padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.06);cursor:pointer;" onClick=${()=>{setStVenue(sName);setStStadiumSuggestions([]);}}>
+<div key=${s.venue_id||s.id||s._id||sName} class="venue-suggestion-item" style="padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.06);cursor:pointer;" onClick=${()=>{setStSelectedVenue(s);setStVenue(sName);setStVenueDetailedAddress(s.full_address||s.address||s.venue_address||'');setStCountry(s.country||stCountry);setStCountryCode(s.country_code||stCountryCode);setStState(s.state||stState);setStLGA(s.lga||stLGA);setStCity(s.city||stCity);setStStadiumSuggestions([]);}}>
 <div style="font-size:0.85rem;font-weight:600;color:#e2e8f0">${sName}</div>
 ${sAddr?html`<div style="font-size:0.72rem;color:#64748b;margin-top:2px"><i class="fas fa-map-marker-alt" style="margin-right:3px"></i>${sAddr}</div>`:''}
 ${sCap?html`<div style="font-size:0.7rem;color:#475569;margin-top:1px"><i class="fas fa-users" style="margin-right:3px"></i>Capacity: ${sCap.toLocaleString()}</div>`:''}
 </div>`;
 })}
 </div>`}
+${stSelectedVenue && html`<div style="margin-top:.55rem;padding:.75rem;border:1px solid #334155;border-radius:10px;background:rgba(15,23,42,.55);color:#e2e8f0"><strong><i class="fas fa-stadium"></i> ${stSelectedVenue.venue_name||stSelectedVenue.name||stVenue}</strong><div style="font-size:.72rem;color:#cbd5e1;margin-top:.25rem">${[stSelectedVenue.country,stSelectedVenue.state,stSelectedVenue.province||stSelectedVenue.region,stSelectedVenue.city,stSelectedVenue.lga].filter(Boolean).join(' · ')}</div><div style="font-size:.72rem;color:#cbd5e1;margin-top:.2rem">${stVenueDetailedAddress||'No detailed address registered'}</div><button type="button" class="btn btn-sm btn-outline" style="margin-top:.4rem" onClick=${()=>{setStSelectedVenue(null);setStVenue('');setStVenueDetailedAddress('')}}>Clear venue</button></div>`}
+<div class="form-group" style="margin-top:.55rem"><label>Detailed venue address</label><textarea value=${stVenueDetailedAddress} onInput=${e=>setStVenueDetailedAddress(e.target.value)} placeholder="Automatically filled from the selected registered venue" rows="2"></textarea></div>
 </div>
 <div class="form-row">
 <div class="form-group">
@@ -3493,7 +3569,7 @@ ${availableTokens < stTrackingCost && stTrackingType !== 'no_tracking' && html`
 <button type="button" class="btn btn-sm btn-primary" style="margin-left:0.5rem;" onClick=${()=>{setWizardType('TOKEN_PURCHASE');setWizardOpen(true);}}>Top Up Now</button>
 </div>
 `}
-<button type="submit" class="btn btn-primary" style="width:100%;" disabled=${stSubmitting || (!stMatchDate||!stMatchTime||!stHomeTeam||!stAwayTeam||!stVenue||!stCountry||!stState||!stLGA||!stJerseyColor||!stContactPhone)||(stTrackingType!=='club_only'&&stSelectedPlayers.length===0)||(availableTokens<stTrackingCost&&stTrackingType!=='no_tracking')}>
+<button type="submit" class="btn btn-primary" style="width:100%;" disabled=${stSubmitting || (!stMatchDate||!stMatchTime||!stHomeTeam||!stAwayTeam||!stSelectedOpposition||!stVenue||!stCountry||!stState||!stLGA||!stJerseyColor||!stContactPhone)||(stTrackingType!=='club_only'&&stSelectedPlayers.length===0)||(availableTokens<stTrackingCost&&stTrackingType!=='no_tracking')}>
 ${stSubmitting?html`<i class="fas fa-spinner fa-spin"></i> Submitting...`:html`<i class="fas fa-paper-plane"></i> Submit Stats Tracking Request`}
 </button>
 </form>
@@ -3744,8 +3820,8 @@ ${mrGeoSubregions.length?html`<select value=${mrForm.venue_lga||''} onChange=${e
 <div class="form-group" style="position:relative;">
 <label>Venue Match Will Take Place *</label>
 <p style="font-size:0.72rem;color:#64748b;margin-bottom:4px">Search a registered stadium or type a ground name</p>
-<input type="text" value=${mrForm.venue_address||''} onInput=${async e=>{
-const val=e.target.value; setMrForm(p=>({...p,venue_address:val}));
+<input type="text" value=${mrForm.venue_name||mrForm.venue_address||''} onInput=${async e=>{
+const val=e.target.value; setMrForm(p=>({...p,venue_name:val,venue_id:'',venue_detailed_address:'',venue_address:''}));
 if(val.length>2){
 try{
 const params=new URLSearchParams({search:val,limit:6,country:mrGeoCountryCode});
@@ -3760,12 +3836,13 @@ ${(mrForm._stadiumSuggs||[]).map(s=>{
 const sName=s?.name||s?.stadium_name||(typeof s==='string'?s:'');
 const sAddr=s?.address||s?.location||'';
 return html`
-<div key=${sName} class="venue-suggestion-item" style="padding:8px 12px;cursor:pointer;" onClick=${()=>setMrForm(p=>({...p,venue_address:sName,_stadiumSuggs:[]}))}>
+<div key=${s.venue_id||s.id||s._id||sName} class="venue-suggestion-item" style="padding:8px 12px;cursor:pointer;" onClick=${()=>{setMrForm(p=>({...p,venue_id:s.venue_id||s.id||s._id||'',venue_name:sName,venue_address:s.full_address||s.address||s.venue_address||'',venue_detailed_address:s.full_address||s.address||s.venue_address||'',venue_country:s.country||p.venue_country,venue_country_code:s.country_code||p.venue_country_code,venue_state:s.state||p.venue_state,venue_lga:s.lga||p.venue_lga,venue_city:s.city||p.venue_city,venue_region:s.region||p.venue_region,venue_province:s.province||s.county||p.venue_province,_stadiumSuggs:[]}));setMrGeoCountryCode(s.country_code||mrGeoCountryCode);setMrGeoCountryName(s.country||mrGeoCountryName);}}>
 <div style="font-size:0.85rem;font-weight:600;color:#e2e8f0">${sName}</div>
 ${sAddr?html`<div style="font-size:0.72rem;color:#64748b;margin-top:2px"><i class="fas fa-map-marker-alt" style="margin-right:3px"></i>${sAddr}</div>`:''}
 </div>`;
 })}
 </div>`}
+${mrForm.venue_id&&html`<div style="margin-top:.5rem;padding:.7rem;border:1px solid #bfdbfe;border-radius:9px;background:#eff6ff;color:#1e3a8a"><strong><i class="fas fa-stadium"></i> ${mrForm.venue_name||''}</strong><div style="font-size:.72rem;margin-top:.2rem">${[mrForm.venue_city,mrForm.venue_lga,mrForm.venue_state,mrForm.venue_country].filter(Boolean).join(' · ')}</div><div style="font-size:.72rem;margin-top:.2rem">${mrForm.venue_detailed_address||mrForm.venue_address||'No detailed address registered'}</div></div>`}
 </div>
 <div class="form-group"><label>Stats Tracking *</label>
 <select value=${mrForm.tracking_type||''} onChange=${e=>setMrForm(p=>({...p,tracking_type:e.target.value}))} required>

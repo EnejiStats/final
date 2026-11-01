@@ -875,9 +875,14 @@ function App() {
     const [fixtureFilter, setFixtureFilter] = useState({ search: '', status: 'all' });
     const [statsSubmitting, setStatsSubmitting] = useState(false);
     const [statsReqCompetition, setStatsReqCompetition] = useState('');
+    const [prefillMatchId, setPrefillMatchId] = useState('');
+    const [prefillMatchTimezone, setPrefillMatchTimezone] = useState('Africa/Lagos');
     const [statsReqNotes, setStatsReqNotes] = useState('');
     const [clubSuggestionsHome, setClubSuggestionsHome] = useState([]);
     const [clubSuggestionsAway, setClubSuggestionsAway] = useState([]);
+    const [selectedHomeClub, setSelectedHomeClub] = useState(null);
+    const [selectedAwayClub, setSelectedAwayClub] = useState(null);
+    const [selectedVenue, setSelectedVenue] = useState(null);
     const venueSearchController = useRef(null);
     const [matchPage, setMatchPage] = useState(1);
     const [cancelConfirmRef, setCancelConfirmRef] = useState(null);
@@ -920,7 +925,37 @@ function App() {
     };
 
     useEffect(() => {
-      if (player?.current_club) setStatsReqHomeTeam(prev => prev || player.current_club);
+      if (!player) return;
+      try {
+        const raw = localStorage.getItem('enejistats-player-stats-prefill');
+        if (!raw) return;
+        const p = JSON.parse(raw);
+        setPrefillMatchId(String(p.match_id || ''));
+        setPrefillMatchTimezone(String(p.match_timezone || p.timezone || 'Africa/Lagos'));
+        setStatsReqMatchDate(String(p.match_date || p.date || ''));
+        setStatsReqMatchTime(String(p.match_time || p.time || ''));
+        setStatsReqHomeTeam(String(p.home_team || ''));
+        setStatsReqAwayTeam(String(p.away_team || ''));
+        if (p.home_club_id) setSelectedHomeClub({club_id:p.home_club_id,club_name:p.home_team||''});
+        if (p.away_club_id) setSelectedAwayClub({club_id:p.away_club_id,club_name:p.away_team||''});
+        if (p.venue_id) setSelectedVenue({venue_id:p.venue_id,venue_name:p.venue_name||p.venue_address||'',full_address:p.venue_detailed_address||p.venue_address||''});
+        setStatsReqMatchType(String(p.match_type || 'League'));
+        setStatsReqJerseyNumber(String(p.jersey_number || player.jersey_number || player.jerseyNumber || ''));
+        setStatsReqRole(String(p.player_represents || 'home'));
+        setVenueCountry(String(p.venue_country || ''));
+        setStatsReqState(String(p.venue_state || ''));
+        setStatsReqLGA(String(p.venue_lga || ''));
+        setVenueInput(String(p.venue_address || ''));
+        setVenueDetailedAddress(String(p.venue_detailed_address || p.venue_address || ''));
+        setStatsReqPhone(String(p.contact_phone || player.phone || ''));
+        setMatchCentreSubTab('statsrequest');
+        try { sessionStorage.setItem('mc-active-tab', 'statsrequest'); } catch {}
+        localStorage.removeItem('enejistats-player-stats-prefill');
+        addToast('Matchday selection loaded. Review the venue/contact details and submit within the permitted request window.', 'success');
+      } catch {}
+    }, [player]);
+    useEffect(() => {
+      const registeredClubName=player?.current_club||player?.club_name||player?.club||''; if (registeredClubName) { setStatsReqHomeTeam(registeredClubName); setSelectedHomeClub({club_id:player.club_id||player.current_club_id||'',club_name:registeredClubName}); }
       if (player?.phone) setStatsReqPhone(prev => prev || player.phone);
     }, [player]);
 
@@ -1051,25 +1086,27 @@ function App() {
     };
 
     const searchClubsForField = async (query, setSuggestions) => {
-      if (!query || query.length < 2) { setSuggestions([]); return; }
+      if (!query || query.trim().length < 2) { setSuggestions([]); return; }
       try {
-        const res = await apiCall(`/public/clubs?q=${encodeURIComponent(query)}&limit=8`);
-        setSuggestions((res?.clubs || []).map(c => c.club_name || c.name || c.club_id).filter(Boolean));
+        const res = await apiCall(`/public/clubs?q=${encodeURIComponent(query.trim())}&limit=12`);
+        setSuggestions((res?.clubs || res?.results || []).filter(c => c && (c.club_id || c.id || c._id)));
       } catch { setSuggestions([]); }
     };
 
     const handleStatsReqRoleChange = (role) => {
       setStatsReqRole(role);
-      const myClub = player?.current_club || '';
-      if (role === 'home') { setStatsReqHomeTeam(myClub); setStatsReqAwayTeam(''); }
-      else { setStatsReqAwayTeam(myClub); setStatsReqHomeTeam(''); }
+      const myClub = player?.current_club || player?.club_name || player?.club || '';
+      const own = {club_id:player?.club_id||player?.current_club_id||'',club_name:myClub};
+      if (role === 'home') { setStatsReqHomeTeam(myClub); setSelectedHomeClub(own); setStatsReqAwayTeam(''); setSelectedAwayClub(null); setClubSuggestionsAway([]); }
+      else { setStatsReqAwayTeam(myClub); setSelectedAwayClub(own); setStatsReqHomeTeam(''); setSelectedHomeClub(null); setClubSuggestionsHome([]); }
     };
 
     const handleCancelStatsRequest = async (refId, tokenCost) => {
+      if (!refId) { addToast('This request has no valid reference ID and cannot be cancelled from this screen.', 'error'); return; }
       try {
         if (!demoMode) {
           const uid = player?.user_id || player?.player_id;
-          const r = await apiCall(`/player/${uid}/stats/requests/${refId}`, { method: 'DELETE' });
+          const r = await apiCall(`/player/${encodeURIComponent(uid)}/stats/requests/${encodeURIComponent(refId)}`, { method: 'DELETE' });
           const refunded = r?.refunded ?? tokenCost ?? 0;
           setStatsRequests(p => p.map(req => (req.reference_id === refId ? { ...req, status: 'Cancelled' } : req)));
           setTokens(p => ({ ...p, locked: Math.max(0, (p.locked || 0) - refunded) }));
@@ -1096,6 +1133,8 @@ function App() {
       e.preventDefault();
       if (statsSubmitting) return;
       if (statsReqHomeTeam.trim().toLowerCase() === statsReqAwayTeam.trim().toLowerCase()) { addToast('Home and away teams must be different.', 'error'); return; }
+      if ((player?.current_club||player?.club_name||player?.club) && !(statsReqRole==='home'?selectedAwayClub:selectedHomeClub)) { addToast('Select the opposition from the registered club directory.', 'error'); return; }
+      if (!(player?.current_club||player?.club_name||player?.club) && (!selectedHomeClub || !selectedAwayClub)) { addToast('Select both teams from the registered club directory.', 'error'); return; }
       if (availableTokens < totalCost) { addToast('Insufficient available tokens. Please top up.', 'error'); return; }
       setStatsSubmitting(true);
       const fd = new FormData(e.target);
@@ -1104,30 +1143,40 @@ function App() {
         ...fdEntries,
         match_date: statsReqMatchDate || fdEntries.matchDate || fdEntries.match_date || '',
         match_time: statsReqMatchTime || fdEntries.matchTime || fdEntries.match_time || '',
+        match_id: prefillMatchId || '',
+        match_timezone: prefillMatchTimezone || (Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Lagos'),
         jersey_number: statsReqJerseyNumber || fdEntries.jerseyNumber || fdEntries.jersey_number || '',
         homeTeam: statsReqHomeTeam, home_team: statsReqHomeTeam,
         awayTeam: statsReqAwayTeam, away_team: statsReqAwayTeam,
         player_represents: statsReqRole,
         match_type: statsReqMatchType,
         heatmap: heatmapToggle === true,
+        venue_id: selectedVenue?.venue_id || selectedVenue?.id || '',
+        venue_name: venueInput,
         venue_address: venueInput,
         venue_country: venueCountry,
+        venue_country_code: selectedVenue?.country_code || venueCountry,
         venue_state: statsReqState,
         venue_lga: statsReqLGA,
        
         venue_detailed_address: venueDetailedAddress,
+        venue_city: selectedVenue?.city || '',
+        venue_region: selectedVenue?.region || '',
+        venue_province: selectedVenue?.province || selectedVenue?.county || '',
+        home_club_id: selectedHomeClub?.club_id || selectedHomeClub?.id || '',
+        away_club_id: selectedAwayClub?.club_id || selectedAwayClub?.id || '',
         contact_phone: statsReqPhone,
         competition: statsReqCompetition || fdEntries.competition || '',
         notes: statsReqNotes || fdEntries.notes || '',
       };
       const resetForm = () => {
-        e.target.reset();
-        setVenueInput(''); setVenueSuggestions([]); setHeatmapToggle(false); setStatsReqRole('home');
+        if (e?.target && typeof e.target.reset === 'function') e.target.reset();
+        setVenueInput(''); setVenueSuggestions([]); setSelectedVenue(null); setHeatmapToggle(false); setStatsReqRole('home');
         setStatsReqCompetition(''); setStatsReqNotes('');
         setStatsReqHomeTeam(player?.current_club || ''); setStatsReqAwayTeam('');
         setStatsReqState(''); setStatsReqLGA('');  setVenueDetailedAddress(''); setStatsReqPhone(player?.phone || '');
-        setStatsReqMatchDate(''); setStatsReqMatchTime(''); setStatsReqJerseyNumber('');
-        setClubSuggestionsHome([]); setClubSuggestionsAway([]);
+        setStatsReqMatchDate(''); setStatsReqMatchTime(''); setStatsReqJerseyNumber(''); setPrefillMatchId('');
+        setClubSuggestionsHome([]); setClubSuggestionsAway([]); setSelectedHomeClub(null); setSelectedAwayClub(null);
         setVenueCountry(''); setStatsReqState(''); setStatsReqLGA(''); setVenueDetailedAddress('');
       };
       try {
@@ -1224,6 +1273,7 @@ function App() {
             <section id="mc-panel-statsrequest" role="tabpanel" aria-labelledby="mc-tab-statsrequest" tabindex="0" class="card">
               <div class="card-title"><i class="fas fa-paper-plane"></i> Request Match Stats Tracking</div>
               <div style="font-size:0.78rem;color:#64748b;margin-bottom:1rem;">Category: <strong>${player?.playing_category||'—'}</strong> · Base cost: <strong>${currentTokenCost} token${currentTokenCost>1?'s':''}</strong></div>
+              <div class="mc-submit-status" style="margin-bottom:1rem;"><i class="fas fa-clock"></i> Player stats requests are accepted only from 24 hours down to 12 hours before the scheduled kickoff. The server validates the exact window.</div>
 
               <form onSubmit=${handleStatsRequest}>
 
@@ -1253,24 +1303,18 @@ function App() {
                   <div class="form-group" style="position:relative;">
                     <label>Home Team <span style="color:#ef4444;">*</span>${statsReqRole==='home'?html` <span style="color:var(--primary);font-size:0.72rem;">(You)</span>`:''}</label>
                     <input type="text" value=${statsReqHomeTeam}
-                      onInput=${e=>{setStatsReqHomeTeam(e.target.value);searchClubsForField(e.target.value,setClubSuggestionsHome);}}
-                      placeholder="e.g. Kano Pillars FC" required autocomplete="off" />
-                    ${clubSuggestionsHome.length>0 && html`
-                      <div class="venue-suggestions">
-                        ${clubSuggestionsHome.map(s=>html`
-                          <div key=${s} class="venue-suggestion-item" onClick=${()=>{setStatsReqHomeTeam(s);setClubSuggestionsHome([]);}}>${s}</div>`)}
-                      </div>`}
+                      readOnly=${statsReqRole==='home' && !!(player?.current_club||player?.club_name||player?.club)}
+                      onInput=${e=>{setStatsReqHomeTeam(e.target.value);setSelectedHomeClub(null);searchClubsForField(e.target.value,setClubSuggestionsHome);}}
+                      placeholder="Search registered home club…" required autocomplete="off" />
+                    ${clubSuggestionsHome.length>0 && html`<div class="venue-suggestions">${clubSuggestionsHome.map(c=>html`<div key=${c.club_id||c.id||c._id} class="venue-suggestion-item" onClick=${()=>{setStatsReqHomeTeam(c.club_name||c.name);setSelectedHomeClub(c);setClubSuggestionsHome([]);}}><strong>${c.club_name||c.name}</strong><div style="font-size:.7rem;color:#64748b">${[c.city,c.state,c.country].filter(Boolean).join(', ')}</div></div>`)}</div>`}
                   </div>
                   <div class="form-group" style="position:relative;">
                     <label>Away Team <span style="color:#ef4444;">*</span>${statsReqRole==='away'?html` <span style="color:var(--primary);font-size:0.72rem;">(You)</span>`:''}</label>
                     <input type="text" value=${statsReqAwayTeam}
-                      onInput=${e=>{setStatsReqAwayTeam(e.target.value);searchClubsForField(e.target.value,setClubSuggestionsAway);}}
-                      placeholder="e.g. Shooting Stars SC" required autocomplete="off" />
-                    ${clubSuggestionsAway.length>0 && html`
-                      <div class="venue-suggestions">
-                        ${clubSuggestionsAway.map(s=>html`
-                          <div key=${s} class="venue-suggestion-item" onClick=${()=>{setStatsReqAwayTeam(s);setClubSuggestionsAway([]);}}>${s}</div>`)}
-                      </div>`}
+                      readOnly=${statsReqRole==='away' && !!(player?.current_club||player?.club_name||player?.club)}
+                      onInput=${e=>{setStatsReqAwayTeam(e.target.value);setSelectedAwayClub(null);searchClubsForField(e.target.value,setClubSuggestionsAway);}}
+                      placeholder="Search registered away club…" required autocomplete="off" />
+                    ${clubSuggestionsAway.length>0 && html`<div class="venue-suggestions">${clubSuggestionsAway.map(c=>html`<div key=${c.club_id||c.id||c._id} class="venue-suggestion-item" onClick=${()=>{setStatsReqAwayTeam(c.club_name||c.name);setSelectedAwayClub(c);setClubSuggestionsAway([]);}}><strong>${c.club_name||c.name}</strong><div style="font-size:.7rem;color:#64748b">${[c.city,c.state,c.country].filter(Boolean).join(', ')}</div></div>`)}</div>`}
                   </div>
                 </div>
 
@@ -1343,8 +1387,9 @@ function App() {
                         const sCountry=s?.country||'';
                         const sCapacity=s?.capacity;
                         return html`
-                          <div key=${sName} class="venue-suggestion-item" onClick=${()=>{
-                            setVenueInput(sName);
+                          <div key=${s.venue_id||s.id||s._id||sName} class="venue-suggestion-item" onClick=${()=>{
+                            setSelectedVenue(s); setVenueInput(sName); setVenueDetailedAddress(s.full_address||s.address||s.venue_address||'');
+                            setVenueCountry(s.country_code||s.country||''); setStatsReqState(s.state||s.region||''); setStatsReqLGA(s.lga||s.local_area||'');
                             setVenueSuggestions([]);
                           }}>
                             <div style="font-weight:700;font-size:0.85rem;">${sName}</div>
@@ -1353,6 +1398,7 @@ function App() {
                           </div>`;
                       })}
                     </div>`}
+                  ${selectedVenue && html`<div class="venue-selected-card" style="margin-top:.55rem;padding:.75rem;border:1px solid #bfdbfe;border-radius:10px;background:#eff6ff;color:#1e3a8a"><strong><i class="fas fa-stadium"></i> ${selectedVenue.venue_name||selectedVenue.name||venueInput}</strong><div style="font-size:.74rem;margin-top:.25rem">${[selectedVenue.country,selectedVenue.state,selectedVenue.province||selectedVenue.region,selectedVenue.city,selectedVenue.lga].filter(Boolean).join(' · ')}</div><div style="font-size:.74rem;margin-top:.2rem">${selectedVenue.full_address||selectedVenue.address||selectedVenue.venue_address||'No detailed address registered'}</div><button type="button" class="btn btn-sm btn-outline" style="margin-top:.4rem" onClick=${()=>{setSelectedVenue(null);setVenueInput('');setVenueDetailedAddress('')}}>Clear venue</button></div>`}
                 </div>
                 <hr class="sr-divider" />
 
