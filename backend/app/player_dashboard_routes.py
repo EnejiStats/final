@@ -31,6 +31,7 @@ from bson import ObjectId
 from fastapi import APIRouter, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from stats_request_alignment import canonical_match_id, resolve_match_id, validate_stats_window, find_duplicate_stats_request, ensure_stats_request_indexes, is_duplicate_key_error, resolve_registered_venue, resolve_registered_club
 
 # ============================================================
 # MODULE-LEVEL PLACEHOLDERS — all None until _setup_dependencies()
@@ -53,6 +54,7 @@ competitions_collection       = None
 agent_contracts_collection    = None
 content_manager_contracts_collection = None
 stadiums_collection           = None
+venues_collection             = None
 support_tickets_collection    = None
 payment_intents_collection    = None
 transactions_collection       = None
@@ -111,7 +113,7 @@ def _setup_dependencies(main_globals: dict) -> None:
     global stat_events_collection
     global player_tokens_collection, token_transactions_collection, notifications_collection
     global match_fixtures_collection, competitions_collection, agent_contracts_collection, content_manager_contracts_collection
-    global stadiums_collection, support_tickets_collection
+    global stadiums_collection, venues_collection, support_tickets_collection
     global payment_intents_collection, transactions_collection, clubs_collection
     global agents_collection, subscriptions_collection
 
@@ -155,6 +157,8 @@ def _setup_dependencies(main_globals: dict) -> None:
     notifications_collection = g.get("notifications_collection")
     payment_intents_collection = g.get("payment_intents_collection")
     clubs_collection = g.get("clubs_collection")
+    if clubs_collection is None:
+        clubs_collection = database["clubs"]
     agents_collection = g.get("agents_collection")
     subscriptions_collection = g.get("subscriptions_collection")
 
@@ -174,6 +178,10 @@ def _setup_dependencies(main_globals: dict) -> None:
     content_manager_contracts_collection = g.get("content_manager_contracts_collection")
     if content_manager_contracts_collection is None:
         content_manager_contracts_collection = database["content_manager_contracts"]
+
+    venues_collection = g.get("venues_collection")
+    if venues_collection is None:
+        venues_collection = database["venues"]
 
     stadiums_collection = g.get("stadiums_collection")
     if stadiums_collection is None:
@@ -255,6 +263,8 @@ class ContentManagerContractTerminateBody(BaseModel):
 class StatsRequestBody(BaseModel):
     match_date: Optional[str] = None
     match_time: Optional[str] = None
+    match_id: Optional[str] = None
+    match_timezone: Optional[str] = None
     home_team: Optional[str] = None
     away_team: Optional[str] = None
     homeTeam: Optional[str] = None
@@ -263,6 +273,10 @@ class StatsRequestBody(BaseModel):
     player_represents: Optional[str] = "home"
     match_type: Optional[str] = None
     heatmap: Optional[bool] = False
+    venue_id: Optional[str] = None
+    venue_name: Optional[str] = None
+    home_club_id: Optional[str] = None
+    away_club_id: Optional[str] = None
     venue_address: Optional[str] = None
     venue_country: Optional[str] = None
     venue_country_code: Optional[str] = None
@@ -3217,22 +3231,98 @@ async def submit_stats_request(uid: str, body: StatsRequestBody, request: Reques
         ref_id = _make_ref("SR")
         home_team = body.home_team or body.homeTeam or ""
         away_team = body.away_team or body.awayTeam or ""
+        player_club_id = str(doc.get("club_id") or doc.get("current_club_id") or "").strip()
+        player_club_name = str(doc.get("current_club") or doc.get("club_name") or doc.get("club") or "").strip()
+        if player_club_name.casefold() in {"unattached", "none", "n/a", "free agent"}:
+            player_club_name = ""
+        registered_player_club = await resolve_registered_club(clubs_collection, player_club_id, player_club_name) if (player_club_id or player_club_name) else None
+        if registered_player_club:
+            player_club_id = registered_player_club["club_id"] or player_club_id
+            player_club_name = registered_player_club["club_name"] or player_club_name
+        elif player_club_name and player_club_name.strip().casefold() not in {"unattached", "none", "n/a", "free agent"}:
+            raise HTTPException(status_code=409, detail="Your profile references a club that is not in the registered club directory. Please ask the club to complete registration or update your player profile before requesting stats.")
+        if player_club_name:
+            if str(body.player_represents or "home").lower() == "away":
+                away_team = player_club_name
+                opponent = await resolve_registered_club(clubs_collection, body.home_club_id, home_team)
+                if not opponent or (player_club_id and opponent["club_id"] == player_club_id):
+                    raise HTTPException(status_code=422, detail="Select a different opposition club from the registered club directory.")
+                home_team = opponent["club_name"]
+            else:
+                home_team = player_club_name
+                opponent = await resolve_registered_club(clubs_collection, body.away_club_id, away_team)
+                if not opponent or (player_club_id and opponent["club_id"] == player_club_id):
+                    raise HTTPException(status_code=422, detail="Select a different opposition club from the registered club directory.")
+                away_team = opponent["club_name"]
+        else:
+            home_club = await resolve_registered_club(clubs_collection, body.home_club_id, home_team)
+            away_club = await resolve_registered_club(clubs_collection, body.away_club_id, away_team)
+            if not home_club or not away_club or home_club["club_id"] == away_club["club_id"]:
+                raise HTTPException(status_code=422, detail="Select two different clubs from the registered club directory.")
+            home_team = home_club["club_name"]; away_team = away_club["club_name"]
+        venue_data = await resolve_registered_venue(venues_collection, body.venue_id) if body.venue_id else None
+        if body.venue_id and not venue_data:
+            raise HTTPException(status_code=422, detail="The selected venue is no longer available in the registered venue directory. Search and select it again.")
+        if venue_data:
+            for key, value in venue_data.items():
+                if value not in (None, ""):
+                    setattr(body, key, value)
+        if not home_team.strip() or not away_team.strip() or not body.match_date or not body.match_time:
+            raise HTTPException(status_code=422, detail="Match date, kickoff time and both teams are required")
+        try:
+            kickoff_at = validate_stats_window(body.match_date, body.match_time, getattr(body, "match_timezone", None), 12, 24)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        try:
+            matches_col = database["matches"] if database is not None else None
+        except Exception:
+            matches_col = None
+        match_id = await resolve_match_id(body.match_date, home_team, away_team, getattr(body, "match_id", None),
+                                          [match_fixtures_collection, matches_col])
+        await ensure_stats_request_indexes(stats_requests_collection)
+        duplicate = await find_duplicate_stats_request(stats_requests_collection, match_id, player_id=pid_val, match_date=body.match_date, home_team=home_team, away_team=away_team)
+        if duplicate:
+            raise HTTPException(status_code=409, detail={
+                "code": "DUPLICATE_STATS_REQUEST",
+                "message": "A stats request already exists for this player and match.",
+                "match_id": match_id,
+                "reference_id": duplicate.get("reference_id") or duplicate.get("request_id"),
+                "status": duplicate.get("status", "Pending"),
+            })
 
         req_doc: dict = {
             "player_id": pid_val,
+            "match_id": match_id,
+            "match_timezone": getattr(body, "match_timezone", None) or "Africa/Lagos",
+            "kickoff_at": kickoff_at,
             "reference_id": ref_id,
             "home_team": home_team,
             "away_team": away_team,
+            "home_club_id": getattr(body, "home_club_id", None) or (player_club_id if str(body.player_represents or "home").lower() != "away" else None),
+            "away_club_id": getattr(body, "away_club_id", None) or (player_club_id if str(body.player_represents or "home").lower() == "away" else None),
             "match_date": body.match_date or "",
             "match_time": body.match_time or "",
             "jersey_number": body.jersey_number or "",
             "player_represents": body.player_represents or "home",
             "match_type": body.match_type or "",
             "heatmap": bool(body.heatmap),
+            "venue_id": getattr(body, "venue_id", None) or "",
+            "venue_name": getattr(body, "venue_name", None) or body.venue_address or "",
             "venue_address": body.venue_address or "",
             "venue_country": body.venue_country or "",
+            "venue_country_code": getattr(body, "venue_country_code", None) or "",
             "venue_state": body.venue_state or "",
             "venue_lga": body.venue_lga or "",
+            "venue_city": getattr(body, "venue_city", None) or "",
+            "venue_detailed_address": getattr(body, "venue_detailed_address", None) or body.venue_address or "",
+            "venue_capacity": getattr(body, "venue_capacity", None),
+            "venue_type": getattr(body, "venue_type", None) or "",
+            "venue_gps_lat": getattr(body, "venue_gps_lat", None),
+            "venue_gps_lng": getattr(body, "venue_gps_lng", None),
+            "venue_region": getattr(body, "venue_region", None) or "",
+            "venue_province": getattr(body, "venue_province", None) or "",
+            "competition": getattr(body, "competition", None) or "",
+            "notes": getattr(body, "notes", None) or "",
             "contact_phone": body.contact_phone or "",
             "token_cost": token_cost,
             "status": "Pending",
@@ -3302,6 +3392,8 @@ async def submit_stats_request(uid: str, body: StatsRequestBody, request: Reques
     except HTTPException:
         raise
     except Exception as e:
+        if is_duplicate_key_error(e):
+            raise HTTPException(status_code=409, detail={"code": "DUPLICATE_STATS_REQUEST", "message": "A stats request already exists for this player and match."})
         if logger:
             logger.exception("submit_stats_request error")
         raise HTTPException(status_code=500, detail=str(e))

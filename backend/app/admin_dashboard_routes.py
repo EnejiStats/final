@@ -7,6 +7,7 @@ Architecture
 ------------
 - Uses APIRouter (NOT app = FastAPI())
 - Match Centre stats-request routes are owned by match_centre_routes.py and mounted there; they are intentionally not duplicated here.
+- Match Centre fixture IDs are canonicalised by stats_request_alignment.py and shared with player, club and content-manager stats requests.
 - Module-level placeholders set to None at import time
 - _setup_dependencies(main_globals) injected from main.py at startup
 - Mount in main.py:

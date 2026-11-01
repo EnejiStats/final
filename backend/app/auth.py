@@ -1073,6 +1073,7 @@ def _auth_merge_registered_venue(club, venue, secondary=False):
     }
 
 
+@router.get("/api/public/clubs")
 @router.get("/api/auth/public/clubs")
 async def public_clubs(
     search: str = "", q: str = "", level: str = "", category: str = "",
@@ -2100,112 +2101,61 @@ async def update_dco_venue(request: Request, venue_id: str):
         "message": "Venue updated successfully.",
     })
 
-@router.get(
-    "/api/public/venues",
-    tags=["Public"],
-    summary="List all registered venues",
-)
+@router.get("/api/stadiums/search", tags=["Public"], include_in_schema=False)
+@router.get("/api/public/venues", tags=["Public"], summary="Search registered venues")
 async def get_public_venues(
-    count_only: bool = Query(False, description="Return only the total count."),
-    page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
-    country: Optional[str] = Query(None),
-    state: Optional[str] = Query(None),
-    lga: Optional[str] = Query(None),
-    city: Optional[str] = Query(None),
-    venue_type: Optional[str] = Query(None),
-    competition_level: Optional[str] = Query(None),
-    search: Optional[str] = Query(None),
+    count_only: bool = Query(False), page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100), country: Optional[str] = Query(None),
+    state: Optional[str] = Query(None), lga: Optional[str] = Query(None),
+    city: Optional[str] = Query(None), venue_type: Optional[str] = Query(None),
+    competition_level: Optional[str] = Query(None), search: Optional[str] = Query(None),
+    q: Optional[str] = Query(None),
 ) -> JSONResponse:
-    """
-    Public endpoint for retrieving registered venues.
-
-    Supports:
-    - Pagination
-    - Count-only mode
-    - Search by venue name
-    - Country filtering
-    - State filtering
-    - LGA filtering
-    - City/district filtering
-    - Venue type filtering
-    - Competition level filtering
-    """
-
-    query = {}
-
+    """Search only registered venues; all supplied filters are combined safely."""
+    _assert_deps_ready()
+    if venues_collection is None:
+        raise HTTPException(status_code=503, detail="Registered venue directory is unavailable.")
+    clauses: List[Dict[str, Any]] = []
     if country:
-        # The registration UI normally submits an ISO code (for example,
-        # "NG"), while venue documents may store the display name
-        # ("Nigeria") and older documents may have a blank country_code.
-        # Resolve the code through location_module so both representations
-        # match without requiring a data migration.
-        country_value = country.strip()
-        country_code = country_value.upper()
-        country_name = get_country_name(country_code)
+        value = country.strip(); code = value.upper(); country_name = get_country_name(code)
         if country_name:
-            query["$or"] = [
-                {"country": country_name},
-                {"country_code": country_code},
-            ]
+            clauses.append({"$or": [{"country": country_name}, {"country_code": code}]})
         else:
-            query["country"] = country_value
-
-    if state:
-        query["state"] = state.strip()
-
-    if lga:
-        query["lga"] = lga.strip()
-
-    if city:
-        query["city"] = city.strip()
-
-    if venue_type:
-        query["venue_type"] = venue_type.strip()
-
-    if competition_level:
-        query["competition_levels"] = competition_level.strip()
-
-    if search:
-        query["venue_name"] = {
-            "$regex": search.strip(),
-            "$options": "i",
-        }
-
+            clauses.append({"$or": [{"country": {"$regex": re.escape(value), "$options": "i"}}, {"country_code": code}]})
+    for field, value in (("state", state), ("lga", lga), ("city", city), ("venue_type", venue_type)):
+        if value and value.strip():
+            clauses.append({field: {"$regex": re.escape(value.strip()), "$options": "i"}})
+    if competition_level and competition_level.strip():
+        clauses.append({"competition_levels": {"$regex": re.escape(competition_level.strip()), "$options": "i"}})
+    term = (search or q or "").strip()
+    if term:
+        safe = re.escape(term)
+        clauses.append({"$or": [{field: {"$regex": safe, "$options": "i"}} for field in ("venue_name", "name", "stadium", "ground_name", "field_name", "full_address", "address")]})
+    query = {"$and": clauses} if clauses else {}
     if count_only:
         total = await venues_collection.count_documents(query)
-        return JSONResponse(
-            status_code=200,
-            content={
-                "total": total,
-                "count": total,
-            },
-        )
-
-    skip = (page - 1) * limit
-
-    cursor = (
-        venues_collection
-        .find(query)
-        .sort("venue_name", 1)
-        .skip(skip)
-        .limit(limit)
-    )
-
-    docs = await cursor.to_list(length=limit)
-
+        return JSONResponse({"total": total, "count": total})
+    docs = await venues_collection.find(query).sort("venue_name", 1).skip((page - 1) * limit).limit(limit).to_list(length=limit)
+    rows = []
+    for raw in docs:
+        v = _serialize_venue(raw)
+        name = _auth_venue_name(v)
+        address = _auth_venue_address(v)
+        v.update({
+            "id": str(v.get("venue_id") or v.get("id") or v.get("_id") or ""),
+            "venue_id": str(v.get("venue_id") or v.get("id") or v.get("_id") or ""),
+            "name": name, "venue_name": name, "address": address,
+            "full_address": address, "venue_address": address,
+            "country": v.get("country") or "", "country_code": str(v.get("country_code") or "").upper(),
+            "state": v.get("state") or v.get("region") or v.get("province") or "",
+            "region": v.get("region") or v.get("state") or "",
+            "province": v.get("province") or v.get("county") or "",
+            "lga": v.get("lga") or v.get("local_area") or v.get("subregion") or "",
+            "city": v.get("city") or v.get("town") or "",
+        })
+        rows.append(v)
     total = await venues_collection.count_documents(query)
-
-    return JSONResponse(
-        status_code=200,
-        content={
-            "page": page,
-            "limit": limit,
-            "total": total,
-            "count": len(docs),
-            "venues": MongoSerializer.serialize_documents(docs),
-        },
-    )
+    return JSONResponse({"page": page, "limit": limit, "total": total, "count": len(rows), "venues": rows, "results": rows})
 
 # ============================================================
 # VERIFY REGISTRATION OTP

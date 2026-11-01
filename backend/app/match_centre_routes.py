@@ -18,6 +18,7 @@ from bson.errors import InvalidId
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+from stats_request_alignment import canonical_match_id, resolve_match_id, validate_stats_window, find_duplicate_stats_request
 from location_module import build_venue_location_filter, get_country_name
 
 logger = None
@@ -416,8 +417,11 @@ async def _materialize_accepted_matches(col) -> None:
                 source_id = str(req.get("request_id") or req.get("_id"))
                 if await col.find_one({"source_request_id": source_id}):
                     continue
+                canonical_id = canonical_match_id(date, home, away)
+                if await col.find_one({"match_id": canonical_id}):
+                    continue
                 await col.insert_one({
-                    "match_id": "MAT-" + secrets.token_hex(8).upper(),
+                    "match_id": canonical_id,
                     "source_request_id": source_id, "source": "Accepted club request",
                     "status": "scheduled",
                     "category": req.get("category") or req.get("player_level") or "General",
@@ -534,8 +538,10 @@ async def _admin_request_rows(doc: dict) -> List[dict]:
     if base.get("tracking_type") != "club_and_players" or not ids:
         return [base]
 
-    rows = [base]
     parent_id = str(base.get("request_id") or base.get("_id") or "")
+    club_reference_id = str(base.get("club_reference_id") or base.get("reference_id") or parent_id)
+    base["club_reference_id"] = club_reference_id
+    rows = [base]
     player_states = {
         str(state.get("player_id")): state
         for state in (base.get("player_request_states") or [])
@@ -549,8 +555,14 @@ async def _admin_request_rows(doc: dict) -> List[dict]:
             }) or {}
         row = dict(base)
         state = player_states.get(player_id) or {}
+        serial = str(state.get("player_serial") or f"{len(rows):02d}")
+        serial = serial.zfill(2)
+        player_reference_id = str(state.get("reference_id") or f"{club_reference_id}-{serial}")
         row.update({
             "request_id": f"{parent_id}:player:{player_id}",
+            "reference_id": player_reference_id,
+            "club_reference_id": club_reference_id,
+            "player_serial": serial,
             "parent_request_id": parent_id,
             "entity_type": "player",
             "request_type": "player",
@@ -861,6 +873,43 @@ async def admin_assign_stats_request(
             "duplicate": True,
         })
 
+    # DCO workload rule: one DCO may cover multiple player requests for the
+    # same match, but may not cover both the club request and any player request
+    # belonging to that same match. This is enforced server-side, not just UI-side.
+    if role == "dco":
+        target_entity = _request_entity_type(doc)
+        target_match_id = str(doc.get("match_id") or doc.get("matchId") or "").strip()
+        match_scope = []
+        if target_match_id:
+            match_scope.append({"match_id": target_match_id})
+        match_date = doc.get("match_date") or doc.get("matchDate")
+        home_team = doc.get("home_team") or doc.get("homeTeam")
+        away_team = doc.get("away_team") or doc.get("awayTeam")
+        if match_date and home_team and away_team:
+            match_scope.append({"match_date": match_date, "home_team": home_team, "away_team": away_team})
+            match_scope.append({"match_date": match_date, "home_team": away_team, "away_team": home_team})
+        if match_scope:
+            same_dco_rows = await asgn_col.find({
+                "$and": [
+                    {"$or": [{"assignee_id": body.assignee_id}, {"assigned_dco_id": body.assignee_id}]},
+                    {"$or": match_scope},
+                    {"status": {"$nin": ["declined", "rejected", "cancelled"]}},
+                ]
+            }).to_list(length=500)
+            conflicting = next((row for row in same_dco_rows
+                if str(row.get("entity_type") or row.get("request_type") or "club").lower() != target_entity), None)
+            if conflicting:
+                other_entity = str(conflicting.get("entity_type") or conflicting.get("request_type") or "club").lower()
+                raise HTTPException(status_code=409, detail={
+                    "code": "DCO_MATCH_ENTITY_CONFLICT",
+                    "message": ("This DCO is already assigned to the club for this match and cannot also be assigned to a player."
+                                if target_entity == "player" else
+                                "This DCO is already assigned to a player in this match and cannot also be assigned to the club."),
+                    "match_id": target_match_id,
+                    "existing_entity_type": other_entity,
+                    "requested_entity_type": target_entity,
+                })
+
     assigned_at = _now_utc()
     # Keep statuses for a club's independently assignable player rows apart.
     status_changes = {
@@ -902,6 +951,7 @@ async def admin_assign_stats_request(
         "entity_type":             _request_entity_type(doc),
         "request_type":            _request_entity_type(doc),
         "tracking_type":           _snap(doc, "tracking_type", default="no_tracking"),
+        "match_id":               _snap(doc, "match_id", "matchId"),
         assignee_key:             body.assignee_id,
         "assignee_id":            body.assignee_id,
         "role":                   role,
@@ -1298,7 +1348,11 @@ async def create_match_centre_match(body: MatchCreateBody, request: Request):
     doc["venue_lga"] = doc["lga"]
     doc["venue_city"] = doc["city"]
     doc["venue_detailed_address"] = doc.get("venue_detailed_address") or ""
-    doc.update({"match_id": "MAT-" + secrets.token_hex(8).upper(), "status": "scheduled",
+    canonical_id = canonical_match_id(doc.get("match_date"), doc.get("home_team"), doc.get("away_team"))
+    existing = await col.find_one({"match_id": canonical_id})
+    if existing:
+        return {"message": "This fixture is already registered", "match": _s(existing), "duplicate": True}
+    doc.update({"match_id": canonical_id, "status": "scheduled",
                 "supervisor_ids": ids, "created_by": admin.get("admin_id") or str(admin.get("_id")),
                 "source": "Admin", "created_at": _now_utc(), "updated_at": _now_utc()})
     await col.insert_one(doc)
@@ -1350,7 +1404,7 @@ async def admin_matches_create_alias(request: Request):
     if home.casefold()==away.casefold(): raise HTTPException(status_code=400,detail="Home and away teams must be different")
     supers=list(dict.fromkeys(str(x) for x in (data.get("supervisor_ids") or data.get("supervisorIds") or []) if x not in (None,"")))
     if len(supers)>3: raise HTTPException(status_code=400,detail="A match can have at most 3 supervisors")
-    doc={"match_id":"MAT-"+secrets.token_hex(8).upper(),"category":data.get("category") or data.get("match_category") or "","competition":data.get("competition") or data.get("competition_name") or "",
+    doc={"match_id":canonical_match_id(data.get("match_date") or data.get("date"), data.get("home_team") or data.get("home_club"), data.get("away_team") or data.get("away_club")),"category":data.get("category") or data.get("match_category") or "","competition":data.get("competition") or data.get("competition_name") or "",
          "home_team_id":data.get("home_team_id") or "","away_team_id":data.get("away_team_id") or "","home_team":home,"away_team":away,"home":home,"away":away,
          "match_date":date,"match_time":time,"date":date,"time":time,"venue_id":data.get("venue_id") or "","venue":venue,"venue_name":venue,
          "country":data.get("country") or data.get("country_name") or "","country_code":str(data.get("country_code") or data.get("venue_country_code") or "").upper(),"country_name":data.get("country_name") or data.get("country") or "",
@@ -1470,7 +1524,7 @@ async def admin_create_match_from_request_standalone(request_id: str, request: R
     date=str(first("match_date","date","event_date","proposed_date")); time=str(first("match_time","time","kickoff_time",default="00:00")); venue=str(first("venue","venue_name","proposed_venue","stadium"))
     if not home or not away or not date or not venue: raise HTTPException(status_code=400,detail="Accepted request is missing home team, away team, date or venue")
     if home.casefold()==away.casefold(): raise HTTPException(status_code=400,detail="Home and away teams must be different")
-    doc={"match_id":"MAT-"+secrets.token_hex(8).upper(),"source_request_id":parent_id,"request_id":parent_id,"source":"Accepted club request","status":"scheduled","category":first("category","match_category","player_level",default="General"),"competition":first("competition","competition_name","league"),"home_team_id":first("home_team_id","home_club_id"),"away_team_id":first("away_team_id","away_club_id"),"home_team":home,"away_team":away,"home":home,"away":away,"match_date":date,"match_time":time,"date":date,"time":time,"venue_id":first("venue_id"),"venue":venue,"venue_name":venue,"country":first("country","country_name","venue_country"),"country_code":str(first("country_code","venue_country_code")).upper(),"state":first("state","region","venue_state"),"region":first("region","state","venue_state"),"lga":first("lga","venue_lga"),"city":first("city","venue_city"),"venue_country":first("venue_country","country","country_name"),"venue_country_code":str(first("venue_country_code","country_code")).upper(),"venue_state":first("venue_state","state","region"),"venue_lga":first("venue_lga","lga"),"venue_city":first("venue_city","city"),"venue_detailed_address":first("venue_detailed_address","venue_address","address"),"tracking_requirement":first("tracking_requirement",default="optional"),"tracking":bool(first("tracking",default=False)),"notes":first("notes"),"supervisor_ids":[],"created_by":admin.get("admin_id") or str(admin.get("_id")),"created_at":_now_utc(),"updated_at":_now_utc()}
+    doc={"match_id":canonical_match_id(first("match_date","event_date"), first("home_team","home_club","requesting_club"), first("away_team","away_club","opponent_club")),"source_request_id":parent_id,"request_id":parent_id,"source":"Accepted club request","status":"scheduled","category":first("category","match_category","player_level",default="General"),"competition":first("competition","competition_name","league"),"home_team_id":first("home_team_id","home_club_id"),"away_team_id":first("away_team_id","away_club_id"),"home_team":home,"away_team":away,"home":home,"away":away,"match_date":date,"match_time":time,"date":date,"time":time,"venue_id":first("venue_id"),"venue":venue,"venue_name":venue,"country":first("country","country_name","venue_country"),"country_code":str(first("country_code","venue_country_code")).upper(),"state":first("state","region","venue_state"),"region":first("region","state","venue_state"),"lga":first("lga","venue_lga"),"city":first("city","venue_city"),"venue_country":first("venue_country","country","country_name"),"venue_country_code":str(first("venue_country_code","country_code")).upper(),"venue_state":first("venue_state","state","region"),"venue_lga":first("venue_lga","lga"),"venue_city":first("venue_city","city"),"venue_detailed_address":first("venue_detailed_address","venue_address","address"),"tracking_requirement":first("tracking_requirement",default="optional"),"tracking":bool(first("tracking",default=False)),"notes":first("notes"),"supervisor_ids":[],"created_by":admin.get("admin_id") or str(admin.get("_id")),"created_at":_now_utc(),"updated_at":_now_utc()}
     await col.insert_one(doc); return {"message":"Match created","match":_s(doc),"duplicate":False}
 
 

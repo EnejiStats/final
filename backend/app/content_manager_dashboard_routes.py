@@ -40,6 +40,7 @@ from bson import ObjectId
 from fastapi import APIRouter, HTTPException, Request, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+from stats_request_alignment import canonical_match_id, resolve_match_id, validate_stats_window, find_duplicate_stats_request, ensure_stats_request_indexes, is_duplicate_key_error, resolve_registered_venue, resolve_registered_club
 
 # Dependency placeholders; populated by _setup_dependencies().
 database = None
@@ -52,9 +53,10 @@ stat_submissions_collection = None
 stat_submission_players_collection = None
 stat_events_collection = None
 content_manager_contracts_collection = None
+clubs_collection = None
+venues_collection = None
 
 get_current_user = None
-normalize_role = None
 MongoSerializer = None
 logger = None
 _make_stats_request_ref = None
@@ -75,7 +77,8 @@ def _setup_dependencies(main_globals: dict) -> None:
     global stats_requests_collection, token_transactions_collection
     global notifications_collection, stat_submissions_collection
     global stat_submission_players_collection, stat_events_collection, content_manager_contracts_collection
-    global get_current_user, normalize_role, MongoSerializer, logger
+    global clubs_collection, venues_collection
+    global get_current_user, MongoSerializer, logger
     global _make_stats_request_ref, get_token_cost
 
     if _DEPS_READY:
@@ -102,9 +105,10 @@ def _setup_dependencies(main_globals: dict) -> None:
     stat_submission_players_collection = _collection("stat_submission_players_collection", "stat_submission_players")
     stat_events_collection = _collection("stat_events_collection", "stat_events")
     content_manager_contracts_collection = _collection("content_manager_contracts_collection", "content_manager_contracts")
+    clubs_collection = _collection("clubs_collection", "clubs")
+    venues_collection = _collection("venues_collection", "venues")
 
     get_current_user = g.get("get_current_user")
-    normalize_role = g.get("normalize_role")
     MongoSerializer = g.get("MongoSerializer")
     logger = g.get("logger")
     _make_stats_request_ref = g.get("_make_stats_request_ref")
@@ -141,9 +145,20 @@ class BulkStatsRequestBody(BaseModel):
     jersey_numbers: Dict[str, str] = Field(default_factory=dict)
     match_date: str = ""
     match_time: str = ""
+    match_id: Optional[str] = None
+    match_timezone: Optional[str] = None
+    venue_id: Optional[str] = None
+    venue_name: str = ""
+    venue_country_code: str = ""
+    venue_city: str = ""
+    venue_region: str = ""
+    venue_province: str = ""
+    venue_detailed_address: str = ""
+    home_club_id: Optional[str] = None
+    away_club_id: Optional[str] = None
+    player_represents: str = "home"
     home_team: str = ""
     away_team: str = ""
-    player_represents: str = "home"
     match_type: str = "League"
     venue_address: str = ""
     venue_country: str = ""
@@ -162,11 +177,26 @@ def _now() -> datetime:
             return MongoSerializer.now_utc()
         except Exception:
             pass
-    return MongoSerializer.now_utc()
+    return datetime.now(timezone.utc)
 
 
 def _ser(value: Any) -> Any:
-    return MongoSerializer.serialize_value(value)
+    if MongoSerializer is not None:
+        try:
+            if isinstance(value, dict):
+                return MongoSerializer.serialize_document(value)
+            return MongoSerializer.serialize_value(value)
+        except Exception:
+            pass
+    if isinstance(value, ObjectId):
+        return str(value)
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, list):
+        return [_ser(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _ser(v) for k, v in value.items()}
+    return value
 
 
 def _pid(player: dict) -> str:
@@ -197,36 +227,26 @@ def _name(player: dict) -> str:
 
 def _manager_identity(user: dict) -> Set[str]:
     values = {
-        user.get("cm_id"), user.get("user_id"), user.get("unique_id"),
-        user.get("manager_id"),
-        user.get("content_manager_id"),
+        user.get("id"), user.get("user_id"), user.get("manager_id"),
+        user.get("content_manager_id"), user.get("unique_id"),
         str(user.get("_id", "")),
     }
     return {str(v) for v in values if v not in (None, "", "None")}
 
 
 def _manager_role(user: dict) -> str:
-    raw_role = user.get("role") or user.get("user_type") or ""
-    try:
-        return normalize_role(raw_role)
-    except (ValueError, TypeError):
-        return ""
+    return str(user.get("role") or user.get("user_type") or "").strip().lower().replace("-", "_")
 
 
 def _manager_id(user: dict) -> str:
-    """Return the canonical Content Manager public ID for new references."""
-    return str(
-        user.get("cm_id")
-        or user.get("user_id")
-        or user.get("unique_id")
-        or user.get("manager_id")
-        or ""
-    )
+    """Return one deterministic manager identity for persisted relationship/audit records."""
+    ids = sorted(_manager_identity(user))
+    return ids[0] if ids else ""
 
 
 def _is_manager(user: dict) -> bool:
     role = _manager_role(user)
-    return role == "content_manager"
+    return role in {"content_manager", "contentmanager", "manager", "admin", "supervisor"}
 
 
 async def _auth(request: Request) -> dict:
@@ -948,10 +968,84 @@ async def submit_bulk_stats_requests(body: BulkStatsRequestBody, request: Reques
         raise HTTPException(status_code=400, detail="Select at least one managed player")
     if len(requested_ids) > 100:
         raise HTTPException(status_code=400, detail="A maximum of 100 players can be submitted at once")
-    if not body.match_date or not body.home_team.strip() or not body.away_team.strip() or not body.venue_state.strip() or not body.venue_address.strip() or not body.contact_phone.strip():
-        raise HTTPException(status_code=422, detail="Match date, both teams, venue address/state and contact phone are required")
-
+    if not body.match_date or not body.match_time or not body.home_team.strip() or not body.away_team.strip() or not body.venue_state.strip() or not body.venue_address.strip() or not body.contact_phone.strip():
+        raise HTTPException(status_code=422, detail="Match date, kickoff time, both teams, venue address/state and contact phone are required")
+    try:
+        kickoff_at = validate_stats_window(body.match_date, body.match_time, body.match_timezone, 12, 24)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    try:
+        matches_col = database["matches"] if database is not None else None
+    except Exception:
+        matches_col = None
     players = [await _get_managed_player(user, uid) for uid in requested_ids]
+    attached = []
+    for player_doc in players:
+        cid = str(player_doc.get("club_id") or player_doc.get("current_club_id") or "").strip()
+        cname = str(player_doc.get("current_club") or player_doc.get("club_name") or player_doc.get("club") or "").strip()
+        if cname.casefold() in {"unattached", "none", "n/a", "free agent"}:
+            cname = ""
+        club_doc = await resolve_registered_club(clubs_collection, cid, cname) if (cid or cname) else None
+        if (cid or (cname and cname.casefold() not in {"unattached", "none", "n/a", "free agent"})) and not club_doc:
+            raise HTTPException(status_code=409, detail=f"The registered club attached to {_name(player_doc) or _pid(player_doc)} could not be verified. Update the player profile or club registration before submitting this request.")
+        attached.append(club_doc or {"club_id": cid, "club_name": cname})
+    club_keys = {str(x.get("club_id") or x.get("club_name") or "").casefold() for x in attached if x.get("club_id") or x.get("club_name")}
+    if len(club_keys) > 1:
+        raise HTTPException(status_code=422, detail="Selected players belong to different clubs. Submit separate requests for each club so the correct club is read-only for each fixture.")
+    player_club = attached[0] if attached else {}
+    player_club_id = str(player_club.get("club_id") or "")
+    player_club_name = str(player_club.get("club_name") or "")
+    side = "away" if str(body.player_represents or "home").lower() == "away" else "home"
+    if player_club_name:
+        if side == "home":
+            body.home_team = player_club_name
+            body.home_club_id = player_club_id or body.home_club_id
+            opponent = await resolve_registered_club(clubs_collection, body.away_club_id, body.away_team)
+            if not opponent or (player_club_id and opponent["club_id"] == player_club_id):
+                raise HTTPException(status_code=422, detail="Select a different opposition club from the registered club directory.")
+            body.away_team = opponent["club_name"]; body.away_club_id = opponent["club_id"]
+        else:
+            body.away_team = player_club_name
+            body.away_club_id = player_club_id or body.away_club_id
+            opponent = await resolve_registered_club(clubs_collection, body.home_club_id, body.home_team)
+            if not opponent or (player_club_id and opponent["club_id"] == player_club_id):
+                raise HTTPException(status_code=422, detail="Select a different opposition club from the registered club directory.")
+            body.home_team = opponent["club_name"]; body.home_club_id = opponent["club_id"]
+    else:
+        home_club = await resolve_registered_club(clubs_collection, body.home_club_id, body.home_team)
+        away_club = await resolve_registered_club(clubs_collection, body.away_club_id, body.away_team)
+        if not home_club or not away_club or home_club["club_id"] == away_club["club_id"]:
+            raise HTTPException(status_code=422, detail="Select two different clubs from the registered club directory.")
+        body.home_team = home_club["club_name"]; body.home_club_id = home_club["club_id"]
+        body.away_team = away_club["club_name"]; body.away_club_id = away_club["club_id"]
+    venue_data = await resolve_registered_venue(venues_collection, body.venue_id) if body.venue_id else None
+    if body.venue_id and not venue_data:
+        raise HTTPException(status_code=422, detail="The selected venue is no longer available. Search and select it again.")
+    if venue_data:
+        body.venue_name = venue_data["venue_name"]
+        body.venue_address = venue_data["venue_address"] or body.venue_address
+        body.venue_detailed_address = venue_data["venue_detailed_address"] or body.venue_detailed_address
+        body.venue_country = venue_data["venue_country"] or body.venue_country
+        body.venue_country_code = venue_data["venue_country_code"] or body.venue_country_code
+        body.venue_state = venue_data["venue_state"] or body.venue_state
+        body.venue_lga = venue_data["venue_lga"] or body.venue_lga
+        body.venue_city = venue_data["venue_city"] or body.venue_city
+        body.venue_region = venue_data["venue_region"] or body.venue_region
+        body.venue_province = venue_data["venue_province"] or body.venue_province
+    match_id = await resolve_match_id(body.match_date, body.home_team, body.away_team, body.match_id,
+                                      [matches_col])
+    await ensure_stats_request_indexes(stats_requests_collection)
+    for player_doc in players:
+        pid = _pid(player_doc)
+        duplicate = await find_duplicate_stats_request(stats_requests_collection, match_id, player_id=pid, match_date=body.match_date, home_team=body.home_team, away_team=body.away_team)
+        if duplicate:
+            raise HTTPException(status_code=409, detail={
+                "code": "DUPLICATE_STATS_REQUEST",
+                "message": f"A stats request already exists for player {_name(player_doc) or pid} in this match.",
+                "match_id": match_id,
+                "reference_id": duplicate.get("reference_id") or duplicate.get("request_id"),
+                "status": duplicate.get("status", "Pending"),
+            })
     heatmap_ids = {str(v) for v in body.heatmap_player_ids}
     plans = []
     total_cost = 0
@@ -992,10 +1086,17 @@ async def submit_bulk_stats_requests(body: BulkStatsRequestBody, request: Reques
             req_doc = {
                 "player_id": pid,
                 "user_id": uid,
+                "match_id": match_id,
+                "match_timezone": body.match_timezone or "Africa/Lagos",
+                "kickoff_at": kickoff_at,
                 "reference_id": ref_id,
                 "request_id": ref_id,
                 "home_team": body.home_team.strip(),
                 "away_team": body.away_team.strip(),
+                "home_club_id": body.home_club_id or "",
+                "away_club_id": body.away_club_id or "",
+                "venue_id": body.venue_id or "",
+                "venue_name": body.venue_name or body.venue_address,
                 "match_date": body.match_date,
                 "match_time": body.match_time,
                 "jersey_number": str(body.jersey_numbers.get(pid) or body.jersey_numbers.get(uid) or p.get("jersey_number") or p.get("jerseyNumber") or ""),
@@ -1012,8 +1113,17 @@ async def submit_bulk_stats_requests(body: BulkStatsRequestBody, request: Reques
                 "manager_id": _manager_id(user),
                 "venue_address": body.venue_address.strip(),
                 "venue_country": body.venue_country.strip(),
+                "venue_country_code": body.venue_country_code.strip().upper(),
                 "venue_state": body.venue_state.strip(),
                 "venue_lga": body.venue_lga.strip(),
+                "venue_city": body.venue_city.strip(),
+                "venue_region": body.venue_region.strip(),
+                "venue_province": body.venue_province.strip(),
+                "venue_detailed_address": body.venue_detailed_address.strip() or body.venue_address.strip(),
+                "venue_type": (venue_data or {}).get("venue_type", ""),
+                "venue_capacity": (venue_data or {}).get("venue_capacity"),
+                "venue_gps_lat": (venue_data or {}).get("venue_gps_lat"),
+                "venue_gps_lng": (venue_data or {}).get("venue_gps_lng"),
                 "contact_phone": body.contact_phone.strip(),
                 "status": "Pending",
                 "submitted_at": _now(),
@@ -1079,6 +1189,8 @@ async def submit_bulk_stats_requests(body: BulkStatsRequestBody, request: Reques
                 await stats_requests_collection.delete_one({"_id": doc.get("_id")})
             except Exception:
                 pass
+        if is_duplicate_key_error(exc):
+            raise HTTPException(status_code=409, detail={"code": "DUPLICATE_STATS_REQUEST", "message": "A stats request already exists for one or more selected players in this match."})
         if logger:
             logger.exception("submit_bulk_stats_requests error")
         raise HTTPException(status_code=500, detail="Unable to complete the bulk stats request")

@@ -77,6 +77,7 @@ from bson import ObjectId
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+from stats_request_alignment import canonical_match_id, resolve_match_id, validate_stats_window, find_duplicate_stats_request, ensure_stats_request_indexes, is_duplicate_key_error, resolve_registered_venue, resolve_registered_club
 from location_module import build_club_location_filter, build_stadium_location_clauses
 
 # ============================================================
@@ -110,6 +111,7 @@ support_tickets_collection      = None
 support_messages_collection     = None
 payment_intents_collection      = None
 activity_history_collection     = None
+venues_collection               = None
 
 # ── Helpers from main ────────────────────────────────────────
 MongoSerializer       = None
@@ -157,7 +159,7 @@ def _setup_dependencies(main_globals: dict) -> None:
     global match_requests_collection
     global club_squads_collection, players_collection, competitions_collection
     global support_tickets_collection, support_messages_collection
-    global payment_intents_collection, activity_history_collection
+    global payment_intents_collection, activity_history_collection, venues_collection
 
     global MongoSerializer, MongoJSONResponse, logger
     global upload_to_cloudinary, send_email
@@ -183,6 +185,10 @@ def _setup_dependencies(main_globals: dict) -> None:
     # ── Required collections (safe .get() + database fallback) ───────────────
     # NOTE: MongoDB Collection objects do not support bool()/truth-value testing.
     # Each assignment uses an explicit `is None` guard instead of `or`.
+    venues_collection = _m.get("venues_collection")
+    if venues_collection is None:
+        venues_collection = database["venues"]
+
     clubs_collection = _m.get("clubs_collection")
     if clubs_collection is None:
         clubs_collection = database["clubs"]
@@ -297,6 +303,10 @@ def _setup_dependencies(main_globals: dict) -> None:
 
 router = APIRouter(prefix="/api", tags=["club-dashboard"])
 
+def _clean_name(value: Any) -> str:
+    return " ".join(str(value or "").strip().casefold().split())
+
+
 
 # ============================================================
 # PYDANTIC MODELS
@@ -332,6 +342,13 @@ class YouTubeAddBody(BaseModel):
 class StatsRequestBody(BaseModel):
     match_date: str
     match_time: str
+    match_id: Optional[str] = None
+    match_timezone: Optional[str] = None
+    home_club_id: Optional[str] = None
+    away_club_id: Optional[str] = None
+    opposition_club_id: Optional[str] = None
+    venue_id: Optional[str] = None
+    venue_name: Optional[str] = None
     match_type: Optional[str] = None
     home_team: str
     away_team: str
@@ -342,6 +359,8 @@ class StatsRequestBody(BaseModel):
     venue_state: str
     venue_lga: str
     venue_city: Optional[str] = None
+    venue_region: Optional[str] = None
+    venue_province: Optional[str] = None
     venue_detailed_address: Optional[str] = None
     jersey_color: Optional[str] = ""
     tracking_type: str = "club_and_players"
@@ -357,6 +376,8 @@ class StatsRequestBody(BaseModel):
 
 class MatchRequestBody(BaseModel):
     requested_club_id: str
+    venue_id: Optional[str] = None
+    venue_name: Optional[str] = None
     requested_club_name: Optional[str] = ""
     match_date: Optional[str] = None
     match_time: Optional[str] = None
@@ -366,6 +387,8 @@ class MatchRequestBody(BaseModel):
     venue_state: Optional[str] = None
     venue_lga: Optional[str] = None
     venue_city: Optional[str] = None
+    venue_region: Optional[str] = None
+    venue_province: Optional[str] = None
     venue_detailed_address: Optional[str] = None
     venue_address: Optional[str] = None
     jersey_color: Optional[str] = None
@@ -2170,6 +2193,177 @@ async def get_club_squad(uid: str, request: Request):
 # 18. UPLOAD CLUB LOGO
 # ============================================================
 
+
+
+@router.post("/club/{uid}/matchday-squad")
+async def publish_matchday_squad(uid: str, request: Request):
+    """Persist the selected matchday squad and notify each selected player once per fixture."""
+    try:
+        actor = await get_current_user(request)
+        _require_auth(actor, uid)
+        club_doc = await _resolve_club(uid)
+        if notifications_collection is None or database is None:
+            raise HTTPException(status_code=503, detail="Matchday notification storage is unavailable")
+        try:
+            body = await request.json()
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid JSON body")
+        player_ids = list(dict.fromkeys(str(v).strip() for v in (body.get("player_ids") or []) if str(v).strip()))
+        if not player_ids:
+            raise HTTPException(status_code=422, detail="Select at least one player for the matchday squad")
+        # Only notify players who are actually in this club's persisted/affiliated squad.
+        allowed_ids = set()
+        if club_squads_collection is not None:
+            squad_doc = await club_squads_collection.find_one({"$or": [{"club_id": uid}, {"user_id": uid}]})
+            for item in ((squad_doc or {}).get("players") or (squad_doc or {}).get("squad") or []):
+                if isinstance(item, dict):
+                    for field in ("player_id", "user_id", "_id", "id"):
+                        if item.get(field):
+                            allowed_ids.add(str(item.get(field)))
+                elif item:
+                    allowed_ids.add(str(item))
+        if players_collection is not None:
+            affiliated = await players_collection.find({"$or": [{"club_id": uid}, {"current_club_id": uid}]}).limit(1000).to_list(length=1000)
+            for item in affiliated:
+                for field in ("player_id", "user_id", "_id"):
+                    if item.get(field):
+                        allowed_ids.add(str(item.get(field)))
+        if not allowed_ids:
+            raise HTTPException(status_code=403, detail="The club squad could not be verified; refresh the squad and try again")
+        unauthorized = [pid for pid in player_ids if pid not in allowed_ids]
+        if unauthorized:
+            raise HTTPException(status_code=403, detail="One or more selected players are not in this club's squad")
+        match = body.get("match") or {}
+        match_date = str(match.get("match_date") or match.get("date") or "").strip()
+        match_time = str(match.get("match_time") or match.get("time") or "").strip()
+        home = str(match.get("home_team") or "").strip()
+        away = str(match.get("away_team") or "").strip()
+        if not (match_date and match_time and home and away):
+            raise HTTPException(status_code=422, detail="Choose a registered fixture with match date, kickoff time and both teams")
+        try:
+            matches_col = database["matches"] if database is not None else None
+        except Exception:
+            matches_col = None
+        fixture_doc = None
+        supplied_fixture_id = str(match.get("match_id") or "").strip()
+        for fixture_col in (match_fixtures_collection, matches_col):
+            if fixture_col is None:
+                continue
+            try:
+                if supplied_fixture_id:
+                    fixture_doc = await fixture_col.find_one({"match_id": supplied_fixture_id})
+                    if not fixture_doc and len(supplied_fixture_id) == 24:
+                        fixture_doc = await fixture_col.find_one({"_id": ObjectId(supplied_fixture_id)})
+                if not fixture_doc:
+                    for fixture_home, fixture_away in ((home, away), (away, home)):
+                        fixture_doc = await fixture_col.find_one({
+                            "match_date": match_date,
+                            "home_team": {"$regex": "^" + re.escape(fixture_home) + "$", "$options": "i"},
+                            "away_team": {"$regex": "^" + re.escape(fixture_away) + "$", "$options": "i"},
+                        })
+                        if fixture_doc:
+                            break
+                if fixture_doc:
+                    break
+            except Exception:
+                fixture_doc = None
+        if not fixture_doc:
+            raise HTTPException(status_code=404, detail="The selected match is not a registered fixture")
+        match_date = str(fixture_doc.get("match_date") or match_date)
+        match_time = str(fixture_doc.get("match_time") or match_time)
+        home = str(fixture_doc.get("home_team") or home)
+        away = str(fixture_doc.get("away_team") or away)
+        match_id = str(fixture_doc.get("match_id") or await resolve_match_id(match_date, home, away, None, [match_fixtures_collection, matches_col]))
+        now = MongoSerializer.now_utc()
+        notified, skipped = 0, []
+        canonical_selected_ids = []
+        for raw_pid in player_ids:
+            player = None
+            if players_collection is not None:
+                try:
+                    player = await players_collection.find_one({"$or": [
+                        {"player_id": raw_pid}, {"user_id": raw_pid}, {"unique_id": raw_pid},
+                        {"_id": ObjectId(raw_pid) if len(raw_pid) == 24 else None},
+                    ]})
+                except Exception:
+                    player = await players_collection.find_one({"$or": [
+                        {"player_id": raw_pid}, {"user_id": raw_pid}, {"unique_id": raw_pid},
+                    ]})
+            if not player:
+                skipped.append(raw_pid)
+                continue
+            pid = str(player.get("player_id") or player.get("user_id") or player.get("_id") or raw_pid)
+            canonical_selected_ids.append(pid)
+            event_key = f"matchday_squad_selected:{match_id}:{pid}"
+            existing = await notifications_collection.find_one({"event_key": event_key}) if notifications_collection is not None else None
+            if existing:
+                continue
+            payload = {
+                "match_id": match_id, "match_date": match_date, "match_time": match_time,
+                "match_timezone": fixture_doc.get("match_timezone") or fixture_doc.get("timezone") or match.get("match_timezone") or match.get("timezone") or "Africa/Lagos",
+                "home_team": home, "away_team": away,
+                "match_type": fixture_doc.get("match_type") or fixture_doc.get("competition") or match.get("match_type") or match.get("competition") or "League",
+                "venue_address": fixture_doc.get("venue_address") or fixture_doc.get("venue") or fixture_doc.get("stadium") or match.get("venue_address") or match.get("venue") or "",
+                "venue_country": fixture_doc.get("venue_country") or fixture_doc.get("country") or match.get("venue_country") or match.get("country") or "Nigeria",
+                "venue_state": fixture_doc.get("venue_state") or fixture_doc.get("state") or match.get("venue_state") or match.get("state") or "",
+                "venue_lga": fixture_doc.get("venue_lga") or fixture_doc.get("lga") or match.get("venue_lga") or match.get("lga") or "",
+                "venue_city": fixture_doc.get("venue_city") or fixture_doc.get("city") or match.get("venue_city") or match.get("city") or "",
+                "venue_detailed_address": fixture_doc.get("venue_detailed_address") or fixture_doc.get("venue") or match.get("venue_detailed_address") or match.get("venue") or "",
+                "jersey_number": str(player.get("jersey_number") or player.get("jerseyNumber") or ""),
+                "player_represents": "home" if (
+                    str(fixture_doc.get("home_club_id") or "") == uid
+                    or _clean_name(home) == _clean_name((club_doc or {}).get("club_name") or (club_doc or {}).get("name"))
+                ) else "away",
+                "contact_phone": player.get("phone") or player.get("contact_phone") or "",
+            }
+            if notifications_collection is not None:
+                await notifications_collection.insert_one({
+                    "player_id": pid, "unique_id": pid,
+                    "user_id": str(player.get("user_id") or pid), "user_type": "player",
+                    "type": "matchday_squad_selected", "title": "Selected for Matchday Squad",
+                    "message": f"You have been selected for {home} vs {away} on {match_date} at {match_time}. Open the notification to request your match statistics.",
+                    "match_id": match_id, "action": "prefill_player_stats_request",
+                    "action_url": "/match-centre", "action_payload": payload,
+                    "event_key": event_key, "read": False, "created_at": now,
+                })
+                notified += 1
+        # Persist the authoritative published squad server-side; localStorage is
+        # retained only as a tactical editing convenience, never as the source of truth.
+        squad_store = database["matchday_squads"]
+        await squad_store.update_one(
+            {"club_id": uid, "match_id": match_id},
+            {"$set": {
+                "club_id": uid,
+                "club_name": (club_doc or {}).get("club_name") or (club_doc or {}).get("name") or "",
+                "match_id": match_id,
+                "match_date": match_date,
+                "match_time": match_time,
+                "match_timezone": fixture_doc.get("match_timezone") or fixture_doc.get("timezone") or match.get("match_timezone") or match.get("timezone") or "Africa/Lagos",
+                "home_team": home,
+                "away_team": away,
+                "player_ids": list(dict.fromkeys(canonical_selected_ids)),
+                "formation": body.get("formation") or "4-3-3",
+                "lineup": body.get("lineup") or {},
+                "published_by": str(actor.get("user_id") or actor.get("club_id") or uid),
+                "published_at": now,
+                "updated_at": now,
+            }},
+            upsert=True,
+        )
+        return MongoJSONResponse({
+            "success": True, "match_id": match_id, "notified_count": notified,
+            "already_notified_or_skipped": len(player_ids) - notified,
+            "skipped_player_ids": skipped,
+            "message": f"Matchday squad saved. {notified} player notification(s) created.",
+        })
+    except HTTPException:
+        raise
+    except Exception as exc:
+        if logger:
+            logger.exception("publish_matchday_squad failed")
+        raise HTTPException(status_code=500, detail="Unable to publish matchday squad")
+
+
 @router.post("/club/{uid}/logo")
 async def upload_club_logo(
     uid: str,
@@ -2591,15 +2785,106 @@ async def submit_stats_request(uid: str, request: Request, body: StatsRequestBod
         if not club:
             raise HTTPException(status_code=404, detail="Club not found")
 
+        tracking_type = str(body.tracking_type or "club_and_players").strip().lower()
+        if tracking_type not in {"club_only", "club_and_players", "player_only"}:
+            raise HTTPException(status_code=422, detail="Unsupported club stats tracking type.")
+        # Club-only means exactly one club request. Ignore stale player selections
+        # that may remain in the browser when the user switches tracking mode.
         player_ids = list(dict.fromkeys(
             str(pid).strip() for pid in (body.player_ids or []) if str(pid).strip()
-        ))
-        tracking_type = str(body.tracking_type or "club_and_players").strip().lower()
+        )) if tracking_type in {"club_and_players", "player_only"} else []
+        # Resolve UI IDs (_id/user_id/player_id) to the canonical player_id so
+        # every role writes and checks the same player identity.
+        canonical_player_ids = []
+        explicit_squad_ids = set()
+        if tracking_type in {"club_and_players", "player_only"} and club_squads_collection is not None:
+            squad_doc = await club_squads_collection.find_one({"$or": [{"club_id": uid}, {"user_id": uid}]})
+            for squad_player in ((squad_doc or {}).get("players") or (squad_doc or {}).get("squad") or []):
+                for field in ("player_id", "user_id", "id", "_id"):
+                    if squad_player.get(field) not in (None, ""):
+                        explicit_squad_ids.add(str(squad_player.get(field)))
+        for raw_pid in player_ids:
+            player_doc = None
+            if players_collection is not None:
+                try:
+                    clauses = [{"player_id": raw_pid}, {"user_id": raw_pid}, {"unique_id": raw_pid}]
+                    if len(raw_pid) == 24:
+                        clauses.append({"_id": ObjectId(raw_pid)})
+                    player_doc = await players_collection.find_one({"$or": clauses})
+                except Exception:
+                    player_doc = None
+            player_club_id = str((player_doc or {}).get("club_id") or (player_doc or {}).get("current_club_id") or "")
+            is_affiliated = player_club_id == str(uid)
+            is_explicit_member = str(raw_pid) in explicit_squad_ids or str((player_doc or {}).get("player_id") or "") in explicit_squad_ids
+            if tracking_type in {"club_and_players", "player_only"} and not (is_affiliated or is_explicit_member):
+                raise HTTPException(status_code=403, detail="One or more selected players are not registered with or listed in this club's squad.")
+            canonical = str((player_doc or {}).get("player_id") or (player_doc or {}).get("user_id") or raw_pid)
+            if canonical not in canonical_player_ids:
+                canonical_player_ids.append(canonical)
+        player_ids = canonical_player_ids
         if tracking_type in {"club_and_players", "player_only"} and not player_ids:
             raise HTTPException(
                 status_code=422,
                 detail="Select at least one player for player tracking.",
             )
+
+        own_club_name = str(club.get("club_name") or club.get("full_name") or club.get("name") or "").strip()
+        club_role = "away" if str(body.club_role or "home").lower() == "away" else "home"
+        opponent_id = body.opposition_club_id or (body.home_club_id if club_role == "away" else body.away_club_id)
+        opponent_name = body.home_team if club_role == "away" else body.away_team
+        opponent = await resolve_registered_club(clubs_collection, opponent_id, opponent_name)
+        if not opponent or str(opponent.get("club_id")) == str(uid):
+            raise HTTPException(status_code=422, detail="Select a different opposition club from the registered club directory.")
+        home_team = opponent["club_name"] if club_role == "away" else own_club_name
+        away_team = own_club_name if club_role == "away" else opponent["club_name"]
+        venue_data = await resolve_registered_venue(venues_collection, body.venue_id) if body.venue_id else None
+        if body.venue_id and not venue_data:
+            raise HTTPException(status_code=422, detail="The selected venue is no longer available in the registered venue directory. Search and select it again.")
+        if venue_data:
+            body.venue_name = venue_data["venue_name"]
+            body.venue_address = venue_data["venue_address"] or body.venue_address
+            body.venue_detailed_address = venue_data["venue_detailed_address"] or body.venue_detailed_address
+            body.venue_country = venue_data["venue_country"] or body.venue_country
+            body.venue_country_code = venue_data["venue_country_code"] or body.venue_country_code
+            body.venue_state = venue_data["venue_state"] or body.venue_state
+            body.venue_lga = venue_data["venue_lga"] or body.venue_lga
+            body.venue_city = venue_data["venue_city"] or body.venue_city
+            body.venue_region = venue_data["venue_region"] or body.venue_region
+            body.venue_province = venue_data["venue_province"] or body.venue_province
+        if not body.match_date or not body.match_time or not home_team.strip() or not away_team.strip():
+            raise HTTPException(status_code=422, detail="Match date, kickoff time and both teams are required")
+        try:
+            kickoff_at = validate_stats_window(body.match_date, body.match_time, body.match_timezone, 24, 48)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        try:
+            matches_col = database["matches"] if database is not None else None
+        except Exception:
+            matches_col = None
+        match_id = await resolve_match_id(body.match_date, home_team, away_team, body.match_id,
+                                          [match_fixtures_collection, matches_col])
+        await ensure_stats_request_indexes(stats_requests_collection)
+        # A fixture may have one club request and player-specific requests, but
+        # no player can be requested twice through club/player/manager channels.
+        for pid in player_ids:
+            duplicate = await find_duplicate_stats_request(stats_requests_collection, match_id, player_id=pid, match_date=body.match_date, home_team=home_team, away_team=away_team)
+            if duplicate:
+                raise HTTPException(status_code=409, detail={
+                    "code": "DUPLICATE_STATS_REQUEST",
+                    "message": f"A stats request already exists for player {pid} in this match.",
+                    "match_id": match_id,
+                    "reference_id": duplicate.get("reference_id") or duplicate.get("request_id"),
+                    "status": duplicate.get("status", "Pending"),
+                })
+        duplicate_club = await find_duplicate_stats_request(stats_requests_collection, match_id, club_id=uid, match_date=body.match_date, home_team=home_team, away_team=away_team) if tracking_type in {"club_only", "club_and_players"} else None
+        if duplicate_club:
+            raise HTTPException(status_code=409, detail={
+                "code": "DUPLICATE_STATS_REQUEST",
+                "message": "This club already has an active stats request for this match.",
+                "match_id": match_id,
+                "reference_id": duplicate_club.get("reference_id") or duplicate_club.get("request_id"),
+                "status": duplicate_club.get("status", "Pending"),
+            })
 
         level = club.get("category") or club.get("club_category") or "professional"
         token_costs = _stats_tracking_costs(level)
@@ -2630,37 +2915,59 @@ async def submit_stats_request(uid: str, request: Request, body: StatsRequestBod
                 },
             )
 
-        reference_id = f"SR-{uid[:6].upper()}-{uuid.uuid4().hex.upper()}"
+        reference_id = f"CLBREF-{uid[:6].upper()}-{uuid.uuid4().hex[:10].upper()}"
+        player_request_refs = [
+            {"player_id": pid, "player_serial": f"{index:02d}",
+             "club_reference_id": reference_id,
+             "reference_id": f"{reference_id}-{index:02d}",
+             "status": "Pending"}
+            for index, pid in enumerate(player_ids, start=1)
+        ]
         doc = {
             "reference_id":   reference_id,
             "request_id":     reference_id,
             "club_id":        uid,
             "user_id":        uid,
+            "match_id":       match_id,
+            "match_timezone": body.match_timezone or "Africa/Lagos",
+            "kickoff_at":     kickoff_at,
             "club_name":      club.get("club_name", ""),
             # FIX: explicit requester_type so admin isPlayerRequest() always returns
             # False for club requests regardless of future field additions.
-            "requester_type": "club",
+            "requester_type": "player" if tracking_type == "player_only" else "club",
+            "entity_type":    "player" if tracking_type == "player_only" else "club",
+            "request_type":   "player" if tracking_type == "player_only" else "club",
             "match_date":     body.match_date,
             "match_time":     body.match_time,
             "match_type":     body.match_type,
-            "home_team":      body.home_team,
-            "away_team":      body.away_team,
-            "club_role":      body.club_role,
+            "home_team":      home_team,
+            "away_team":      away_team,
+            "home_club_id":   (opponent["club_id"] if club_role == "away" else uid),
+            "away_club_id":   (uid if club_role == "away" else opponent["club_id"]),
+            "club_role":      club_role,
+            "venue_id":       body.venue_id or "",
+            "venue_name":     body.venue_name or body.venue_address,
             "venue_address":  body.venue_address,
             "venue_country":  body.venue_country,
             "venue_country_code": body.venue_country_code,
             "venue_state":    body.venue_state,
             "venue_lga":      body.venue_lga,
             "venue_city":     body.venue_city,
-            "venue_detailed_address": body.venue_detailed_address,
+            "venue_region":   body.venue_region or "",
+            "venue_province": body.venue_province or "",
+            "venue_detailed_address": body.venue_detailed_address or body.venue_address,
+            "venue_capacity": (venue_data or {}).get("venue_capacity"),
+            "venue_type": (venue_data or {}).get("venue_type", ""),
+            "venue_gps_lat": (venue_data or {}).get("venue_gps_lat"),
+            "venue_gps_lng": (venue_data or {}).get("venue_gps_lng"),
             "jersey_color":   body.jersey_color,
             "tracking_type":           tracking_type,
             "player_ids":              player_ids,
             "player_id":               player_ids[0] if len(player_ids) == 1 else None,
             "player_name":             body.player_name,
-            "player_request_states":   [
-                {"player_id": pid, "status": "Pending"} for pid in player_ids
-            ],
+            "player_request_states":   player_request_refs,
+            "player_requests":          player_request_refs,
+            "club_reference_id":        reference_id,
             "entity_type":             "club",
             "request_type":            "club",
             "contact_phone":           body.contact_phone,
@@ -2714,10 +3021,14 @@ async def submit_stats_request(uid: str, request: Request, body: StatsRequestBod
             "tokens_locked": token_cost,
             "player_id":    player_ids[0] if len(player_ids) == 1 else None,
             "player_name":  body.player_name,
+            "club_reference_id": reference_id,
+            "player_reference_ids": [item["reference_id"] for item in player_request_refs],
         })
     except HTTPException:
         raise
     except Exception as e:
+        if is_duplicate_key_error(e):
+            raise HTTPException(status_code=409, detail={"code": "DUPLICATE_STATS_REQUEST", "message": "A stats request already exists for this player and match."})
         logger.error(f"submit_stats_request error: {e}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="Failed to submit stats request")
 
@@ -2872,6 +3183,16 @@ async def search_clubs(
                         "photo_url": c.get("photo_url", ""),
                         "badge_url": c.get("badge_url") or c.get("logo_url", ""),
                         "home_ground": c.get("home_ground") or c.get("stadium", ""),
+                        "primary_ground_id": c.get("primary_ground_id") or "",
+                        "venue_id": c.get("primary_ground_id") or "",
+                        "venue_name": c.get("stadium") or c.get("home_ground") or "",
+                        "venue_address": c.get("stadium_address") or c.get("venue_address") or "",
+                        "venue_detailed_address": c.get("stadium_address") or c.get("venue_address") or "",
+                        "venue_country": c.get("country") or "",
+                        "venue_country_code": c.get("country_code") or "",
+                        "venue_state": c.get("state") or c.get("region") or "",
+                        "venue_lga": c.get("lga") or "",
+                        "venue_city": c.get("city") or c.get("town") or "",
                         "is_verified": c.get("is_verified", False),
                         "stats": performance,
                         "performance": performance,
@@ -2919,6 +3240,25 @@ async def send_match_request(uid: str, request: Request, body: MatchRequestBody)
         if not club:
             raise HTTPException(status_code=404, detail="Club not found")
 
+        opponent = await resolve_registered_club(clubs_collection, body.requested_club_id, body.requested_club_name)
+        if not opponent or str(opponent.get("club_id")) == str(uid):
+            raise HTTPException(status_code=422, detail="Select a different registered opposition club.")
+        body.requested_club_id = opponent["club_id"]
+        body.requested_club_name = opponent["club_name"]
+        venue_data = await resolve_registered_venue(venues_collection, body.venue_id) if body.venue_id else None
+        if body.venue_id and not venue_data:
+            raise HTTPException(status_code=422, detail="The selected venue is no longer available. Search and select it again.")
+        if venue_data:
+            body.venue_name = venue_data["venue_name"]
+            body.venue_address = venue_data["venue_address"] or body.venue_address
+            body.venue_detailed_address = venue_data["venue_detailed_address"] or body.venue_detailed_address
+            body.venue_country = venue_data["venue_country"] or body.venue_country
+            body.venue_country_code = venue_data["venue_country_code"] or body.venue_country_code
+            body.venue_state = venue_data["venue_state"] or body.venue_state
+            body.venue_lga = venue_data["venue_lga"] or body.venue_lga
+            body.venue_city = venue_data["venue_city"] or body.venue_city
+            body.venue_region = venue_data["venue_region"] or body.venue_region
+            body.venue_province = venue_data["venue_province"] or body.venue_province
         tracking_type = str(body.tracking_type or "no_tracking").strip().lower()
         level = club.get("category") or club.get("club_category") or "professional"
         token_cost = _tracking_request_cost(
@@ -2952,6 +3292,10 @@ async def send_match_request(uid: str, request: Request, body: MatchRequestBody)
             "user_id":              uid,
             "requested_club_id":    body.requested_club_id,
             "requested_club_name":  body.requested_club_name,
+            "venue_id":             body.venue_id or "",
+            "venue_name":           body.venue_name or body.venue_address or "",
+            "venue_type":           (venue_data or {}).get("venue_type", ""),
+            "venue_capacity":       (venue_data or {}).get("venue_capacity"),
             "match_date":           body.match_date,
             "match_time":           body.match_time,
             "team_position":        body.team_position,
@@ -2960,6 +3304,8 @@ async def send_match_request(uid: str, request: Request, body: MatchRequestBody)
             "venue_state":          body.venue_state,
             "venue_lga":            body.venue_lga,
             "venue_city":           body.venue_city,
+            "venue_region":         body.venue_region,
+            "venue_province":       body.venue_province,
             "venue_detailed_address": body.venue_detailed_address,
             "venue_address":        body.venue_address,
             "jersey_color":         body.jersey_color,
