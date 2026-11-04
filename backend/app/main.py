@@ -3554,10 +3554,10 @@ async def match_centre_page(request: Request):
 # CLUB DASHBOARD SUPPORT / SUB-PAGES
 # ------------------------------------------------------------
 
-@app.get("/club-dashboard-host", response_class=HTMLResponse)
-@app.get("/club-dashboard-host.html", response_class=HTMLResponse)
-async def club_dashboard_host_page():
-    return serve_html("club-dashboard-host.html")
+@app.get("/club-results-refined", response_class=HTMLResponse)
+@app.get("/club-results-refined.html", response_class=HTMLResponse)
+async def club_results_refined_page():
+    return serve_html("club-results-refined")
 
 
 @app.get("/club-dashboard-stats", response_class=HTMLResponse)
