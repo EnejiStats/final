@@ -3557,7 +3557,7 @@ async def match_centre_page(request: Request):
 @app.get("/club-results-refined", response_class=HTMLResponse)
 @app.get("/club-results-refined.html", response_class=HTMLResponse)
 async def club_results_refined_page():
-    return serve_html("club-results-refined")
+    return serve_html("club-results-refined.html")
 
 
 @app.get("/club-dashboard-stats", response_class=HTMLResponse)
