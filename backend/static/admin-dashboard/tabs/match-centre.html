@@ -1558,7 +1558,9 @@ async function loadStatsRequests(){
           var child=(po&&typeof po==='object')?po:{player_id:po};
           var childId=child.request_id||child._id||child.reference_id||'';
           var virtualId=childId||String(canonicalRid(parent)||parent.reference_id||('club-request-'+idx))+'::player::'+String(child.player_id||child.id||idx);
-          var merged=Object.assign({},parent,child,{request_id:virtualId,reference_id:child.reference_id||parent.reference_id,
+          var serial=String(child.player_serial||String(idx+1).padStart(2,'0')).padStart(2,'0');
+          var clubRef=parent.club_reference_id||parent.reference_id||canonicalRid(parent);
+          var merged=Object.assign({},parent,child,{request_id:virtualId,reference_id:child.reference_id||String(clubRef)+'-'+serial,club_reference_id:clubRef,player_serial:serial,
             player_id:child.player_id||child.id||child.playerId||child.player_id_value||'',
             player_name:child.player_name||child.name||child.full_name||child.playerName||child.player_id||'Player '+(idx+1),
             jersey_number:child.jersey_number||child.jersey||parent.jersey_number,
@@ -1991,16 +1993,40 @@ async function loadDCOsForAssignment(req) {
     if (matchDate) qs.set('match_date', matchDate);
     if (matchTime) qs.set('match_time', matchTime);
 
-    const [dcoRes, supRes] = await Promise.allSettled([
+    const [dcoRes, supRes, assignmentRes] = await Promise.allSettled([
       api('GET', `/api/admin/dco/available?${qs}&role=dco`),
       api('GET', `/api/admin/dco/available?${qs}&role=supervisor`),
+      api('GET', '/api/admin/match-centre/dco/assignments?limit=500'),
     ]);
 
     if (dcoLoad) dcoLoad.style.display = 'none';
     if (supLoad) supLoad.style.display = 'none';
 
     if (dcoGrid) {
-      const dcos = dcoRes.status === 'fulfilled' ? (dcoRes.value.dcos || dcoRes.value.users || []) : [];
+      let dcos = dcoRes.status === 'fulfilled' ? (dcoRes.value.dcos || dcoRes.value.users || []) : [];
+      const assignedRows = assignmentRes.status === 'fulfilled' ? (assignmentRes.value.assignments || assignmentRes.value.results || []) : [];
+      const targetMatchId = String(req.match_id || req.matchId || '').trim();
+      const targetDate = String(req.match_date || req.event_date || '').slice(0,10);
+      const targetHome = String(req.home_team || req.homeTeam || '').trim().toLowerCase();
+      const targetAway = String(req.away_team || req.awayTeam || '').trim().toLowerCase();
+      const targetEntity = String(req.entity_type || req.request_type || (req.player_id || req.player_name ? 'player' : 'club')).toLowerCase();
+      const sameFixture = a => {
+        const aid=String(a.match_id||a.matchId||'').trim();
+        if(targetMatchId && aid) return targetMatchId===aid;
+        const date=String(a.match_date||a.event_date||'').slice(0,10);
+        const home=String(a.home_team||a.homeTeam||'').trim().toLowerCase();
+        const away=String(a.away_team||a.awayTeam||'').trim().toLowerCase();
+        return !!(targetDate&&date===targetDate&&((home===targetHome&&away===targetAway)||(home===targetAway&&away===targetHome)));
+      };
+      dcos = dcos.map(function(dco){
+        const did=String(dco.dco_id||dco.user_id||dco._id||'');
+        const conflicting=assignedRows.find(function(a){
+          const assigned=String(a.assignee_id||a.assigned_dco_id||'');
+          const entity=String(a.entity_type||a.request_type||'club').toLowerCase();
+          return did && assigned===did && sameFixture(a) && entity!==targetEntity && !['declined','rejected','cancelled'].includes(String(a.status||'').toLowerCase());
+        });
+        return conflicting ? Object.assign({},dco,{conflict_reason:targetEntity==='player'?'Already assigned to this match’s club request':'Already assigned to a player in this match',ineligibility_reason:'DCO cannot cover both club and player requests for the same match'}) : dco;
+      });
       _buildChipGrid(dcoGrid, dcos, 'dco_id', (sid, name, el) => {
         document.querySelectorAll('#assign-dco-grid-wrap .scout-chip').forEach(c => c.classList.remove('sc-sel'));
         el.classList.add('sc-sel');
