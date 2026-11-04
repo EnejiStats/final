@@ -31,7 +31,7 @@ from bson import ObjectId
 from fastapi import APIRouter, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from stats_request_alignment import canonical_match_id, resolve_match_id, validate_stats_window, find_duplicate_stats_request, ensure_stats_request_indexes, is_duplicate_key_error, resolve_registered_venue, resolve_registered_club, upsert_canonical_match_record
+from stats_request_alignment import canonical_match_id, resolve_match_id, validate_stats_window, find_duplicate_stats_request, ensure_stats_request_indexes, is_duplicate_key_error, resolve_registered_venue, resolve_registered_club
 
 # ============================================================
 # MODULE-LEVEL PLACEHOLDERS — all None until _setup_dependencies()
@@ -59,8 +59,6 @@ support_tickets_collection    = None
 payment_intents_collection    = None
 transactions_collection       = None
 clubs_collection              = None
-matches_collection            = None
-match_requests_collection     = None
 agents_collection             = None
 subscriptions_collection      = None
 
@@ -117,7 +115,7 @@ def _setup_dependencies(main_globals: dict) -> None:
     global match_fixtures_collection, competitions_collection, agent_contracts_collection, content_manager_contracts_collection
     global stadiums_collection, venues_collection, support_tickets_collection
     global payment_intents_collection, transactions_collection, clubs_collection
-    global agents_collection, subscriptions_collection, matches_collection, match_requests_collection
+    global agents_collection, subscriptions_collection
 
     global get_current_user, verify_password, hash_password, normalize_role
 
@@ -159,10 +157,6 @@ def _setup_dependencies(main_globals: dict) -> None:
     notifications_collection = g.get("notifications_collection")
     payment_intents_collection = g.get("payment_intents_collection")
     clubs_collection = g.get("clubs_collection")
-    matches_collection = g.get("matches_collection")
-    if matches_collection is None: matches_collection = database["matches"]
-    match_requests_collection = g.get("match_requests_collection")
-    if match_requests_collection is None: match_requests_collection = database["match_requests"]
     if clubs_collection is None:
         clubs_collection = database["clubs"]
     agents_collection = g.get("agents_collection")
@@ -3167,48 +3161,6 @@ async def get_player_club_history(uid: str, request: Request):
 # ENDPOINT: GET /player/{uid}/stats/requests
 # ============================================================
 
-
-@router.get("/player/{uid}/match-options")
-async def get_player_match_options(uid: str, request: Request, limit: int = 100):
-    """Return deduplicated scheduled/accepted fixtures for the player's affiliated club."""
-    current_user = await get_current_user(request)
-    _require_auth(current_user, uid)
-    player = await find_player_by_uid(uid)
-    if not player:
-        raise HTTPException(status_code=404, detail="Player not found")
-    club_id = str(player.get("club_id") or player.get("current_club_id") or "")
-    club_name = str(player.get("current_club") or player.get("club_name") or player.get("club") or "")
-    rows = []
-    if matches_collection is not None:
-        query = {"status": {"$nin": ["cancelled", "canceled", "rejected"]}}
-        try: rows.extend(await matches_collection.find(query).sort("match_date", 1).limit(min(250, max(1, limit))).to_list(min(250, max(1, limit))))
-        except Exception: pass
-    if match_requests_collection is not None:
-        try: rows.extend(await match_requests_collection.find({"status": {"$in": ["accepted", "approved", "confirmed"]}}).sort("match_date", 1).limit(100).to_list(100))
-        except Exception: pass
-    if stats_requests_collection is not None:
-        try: rows.extend(await stats_requests_collection.find({"status": {"$in": ["accepted", "approved", "confirmed"]}}).sort("match_date", 1).limit(100).to_list(100))
-        except Exception: pass
-    output, seen = [], set()
-    for row in rows:
-        home = str(row.get("home_team") or row.get("home") or "")
-        away = str(row.get("away_team") or row.get("away") or "")
-        sides = {str(row.get("home_club_id") or row.get("home_team_id") or ""), str(row.get("away_club_id") or row.get("away_team_id") or "")}
-        names = {home.casefold(), away.casefold()}
-        if club_id and club_id not in sides and club_name.casefold() not in names: continue
-        mid = str(row.get("match_id") or row.get("_id") or "")
-        if not mid or mid in seen or not home or not away: continue
-        seen.add(mid)
-        output.append({"match_id": mid, "home_team": home, "away_team": away, "home_club_id": row.get("home_club_id") or row.get("home_team_id") or "",
-          "away_club_id": row.get("away_club_id") or row.get("away_team_id") or "", "match_date": row.get("match_date") or row.get("date") or "",
-          "match_time": row.get("match_time") or row.get("time") or "", "venue_id": row.get("venue_id") or "",
-          "venue_name": row.get("venue_name") or row.get("venue") or "", "venue_address": row.get("venue_detailed_address") or row.get("venue_address") or "",
-          "venue_country": row.get("venue_country") or row.get("country") or "", "venue_state": row.get("venue_state") or row.get("state") or "",
-          "venue_lga": row.get("venue_lga") or row.get("lga") or "", "venue_city": row.get("venue_city") or row.get("city") or "",
-          "venue_region": row.get("venue_region") or row.get("region") or "", "venue_province": row.get("venue_province") or row.get("province") or "",
-          "competition": row.get("competition") or "", "status": row.get("status") or "scheduled"})
-    return {"matches": output, "fixtures": output, "total": len(output)}
-
 @router.get("/player/{uid}/stats/requests")
 async def get_player_stats_requests(uid: str, request: Request, limit: int = 50):
     """Return stats tracking requests submitted by this player."""
@@ -3398,7 +3350,6 @@ async def submit_stats_request(uid: str, body: StatsRequestBody, request: Reques
         })
         try:
             await stats_requests_collection.insert_one(req_doc)
-            await upsert_canonical_match_record(matches_collection, req_doc, source="Player stats request", source_request_id=str(req_doc.get("request_id") or req_doc.get("reference_id") or ""))
             if token_transactions_collection is not None:
                 await token_transactions_collection.insert_one({
                     "player_id": pid_val, "unique_id": pid_val, "user_type": "player",

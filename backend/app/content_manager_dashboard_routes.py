@@ -40,7 +40,7 @@ from bson import ObjectId
 from fastapi import APIRouter, HTTPException, Request, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from stats_request_alignment import canonical_match_id, resolve_match_id, validate_stats_window, find_duplicate_stats_request, ensure_stats_request_indexes, is_duplicate_key_error, resolve_registered_venue, resolve_registered_club, upsert_canonical_match_record
+from stats_request_alignment import canonical_match_id, resolve_match_id, validate_stats_window, find_duplicate_stats_request, ensure_stats_request_indexes, is_duplicate_key_error, resolve_registered_venue, resolve_registered_club
 
 # Dependency placeholders; populated by _setup_dependencies().
 database = None
@@ -1130,7 +1130,6 @@ async def submit_bulk_stats_requests(body: BulkStatsRequestBody, request: Reques
                 "created_at": _now(),
             }
             insert_result = await stats_requests_collection.insert_one(req_doc)
-            await upsert_canonical_match_record(database["matches"], req_doc, source="Content-manager player stats request", source_request_id=str(req_doc.get("request_id") or req_doc.get("reference_id") or ""))
             req_doc["_id"] = insert_result.inserted_id
             created.append(req_doc)
 
