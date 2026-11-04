@@ -75,9 +75,9 @@ from typing import Any, Dict, List, Optional
 import httpx
 from bson import ObjectId
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from pydantic import BaseModel, Field
-from stats_request_alignment import canonical_match_id, resolve_match_id, validate_stats_window, find_duplicate_stats_request, ensure_stats_request_indexes, is_duplicate_key_error, resolve_registered_venue, resolve_registered_club
+from stats_request_alignment import canonical_match_id, resolve_match_id, validate_stats_window, find_duplicate_stats_request, ensure_stats_request_indexes, is_duplicate_key_error, resolve_registered_venue, resolve_registered_club, upsert_canonical_match_record
 from location_module import build_club_location_filter, build_stadium_location_clauses
 
 # ============================================================
@@ -112,6 +112,7 @@ support_messages_collection     = None
 payment_intents_collection      = None
 activity_history_collection     = None
 venues_collection               = None
+matches_collection               = None
 
 # ── Helpers from main ────────────────────────────────────────
 MongoSerializer       = None
@@ -159,7 +160,7 @@ def _setup_dependencies(main_globals: dict) -> None:
     global match_requests_collection
     global club_squads_collection, players_collection, competitions_collection
     global support_tickets_collection, support_messages_collection
-    global payment_intents_collection, activity_history_collection, venues_collection
+    global payment_intents_collection, activity_history_collection, venues_collection, matches_collection
 
     global MongoSerializer, MongoJSONResponse, logger
     global upload_to_cloudinary, send_email
@@ -186,6 +187,9 @@ def _setup_dependencies(main_globals: dict) -> None:
     # NOTE: MongoDB Collection objects do not support bool()/truth-value testing.
     # Each assignment uses an explicit `is None` guard instead of `or`.
     venues_collection = _m.get("venues_collection")
+    matches_collection = _m.get("matches_collection")
+    if matches_collection is None:
+        matches_collection = database["matches"]
     if venues_collection is None:
         venues_collection = database["venues"]
 
@@ -2981,6 +2985,38 @@ async def submit_stats_request(uid: str, request: Request, body: StatsRequestBod
 
         try:
             await stats_requests_collection.insert_one(doc)
+            await upsert_canonical_match_record(matches_collection, doc, source="Club stats request", source_request_id=str(doc.get("request_id") or doc.get("reference_id") or doc.get("club_reference_id") or ""))
+            # When a club submits stats without an existing fixture request, create a
+            # durable admin-visible request bridge and canonical match immediately.
+            stats_ref = str(doc.get("reference_id") or doc.get("request_id") or doc.get("club_reference_id") or doc.get("_id") or "")
+            if match_requests_collection is not None and stats_ref:
+                bridge_ref = f"MR-STATS-{stats_ref}"
+                bridge = await match_requests_collection.find_one({"source_stats_request_id": stats_ref})
+                prior_request = bridge or await match_requests_collection.find_one({"match_id": doc.get("match_id")})
+                if prior_request:
+                    # Keep the original club-to-club request as the canonical request;
+                    # attach this stats request rather than creating a duplicate bridge.
+                    doc["match_request_reference"] = prior_request.get("reference_id") or prior_request.get("request_id") or str(prior_request.get("_id") or "")
+                    await stats_requests_collection.update_one({"reference_id": doc.get("reference_id")}, {"$set": {"match_request_reference": doc["match_request_reference"]}})
+                else:
+                    bridge_doc = {
+                        "reference_id": bridge_ref, "request_id": bridge_ref, "source_stats_request_id": stats_ref,
+                        "requesting_club_id": uid, "requesting_club_name": club.get("club_name", ""),
+                        "requested_club_id": opponent.get("club_id", ""), "requested_club_name": opponent.get("club_name", ""),
+                        "home_team": home_team, "away_team": away_team,
+                        "home_club_id": doc.get("home_club_id", ""), "away_club_id": doc.get("away_club_id", ""),
+                        "match_id": doc.get("match_id"), "match_date": body.match_date, "match_time": body.match_time,
+                        "venue_id": body.venue_id or "", "venue_name": body.venue_name or body.venue_address,
+                        "venue": body.venue_name or body.venue_address, "venue_address": body.venue_address,
+                        "venue_detailed_address": body.venue_detailed_address or body.venue_address,
+                        "venue_country": body.venue_country, "venue_country_code": body.venue_country_code,
+                        "venue_state": body.venue_state, "venue_region": body.venue_region, "venue_province": body.venue_province,
+                        "venue_lga": body.venue_lga, "venue_city": body.venue_city, "status": "accepted",
+                        "source": "auto-converted club stats request", "admin_visible": True,
+                        "created_at": MongoSerializer.now_utc(), "updated_at": MongoSerializer.now_utc(),
+                    }
+                    await match_requests_collection.insert_one(bridge_doc)
+                    await upsert_canonical_match_record(matches_collection, bridge_doc, source="Club stats request converted to match request", source_request_id=bridge_ref)
         except Exception:
             if token_cost:
                 await club_tokens_collection.update_one(
@@ -3318,8 +3354,18 @@ async def send_match_request(uid: str, request: Request, body: MatchRequestBody)
             "updated_at":           MongoSerializer.now_utc(),
         }
 
+        # Match request immediately owns a stable match_id and a fixture shell;
+        # acceptance changes status, never creates a second unrelated match.
+        requesting_name = str(club.get("club_name") or club.get("name") or uid)
+        is_home = str(body.team_position or "home").strip().lower() not in {"away", "a", "2"}
+        doc["home_team"] = requesting_name if is_home else body.requested_club_name
+        doc["away_team"] = body.requested_club_name if is_home else requesting_name
+        doc["home_club_id"] = uid if is_home else body.requested_club_id
+        doc["away_club_id"] = body.requested_club_id if is_home else uid
+        doc["match_id"] = canonical_match_id(body.match_date, doc["home_team"], doc["away_team"])
         try:
             await match_requests_collection.insert_one(doc)
+            await upsert_canonical_match_record(matches_collection, doc, source="Pending club match request", source_request_id=reference_id)
         except Exception:
             if token_cost:
                 await club_tokens_collection.update_one(
@@ -3657,8 +3703,11 @@ async def accept_match_request(uid: str, req_id: str, request: Request):
 
         if result.matched_count == 0:
             raise HTTPException(status_code=404, detail="Match request not found or not addressed to this club")
+        accepted = await match_requests_collection.find_one({"$or": or_clauses, "requested_club_id": uid})
+        if accepted:
+            await upsert_canonical_match_record(matches_collection, accepted, source="Accepted club match request", source_request_id=str(accepted.get("reference_id") or accepted.get("request_id") or accepted.get("_id")))
 
-        return MongoJSONResponse({"ok": True, "status": "accepted"})
+        return MongoJSONResponse({"ok": True, "status": "accepted", "match_id": (accepted or {}).get("match_id") or ""})
     except HTTPException:
         raise
     except Exception as e:
@@ -3782,6 +3831,16 @@ async def apply_to_competition(
 # ============================================================
 # 30. SUPPORT — OPEN TICKET
 # ============================================================
+
+
+@router.get("/club-results-refined.html", response_class=HTMLResponse)
+async def club_results_refined_page():
+    """Serve the uploaded, full Club Results Preact UMD page used in the stats view."""
+    from pathlib import Path
+    page = Path(__file__).with_name("club-results-refined.html")
+    if not page.exists():
+        raise HTTPException(status_code=404, detail="Club Results page is not installed")
+    return HTMLResponse(page.read_text(encoding="utf-8"))
 
 @router.post("/support/tickets")
 async def open_support_ticket(request: Request, body: SupportTicketBody):
