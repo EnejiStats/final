@@ -1543,6 +1543,16 @@ const [mrSubTab, setMrSubTab] = useState('find');
 const [mrSearchQuery, setMrSearchQuery] = useState('');
 const [mrCategory, setMrCategory] = useState('');
 const [mrState, setMrState] = useState('');
+// Independent location-filter state for the club finder (kept separate from request-form geography).
+const [mrFilterCountry, setMrFilterCountry] = useState('');
+const [mrFilterCountries, setMrFilterCountries] = useState([]);
+const [mrFilterRegions, setMrFilterRegions] = useState([]);
+const [mrFilterSubregions, setMrFilterSubregions] = useState([]);
+const [mrFilterRegionLabel, setMrFilterRegionLabel] = useState('State / Region');
+const [mrFilterSubregionLabel, setMrFilterSubregionLabel] = useState('LGA / Local Area');
+const [mrFilterRegionsLoading, setMrFilterRegionsLoading] = useState(false);
+const [mrFilterSubregionsLoading, setMrFilterSubregionsLoading] = useState(false);
+const [mrFilterLga, setMrFilterLga] = useState('');
 const [mrClubs, setMrClubs] = useState([]);
 const [mrPage, setMrPage] = useState(1);
 const [mrLoading, setMrLoading] = useState(false);
@@ -1552,6 +1562,45 @@ const [mrForm, setMrForm] = useState({}); const [mrGeoCountryCode,setMrGeoCountr
 useEffect(()=>{fetch('/api/public/countries',{credentials:'include'}).then(r=>r.ok?r.json():Promise.reject()).then(d=>setMrGeoCountries(Array.isArray(d)?d:(d.countries||[]))).catch(()=>{});},[]);
 useEffect(()=>{if(!mrGeoCountryCode){setMrGeoRegions([]);return;}fetch(`/api/public/countries/${encodeURIComponent(mrGeoCountryCode)}/regions`,{credentials:'include'}).then(r=>r.ok?r.json():Promise.reject()).then(d=>{setMrGeoRegions(d.regions||[]);setMrGeoRegionLabel(d.region_label||'State / Region');}).catch(()=>setMrGeoRegions([]));},[mrGeoCountryCode]);
 useEffect(()=>{if(!mrGeoCountryCode||!mrForm.venue_state){setMrGeoSubregions([]);return;}fetch(`/api/public/countries/${encodeURIComponent(mrGeoCountryCode)}/regions/${encodeURIComponent(mrForm.venue_state)}/subregions`,{credentials:'include'}).then(r=>r.ok?r.json():Promise.reject()).then(d=>{setMrGeoSubregions(d.subregions||[]);setMrGeoSubregionLabel(d.subregion_label||'LGA / Local Area');}).catch(()=>setMrGeoSubregions([]));},[mrGeoCountryCode,mrForm.venue_state]);
+// Populate and cascade the Find Clubs location filters. Every async effect ignores stale responses.
+useEffect(() => {
+  let alive = true;
+  fetch('/api/public/countries', {credentials:'include'})
+    .then(r => r.ok ? r.json() : Promise.reject(new Error('Countries unavailable')))
+    .then(d => { if (alive) setMrFilterCountries(Array.isArray(d) ? d : (d.countries || [])); })
+    .catch(() => { if (alive) setMrFilterCountries([]); });
+  return () => { alive = false; };
+}, []);
+useEffect(() => {
+  let alive = true;
+  if (!mrFilterCountry) {
+    setMrFilterRegions([]); setMrFilterRegionLabel('State / Region'); setMrState('');
+    setMrFilterRegionsLoading(false);
+    return () => { alive = false; };
+  }
+  setMrFilterRegionsLoading(true);
+  fetch(`/api/public/countries/${encodeURIComponent(mrFilterCountry)}/regions`, {credentials:'include'})
+    .then(r => r.ok ? r.json() : Promise.reject(new Error('Regions unavailable')))
+    .then(d => { if (alive) { setMrFilterRegions(d.regions || []); setMrFilterRegionLabel(d.region_label || 'State / Region'); } })
+    .catch(() => { if (alive) setMrFilterRegions([]); })
+    .finally(() => { if (alive) setMrFilterRegionsLoading(false); });
+  return () => { alive = false; };
+}, [mrFilterCountry]);
+useEffect(() => {
+  let alive = true;
+  if (!mrFilterCountry || !mrState) {
+    setMrFilterSubregions([]); setMrFilterSubregionLabel('LGA / Local Area');
+    setMrFilterLga(''); setMrFilterSubregionsLoading(false);
+    return () => { alive = false; };
+  }
+  setMrFilterSubregionsLoading(true);
+  fetch(`/api/public/countries/${encodeURIComponent(mrFilterCountry)}/regions/${encodeURIComponent(mrState)}/subregions`, {credentials:'include'})
+    .then(r => r.ok ? r.json() : Promise.reject(new Error('Subregions unavailable')))
+    .then(d => { if (alive) { setMrFilterSubregions(d.subregions || []); setMrFilterSubregionLabel(d.subregion_label || 'LGA / Local Area'); } })
+    .catch(() => { if (alive) setMrFilterSubregions([]); })
+    .finally(() => { if (alive) setMrFilterSubregionsLoading(false); });
+  return () => { alive = false; };
+}, [mrFilterCountry, mrState]);
 const [mrSubmitting, setMrSubmitting] = useState(false);
 const [mrSentFilter, setMrSentFilter] = useState('all');
 const [mrRecvFilter, setMrRecvFilter] = useState('all');
@@ -1756,7 +1805,7 @@ if (matchFilter.result !== 'all' && (m.result||'').toUpperCase() !== matchFilter
 if (matchFilter.search) { const q = matchFilter.search.toLowerCase(); if (!(m.home_team||'').toLowerCase().includes(q) && !(m.away_team||'').toLowerCase().includes(q) && !(m.competition||'').toLowerCase().includes(q)) return false; }
 return true;
 }), [matchData, matchFilter]);
-const filteredMrClubs = useMemo(() => mrClubs.filter(club => clubMatchesMetricRanges(club, mrMetricFilters)), [mrClubs, mrMetricFilters]);
+const filteredMrClubs = useMemo(() => (Array.isArray(mrClubs) ? mrClubs : []).filter(club => clubMatchesMetricRanges(club, mrMetricFilters)), [mrClubs, mrMetricFilters]);
 const matchPerPage = 10;
 const matchPages = Math.max(1, Math.ceil(filteredMatches.length / matchPerPage));
 const pagedMatches = filteredMatches.slice((matchPage - 1) * matchPerPage, matchPage * matchPerPage);
@@ -2281,7 +2330,9 @@ setMrLoading(true);
 try {
 const params = new URLSearchParams({ limit: 12, page: mrPage });
 if (mrCategory) params.append('category', mrCategory);
+if (mrFilterCountry) params.append('country', mrFilterCountry);
 if (mrState) params.append('state', mrState);
+if (mrFilterLga) params.append('lga', mrFilterLga);
 if (mrSearchQuery) params.append('q', mrSearchQuery);
 Object.entries(mrMetricFilters).forEach(([key,value]) => { if (value !== '') params.append(key, value); });
 const res = await apiCall(`/clubs/search?${params}`);
@@ -3328,46 +3379,9 @@ ${statsMetricMode==='summary'
 </div>
 `}
 ${statsView==='detailed' && html`
-<div class="card">
-<div class="card-title"><i class="fas fa-table"></i> Detailed Match Stats</div>
-<input type="search" value=${statsSearch} onInput=${e=>{setStatsSearch(e.target.value);setClubCurrentMatchIdx(0);}} placeholder="Search opponent, competition or venue..." style="width:100%;margin-bottom:.75rem;" />
-${detailedStatsMatches.length===0 ? html`<div class="empty-state"><i class="fas fa-futbol"></i><div>No detailed match stats available</div></div>` : html`
-<div class="club-matchday-navigator no-print" aria-label="Match navigation">
-<button type="button" onClick=${()=>setClubCurrentMatchIdx(index=>Math.max(0,index-1))} disabled=${clubCurrentMatchIdx<=0}>
-<i class="fas fa-chevron-left"></i> Previous match
-</button>
-<div class="club-matchday-current">
-<strong>Match ${clubCurrentMatchIdx+1} of ${detailedStatsMatches.length}</strong>
-<small>${currentClubDetailMatch?.competition||'Match details'}${currentClubDetailMatch?.date||currentClubDetailMatch?.match_date?` · ${fmtDate(currentClubDetailMatch.date||currentClubDetailMatch.match_date)}`:''}</small>
-</div>
-<button type="button" onClick=${()=>setClubCurrentMatchIdx(index=>Math.min(detailedStatsMatches.length-1,index+1))} disabled=${clubCurrentMatchIdx>=detailedStatsMatches.length-1}>
-Next match <i class="fas fa-chevron-right"></i>
-</button>
-</div>
-${currentClubDetailMatch && (()=>{const m=currentClubDetailMatch; return html`
-<article key=${m._id||m.id||clubCurrentMatchIdx} class="club-detail-match">
-<header class="club-detail-match-head">
-<div class="club-detail-match-teams">
-<div class="club-detail-team">${m.home_team||m.homeTeam||'Home'}</div>
-<div class="club-detail-score">${m.home_score??m.score?.home??'—'} – ${m.away_score??m.score?.away??'—'}</div>
-<div class="club-detail-team">${m.away_team||m.awayTeam||'Away'}</div>
-</div>
-<div class="club-detail-match-meta">
-${m.date||m.match_date?html`<span><i class="fas fa-calendar"></i> ${fmtDate(m.date||m.match_date)}</span>`:''}
-${m.time||m.match_time?html`<span><i class="fas fa-clock"></i> ${m.time||m.match_time}</span>`:''}
-${m.competition?html`<span><i class="fas fa-trophy"></i> ${m.competition}</span>`:''}
-${m.venue||m.venue_address?html`<span><i class="fas fa-location-dot"></i> ${m.venue||m.venue_address}</span>`:''}
-${m.attendance?html`<span><i class="fas fa-users"></i> ${Number(m.attendance).toLocaleString()} attendance</span>`:''}
-${m.result?html`<span class=${`result-badge ${getResultClass(m.result)}`}>${m.result}</span>`:''}
-</div>
-</header>
-<div class="club-match-breakdown">
-<div class="club-match-breakdown-head"><span><i class="fas fa-chart-column"></i> Match Statistics</span></div>
-<${ClubMatchCentreStatsCompare} match=${m} homeName=${m.home_team||m.homeTeam||'Home'} awayName=${m.away_team||m.awayTeam||'Away'} />
-</div>
-</article>
-`;})()}
-`}
+<div class="card" style="padding:0;overflow:hidden;">
+<div class="card-title" style="padding:1rem 1.1rem .25rem;margin:0;"><i class="fas fa-history"></i> Results & Detailed Match Metrics</div>
+<iframe title="Club Results and detailed match metrics" src="/club-results-refined.html?embedded=1" loading="lazy" style="display:block;width:100%;height:min(82vh,1100px);min-height:720px;border:0;background:#f0f4f8;" allow="clipboard-write"></iframe>
 </div>
 `}
 </div>
@@ -3692,9 +3706,9 @@ ${['all','pending','accepted','rejected','cancelled','modified'].map(s=>html`
 `)}
 </div>
 </div>
-${(mrSentFilter==='all'?matchRequests.sent:matchRequests.sent.filter(r=>r.status===mrSentFilter)).length === 0 ?
+${(mrSentFilter==='all'?(matchRequests.sent||[]):(matchRequests.sent||[]).filter(r=>r.status===mrSentFilter)).length === 0 ?
 html`<div class="empty-state"><i class="fas fa-paper-plane"></i><div>No sent requests</div></div>` :
-(mrSentFilter==='all'?matchRequests.sent:matchRequests.sent.filter(r=>r.status===mrSentFilter)).map((r,i) => html`
+(mrSentFilter==='all'?(matchRequests.sent||[]):(matchRequests.sent||[]).filter(r=>r.status===mrSentFilter)).map((r,i) => html`
 <div key=${r.reference_id||i} class="request-item-card">
 <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.5rem;">
 <div style="font-weight:800;">${r.opponent_club_name||r.requested_club_name||'—'}</div>
@@ -3742,9 +3756,9 @@ ${['all','pending','accepted','rejected','modified'].map(s=>html`
 `)}
 </div>
 </div>
-${(mrRecvFilter==='all'?matchRequests.received:matchRequests.received.filter(r=>r.status===mrRecvFilter)).length === 0 ?
+${(mrRecvFilter==='all'?(matchRequests.received||[]):(matchRequests.received||[]).filter(r=>r.status===mrRecvFilter)).length === 0 ?
 html`<div class="empty-state"><i class="fas fa-inbox"></i><div>No received requests</div></div>` :
-(mrRecvFilter==='all'?matchRequests.received:matchRequests.received.filter(r=>r.status===mrRecvFilter)).map((r,i) => html`
+(mrRecvFilter==='all'?(matchRequests.received||[]):(matchRequests.received||[]).filter(r=>r.status===mrRecvFilter)).map((r,i) => html`
 <div key=${r.reference_id||i} class="request-item-card">
 <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.5rem;">
 <div style="font-weight:800;">From: ${r.requesting_club_name||r.requestingClub||'—'}</div>
