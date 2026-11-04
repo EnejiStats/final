@@ -891,8 +891,6 @@ function App() {
 
     // Stats Request form state
     const [statsReqRole, setStatsReqRole] = useState('home');
-    const [registeredMatchOptions, setRegisteredMatchOptions] = useState([]);
-    const [selectedFixtureOption, setSelectedFixtureOption] = useState('');
     const [statsReqMatchDate, setStatsReqMatchDate] = useState('');
     const [statsReqMatchTime, setStatsReqMatchTime] = useState('');
     const [statsReqJerseyNumber, setStatsReqJerseyNumber] = useState('');
@@ -960,36 +958,6 @@ function App() {
       const registeredClubName=player?.current_club||player?.club_name||player?.club||''; if (registeredClubName) { setStatsReqHomeTeam(registeredClubName); setSelectedHomeClub({club_id:player.club_id||player.current_club_id||'',club_name:registeredClubName}); }
       if (player?.phone) setStatsReqPhone(prev => prev || player.phone);
     }, [player]);
-
-    useEffect(() => {
-      if (!player || demoMode) return;
-      const uid = player.user_id || player.player_id;
-      apiCall(`/player/${encodeURIComponent(uid)}/match-options?limit=150`)
-        .then(data => setRegisteredMatchOptions(data?.matches || data?.fixtures || []))
-        .catch(() => setRegisteredMatchOptions([]));
-    }, [player, demoMode]);
-
-    const applyRegisteredFixture = (fixtureId) => {
-      setSelectedFixtureOption(fixtureId);
-      const f = registeredMatchOptions.find(x => String(x.match_id || x._id) === String(fixtureId));
-      if (!f) return;
-      setPrefillMatchId(String(f.match_id || ''));
-      setStatsReqMatchDate(String(f.match_date || f.date || '').slice(0,10));
-      setStatsReqMatchTime(String(f.match_time || f.time || ''));
-      setStatsReqHomeTeam(String(f.home_team || f.home || ''));
-      setStatsReqAwayTeam(String(f.away_team || f.away || ''));
-      setSelectedHomeClub({club_id:f.home_club_id || f.home_team_id || '',club_name:f.home_team || f.home || ''});
-      setSelectedAwayClub({club_id:f.away_club_id || f.away_team_id || '',club_name:f.away_team || f.away || ''});
-      const myClubId=String(player?.club_id || player?.current_club_id || '');
-      const myClubName=String(player?.current_club || player?.club_name || player?.club || '').trim().toLowerCase();
-      const playerSide=(myClubId && myClubId===String(f.home_club_id||f.home_team_id||'')) || myClubName===String(f.home_team||f.home||'').trim().toLowerCase() ? 'home' : 'away';
-      setStatsReqRole(playerSide);
-      if (f.venue_id) setSelectedVenue({venue_id:f.venue_id,venue_name:f.venue_name || f.venue || '',full_address:f.venue_address || f.venue_detailed_address || '',country:f.venue_country,country_code:f.venue_country_code,state:f.venue_state,region:f.venue_region,province:f.venue_province,lga:f.venue_lga,city:f.venue_city});
-      setVenueInput(String(f.venue_name || f.venue || f.venue_address || ''));
-      setVenueDetailedAddress(String(f.venue_address || f.venue_detailed_address || ''));
-      setVenueCountry(String(f.venue_country || '')); setStatsReqState(String(f.venue_state || '')); setStatsReqLGA(String(f.venue_lga || ''));
-      addToast('Registered match loaded: teams, kickoff, match reference and venue details populated.', 'success');
-    };
 
     useEffect(() => {
       document.body.className = catKey ? `cat-${catKey}` : '';
@@ -1330,15 +1298,6 @@ function App() {
                   </div>
                 </div>
 
-                <!-- Canonical registered fixture picker -->
-                ${registeredMatchOptions.length > 0 && html`<div class="form-group" style="margin-bottom:.75rem;">
-                  <label>Load a registered match / accepted club fixture</label>
-                  <select value=${selectedFixtureOption} onChange=${e=>applyRegisteredFixture(e.target.value)} style="width:100%;">
-                    <option value="">Choose fixture to auto-fill all match and venue fields…</option>
-                    ${registeredMatchOptions.map(f=>html`<option key=${f.match_id} value=${f.match_id}>${f.home_team} vs ${f.away_team} · ${fmtDate(f.match_date)} ${f.match_time||''} · ${f.venue_name||''}</option>`)}
-                  </select>
-                  <small style="color:#64748b;">Only fixtures associated with your registered club are listed.</small>
-                </div>`}
                 <!-- Home & Away Teams -->
                 <div class="form-row">
                   <div class="form-group" style="position:relative;">
