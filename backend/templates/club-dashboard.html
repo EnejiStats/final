@@ -178,6 +178,13 @@ fetch('/api/auth/me',{credentials:'include',cache:'no-store'})
   .club-print-footer-contacts{font-size:.62rem!important;gap:.3rem .65rem!important}
   .club-print-footer-disclaimer{font-size:.6rem!important}
 }
+
+/* Unified Detailed Match Stats + Results: single match card, shared metric renderer */
+.club-unified-results-card .club-unified-count{margin-left:auto;font-size:.68rem;color:#64748b;background:#f1f5f9;padding:.2rem .5rem;border-radius:999px;letter-spacing:0;text-transform:none}
+.club-unified-toolbar{display:grid;gap:.55rem;margin-bottom:.75rem}.club-unified-toolbar input{width:100%;padding:.58rem .7rem;border:1px solid var(--border);border-radius:8px;font:inherit;font-size:.8rem}
+.club-unified-result-filters{display:flex;gap:.35rem;flex-wrap:wrap}.club-result-filter{border:1px solid #dbe3ef;background:#fff;color:#475569;border-radius:7px;padding:.38rem .7rem;font-size:.72rem;font-weight:800;cursor:pointer}.club-result-filter.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.club-unified-results-list{display:grid;gap:.6rem}.club-unified-result{border:1px solid #dbe3ef;border-radius:10px;overflow:hidden;background:#fff}.club-unified-result.expanded{border-color:#9bb9e8;box-shadow:0 3px 14px rgba(0,74,173,.08)}.club-unified-result-toggle{width:100%;border:0;background:#fff;text-align:left;padding:.75rem .85rem;cursor:pointer;color:inherit;font:inherit}.club-unified-result-toggle:hover{background:#f8fbff}.club-unified-result-top{display:flex;justify-content:space-between;align-items:center;gap:.5rem;margin-bottom:.5rem}.club-unified-match-label{font-size:.7rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.35px}.club-unified-scoreline{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:.65rem;font-weight:800}.club-unified-scoreline span{font-size:.82rem;overflow-wrap:anywhere}.club-unified-scoreline span:last-child{text-align:right}.club-unified-scoreline strong{font-size:1.05rem;color:var(--primary);white-space:nowrap;font-family:var(--mono)}.club-unified-scoreline small{color:#94a3b8;font-size:.75rem}.club-unified-meta{display:flex;gap:.65rem;align-items:center;flex-wrap:wrap;margin-top:.5rem;color:#64748b;font-size:.68rem}.club-unified-meta span{display:inline-flex;align-items:center;gap:.25rem}.club-unified-expand-icon{margin-left:auto;font-size:1.1rem;font-weight:900;color:var(--primary)}.club-unified-details{border-top:1px solid #e2e8f0;background:#fbfdff}.club-unified-detail-tabs{display:flex;gap:.25rem;padding:.45rem .55rem;border-bottom:1px solid #e2e8f0;overflow-x:auto}.club-unified-detail-tabs button{border:0;background:transparent;padding:.48rem .65rem;border-radius:6px;color:#64748b;font-size:.72rem;font-weight:800;white-space:nowrap;cursor:pointer}.club-unified-detail-tabs button.active{background:#eaf2ff;color:var(--primary)}.club-unified-detail-content{padding:.75rem}.club-unified-summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.45rem;margin-bottom:.75rem}.club-unified-summary-grid>div{display:flex;flex-direction:column;gap:.15rem;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:7px;padding:.5rem .6rem}.club-unified-summary-grid b{font-size:.63rem;text-transform:uppercase;color:#64748b}.club-unified-summary-grid span{font-size:.78rem;font-weight:700;overflow-wrap:anywhere}.club-unified-pagination{display:flex;justify-content:space-between;align-items:center;gap:.5rem;margin-top:.75rem;font-size:.72rem;color:#64748b}.club-unified-pagination button{border:1px solid var(--border);border-radius:7px;background:#fff;color:var(--primary);padding:.45rem .65rem;font-weight:800;cursor:pointer}.club-unified-pagination button:disabled{opacity:.4;cursor:not-allowed}
+@media(max-width:560px){.club-unified-scoreline{gap:.35rem}.club-unified-scoreline span{font-size:.72rem}.club-unified-scoreline strong{font-size:.9rem}.club-unified-detail-content{padding:.5rem}.club-unified-meta{gap:.4rem}}
 </style>
 </head><body><div id="root"></div>
 <script>(function() {
@@ -1460,6 +1467,10 @@ const [statsView, setStatsView] = useState('summary');
 const [statsMetricMode, setStatsMetricMode] = useState('summary');
 const [statsSearch, setStatsSearch] = useState('');
 const [clubCurrentMatchIdx, setClubCurrentMatchIdx] = useState(0);
+const [clubResultsFilter, setClubResultsFilter] = useState('all');
+const [clubResultsExpanded, setClubResultsExpanded] = useState(null);
+const [clubResultsDetailTab, setClubResultsDetailTab] = useState('summary');
+const [clubResultsPage, setClubResultsPage] = useState(1);
 const [operationsSubTab, setOperationsSubTab] = useState('stats-tracking');
 const [accountSubTab, setAccountSubTab] = useState('settings');
 const [expandedMatchId, setExpandedMatchId] = useState(null);
@@ -1766,6 +1777,17 @@ const q = statsSearch.toLowerCase();
 return [m.home_team,m.homeTeam,m.away_team,m.awayTeam,m.competition,m.venue,m.venue_address].some(v => String(v||'').toLowerCase().includes(q));
 }), [matchData, statsSearch]);
 const currentClubDetailMatch = detailedStatsMatches[clubCurrentMatchIdx] || null;
+const clubUnifiedResults = useMemo(() => detailedStatsMatches.filter(m => {
+const raw = String(m.result || '').trim().toUpperCase();
+const normalized = raw === 'WIN' ? 'W' : raw === 'LOSS' ? 'L' : raw;
+if (clubResultsFilter !== 'all' && normalized !== clubResultsFilter) return false;
+return true;
+}), [detailedStatsMatches, clubResultsFilter]);
+const clubResultsPerPage = 8;
+const clubResultsPages = Math.max(1, Math.ceil(clubUnifiedResults.length / clubResultsPerPage));
+const clubResultsPaged = clubUnifiedResults.slice((clubResultsPage-1)*clubResultsPerPage, clubResultsPage*clubResultsPerPage);
+useEffect(() => { if (clubResultsPage > clubResultsPages) setClubResultsPage(clubResultsPages); }, [clubResultsPage, clubResultsPages]);
+
 useEffect(() => {
 if (clubCurrentMatchIdx >= detailedStatsMatches.length) setClubCurrentMatchIdx(Math.max(0, detailedStatsMatches.length - 1));
 }, [clubCurrentMatchIdx, detailedStatsMatches.length]);
@@ -3328,9 +3350,43 @@ ${statsMetricMode==='summary'
 </div>
 `}
 ${statsView==='detailed' && html`
-<div class="card" style="padding:0;overflow:hidden;">
-<div class="card-title" style="padding:1rem 1.1rem .25rem;margin:0;"><i class="fas fa-history"></i> Results & Detailed Match Metrics</div>
-<iframe title="Club Results and detailed match metrics" src="/club-results-refined.html?embedded=1" loading="lazy" style="display:block;width:100%;height:min(82vh,1100px);min-height:720px;border:0;background:#f0f4f8;" allow="clipboard-write"></iframe>
+<div class="card club-unified-results-card">
+<div class="card-title"><i class="fas fa-table"></i> Detailed Match Stats <span class="club-unified-count">${clubUnifiedResults.length} matches</span></div>
+<div class="club-unified-toolbar">
+<input type="search" value=${statsSearch} onInput=${e=>{setStatsSearch(e.target.value);setClubCurrentMatchIdx(0);setClubResultsPage(1);setClubResultsExpanded(null);}} placeholder="Search opponent, competition or venue..." aria-label="Search match results" />
+<div class="club-unified-result-filters" role="group" aria-label="Filter match results">
+${[['all','All'],['W','Wins'],['D','Draws'],['L','Losses']].map(([key,label])=>html`<button type="button" class=${`club-result-filter ${clubResultsFilter===key?'active':''}`} aria-pressed=${clubResultsFilter===key} onClick=${()=>{setClubResultsFilter(key);setClubResultsPage(1);setClubResultsExpanded(null);}}>${label}</button>`)}
+</div>
+</div>
+${clubUnifiedResults.length===0 ? html`<div class="empty-state"><i class="fas fa-futbol"></i><div>No match results available for this filter</div></div>` : html`
+<div class="club-unified-results-list">
+${clubResultsPaged.map((m,index)=>{
+const id=String(m.match_id||m._id||m.id||`${(m.date||m.match_date||'match')}-${m.home_team||m.homeTeam}-${m.away_team||m.awayTeam}`);
+const isOpen=clubResultsExpanded===id;
+const home=m.home_team||m.homeTeam||'Home'; const away=m.away_team||m.awayTeam||'Away';
+const result=String(m.result||'').toUpperCase();
+const outcome=result==='W'||result==='WIN'?'Win':result==='L'||result==='LOSS'?'Loss':result==='D'||result==='DRAW'?'Draw':'Result unavailable';
+return html`<article key=${id} class=${`club-unified-result ${isOpen?'expanded':''}`}>
+<button type="button" class="club-unified-result-toggle" aria-expanded=${isOpen} onClick=${()=>{setClubResultsExpanded(isOpen?null:id);setClubResultsDetailTab('summary');setClubCurrentMatchIdx(Math.max(0,detailedStatsMatches.indexOf(m)));}}>
+<div class="club-unified-result-top"><span class="club-unified-match-label">${m.competition||'Match'}</span><span class=${`result-badge ${getResultClass(result)}`}>${outcome}</span></div>
+<div class="club-unified-scoreline"><span>${home}</span><strong>${m.home_score??m.score?.home??'—'} <small>–</small> ${m.away_score??m.score?.away??'—'}</strong><span>${away}</span></div>
+<div class="club-unified-meta">${m.date||m.match_date?html`<span><i class="fas fa-calendar"></i> ${fmtDate(m.date||m.match_date)}</span>`:''}${m.time||m.match_time?html`<span><i class="fas fa-clock"></i> ${m.time||m.match_time}</span>`:''}${m.venue||m.venue_address?html`<span><i class="fas fa-location-dot"></i> ${m.venue||m.venue_address}</span>`:''}${m.attendance!=null?html`<span><i class="fas fa-users"></i> ${Number(m.attendance).toLocaleString()} attendance</span>`:''}<span class="club-unified-expand-icon">${isOpen?'−':'+'}</span></div>
+</button>
+${isOpen&&html`<div class="club-unified-details">
+<div class="club-unified-detail-tabs" role="tablist" aria-label="Match detail sections">
+${[['summary','Summary'],['stats','Detailed Stats'],['lineups','Lineups'],['player_stats','Player Stats']].map(([tab,label])=>html`<button type="button" role="tab" aria-selected=${clubResultsDetailTab===tab} class=${clubResultsDetailTab===tab?'active':''} onClick=${()=>setClubResultsDetailTab(tab)}>${label}</button>`)}
+</div>
+<div class="club-unified-detail-content" role="tabpanel">
+${clubResultsDetailTab==='summary'&&html`<div class="club-unified-summary-grid"><div><b>Half-time</b><span>${m.half_time_score??m.halftime_score??m.halfTimeScore??'—'}</span></div><div><b>Referee</b><span>${m.referee||'—'}</span></div><div><b>TV channel</b><span>${m.tv_channel||'—'}</span></div><div><b>Venue</b><span>${m.venue||m.venue_address||'—'}</span></div></div><${MatchEventsTimeline} events=${m.events||m.match_events||[]} homeName=${home} awayName=${away} />`}
+${clubResultsDetailTab==='stats'&&html`<div class="club-match-breakdown"><div class="club-match-breakdown-head"><span><i class="fas fa-chart-column"></i> Match Statistics</span><small>Home and away metrics · one shared comparison</small></div><${ClubMatchCentreStatsCompare} match=${m} homeName=${home} awayName=${away}/></div>`}
+${clubResultsDetailTab==='lineups'&&html`<${MatchLineups} lineups=${m.lineups} homeName=${home} awayName=${away} homePhoto=${m.home_team_badge||m.home_badge} awayPhoto=${m.away_team_badge||m.away_badge}/>`}
+${clubResultsDetailTab==='player_stats'&&html`<${MatchPlayerStats} lineups=${m.lineups} homeName=${home} awayName=${away}/>`}
+</div></div>`}
+</article>`;
+})}
+</div>
+${clubResultsPages>1&&html`<div class="club-unified-pagination"><button type="button" disabled=${clubResultsPage<=1} onClick=${()=>setClubResultsPage(p=>Math.max(1,p-1))}><i class="fas fa-chevron-left"></i> Previous</button><span>Page ${clubResultsPage} of ${clubResultsPages}</span><button type="button" disabled=${clubResultsPage>=clubResultsPages} onClick=${()=>setClubResultsPage(p=>Math.min(clubResultsPages,p+1))}>Next <i class="fas fa-chevron-right"></i></button></div>`}
+`}
 </div>
 `}
 </div>
