@@ -751,42 +751,916 @@ return html`
 `;
 }
 function ClubMatchCentreStatsCompare({ match, homeName, awayName }) {
-const home = getMatchTeamStats(match, 'home').stats;
-const away = getMatchTeamStats(match, 'away').stats;
-const valueText = (stats, metric) => {
-const value = clubNumeric(stats?.[metric.key]);
-return value === null ? '—' : `${fmt2(value)}${metric.unit === '%' ? '%' : ''}`;
-};
-const numericValue = (stats, key) => clubNumeric(stats?.[key]);
-return html`
-<section class="club-centre-stats" aria-label="Home and away match statistics comparison">
-<div class="club-centre-stats-head">
-<span class="club-centre-team club-centre-home">${homeName || 'Home'}</span>
-<span class="club-centre-metric-heading">Match metric</span>
-<span class="club-centre-team club-centre-away">${awayName || 'Away'}</span>
-</div>
-${MATCH_COMPARE_STATS.map(metric => {
-const homeValue = numericValue(home, metric.key);
-const awayValue = numericValue(away, metric.key);
-const total = Math.abs(homeValue || 0) + Math.abs(awayValue || 0);
-const homeWidth = total > 0 ? (Math.abs(homeValue || 0) / total) * 100 : 50;
-const awayWidth = total > 0 ? (Math.abs(awayValue || 0) / total) * 100 : 50;
-return html`
-<div class="club-centre-stat-row" key=${metric.key}>
-<span class="club-centre-stat-value club-centre-home">${valueText(home, metric)}</span>
-<div class="club-centre-stat-main">
-<span class="club-centre-stat-label">${metric.label}</span>
-${homeValue !== null || awayValue !== null ? html`
-<span class="club-centre-stat-bar" aria-hidden="true">
-<i class="club-centre-home-fill" style=${`width:${homeWidth}%;`}></i>
-<i class="club-centre-away-fill" style=${`width:${awayWidth}%;`}></i>
-</span>` : ''}
-</div>
-<span class="club-centre-stat-value club-centre-away">${valueText(away, metric)}</span>
-</div>`;
-})}
-</section>`;
+ const [activeResultTab, setActiveResultTab] = useState('summary');
+ const homePhoto = match.home_team_badge_url || match.home_badge_url || null;
+ const awayPhoto = match.away_team_badge_url || match.away_badge_url || null;
+ const halfTimeScore = match.half_time_score ?? match.halftime_score ?? match.halfTimeScore;
+ const homeHalfTimeScore = match.home_half_time_score ?? match.home_halftime_score ?? match.halfTimeHomeScore;
+ const awayHalfTimeScore = match.away_half_time_score ?? match.away_halftime_score ?? match.halfTimeAwayScore;
+ const extraTimePlayed = match.extra_time_played ?? match.went_to_extra_time ?? match.has_extra_time ?? match.played_extra_time ?? match.extra_time;
+ return html`<section class="club-detailed-result-card">
+   <div class="match-sub-tabs" role="tablist" aria-label="Detailed match result sections">
+    ${['summary','stats','lineups','player_stats'].map(tab => html`<button type="button" role="tab" aria-selected=${activeResultTab===tab} class=${`match-sub-tab-btn ${activeResultTab===tab?'active':''}`} onClick=${()=>setActiveResultTab(tab)}>${tab==='player_stats'?'Player Stats':tab.charAt(0).toUpperCase()+tab.slice(1)}</button>`)}
+   </div>
+   <div class="club-detailed-result-content" role="tabpanel">
+    ${activeResultTab==='summary' && html`<${MatchSummary}
+      events=${match.events} homeScore=${match.home_score ?? match.score?.home} awayScore=${match.away_score ?? match.score?.away}
+      halfTimeScore=${halfTimeScore} homeHalfTimeScore=${homeHalfTimeScore} awayHalfTimeScore=${awayHalfTimeScore}
+      firstHalfGoals=${match.first_half_goals ?? match.first_half_score ?? (match.home_first_half_goals != null && match.away_first_half_goals != null ? {home:match.home_first_half_goals,away:match.away_first_half_goals}:null)}
+      secondHalfGoals=${match.second_half_goals ?? match.second_half_score ?? (match.home_second_half_goals != null && match.away_second_half_goals != null ? {home:match.home_second_half_goals,away:match.away_second_half_goals}:null)}
+      extraTimeFirstHalfGoals=${match.extra_time_first_half_goals ?? match.extra_time_first_half_score ?? match.extra_time?.first_half_score}
+      extraTimeSecondHalfGoals=${match.extra_time_second_half_goals ?? match.extra_time_second_half_score ?? match.extra_time?.second_half_score}
+      homeStats=${match.home_stats} awayStats=${match.away_stats} extraTimePlayed=${extraTimePlayed}
+      homeName=${homeName} awayName=${awayName} matchInfo=${{referee:match.referee,tv_channel:match.tv_channel}} />`}
+    ${activeResultTab==='stats' && html`<${MatchStatsCompare} homeStats=${match.home_stats} awayStats=${match.away_stats} homeName=${homeName} awayName=${awayName} events=${match.events} homeScore=${match.home_score ?? match.score?.home} awayScore=${match.away_score ?? match.score?.away} extraTimePlayed=${extraTimePlayed} />`}
+    ${activeResultTab==='lineups' && html`<${RefinedMatchLineups} lineups=${match.lineups} homeName=${homeName} awayName=${awayName} homePhoto=${homePhoto} awayPhoto=${awayPhoto} />`}
+    ${activeResultTab==='player_stats' && html`<${RefinedMatchPlayerStats} lineups=${match.lineups} homeName=${homeName} awayName=${awayName} />`}
+   </div>
+ </section>`;
 }
+
+      const FORMATIONS = {
+        '3-4-2-1': [
+          { role: 'GK', x: 50, y: 88 },
+          { role: 'CB', x: 25, y: 72 }, { role: 'CB', x: 50, y: 75 }, { role: 'CB', x: 75, y: 72 },
+          { role: 'LM', x: 15, y: 55 }, { role: 'CM', x: 40, y: 55 }, { role: 'CM', x: 60, y: 55 }, { role: 'RM', x: 85, y: 55 },
+          { role: 'AM', x: 35, y: 38 }, { role: 'AM', x: 65, y: 38 },
+          { role: 'ST', x: 50, y: 18 }
+        ],
+        '3-5-2': [
+          { role: 'GK', x: 50, y: 88 },
+          { role: 'CB', x: 25, y: 72 }, { role: 'CB', x: 50, y: 75 }, { role: 'CB', x: 75, y: 72 },
+          { role: 'LM', x: 10, y: 55 }, { role: 'CM', x: 35, y: 58 }, { role: 'CDM', x: 50, y: 60 }, { role: 'CM', x: 65, y: 58 }, { role: 'RM', x: 90, y: 55 },
+          { role: 'ST', x: 40, y: 22 }, { role: 'ST', x: 60, y: 22 }
+        ],
+        '4-3-3': [
+          { role: 'GK', x: 50, y: 88 },
+          { role: 'LB', x: 15, y: 72 }, { role: 'CB', x: 38, y: 75 }, { role: 'CB', x: 62, y: 75 }, { role: 'RB', x: 85, y: 72 },
+          { role: 'CM', x: 30, y: 52 }, { role: 'CDM', x: 50, y: 55 }, { role: 'CM', x: 70, y: 52 },
+          { role: 'LW', x: 20, y: 30 }, { role: 'ST', x: 50, y: 20 }, { role: 'RW', x: 80, y: 30 }
+        ],
+        '4-4-2': [
+          { role: 'GK', x: 50, y: 88 },
+          { role: 'LB', x: 15, y: 72 }, { role: 'CB', x: 38, y: 75 }, { role: 'CB', x: 62, y: 75 }, { role: 'RB', x: 85, y: 72 },
+          { role: 'LM', x: 15, y: 52 }, { role: 'CM', x: 38, y: 52 }, { role: 'CM', x: 62, y: 52 }, { role: 'RM', x: 85, y: 52 },
+          { role: 'ST', x: 40, y: 25 }, { role: 'ST', x: 60, y: 25 }
+        ]
+      };
+
+
+      const normalizeMatchEventType = event => {
+        const type = String(event?.type ?? event?.event_type ?? event?.kind ?? '').toLowerCase().replace(/[^a-z]/g, '');
+        const detail = String(event?.detail ?? event?.description ?? '').toLowerCase().replace(/[^a-z]/g, '');
+        if (['card', 'discipline', 'disciplinary'].includes(type)) {
+          if (detail.includes('secondyellow') || detail.includes('redcard')) return 'redcard';
+          if (detail.includes('yellowcard')) return 'yellowcard';
+        }
+        if (type === 'goal' && detail.includes('owngoal')) return 'owngoal';
+        if (type === 'goal' && detail.includes('penalty')) return 'penaltygoal';
+        if (type === 'subst') return 'substitution';
+        return type;
+      };
+      const matchEventMinute = event => {
+        const elapsed = event?.elapsed;
+        const time = event?.time;
+        const raw = event?.minute ?? event?.time_elapsed ??
+          (elapsed && typeof elapsed === 'object' ? elapsed.minute : elapsed) ??
+          (time && typeof time === 'object' ? time.elapsed ?? time.minute : time);
+        return Number.parseInt(String(raw ?? ''), 10);
+      };
+      const isMatchGoalEvent = event => ['goal', 'owngoal', 'penaltygoal', 'penaltyscored', 'scoredpenalty'].includes(normalizeMatchEventType(event));
+      const matchHasExtraTime = value => {
+        if (typeof value === 'boolean') return value;
+        if (typeof value === 'number') return value > 0;
+        if (typeof value === 'string') {
+          const normalized = value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (['true', 'yes', 'y', '1', 'played', 'reached', 'required'].includes(normalized)) return true;
+          if (['false', 'no', 'n', '0', 'none', 'notplayed', 'notrequired', 'falseplayed'].includes(normalized)) return false;
+          return normalized.includes('extratime') || normalized.includes('overtime');
+        }
+        if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+        const flagKeys = ['played', 'was_played', 'extra_time_played', 'went_to_extra_time', 'has_extra_time', 'enabled'];
+        for (const key of flagKeys) {
+          if (Object.prototype.hasOwnProperty.call(value, key)) return matchHasExtraTime(value[key]);
+        }
+        if (value.status !== undefined || value.state !== undefined) {
+          return matchHasExtraTime(value.status ?? value.state);
+        }
+        return ['first_half', 'second_half', 'first_half_score', 'second_half_score', 'home', 'away', 'home_score', 'away_score', 'score']
+          .some(key => Object.prototype.hasOwnProperty.call(value, key));
+      };
+      const matchEventPeriod = (event, extraTimeEnabled = false) => {
+        const type = normalizeMatchEventType(event);
+        if (type.includes('shootout') || event?.shootout === true || event?.penalty_shootout === true) return 'penalty_shootout';
+        const descriptors = [
+          ['period', event?.period],
+          ['match_period', event?.match_period],
+          ['period_name', event?.period_name],
+          ['phase', event?.phase],
+          ['half', event?.half]
+        ];
+        for (const [field, value] of descriptors) {
+          if (value === null || value === undefined || value === '') continue;
+          const label = String(value).toLowerCase().replace(/[^a-z0-9]/g, '');
+          const numericValue = typeof value === 'number' ? value : /^\d+$/.test(label) ? Number(label) : null;
+          if (numericValue !== null && Number.isInteger(numericValue)) {
+            if (numericValue === 3) return 'extra_time_first_half';
+            if (numericValue === 4) return 'extra_time_second_half';
+            if (field === 'period' || field === 'half') {
+              if (numericValue === 1) return 'first_half';
+              if (numericValue === 2) return 'second_half';
+            }
+          }
+          if (label.includes('shootout') || label === 'penalties') return 'penalty_shootout';
+          if (label === 'period3' || label === '3rdperiod') return 'extra_time_first_half';
+          if (label === 'period4' || label === '4thperiod') return 'extra_time_second_half';
+          const hasExtraLabel = label.includes('extratime') || label.includes('overtime') || /^et\d?$/.test(label);
+          if (hasExtraLabel) {
+            if (/second|2nd|(?:et|extra|overtime)2|period4/.test(label)) return 'extra_time_second_half';
+            if (/first|1st|(?:et|extra|overtime)1|period3/.test(label)) return 'extra_time_first_half';
+            return matchEventMinute(event) > 105 ? 'extra_time_second_half' : 'extra_time_first_half';
+          }
+          if (/firsthalf|1sthalf|1half|1h|firstperiod|period1/.test(label) || label === 'first' || label === '1st') return 'first_half';
+          if (/secondhalf|2ndhalf|2half|2h|secondperiod|period2/.test(label) || label === 'second' || label === '2nd') return 'second_half';
+        }
+        const minute = matchEventMinute(event);
+        if (!Number.isFinite(minute)) return null;
+        if (minute <= 45) return 'first_half';
+        if (minute <= 90) return 'second_half';
+        if (minute > 105) return 'extra_time_second_half';
+        if (extraTimeEnabled && minute > 90) return 'extra_time_first_half';
+        // A bare 91–105 minute can be second-half stoppage time. Only classify it
+        // as extra time when match metadata or an explicit period confirms it.
+        return 'second_half';
+      };
+      const isExtraTimeEvent = event =>
+        ['extra_time_first_half', 'extra_time_second_half'].includes(matchEventPeriod(event, false)) ||
+        (Number.isFinite(matchEventMinute(event)) && matchEventMinute(event) > 105);
+      const matchEventSide = (event, homeName, awayName, scoringTeam = false) => {
+        const explicitScorer = event?.scoring_team || event?.scoringSide || event?.scorer_team;
+        const rawTeam = explicitScorer?.name || explicitScorer || event?.team?.name || event?.team || event?.side || event?.team_name || '';
+        const value = String(rawTeam).trim().toLowerCase();
+        let side = ['home', 'h', 'home_team'].includes(value) || value === String(homeName || '').trim().toLowerCase()
+          ? 'home'
+          : ['away', 'a', 'away_team'].includes(value) || value === String(awayName || '').trim().toLowerCase()
+            ? 'away'
+            : null;
+        if (scoringTeam && !explicitScorer && normalizeMatchEventType(event) === 'owngoal' && side) {
+          side = side === 'home' ? 'away' : 'home';
+        }
+        return side;
+      };
+
+
+      // ── SUMMARY TAB (Soccerway Style Layout) ──
+      function MatchSummary({ events, homeScore, awayScore, halfTimeScore, homeHalfTimeScore, awayHalfTimeScore, firstHalfGoals, secondHalfGoals, extraTimeFirstHalfGoals, extraTimeSecondHalfGoals, homeStats, awayStats, extraTimePlayed, homeName, awayName, matchInfo }) {
+        const getEventIcon = (type) => {
+          const normalized = normalizeMatchEventType(typeof type === 'object' ? type : { type });
+          if (isMatchGoalEvent({ type: normalized })) return html`<i class="fas fa-futbol" style="color:#004aad;"></i>`;
+          if (normalized === 'yellowcard' || normalized === 'secondyellow') return html`<i class="fas fa-square" style="color:#eab308;"></i>`;
+          if (normalized === 'redcard') return html`<i class="fas fa-square" style="color:#dc2626;"></i>`;
+          if (normalized === 'substitution') return html`<i class="fas fa-arrows-alt-v" style="color:#64748b;"></i>`;
+          return html`<i class="fas fa-circle" style="font-size:0.5rem;color:#94a3b8;"></i>`;
+        };
+
+        const toScore = value => {
+          if (value === '' || value === null || value === undefined) return null;
+          const number = Number(value);
+          return Number.isFinite(number) && number >= 0 ? number : null;
+        };
+        const parseScorePair = value => {
+          if (typeof value === 'string') {
+            const match = value.match(/(\d+)\s*[-–:]\s*(\d+)/);
+            return match ? { home: Number(match[1]), away: Number(match[2]) } : null;
+          }
+          if (!value || typeof value !== 'object') return null;
+          const home = value.home ?? value.home_score ?? value.homeScore;
+          const away = value.away ?? value.away_score ?? value.awayScore;
+          return toScore(home) !== null && toScore(away) !== null
+            ? { home: toScore(home), away: toScore(away) }
+            : null;
+        };
+        const finalHome = toScore(homeScore);
+        const finalAway = toScore(awayScore);
+        const explicitHalfTime = parseScorePair(halfTimeScore) || (
+          toScore(homeHalfTimeScore) !== null && toScore(awayHalfTimeScore) !== null
+            ? { home: toScore(homeHalfTimeScore), away: toScore(awayHalfTimeScore) }
+            : null
+        );
+        const explicitPeriodScores = {
+          first_half: parseScorePair(firstHalfGoals),
+          second_half: parseScorePair(secondHalfGoals),
+          extra_time_first_half: parseScorePair(extraTimeFirstHalfGoals),
+          extra_time_second_half: parseScorePair(extraTimeSecondHalfGoals)
+        };
+        const explicitExtraTime = matchHasExtraTime(extraTimePlayed);
+        const hasExtraTime = Boolean(explicitExtraTime || (Array.isArray(events) && events.some(isExtraTimeEvent)));
+        const eventPeriod = event => matchEventPeriod(event, hasExtraTime);
+        const sortedEvents = (Array.isArray(events) ? events : [])
+          .filter(event => eventPeriod(event) && eventPeriod(event) !== 'penalty_shootout')
+          .slice()
+          .sort((a, b) => matchEventMinute(a) - matchEventMinute(b));
+        const periodKeys = ['first_half', 'second_half', 'extra_time_first_half', 'extra_time_second_half'];
+        const periodGoalCounts = Object.fromEntries(periodKeys.map(period => [period, { home: 0, away: 0 }]));
+        const matchGoalCounts = { home: 0, away: 0 };
+        const matchGoalEvents = (Array.isArray(events) ? events : []).filter(event =>
+          isMatchGoalEvent(event) && matchEventPeriod(event, hasExtraTime) !== 'penalty_shootout'
+        );
+        let allMatchGoalsAssigned = true;
+        matchGoalEvents.forEach(event => {
+          const period = eventPeriod(event);
+          const side = matchEventSide(event, homeName, awayName, true);
+          if (!periodKeys.includes(period) || !side) {
+            allMatchGoalsAssigned = false;
+            return;
+          }
+          periodGoalCounts[period][side] += 1;
+          matchGoalCounts[side] += 1;
+        });
+        const finalScoreKnown = finalHome !== null && finalAway !== null;
+        const eventLogMatchesFinal = Array.isArray(events) && allMatchGoalsAssigned && finalScoreKnown &&
+          matchGoalCounts.home === finalHome && matchGoalCounts.away === finalAway;
+        const eventLogIsScoreless = Array.isArray(events) && matchGoalEvents.length === 0 && finalHome === 0 && finalAway === 0;
+        const eventLogComplete = eventLogMatchesFinal || eventLogIsScoreless ||
+          (Array.isArray(events) && !finalScoreKnown && matchGoalEvents.length > 0 && allMatchGoalsAssigned);
+        const getPeriodStatsGoals = (stats, period) => {
+          if (!stats || typeof stats !== 'object') return null;
+          const extraPart = period === 'extra_time_first_half' ? 'first_half' : period === 'extra_time_second_half' ? 'second_half' : null;
+          const sources = [
+            stats[period],
+            stats.periods?.[period],
+            stats.halves?.[period],
+            extraPart ? stats.extra_time?.[extraPart] : null,
+            stats.overview?.[period]
+          ];
+          for (const source of sources) {
+            if (!source || typeof source !== 'object') continue;
+            const value = source.goals ?? source.goals_scored ?? source.goals_for;
+            const score = toScore(value);
+            if (score !== null) return score;
+          }
+          return null;
+        };
+        const getPeriodScore = period => {
+          if (eventLogComplete) return periodGoalCounts[period];
+          const statsHome = getPeriodStatsGoals(homeStats, period);
+          const statsAway = getPeriodStatsGoals(awayStats, period);
+          if (statsHome !== null && statsAway !== null) return { home: statsHome, away: statsAway };
+          if (explicitPeriodScores[period]) return explicitPeriodScores[period];
+          if (period === 'first_half' && explicitHalfTime) return explicitHalfTime;
+          if (period === 'first_half') {
+            const lastFirstHalfGoal = sortedEvents.slice().reverse().find(event => eventPeriod(event) === 'first_half' && isMatchGoalEvent(event));
+            const scoreAtHalf = lastFirstHalfGoal ? parseScorePair(lastFirstHalfGoal.score) : null;
+            if (scoreAtHalf) return scoreAtHalf;
+          }
+          if (period === 'second_half' && !hasExtraTime && explicitHalfTime && finalScoreKnown &&
+              finalHome >= explicitHalfTime.home && finalAway >= explicitHalfTime.away) {
+            return { home: finalHome - explicitHalfTime.home, away: finalAway - explicitHalfTime.away };
+          }
+          if (finalHome === 0 && finalAway === 0) return { home: 0, away: 0 };
+          return null;
+        };
+        const formatScore = score => score && score.home != null && score.away != null
+          ? `${score.home} - ${score.away}`
+          : '—';
+
+        const renderEventBlock = (evs, side) => {
+          return evs.map((ev, i) => html`
+            <div key=${i} style="display:flex;align-items:center;gap:0.4rem;font-size:0.78rem;margin-bottom:0.2rem;justify-content:${side === 'home' ? 'flex-end' : 'flex-start'};">
+              ${side === 'home' ? html`
+                <span style="font-weight:700;">${normalizeMatchEventType(ev) === 'substitution' ? `${ev.playerOut?.name ?? ev.playerOut ?? '—'} → ${ev.playerIn?.name ?? ev.playerIn ?? '—'}` : (ev.player?.name ?? ev.player ?? '')}</span>
+                ${getEventIcon(ev)}
+                <span style="font-family:var(--mono);color:var(--text-light);font-size:0.65rem;">${Number.isFinite(matchEventMinute(ev)) ? matchEventMinute(ev) : '—'}'</span>
+              ` : html`
+                <span style="font-family:var(--mono);color:var(--text-light);font-size:0.65rem;">${Number.isFinite(matchEventMinute(ev)) ? matchEventMinute(ev) : '—'}'</span>
+                ${getEventIcon(ev)}
+                <span style="font-weight:700;">${normalizeMatchEventType(ev) === 'substitution' ? `${ev.playerOut?.name ?? ev.playerOut ?? '—'} → ${ev.playerIn?.name ?? ev.playerIn ?? '—'}` : (ev.player?.name ?? ev.player ?? '')}</span>
+              `}
+            </div>
+          `);
+        };
+        const periodSpecs = [
+          { key: 'first_half', label: '1ST HALF' },
+          { key: 'second_half', label: '2ND HALF' },
+          ...(hasExtraTime ? [
+            { key: 'extra_time_first_half', label: 'EXTRA TIME · 1ST HALF' },
+            { key: 'extra_time_second_half', label: 'EXTRA TIME · 2ND HALF' }
+          ] : [])
+        ];
+        const renderPeriodSection = spec => {
+          const periodEvents = sortedEvents.filter(event => eventPeriod(event) === spec.key);
+          const homeEvents = periodEvents.filter(event => matchEventSide(event, homeName, awayName) === 'home');
+          const awayEvents = periodEvents.filter(event => matchEventSide(event, homeName, awayName) === 'away');
+          return html`
+            <section key=${spec.key} style="margin-bottom:1rem;" aria-label=${spec.label}>
+              <div class="period-section-header">
+                <span>${spec.label}</span>
+                <span class="period-score"><span class="period-score-label">PERIOD SCORE</span><strong class="period-score-value">${formatScore(getPeriodScore(spec.key))}</strong></span>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+                <div style="display:flex;flex-direction:column;gap:0.15rem;">
+                  ${homeEvents.length > 0 ? renderEventBlock(homeEvents, 'home') : html`<div style="font-size:0.72rem;color:#94a3b8;text-align:right;">—</div>`}
+                </div>
+                <div style="display:flex;flex-direction:column;gap:0.15rem;">
+                  ${awayEvents.length > 0 ? renderEventBlock(awayEvents, 'away') : html`<div style="font-size:0.72rem;color:#94a3b8;">—</div>`}
+                </div>
+              </div>
+            </section>
+          `;
+        };
+
+        return html`
+          <div>
+            ${periodSpecs.map(renderPeriodSection)}
+
+            <!-- Match Info -->
+            ${matchInfo && html`
+              <div style="margin-top:0.75rem;padding:0.6rem 0.75rem;background:#f8fafc;border-radius:8px;font-size:0.75rem;color:var(--text-light);display:grid;gap:0.3rem;">
+                ${matchInfo.referee ? html`<div><i class="fas fa-whistle" style="width:18px;"></i> Referee: <strong style="color:var(--text);">${matchInfo.referee}</strong></div>` : ''}
+                ${matchInfo.tv_channel ? html`<div><i class="fas fa-tv" style="width:18px;"></i> TV: <strong style="color:var(--text);">${matchInfo.tv_channel}</strong></div>` : ''}
+              </div>
+            `}
+          </div>
+        `;
+      }
+
+      // Every field in the supplied API schema is represented here. Only additive
+      // metrics may be reconciled by summing halves or subtracting the other half.
+
+      const STAT_GROUPS = [
+        { key: 'match', title: 'Match', metrics: [
+          { key: 'goals', label: 'Goals', additive: true, special: 'goals' },
+          { key: 'possession', label: 'Ball possession', group: 'overview', unit: '%', rate: true },
+          { key: 'xg', label: 'Expected goals (xG)', group: 'overview', precision: 2, additive: true },
+          { key: 'shots_total', label: 'Total shots', group: 'overview', additive: true },
+          { key: 'shots_on_target', label: 'Shots on target', group: 'overview', additive: true },
+          { key: 'big_chances', label: 'Big chances', group: 'overview', additive: true },
+        ]},
+        { key: 'attack', title: 'Attack', metrics: [
+          { key: 'shots_inside_box', label: 'Shots inside the box', group: 'attack', additive: true },
+          { key: 'shots_outside_box', label: 'Shots outside the box', group: 'attack', additive: true },
+          { key: 'hit_woodwork', label: 'Hit woodwork', group: 'attack', additive: true },
+          { key: 'headed_goals', label: 'Headed goals', group: 'attack', additive: true },
+          { key: 'big_chances_scored', label: 'Big chances scored', group: 'attack', additive: true },
+          { key: 'big_chances_missed', label: 'Big chances missed', group: 'attack', additive: true },
+          { key: 'corners', label: 'Corners', group: 'attack', additive: true },
+          { key: 'free_kicks', label: 'Free kicks', group: 'attack', additive: true },
+          { key: 'offsides', label: 'Offsides', group: 'attack', additive: true },
+          { key: 'touches_opposition_box', label: 'Touches in opposition box', group: 'attack', additive: true },
+        ]},
+        { key: 'passing', title: 'Passing', metrics: [
+          { key: 'passes_total', label: 'Total passes', group: 'passes', additive: true },
+          { key: 'passes_accurate', label: 'Accurate passes', group: 'passes', additive: true },
+          { key: 'passes_accuracy_pct', label: 'Pass accuracy', group: 'passes', unit: '%', rate: true, ratio: ['passes_accurate', 'passes_total'] },
+          { key: 'long_passes', label: 'Long passes', group: 'passes', additive: true },
+          { key: 'long_passes_accurate', label: 'Accurate long passes', group: 'passes', additive: true },
+          { key: 'passes_final_third', label: 'Final-third passes', group: 'passes', additive: true },
+          { key: 'passes_final_third_accurate', label: 'Accurate final-third passes', group: 'passes', additive: true },
+          { key: 'crosses', label: 'Crosses', group: 'passes', additive: true },
+          { key: 'crosses_accurate', label: 'Accurate crosses', group: 'passes', additive: true },
+          { key: 'expected_assists', label: 'Expected assists (xA)', group: 'passes', precision: 2, additive: true },
+          { key: 'key_passes', label: 'Key passes', group: 'passes', additive: true },
+          { key: 'throw_ins', label: 'Throw-ins', group: 'passes', additive: true },
+        ]},
+        { key: 'defense', title: 'Defending', metrics: [
+          { key: 'duels_won', label: 'Duels won', group: 'defense', additive: true },
+          { key: 'tackles', label: 'Tackles', group: 'defense', additive: true },
+          { key: 'tackles_won', label: 'Tackles won', group: 'defense', additive: true },
+          { key: 'tackles_pct', label: 'Tackle success', group: 'defense', unit: '%', rate: true, ratio: ['tackles_won', 'tackles'] },
+          { key: 'fouls_committed', label: 'Fouls committed', group: 'defense', additive: true },
+          { key: 'interceptions', label: 'Interceptions', group: 'defense', additive: true },
+          { key: 'clearances', label: 'Clearances', group: 'defense', additive: true },
+          { key: 'errors_leading_to_shot', label: 'Errors leading to a shot', group: 'defense', additive: true },
+          { key: 'errors_leading_to_goal', label: 'Errors leading to a goal', group: 'defense', additive: true },
+        ]},
+        { key: 'goalkeeping', title: 'Goalkeeping', metrics: [
+          { key: 'saves', label: 'Goalkeeper saves', group: 'goalkeeper', additive: true },
+          { key: 'xgot_faced', label: 'Post-shot xG faced', group: 'goalkeeper', precision: 2, additive: true },
+          { key: 'goals_conceded', label: 'Goals conceded', group: 'goalkeeper', additive: true, special: 'goals_conceded' },
+          { key: 'goals_prevented', label: 'Goals prevented', group: 'goalkeeper', precision: 2, additive: true, special: 'goals_prevented' },
+          { key: 'goal_kicks', label: 'Goal kicks', group: 'goalkeeper', additive: true },
+        ]},
+        { key: 'discipline', title: 'Discipline', metrics: [
+          { key: 'yellow_cards', label: 'Yellow cards', group: 'defense', additive: true, special: 'yellow_cards' },
+          { key: 'red_cards', label: 'Red cards', group: 'defense', additive: true, special: 'red_cards' },
+        ]},
+      ];
+
+      function MatchStatsCompare({ homeStats, awayStats, homeName, awayName, events, homeScore, awayScore, extraTimePlayed }) {
+        const [period, setPeriod] = useState('overview');
+        homeStats = homeStats || {};
+        awayStats = awayStats || {};
+        const explicitExtraTime = matchHasExtraTime(extraTimePlayed);
+        const hasExtraTime = Boolean(explicitExtraTime || (Array.isArray(events) && events.some(isExtraTimeEvent)));
+        const additivePeriods = hasExtraTime
+          ? ['first_half', 'second_half', 'extra_time_first_half', 'extra_time_second_half']
+          : ['first_half', 'second_half'];
+        const allMetrics = STAT_GROUPS.flatMap(group => group.metrics);
+        const metricsByKey = Object.fromEntries(allMetrics.map(metric => [metric.key, metric]));
+        const asNumber = value => {
+          if (value === null || value === undefined || value === '') return null;
+          const parsed = Number(String(value).replace(/,/g, '').replace(/%$/, '').trim());
+          return Number.isFinite(parsed) ? parsed : null;
+        };
+        const readPath = (source, path) => {
+          let value = source;
+          for (const part of path) {
+            if (!value || typeof value !== 'object' || value[part] === undefined || value[part] === null) return null;
+            value = value[part];
+          }
+          return value;
+        };
+        const readReported = (teamStats, metric, targetPeriod) => {
+          const periodKey = targetPeriod === 'overview' ? null : targetPeriod;
+          const extraPart = periodKey === 'extra_time_first_half' ? 'first_half' : periodKey === 'extra_time_second_half' ? 'second_half' : null;
+          const sources = periodKey
+            ? [
+                teamStats[periodKey],
+                teamStats.periods?.[periodKey],
+                teamStats.halves?.[periodKey],
+                extraPart ? teamStats.extra_time?.[extraPart] : null,
+                teamStats.overview?.[periodKey]
+              ]
+            : [teamStats.overview, teamStats];
+          const candidateKeys = [metric.key, ...(metric.aliases || [])];
+          for (const source of sources) {
+            if (!source || typeof source !== 'object') continue;
+            for (const key of candidateKeys) {
+              if (source[key] !== undefined && source[key] !== null) return source[key];
+              if (metric.group) {
+                const nested = readPath(source, [metric.group, key]);
+                if (nested !== null) return nested;
+              }
+            }
+          }
+          return null;
+        };
+        const scoreFor = side => asNumber(side === 'home' ? homeScore : awayScore);
+        const scoreKnown = scoreFor('home') !== null && scoreFor('away') !== null;
+        const goalEvents = Array.isArray(events)
+          ? events.filter(event => isMatchGoalEvent(event) && matchEventPeriod(event, hasExtraTime) !== 'penalty_shootout')
+          : [];
+        const eventGoalTotals = { home: 0, away: 0 };
+        let allEventGoalsAssigned = true;
+        goalEvents.forEach(event => {
+          const side = matchEventSide(event, homeName, awayName, true);
+          if (!side) allEventGoalsAssigned = false;
+          else eventGoalTotals[side] += 1;
+        });
+        const eventGoalLogComplete = Array.isArray(events) && allEventGoalsAssigned && (
+          (scoreKnown && eventGoalTotals.home === scoreFor('home') && eventGoalTotals.away === scoreFor('away')) ||
+          (scoreFor('home') === 0 && scoreFor('away') === 0 && goalEvents.length === 0) ||
+          (!scoreKnown && goalEvents.length > 0)
+        );
+        const eventGoalPeriodsComplete = eventGoalLogComplete && goalEvents.every(event => {
+          const eventPeriod = matchEventPeriod(event, hasExtraTime);
+          return ['first_half', 'second_half', 'extra_time_first_half', 'extra_time_second_half'].includes(eventPeriod);
+        });
+        const countEvents = (side, kind, targetPeriod) => {
+          if (!Array.isArray(events)) return null;
+          if (kind === 'goals' && (!eventGoalLogComplete || (targetPeriod !== 'overview' && !eventGoalPeriodsComplete))) return null;
+          const matchesKind = event => {
+            const type = normalizeMatchEventType(event);
+            if (kind === 'goals') return isMatchGoalEvent(event);
+            if (kind === 'yellow_cards') return type === 'yellowcard' || type === 'secondyellow';
+            if (kind === 'red_cards') return type === 'redcard' || type === 'secondyellow';
+            return false;
+          };
+          return events.filter(event => {
+            const eventPeriod = matchEventPeriod(event, hasExtraTime);
+            const inPeriod = targetPeriod === 'overview'
+              ? eventPeriod !== 'penalty_shootout'
+              : eventPeriod === targetPeriod;
+            const actualSide = matchEventSide(event, homeName, awayName, kind === 'goals');
+            return inPeriod && actualSide === side && matchesKind(event);
+          }).length;
+        };
+        const resolveStat = (metric, teamStats, targetPeriod, side, allowBalance = true, stack = new Set()) => {
+          const raw = readReported(teamStats, metric, targetPeriod);
+          if (stack.has(`${metric.key}:${targetPeriod}`)) return { value: null, source: 'unavailable' };
+          const nextStack = new Set(stack).add(`${metric.key}:${targetPeriod}`);
+          if (metric.special === 'goals' && targetPeriod === 'overview' && scoreFor(side) !== null) {
+            return { value: scoreFor(side), source: 'score' };
+          }
+          if (raw !== null) return { value: raw, source: 'reported' };
+
+          if (metric.special === 'goals') {
+            if (targetPeriod === 'overview' && scoreFor(side) !== null) return { value: scoreFor(side), source: 'score' };
+            if (targetPeriod !== 'overview' && scoreFor('home') === 0 && scoreFor('away') === 0) return { value: 0, source: 'score' };
+            const count = countEvents(side, 'goals', targetPeriod);
+            if (count !== null) return { value: count, source: 'events' };
+          }
+          if (metric.special === 'yellow_cards' || metric.special === 'red_cards') {
+            const count = countEvents(side, metric.special, targetPeriod);
+            if (count !== null) return { value: count, source: 'events' };
+          }
+          if (metric.special === 'goals_conceded') {
+            if (targetPeriod === 'overview' && scoreFor(side === 'home' ? 'away' : 'home') !== null) {
+              return { value: scoreFor(side === 'home' ? 'away' : 'home'), source: 'opponent score' };
+            }
+            if (targetPeriod !== 'overview' && scoreFor('home') === 0 && scoreFor('away') === 0) return { value: 0, source: 'score' };
+            const conceded = countEvents(side === 'home' ? 'away' : 'home', 'goals', targetPeriod);
+            if (conceded !== null) return { value: conceded, source: 'events' };
+          }
+          if (metric.special === 'goals_prevented') {
+            const faced = resolveStat(metricsByKey.xgot_faced, teamStats, targetPeriod, side, false, nextStack);
+            const conceded = resolveStat(metricsByKey.goals_conceded, teamStats, targetPeriod, side, false, nextStack);
+            const facedNumber = asNumber(faced.value);
+            const concededNumber = asNumber(conceded.value);
+            if (facedNumber !== null && concededNumber !== null) return { value: facedNumber - concededNumber, source: 'calculated' };
+          }
+          if (metric.ratio) {
+            const numerator = resolveStat(metricsByKey[metric.ratio[0]], teamStats, targetPeriod, side, false, nextStack);
+            const denominator = resolveStat(metricsByKey[metric.ratio[1]], teamStats, targetPeriod, side, false, nextStack);
+            const numeratorNumber = asNumber(numerator.value);
+            const denominatorNumber = asNumber(denominator.value);
+            if (numeratorNumber !== null && denominatorNumber > 0) {
+              return { value: (numeratorNumber / denominatorNumber) * 100, source: 'calculated' };
+            }
+          }
+
+          if (metric.additive && targetPeriod === 'overview') {
+            const periodValues = additivePeriods.map(periodKey => asNumber(resolveStat(metric, teamStats, periodKey, side, false, nextStack).value));
+            if (periodValues.every(value => value !== null)) {
+              return { value: periodValues.reduce((sum, value) => sum + value, 0), source: 'sum of periods' };
+            }
+          } else if (metric.additive && allowBalance) {
+            const total = resolveStat(metric, teamStats, 'overview', side, false, nextStack);
+            const otherPeriods = {
+              first_half: 'second_half',
+              second_half: 'first_half',
+              extra_time_first_half: 'extra_time_second_half',
+              extra_time_second_half: 'extra_time_first_half'
+            };
+            const otherPeriod = otherPeriods[targetPeriod];
+            if (!otherPeriod) return { value: null, source: 'unavailable' };
+            const other = resolveStat(metric, teamStats, otherPeriod, side, false, nextStack);
+            const totalNumber = asNumber(total.value);
+            const otherNumber = asNumber(other.value);
+            if (totalNumber !== null && otherNumber !== null) {
+              const remainder = totalNumber - otherNumber;
+              if (remainder >= 0 || metric.key === 'goals_prevented') return { value: remainder, source: 'reconciled from total' };
+            }
+          }
+          return { value: null, source: 'unavailable' };
+        };
+        const formatValue = (metric, result) => {
+          if (result.value === null || result.value === undefined) return '—';
+          const numeric = asNumber(result.value);
+          if (metric.unit === '%') {
+            if (typeof result.value === 'string' && /%$/.test(result.value.trim())) return result.value.trim();
+            if (numeric === null) return String(result.value);
+            const rounded = Number(numeric.toFixed(1));
+            return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(1)}%`;
+          }
+          if (numeric === null) return String(result.value);
+          return metric.precision != null ? numeric.toFixed(metric.precision) : numeric.toLocaleString(undefined, { maximumFractionDigits: 0 });
+        };
+        const sourceLabel = source => ({
+          'sum of halves': 'Summed from halves',
+          'sum of periods': 'Summed from periods',
+          'reconciled from total': 'Calculated from match total',
+          'calculated': 'Calculated from related stats',
+          'events': 'From event log',
+          'score': 'From final score',
+          'opponent score': 'From opponent score',
+        }[source] || '');
+        const statRows = STAT_GROUPS.map(group => ({
+          ...group,
+          rows: group.metrics.map(metric => ({
+            metric,
+            home: resolveStat(metric, homeStats, period, 'home'),
+            away: resolveStat(metric, awayStats, period, 'away')
+          }))
+        }));
+        const metricCount = allMetrics.length;
+        const availableFor = (stats, side) => allMetrics.filter(metric => resolveStat(metric, stats, period, side).value != null).length;
+        const homeAvailable = availableFor(homeStats, 'home');
+        const awayAvailable = availableFor(awayStats, 'away');
+
+        const compare = (actual, expected, tolerance = 0.01) => {
+          const actualNumber = asNumber(actual);
+          const expectedNumber = asNumber(expected);
+          if (actualNumber === null || expectedNumber === null) return 'unavailable';
+          return Math.abs(actualNumber - expectedNumber) <= tolerance ? 'ok' : 'mismatch';
+        };
+        const additiveChecks = allMetrics.filter(metric => metric.additive).map(metric => {
+          const teamCheck = (stats, side) => {
+            const reportedTotal = readReported(stats, metric, 'overview');
+            const total = reportedTotal !== null
+              ? reportedTotal
+              : metric.special === 'goals' || metric.special === 'goals_conceded'
+                ? resolveStat(metric, stats, 'overview', side, false).value
+                : metric.special === 'yellow_cards' || metric.special === 'red_cards'
+                  ? countEvents(side, metric.special, 'overview')
+                  : null;
+            const periodValues = additivePeriods.map(periodKey => asNumber(resolveStat(metric, stats, periodKey, side, false).value));
+            const periodTotal = periodValues.every(value => value !== null)
+              ? periodValues.reduce((sum, value) => sum + value, 0)
+              : null;
+            return compare(total, periodTotal, metric.precision != null ? 0.025 : 0.01);
+          };
+          return {
+            label: `${metric.label}: match total = period totals${hasExtraTime ? ' incl. extra time' : ''}`,
+            home: teamCheck(homeStats, 'home'),
+            away: teamCheck(awayStats, 'away')
+          };
+        });
+        const derivedChecks = [
+          { label: 'Possession: match value vs mean of regulation halves', metric: 'possession', method: (stats, side) => {
+            if (hasExtraTime) return 'unavailable';
+            const total = resolveStat(metricsByKey.possession, stats, 'overview', side, false).value;
+            const first = asNumber(resolveStat(metricsByKey.possession, stats, 'first_half', side, false).value);
+            const second = asNumber(resolveStat(metricsByKey.possession, stats, 'second_half', side, false).value);
+            return compare(total, first !== null && second !== null ? (first + second) / 2 : null, 1.1);
+          }},
+          { label: 'Shots inside + outside = total shots', method: (stats, side) => {
+            const inside = asNumber(resolveStat(metricsByKey.shots_inside_box, stats, 'overview', side, false).value);
+            const outside = asNumber(resolveStat(metricsByKey.shots_outside_box, stats, 'overview', side, false).value);
+            const total = resolveStat(metricsByKey.shots_total, stats, 'overview', side, false).value;
+            return compare(total, inside !== null && outside !== null ? inside + outside : null);
+          }},
+          { label: 'Big chances scored + missed = total', method: (stats, side) => {
+            const scored = asNumber(resolveStat(metricsByKey.big_chances_scored, stats, 'overview', side, false).value);
+            const missed = asNumber(resolveStat(metricsByKey.big_chances_missed, stats, 'overview', side, false).value);
+            const total = resolveStat(metricsByKey.big_chances, stats, 'overview', side, false).value;
+            return compare(total, scored !== null && missed !== null ? scored + missed : null);
+          }},
+          { label: 'Pass accuracy = accurate ÷ total', method: (stats, side) => {
+            const actual = resolveStat(metricsByKey.passes_accuracy_pct, stats, 'overview', side, false).value;
+            const accurate = asNumber(resolveStat(metricsByKey.passes_accurate, stats, 'overview', side, false).value);
+            const total = asNumber(resolveStat(metricsByKey.passes_total, stats, 'overview', side, false).value);
+            return compare(actual, accurate !== null && total > 0 ? accurate / total * 100 : null, 1.1);
+          }},
+          { label: 'Tackle success = won ÷ attempted', method: (stats, side) => {
+            const actual = resolveStat(metricsByKey.tackles_pct, stats, 'overview', side, false).value;
+            const won = asNumber(resolveStat(metricsByKey.tackles_won, stats, 'overview', side, false).value);
+            const attempted = asNumber(resolveStat(metricsByKey.tackles, stats, 'overview', side, false).value);
+            return compare(actual, won !== null && attempted > 0 ? won / attempted * 100 : null, 1.1);
+          }},
+          { label: 'Goals prevented = xGOT faced − goals conceded', method: (stats, side) => {
+            const prevented = resolveStat(metricsByKey.goals_prevented, stats, 'overview', side, false).value;
+            const xgot = asNumber(resolveStat(metricsByKey.xgot_faced, stats, 'overview', side, false).value);
+            const conceded = asNumber(resolveStat(metricsByKey.goals_conceded, stats, 'overview', side, false).value);
+            return compare(prevented, xgot !== null && conceded !== null ? xgot - conceded : null, 0.025);
+          }},
+        ].map(check => ({
+          label: check.label,
+          home: check.method(homeStats, 'home'),
+          away: check.method(awayStats, 'away')
+        }));
+        const checkRows = [...additiveChecks, ...derivedChecks];
+        const checkStatuses = checkRows.flatMap(row => [row.home, row.away]);
+        const passedChecks = checkStatuses.filter(status => status === 'ok').length;
+        const mismatchedChecks = checkStatuses.filter(status => status === 'mismatch').length;
+        const unavailableChecks = checkStatuses.filter(status => status === 'unavailable').length;
+        const statusText = status => status === 'ok' ? 'Matches' : status === 'mismatch' ? 'Mismatch' : 'Not verifiable';
+        const periodLabel = period === 'overview' ? 'MATCH OVERVIEW' : period === 'first_half' ? 'FIRST-HALF BREAKDOWN' : 'SECOND-HALF BREAKDOWN';
+
+        return html`
+          <div>
+            <div class="stats-sub-tabs" role="group" aria-label="Match statistics periods">
+              <button type="button" aria-pressed=${period === 'overview'} class=${`stats-sub-tab ${period === 'overview' ? 'active' : ''}`} onClick=${() => setPeriod('overview')}>MATCH OVERVIEW</button>
+              <button type="button" aria-pressed=${period === 'first_half'} class=${`stats-sub-tab ${period === 'first_half' ? 'active' : ''}`} onClick=${() => setPeriod('first_half')}>1ST HALF</button>
+              <button type="button" aria-pressed=${period === 'second_half'} class=${`stats-sub-tab ${period === 'second_half' ? 'active' : ''}`} onClick=${() => setPeriod('second_half')}>2ND HALF</button>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr auto 1fr;padding:0.5rem 0.75rem;background:#f8fafc;border-radius:8px;margin-bottom:0.5rem;font-size:0.68rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:0.45px;">
+              <span style="text-align:right;color:var(--primary);">${homeName}</span>
+              <span style="padding:0 0.45rem;text-align:center;">${periodLabel}</span>
+              <span style="color:#dc2626;">${awayName}</span>
+            </div>
+
+            <div class="stats-coverage-note">
+              ${period === 'overview'
+                ? `The overview uses reported match totals. When an additive total is absent, it is summed only if every ${hasExtraTime ? 'regulation and extra-time period' : 'regulation half'} is available; rates are calculated from underlying counts when needed.`
+                : `${period === 'first_half' ? 'First-half' : 'Second-half'} fields available: ${homeAvailable}/${metricCount} for ${homeName} and ${awayAvailable}/${metricCount} for ${awayName}. A dash means this period was not supplied and could not be safely derived; match totals are never copied into a half.`}
+            </div>
+
+            ${statRows.map(group => html`
+              <section key=${group.key} aria-label=${group.title}>
+                <div class="stats-section-title">${group.title}</div>
+                ${group.rows.map(({ metric, home, away }) => {
+                  const homeNumber = asNumber(home.value);
+                  const awayNumber = asNumber(away.value);
+                  const barTotal = (homeNumber === null ? 0 : Math.abs(homeNumber)) + (awayNumber === null ? 0 : Math.abs(awayNumber));
+                  const homeWidth = barTotal && homeNumber !== null ? Math.abs(homeNumber) / barTotal * 100 : 0;
+                  const awayWidth = barTotal && awayNumber !== null ? Math.abs(awayNumber) / barTotal * 100 : 0;
+                  const homeSource = sourceLabel(home.source);
+                  const awaySource = sourceLabel(away.source);
+                  return html`
+                    <div key=${metric.key} class="stats-metric-row">
+                      <div class="stats-metric-values">
+                        <span class="stats-value-home" title=${homeSource || (home.value == null ? 'Not supplied for this period' : 'Reported by the match data')}>${formatValue(metric, home)}${homeSource && html`<small class="stats-source">${homeSource}</small>`}</span>
+                        <span class="stats-metric-label">${metric.label}</span>
+                        <span class="stats-value-away" title=${awaySource || (away.value == null ? 'Not supplied for this period' : 'Reported by the match data')}>${formatValue(metric, away)}${awaySource && html`<small class="stats-source">${awaySource}</small>`}</span>
+                      </div>
+                      <div class="stats-meter" aria-hidden="true">
+                        <div style=${`width:${homeWidth}%;background:var(--primary);`}></div>
+                        <div style=${`width:${awayWidth}%;background:var(--danger);`}></div>
+                      </div>
+                    </div>
+                  `;
+                })}
+              </section>
+            `)}
+
+            ${period === 'overview' && html`
+              <details class="stats-reconciliation">
+                <summary class="stats-reconciliation-title">Reconciliation checks · ${passedChecks} matched · ${mismatchedChecks} mismatches · ${unavailableChecks} not verifiable</summary>
+                <div class="stats-reconciliation-summary">
+                  ${passedChecks} matched · ${mismatchedChecks} mismatch${mismatchedChecks === 1 ? '' : 'es'} · ${unavailableChecks} not verifiable because required period/component fields were not supplied.
+                </div>
+                <div class="stats-check-row" style="border-top:0;font-weight:900;">
+                  <span class="stats-check-label">Check</span><span class="stats-check-status">${homeName}</span><span class="stats-check-status">${awayName}</span>
+                </div>
+                ${checkRows.map(row => html`
+                  <div key=${row.label} class="stats-check-row">
+                    <span class="stats-check-label">${row.label}</span>
+                    <span class=${`stats-check-status ${row.home}`}>${statusText(row.home)}</span>
+                    <span class=${`stats-check-status ${row.away}`}>${statusText(row.away)}</span>
+                  </div>
+                `)}
+              </details>
+            `}
+          </div>
+        `;
+      }
+
+
+      // ── LINEUPS TAB (Shared Pitch + Age/Height/Rating Toggles) ──
+      function RefinedMatchLineups({ lineups, homeName, awayName, homePhoto, awayPhoto }) {
+        const [viewMode, setViewMode] = useState('overview'); 
+        
+        if (!lineups) return html`<div class="empty-state"><i class="fas fa-clipboard-list"></i><div>No lineup data</div></div>`;
+
+        const home = lineups.home || {};
+        const away = lineups.away || {};
+        const homePlayers = Array.isArray(home.players) ? home.players : [];
+        const awayPlayers = Array.isArray(away.players) ? away.players : [];
+        const homeSubs = Array.isArray(home.substitutes) ? home.substitutes : [];
+        const awaySubs = Array.isArray(away.substitutes) ? away.substitutes : [];
+        if (!homePlayers.length && !awayPlayers.length && !homeSubs.length && !awaySubs.length) {
+          return html`<div class="empty-state"><i class="fas fa-clipboard-list"></i><div>Lineups have not been provided for this match.</div></div>`;
+        }
+        
+        const renderPitch = () => {
+          const homePositions = FORMATIONS[home.formation] || FORMATIONS['4-3-3'];
+          const awayPositions = FORMATIONS[away.formation] || FORMATIONS['4-3-3'];
+
+          const getVal = (player, mode) => {
+            if (!player) return '';
+            if (mode === 'height') return player.height != null ? `${player.height}cm` : '—';
+            if (mode === 'age') return player.age != null ? `${player.age}y` : '—';
+            if (mode === 'rating') return player.rating != null ? `${player.rating}` : '—';
+            return player.position || '';
+          };
+          const getPlayerName = player => String(player?.name || player?.full_name || '').trim().split(/\s+/).filter(Boolean).pop() || 'Player';
+          const renderSubstitutes = (team, teamName) => {
+            const substitutes = team === 'home' ? homeSubs : awaySubs;
+            return html`
+              <div>
+                <div class="lineup-team-header">SUBSTITUTES · ${teamName}</div>
+                ${substitutes.length ? substitutes.map((sub, i) => html`
+                  <div key=${sub.player_id || `${team}-sub-${i}`} class="sub-player-item">
+                    <div style="font-weight:700;">${sub.name || sub.full_name || 'Unnamed player'}</div>
+                    <div style="display:flex;gap:0.5rem;align-items:center;font-size:0.7rem;color:var(--text-light);">
+                      ${viewMode === 'height' ? `${sub.height ?? '—'}${sub.height != null ? 'cm' : ''}` : viewMode === 'age' ? `${sub.age ?? '—'}${sub.age != null ? 'y' : ''}` : viewMode === 'rating' ? `Rating: ${sub.rating ?? '—'}` : ''}
+                      ${sub.minute_in != null ? html`<span style="color:#16a34a;"><i class="fas fa-arrow-up"></i> ${sub.minute_in}'</span>` : ''}
+                      ${sub.minute_out != null ? html`<span style="color:#dc2626;"><i class="fas fa-arrow-down"></i> ${sub.minute_out}'</span>` : ''}
+                    </div>
+                  </div>
+                `) : html`<div class="sub-player-item" style="color:var(--text-light);">No substitutions recorded</div>`}
+              </div>
+            `;
+          };
+
+          return html`
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;padding:0 0.25rem;">
+              <div style="display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;font-weight:800;color:var(--primary);">
+                ${homePhoto ? html`<img src=${homePhoto} alt="" style="width:20px;height:20px;object-fit:contain;" />` : ''}
+                ${homeName} <span style="font-size:0.65rem;color:var(--text-light);font-weight:700;">(${home.formation || '4-3-3'})</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;font-weight:800;color:var(--danger);">
+                ${awayName} <span style="font-size:0.65rem;color:var(--text-light);font-weight:700;">(${away.formation || '4-3-3'})</span>
+                ${awayPhoto ? html`<img src=${awayPhoto} alt="" style="width:20px;height:20px;object-fit:contain;" />` : ''}
+              </div>
+            </div>
+
+            <div class="pitch-container">
+              <!-- Pitch Lines -->
+              <div class="pitch-line pitch-center-line"></div>
+              <div class="pitch-line pitch-center-circle"></div>
+              <div class="pitch-line pitch-penalty-box"></div>
+              <div class="pitch-line pitch-penalty-box-right"></div>
+
+              <!-- Home team attacks toward the centre line from the left goal -->
+              <div class="pitch-half">
+                ${homePositions.map((pos, i) => {
+                  const player = homePlayers[i];
+                  if (!player) return null;
+                  const val = getVal(player, viewMode);
+                  const pitchX = 100 - pos.y;
+                  return html`
+                    <div key=${player.player_id || `home-player-${i}`} class="pitch-player" style=${`left:${pitchX}%; top:${pos.x}%;`}>
+                      <div class="pitch-player-circle">${player.number ?? '•'}</div>
+                      <div class="pitch-player-name">${getPlayerName(player)}</div>
+                      ${viewMode !== 'overview' && html`<div class="pitch-player-val">${val}</div>`}
+                    </div>
+                  `;
+                })}
+              </div>
+
+              <!-- Away team attacks toward the centre line from the right goal -->
+              <div class="pitch-half">
+                ${awayPositions.map((pos, i) => {
+                  const player = awayPlayers[i];
+                  if (!player) return null;
+                  const val = getVal(player, viewMode);
+                  const pitchX = pos.y;
+                  const pitchY = 100 - pos.x;
+                  return html`
+                    <div key=${player.player_id || `away-player-${i}`} class="pitch-player" style=${`left:${pitchX}%; top:${pitchY}%;`}>
+                      <div class="pitch-player-circle" style="color:var(--danger);">${player.number ?? '•'}</div>
+                      <div class="pitch-player-name">${getPlayerName(player)}</div>
+                      ${viewMode !== 'overview' && html`<div class="pitch-player-val">${val}</div>`}
+                    </div>
+                  `;
+                })}
+              </div>
+            </div>
+
+            ${(homeSubs.length || awaySubs.length) && html`
+              <div class="sub-player-list">
+                ${renderSubstitutes('home', homeName)}
+                ${renderSubstitutes('away', awayName)}
+              </div>
+            `}
+          `;
+        };
+
+        return html`
+          <div>
+            <div class="stats-sub-tabs" style="justify-content:center;">
+              <button type="button" class=${`stats-sub-tab ${viewMode === 'overview' ? 'active' : ''}`} aria-pressed=${viewMode === 'overview'} onClick=${() => setViewMode('overview')}>OVERVIEW</button>
+              <button type="button" class=${`stats-sub-tab ${viewMode === 'age' ? 'active' : ''}`} aria-pressed=${viewMode === 'age'} onClick=${() => setViewMode('age')}>AGE</button>
+              <button type="button" class=${`stats-sub-tab ${viewMode === 'height' ? 'active' : ''}`} aria-pressed=${viewMode === 'height'} onClick=${() => setViewMode('height')}>HEIGHT</button>
+              <button type="button" class=${`stats-sub-tab ${viewMode === 'rating' ? 'active' : ''}`} aria-pressed=${viewMode === 'rating'} onClick=${() => setViewMode('rating')}>AVG. RATING</button>
+            </div>
+            ${renderPitch()}
+          </div>
+        `;
+      }
+
+      // ── PLAYER STATS TABLE ──
+      function RefinedMatchPlayerStats({ lineups, homeName, awayName }) {
+        if (!lineups) return html`<div class="empty-state"><i class="fas fa-user-check"></i><div>No player stats</div></div>`;
+
+        const collectTeamPlayers = (team, teamName, side) => [
+          ...(Array.isArray(team?.players) ? team.players.map(p => ({ ...p, team: teamName, side, status: 'Starter' })) : []),
+          ...(Array.isArray(team?.substitutes) ? team.substitutes.map(p => ({ ...p, team: teamName, side, status: 'Substitute' })) : []),
+        ];
+        const allPlayers = [
+          ...collectTeamPlayers(lineups.home, homeName, 'home'),
+          ...collectTeamPlayers(lineups.away, awayName, 'away'),
+        ];
+
+        if (allPlayers.length === 0) return html`<div class="empty-state"><i class="fas fa-user-slash"></i><div>No player data</div></div>`;
+
+        return html`
+          <div class="table-scroll" role="region" tabindex="0" aria-label="Player statistics table. Scroll horizontally to view all columns.">
+            <table class="player-stat-table">
+              <thead>
+                <tr>
+                  <th>Player</th><th>Team</th><th>Status</th><th>Pos</th><th>Height</th><th>Age</th><th>Rating</th>
+                  <th>G</th><th>A</th><th>Shots</th><th>Passes</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${allPlayers.map((p, i) => html`
+                  <tr key=${i} style="background:${p.side === 'home' ? 'rgba(0,74,173,0.02)' : 'rgba(220,38,38,0.02)'}">
+                    <td><span class="player-stat-row-name">${p.name || '—'}</span></td>
+                    <td style="font-size:0.75rem;color:var(--text-light);">${p.team}</td>
+                    <td style="font-size:0.72rem;color:var(--text-light);">${p.status}</td>
+                    <td><span class="player-stat-row-pos">${p.position || '—'}</span></td>
+                    <td style="font-size:0.72rem;">${p.height != null ? `${p.height}cm` : '—'}</td>
+                    <td style="font-size:0.72rem;">${p.age != null ? `${p.age}` : '—'}</td>
+                    <td>${p.rating != null ? html`<span class=${`player-rating-badge ${getRatingClass(p.rating)}`}>${p.rating}</span>` : '—'}</td>
+                    <td>${p.goals ?? '—'}</td>
+                    <td>${p.assists ?? '—'}</td>
+                    <td>${p.shots ?? '—'}</td>
+                    <td>${p.passes ?? '—'}</td>
+                  </tr>
+                `)}
+              </tbody>
+            </table>
+          </div>
+          <div class="table-scroll-hint">Swipe horizontally to view all player stats <i class="fas fa-arrow-right" aria-hidden="true"></i></div>
+        `;
+      }
+
+      // ══════════════════════════════════════════════════════════════════════
+
 // ── MATCH EVENTS TIMELINE (left=home, right=away, with timestamps) ──
 function MatchEventsTimeline({ events, homeName, awayName, homePhoto, awayPhoto }) {
 if (!events || events.length === 0) return html`<div class="empty-state"><i class="fas fa-list"></i><div>No events recorded</div></div>`;
