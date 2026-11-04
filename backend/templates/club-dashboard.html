@@ -189,6 +189,82 @@ fetch('/api/auth/me',{credentials:'include',cache:'no-store'})
 .venue-suggestion-item{padding:8px 12px;cursor:pointer;border-bottom:1px solid #eef2f7;color:var(--text)}
 .venue-suggestion-item div{color:#64748b}
 .section-error{border-left:4px solid #dc2626}
+
+/* Exact Club Results match-analysis presentation rules; scoped to its component classes. */
+.match-sub-tabs {
+      display: flex; gap: 0.25rem; padding: 0.5rem; background: #f8fafc;
+      border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none;
+    }
+.match-sub-tab-btn {
+      padding: 0.3rem 0.65rem; border: 1.5px solid var(--border); border-radius: 5px;
+      background: #fff; color: var(--text-light); font-size: 0.72rem; font-weight: 700;
+      cursor: pointer; white-space: nowrap; font-family: inherit;
+    }
+.match-sub-tab-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.period-section-header {
+      display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+      background: #f1f5f9; padding: 0.55rem 0.75rem; border-radius: 6px; margin-bottom: 0.5rem;
+      color: #475569; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.45px; text-transform: uppercase;
+    }
+.period-score { display: flex; align-items: center; gap: 0.55rem; }
+.period-score-label { color: var(--text-light); font-size: 0.62rem; }
+.period-score-value { color: var(--text); font-family: var(--mono); font-size: 0.95rem; font-weight: 900; letter-spacing: 0; }
+.result-na { background: #f1f5f9; color: #475569; }
+.pitch-half { flex: 1; height: 100%; position: relative; }
+.pitch-line { position: absolute; background: rgba(255,255,255,0.3); }
+.pitch-center-line { top: 0; left: 50%; width: 2px; height: 100%; }
+.pitch-center-circle { top: 50%; left: 50%; width: 22%; aspect-ratio: 1; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; transform: translate(-50%, -50%); }
+.pitch-penalty-box { top: 50%; left: 0; width: 15%; height: 50%; border: 2px solid rgba(255,255,255,0.3); transform: translateY(-50%); border-left: none; }
+.pitch-penalty-box-right { top: 50%; right: 0; width: 15%; height: 50%; border: 2px solid rgba(255,255,255,0.3); transform: translateY(-50%); border-right: none; }
+.pitch-player { position: absolute; display: flex; flex-direction: column; align-items: center; transform: translate(-50%, -50%); z-index: 10; }
+.pitch-player-circle { width: clamp(20px, 2.8vw, 28px); height: clamp(20px, 2.8vw, 28px); background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 900; color: var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.4); border: 2px solid #cbd5e1; }
+.pitch-player-name { font-size: 0.6rem; font-weight: 800; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.9); white-space: nowrap; margin-top: 2px; background: rgba(0,0,0,0.4); padding: 1px 4px; border-radius: 3px; }
+.pitch-player-val { font-size: 0.65rem; font-weight: 900; color: #fff; margin-top: 1px; }
+.lineup-team-header { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; font-weight: 800; color: var(--primary); margin-bottom: 0.5rem; padding: 0.4rem 0.5rem; background: #f8fafc; border-radius: 6px; }
+.sub-player-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 1rem; }
+.sub-player-item { display: flex; align-items: center; justify-content: space-between; padding: 0.4rem 0.6rem; background: #f8fafc; border-radius: 4px; font-size: 0.75rem; }
+.stats-sub-tab { padding: 0.3rem 0.7rem; border: 1.5px solid var(--border); border-radius: 4px; background: #fff; font-size: 0.72rem; font-weight: 700; cursor: pointer; color: var(--text-light); white-space: nowrap; }
+.stats-sub-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.stats-coverage-note { padding: 0.55rem 0.7rem; margin: 0.55rem 0; border: 1px solid #dbeafe; border-radius: 7px; background: #eff6ff; color: #334155; font-size: 0.72rem; line-height: 1.5; }
+.stats-section-title { margin: 0.8rem 0 0.35rem; padding: 0.35rem 0.5rem; border-radius: 4px; background: #f1f5f9; color: var(--primary); font-size: 0.7rem; font-weight: 900; letter-spacing: 0.45px; text-transform: uppercase; }
+.stats-metric-row { padding: 0.4rem 0.6rem; border-bottom: 1px solid #f0f4f8; }
+.stats-metric-values { display: grid; grid-template-columns: minmax(62px, 1fr) minmax(105px, 1.6fr) minmax(62px, 1fr); align-items: center; gap: 0.5rem; }
+.stats-value-home, .stats-value-away { font-family: var(--mono); font-size: 0.8rem; font-weight: 900; white-space: nowrap; }
+.stats-value-home { color: var(--primary); text-align: right; }
+.stats-value-away { color: var(--danger); text-align: left; }
+.stats-metric-label { color: #374151; font-size: 0.7rem; font-weight: 700; text-align: center; }
+.stats-source { display: block; margin-top: 1px; color: var(--text-light); font-family: inherit; font-size: 0.56rem; font-weight: 600; }
+.stats-meter { display: flex; height: 5px; gap: 1px; margin-top: 4px; overflow: hidden; border-radius: 3px; background: #e2e8f0; }
+.stats-reconciliation { margin-top: 0.9rem; padding: 0.7rem; border: 1px solid var(--border); border-radius: 8px; background: #fbfdff; }
+.stats-reconciliation-title { margin-bottom: 0.2rem; color: var(--text); font-size: 0.76rem; font-weight: 900; }
+.stats-reconciliation-summary { margin-bottom: 0.5rem; color: var(--text-light); font-size: 0.68rem; }
+.stats-check-row { display: grid; grid-template-columns: minmax(120px, 1.4fr) 1fr 1fr; gap: 0.35rem; align-items: center; padding: 0.35rem 0; border-top: 1px solid #edf2f7; font-size: 0.66rem; }
+.stats-check-label { color: var(--text); font-weight: 700; }
+.stats-check-status { color: var(--text-light); text-align: center; }
+.stats-check-status.ok { color: #166534; font-weight: 800; }
+.stats-check-status.mismatch { color: #991b1b; font-weight: 800; }
+.stats-check-status.unavailable { color: #64748b; }
+.player-stat-table { width: 100%; min-width: 760px; border-collapse: collapse; font-size: 0.78rem; }
+.player-stat-table th { background: #f8fafc; color: var(--primary); font-weight: 800; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.4px; padding: 0.45rem 0.6rem; border-bottom: 2px solid var(--border); text-align: left; white-space: nowrap; }
+.player-stat-table td { padding: 0.4rem 0.6rem; border-bottom: 1px solid #f0f4f8; }
+.player-stat-table th:first-child, .player-stat-table td:first-child { position: sticky; left: 0; z-index: 1; }
+.player-stat-table th:first-child { background: #f8fafc; }
+.player-stat-table td:first-child { background: #fff; }
+.table-scroll-hint { display: none; color: var(--text-light); font-size: 0.68rem; padding: 0.35rem 0.1rem 0; text-align: right; }
+.player-stat-row-name { font-weight: 700; color: var(--text); }
+.player-stat-row-pos { background: rgba(0,74,173,0.1); color: var(--primary); border-radius: 4px; font-size: 0.65rem; font-weight: 800; padding: 1px 5px; }
+.player-rating-badge { border-radius: 4px; font-size: 0.72rem; font-weight: 800; padding: 2px 6px; font-family: var(--mono); }
+.rating-great { background: #dcfce7; color: #166534; }
+.rating-good { background: #fef3c7; color: #92400e; }
+.rating-low { background: #fee2e2; color: #991b1b; }
+@media (max-width: 640px) {
+.match-sub-tabs { padding: 0.45rem; }
+.match-sub-tab-btn { padding: 0.35rem 0.55rem; }
+.period-score { gap: 0.3rem; }
+.period-score-value { font-size: 0.84rem; }
+.stats-check-row { grid-template-columns: minmax(105px, 1.25fr) 1fr 1fr; font-size: 0.62rem; }
+.table-scroll-hint { display: block; }
+}
 </style>
 </head><body><div id="root"></div>
 <script>(function() {
@@ -721,35 +797,348 @@ return html`<div class="stats-row-cards club-summary-grid">${cards.map(([label,v
 `)}</div>`;
 }
 // ── MATCH STATS COMPARE ──
-function MatchStatsCompare({ homeStats, awayStats, homeName, awayName }) {
-if (!homeStats || !awayStats) return html`<div class="empty-state"><i class="fas fa-chart-bar"></i><div>No stats available</div></div>`;
-return html`
-<div>
-<div style="display:grid;grid-template-columns:1fr auto 1fr;padding:0.5rem 0.75rem;background:#f8fafc;border-radius:8px;margin-bottom:0.5rem;font-size:0.7rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">
-<span style="text-align:right;color:var(--primary);">${homeName}</span>
-<span style="width:100px;"></span>
-<span style="color:#dc2626;">${awayName}</span>
-</div>
-${MATCH_COMPARE_STATS.map(s=>{
-const hv = homeStats[s.key]??0; const av = awayStats[s.key]??0;
-const total = Number(hv)+Number(av); const hP = total>0?(hv/total)*100:50; const aP = total>0?(av/total)*100:50;
-return html`
-<div key=${s.key} style="padding:0.4rem 0.75rem;border-bottom:1px solid #f0f4f8;">
-<div style="display:grid;grid-template-columns:60px 1fr 60px;align-items:center;gap:0.5rem;margin-bottom:3px;">
-<span style="font-weight:900;color:var(--primary);text-align:right;font-size:0.85rem;">${s.unit==='%'?`${hv}%`:hv}</span>
-<span style="font-size:0.72rem;font-weight:700;color:#374151;text-align:center;">${s.label}</span>
-<span style="font-weight:900;color:#dc2626;font-size:0.85rem;">${s.unit==='%'?`${av}%`:av}</span>
-</div>
-<div style="display:flex;height:5px;border-radius:3px;overflow:hidden;gap:1px;">
-<div style="width:${hP}%;background:var(--primary);border-radius:3px 0 0 3px;"></div>
-<div style="width:${aP}%;background:#dc2626;border-radius:0 3px 3px 0;"></div>
-</div>
-</div>
-`;
-})}
-</div>
-`;
-}
+function MatchStatsCompare({ homeStats, awayStats, homeName, awayName, events, homeScore, awayScore, extraTimePlayed }) {
+        const [period, setPeriod] = useState('overview');
+        homeStats = homeStats || {};
+        awayStats = awayStats || {};
+        const explicitExtraTime = matchHasExtraTime(extraTimePlayed);
+        const hasExtraTime = Boolean(explicitExtraTime || (Array.isArray(events) && events.some(isExtraTimeEvent)));
+        const additivePeriods = hasExtraTime
+          ? ['first_half', 'second_half', 'extra_time_first_half', 'extra_time_second_half']
+          : ['first_half', 'second_half'];
+        const allMetrics = STAT_GROUPS.flatMap(group => group.metrics);
+        const metricsByKey = Object.fromEntries(allMetrics.map(metric => [metric.key, metric]));
+        const asNumber = value => {
+          if (value === null || value === undefined || value === '') return null;
+          const parsed = Number(String(value).replace(/,/g, '').replace(/%$/, '').trim());
+          return Number.isFinite(parsed) ? parsed : null;
+        };
+        const readPath = (source, path) => {
+          let value = source;
+          for (const part of path) {
+            if (!value || typeof value !== 'object' || value[part] === undefined || value[part] === null) return null;
+            value = value[part];
+          }
+          return value;
+        };
+        const readReported = (teamStats, metric, targetPeriod) => {
+          const periodKey = targetPeriod === 'overview' ? null : targetPeriod;
+          const extraPart = periodKey === 'extra_time_first_half' ? 'first_half' : periodKey === 'extra_time_second_half' ? 'second_half' : null;
+          const sources = periodKey
+            ? [
+                teamStats[periodKey],
+                teamStats.periods?.[periodKey],
+                teamStats.halves?.[periodKey],
+                extraPart ? teamStats.extra_time?.[extraPart] : null,
+                teamStats.overview?.[periodKey]
+              ]
+            : [teamStats.overview, teamStats];
+          const candidateKeys = [metric.key, ...(metric.aliases || [])];
+          for (const source of sources) {
+            if (!source || typeof source !== 'object') continue;
+            for (const key of candidateKeys) {
+              if (source[key] !== undefined && source[key] !== null) return source[key];
+              if (metric.group) {
+                const nested = readPath(source, [metric.group, key]);
+                if (nested !== null) return nested;
+              }
+            }
+          }
+          return null;
+        };
+        const scoreFor = side => asNumber(side === 'home' ? homeScore : awayScore);
+        const scoreKnown = scoreFor('home') !== null && scoreFor('away') !== null;
+        const goalEvents = Array.isArray(events)
+          ? events.filter(event => isMatchGoalEvent(event) && matchEventPeriod(event, hasExtraTime) !== 'penalty_shootout')
+          : [];
+        const eventGoalTotals = { home: 0, away: 0 };
+        let allEventGoalsAssigned = true;
+        goalEvents.forEach(event => {
+          const side = matchEventSide(event, homeName, awayName, true);
+          if (!side) allEventGoalsAssigned = false;
+          else eventGoalTotals[side] += 1;
+        });
+        const eventGoalLogComplete = Array.isArray(events) && allEventGoalsAssigned && (
+          (scoreKnown && eventGoalTotals.home === scoreFor('home') && eventGoalTotals.away === scoreFor('away')) ||
+          (scoreFor('home') === 0 && scoreFor('away') === 0 && goalEvents.length === 0) ||
+          (!scoreKnown && goalEvents.length > 0)
+        );
+        const eventGoalPeriodsComplete = eventGoalLogComplete && goalEvents.every(event => {
+          const eventPeriod = matchEventPeriod(event, hasExtraTime);
+          return ['first_half', 'second_half', 'extra_time_first_half', 'extra_time_second_half'].includes(eventPeriod);
+        });
+        const countEvents = (side, kind, targetPeriod) => {
+          if (!Array.isArray(events)) return null;
+          if (kind === 'goals' && (!eventGoalLogComplete || (targetPeriod !== 'overview' && !eventGoalPeriodsComplete))) return null;
+          const matchesKind = event => {
+            const type = normalizeMatchEventType(event);
+            if (kind === 'goals') return isMatchGoalEvent(event);
+            if (kind === 'yellow_cards') return type === 'yellowcard' || type === 'secondyellow';
+            if (kind === 'red_cards') return type === 'redcard' || type === 'secondyellow';
+            return false;
+          };
+          return events.filter(event => {
+            const eventPeriod = matchEventPeriod(event, hasExtraTime);
+            const inPeriod = targetPeriod === 'overview'
+              ? eventPeriod !== 'penalty_shootout'
+              : eventPeriod === targetPeriod;
+            const actualSide = matchEventSide(event, homeName, awayName, kind === 'goals');
+            return inPeriod && actualSide === side && matchesKind(event);
+          }).length;
+        };
+        const resolveStat = (metric, teamStats, targetPeriod, side, allowBalance = true, stack = new Set()) => {
+          const raw = readReported(teamStats, metric, targetPeriod);
+          if (stack.has(`${metric.key}:${targetPeriod}`)) return { value: null, source: 'unavailable' };
+          const nextStack = new Set(stack).add(`${metric.key}:${targetPeriod}`);
+          if (metric.special === 'goals' && targetPeriod === 'overview' && scoreFor(side) !== null) {
+            return { value: scoreFor(side), source: 'score' };
+          }
+          if (raw !== null) return { value: raw, source: 'reported' };
+
+          if (metric.special === 'goals') {
+            if (targetPeriod === 'overview' && scoreFor(side) !== null) return { value: scoreFor(side), source: 'score' };
+            if (targetPeriod !== 'overview' && scoreFor('home') === 0 && scoreFor('away') === 0) return { value: 0, source: 'score' };
+            const count = countEvents(side, 'goals', targetPeriod);
+            if (count !== null) return { value: count, source: 'events' };
+          }
+          if (metric.special === 'yellow_cards' || metric.special === 'red_cards') {
+            const count = countEvents(side, metric.special, targetPeriod);
+            if (count !== null) return { value: count, source: 'events' };
+          }
+          if (metric.special === 'goals_conceded') {
+            if (targetPeriod === 'overview' && scoreFor(side === 'home' ? 'away' : 'home') !== null) {
+              return { value: scoreFor(side === 'home' ? 'away' : 'home'), source: 'opponent score' };
+            }
+            if (targetPeriod !== 'overview' && scoreFor('home') === 0 && scoreFor('away') === 0) return { value: 0, source: 'score' };
+            const conceded = countEvents(side === 'home' ? 'away' : 'home', 'goals', targetPeriod);
+            if (conceded !== null) return { value: conceded, source: 'events' };
+          }
+          if (metric.special === 'goals_prevented') {
+            const faced = resolveStat(metricsByKey.xgot_faced, teamStats, targetPeriod, side, false, nextStack);
+            const conceded = resolveStat(metricsByKey.goals_conceded, teamStats, targetPeriod, side, false, nextStack);
+            const facedNumber = asNumber(faced.value);
+            const concededNumber = asNumber(conceded.value);
+            if (facedNumber !== null && concededNumber !== null) return { value: facedNumber - concededNumber, source: 'calculated' };
+          }
+          if (metric.ratio) {
+            const numerator = resolveStat(metricsByKey[metric.ratio[0]], teamStats, targetPeriod, side, false, nextStack);
+            const denominator = resolveStat(metricsByKey[metric.ratio[1]], teamStats, targetPeriod, side, false, nextStack);
+            const numeratorNumber = asNumber(numerator.value);
+            const denominatorNumber = asNumber(denominator.value);
+            if (numeratorNumber !== null && denominatorNumber > 0) {
+              return { value: (numeratorNumber / denominatorNumber) * 100, source: 'calculated' };
+            }
+          }
+
+          if (metric.additive && targetPeriod === 'overview') {
+            const periodValues = additivePeriods.map(periodKey => asNumber(resolveStat(metric, teamStats, periodKey, side, false, nextStack).value));
+            if (periodValues.every(value => value !== null)) {
+              return { value: periodValues.reduce((sum, value) => sum + value, 0), source: 'sum of periods' };
+            }
+          } else if (metric.additive && allowBalance) {
+            const total = resolveStat(metric, teamStats, 'overview', side, false, nextStack);
+            const otherPeriods = {
+              first_half: 'second_half',
+              second_half: 'first_half',
+              extra_time_first_half: 'extra_time_second_half',
+              extra_time_second_half: 'extra_time_first_half'
+            };
+            const otherPeriod = otherPeriods[targetPeriod];
+            if (!otherPeriod) return { value: null, source: 'unavailable' };
+            const other = resolveStat(metric, teamStats, otherPeriod, side, false, nextStack);
+            const totalNumber = asNumber(total.value);
+            const otherNumber = asNumber(other.value);
+            if (totalNumber !== null && otherNumber !== null) {
+              const remainder = totalNumber - otherNumber;
+              if (remainder >= 0 || metric.key === 'goals_prevented') return { value: remainder, source: 'reconciled from total' };
+            }
+          }
+          return { value: null, source: 'unavailable' };
+        };
+        const formatValue = (metric, result) => {
+          if (result.value === null || result.value === undefined) return '—';
+          const numeric = asNumber(result.value);
+          if (metric.unit === '%') {
+            if (typeof result.value === 'string' && /%$/.test(result.value.trim())) return result.value.trim();
+            if (numeric === null) return String(result.value);
+            const rounded = Number(numeric.toFixed(1));
+            return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(1)}%`;
+          }
+          if (numeric === null) return String(result.value);
+          return metric.precision != null ? numeric.toFixed(metric.precision) : numeric.toLocaleString(undefined, { maximumFractionDigits: 0 });
+        };
+        const sourceLabel = source => ({
+          'sum of halves': 'Summed from halves',
+          'sum of periods': 'Summed from periods',
+          'reconciled from total': 'Calculated from match total',
+          'calculated': 'Calculated from related stats',
+          'events': 'From event log',
+          'score': 'From final score',
+          'opponent score': 'From opponent score',
+        }[source] || '');
+        const statRows = STAT_GROUPS.map(group => ({
+          ...group,
+          rows: group.metrics.map(metric => ({
+            metric,
+            home: resolveStat(metric, homeStats, period, 'home'),
+            away: resolveStat(metric, awayStats, period, 'away')
+          }))
+        }));
+        const metricCount = allMetrics.length;
+        const availableFor = (stats, side) => allMetrics.filter(metric => resolveStat(metric, stats, period, side).value != null).length;
+        const homeAvailable = availableFor(homeStats, 'home');
+        const awayAvailable = availableFor(awayStats, 'away');
+
+        const compare = (actual, expected, tolerance = 0.01) => {
+          const actualNumber = asNumber(actual);
+          const expectedNumber = asNumber(expected);
+          if (actualNumber === null || expectedNumber === null) return 'unavailable';
+          return Math.abs(actualNumber - expectedNumber) <= tolerance ? 'ok' : 'mismatch';
+        };
+        const additiveChecks = allMetrics.filter(metric => metric.additive).map(metric => {
+          const teamCheck = (stats, side) => {
+            const reportedTotal = readReported(stats, metric, 'overview');
+            const total = reportedTotal !== null
+              ? reportedTotal
+              : metric.special === 'goals' || metric.special === 'goals_conceded'
+                ? resolveStat(metric, stats, 'overview', side, false).value
+                : metric.special === 'yellow_cards' || metric.special === 'red_cards'
+                  ? countEvents(side, metric.special, 'overview')
+                  : null;
+            const periodValues = additivePeriods.map(periodKey => asNumber(resolveStat(metric, stats, periodKey, side, false).value));
+            const periodTotal = periodValues.every(value => value !== null)
+              ? periodValues.reduce((sum, value) => sum + value, 0)
+              : null;
+            return compare(total, periodTotal, metric.precision != null ? 0.025 : 0.01);
+          };
+          return {
+            label: `${metric.label}: match total = period totals${hasExtraTime ? ' incl. extra time' : ''}`,
+            home: teamCheck(homeStats, 'home'),
+            away: teamCheck(awayStats, 'away')
+          };
+        });
+        const derivedChecks = [
+          { label: 'Possession: match value vs mean of regulation halves', metric: 'possession', method: (stats, side) => {
+            if (hasExtraTime) return 'unavailable';
+            const total = resolveStat(metricsByKey.possession, stats, 'overview', side, false).value;
+            const first = asNumber(resolveStat(metricsByKey.possession, stats, 'first_half', side, false).value);
+            const second = asNumber(resolveStat(metricsByKey.possession, stats, 'second_half', side, false).value);
+            return compare(total, first !== null && second !== null ? (first + second) / 2 : null, 1.1);
+          }},
+          { label: 'Shots inside + outside = total shots', method: (stats, side) => {
+            const inside = asNumber(resolveStat(metricsByKey.shots_inside_box, stats, 'overview', side, false).value);
+            const outside = asNumber(resolveStat(metricsByKey.shots_outside_box, stats, 'overview', side, false).value);
+            const total = resolveStat(metricsByKey.shots_total, stats, 'overview', side, false).value;
+            return compare(total, inside !== null && outside !== null ? inside + outside : null);
+          }},
+          { label: 'Big chances scored + missed = total', method: (stats, side) => {
+            const scored = asNumber(resolveStat(metricsByKey.big_chances_scored, stats, 'overview', side, false).value);
+            const missed = asNumber(resolveStat(metricsByKey.big_chances_missed, stats, 'overview', side, false).value);
+            const total = resolveStat(metricsByKey.big_chances, stats, 'overview', side, false).value;
+            return compare(total, scored !== null && missed !== null ? scored + missed : null);
+          }},
+          { label: 'Pass accuracy = accurate ÷ total', method: (stats, side) => {
+            const actual = resolveStat(metricsByKey.passes_accuracy_pct, stats, 'overview', side, false).value;
+            const accurate = asNumber(resolveStat(metricsByKey.passes_accurate, stats, 'overview', side, false).value);
+            const total = asNumber(resolveStat(metricsByKey.passes_total, stats, 'overview', side, false).value);
+            return compare(actual, accurate !== null && total > 0 ? accurate / total * 100 : null, 1.1);
+          }},
+          { label: 'Tackle success = won ÷ attempted', method: (stats, side) => {
+            const actual = resolveStat(metricsByKey.tackles_pct, stats, 'overview', side, false).value;
+            const won = asNumber(resolveStat(metricsByKey.tackles_won, stats, 'overview', side, false).value);
+            const attempted = asNumber(resolveStat(metricsByKey.tackles, stats, 'overview', side, false).value);
+            return compare(actual, won !== null && attempted > 0 ? won / attempted * 100 : null, 1.1);
+          }},
+          { label: 'Goals prevented = xGOT faced − goals conceded', method: (stats, side) => {
+            const prevented = resolveStat(metricsByKey.goals_prevented, stats, 'overview', side, false).value;
+            const xgot = asNumber(resolveStat(metricsByKey.xgot_faced, stats, 'overview', side, false).value);
+            const conceded = asNumber(resolveStat(metricsByKey.goals_conceded, stats, 'overview', side, false).value);
+            return compare(prevented, xgot !== null && conceded !== null ? xgot - conceded : null, 0.025);
+          }},
+        ].map(check => ({
+          label: check.label,
+          home: check.method(homeStats, 'home'),
+          away: check.method(awayStats, 'away')
+        }));
+        const checkRows = [...additiveChecks, ...derivedChecks];
+        const checkStatuses = checkRows.flatMap(row => [row.home, row.away]);
+        const passedChecks = checkStatuses.filter(status => status === 'ok').length;
+        const mismatchedChecks = checkStatuses.filter(status => status === 'mismatch').length;
+        const unavailableChecks = checkStatuses.filter(status => status === 'unavailable').length;
+        const statusText = status => status === 'ok' ? 'Matches' : status === 'mismatch' ? 'Mismatch' : 'Not verifiable';
+        const periodLabel = period === 'overview' ? 'MATCH OVERVIEW' : period === 'first_half' ? 'FIRST-HALF BREAKDOWN' : 'SECOND-HALF BREAKDOWN';
+
+        return html`
+          <div>
+            <div class="stats-sub-tabs" role="group" aria-label="Match statistics periods">
+              <button type="button" aria-pressed=${period === 'overview'} class=${`stats-sub-tab ${period === 'overview' ? 'active' : ''}`} onClick=${() => setPeriod('overview')}>MATCH OVERVIEW</button>
+              <button type="button" aria-pressed=${period === 'first_half'} class=${`stats-sub-tab ${period === 'first_half' ? 'active' : ''}`} onClick=${() => setPeriod('first_half')}>1ST HALF</button>
+              <button type="button" aria-pressed=${period === 'second_half'} class=${`stats-sub-tab ${period === 'second_half' ? 'active' : ''}`} onClick=${() => setPeriod('second_half')}>2ND HALF</button>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr auto 1fr;padding:0.5rem 0.75rem;background:#f8fafc;border-radius:8px;margin-bottom:0.5rem;font-size:0.68rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:0.45px;">
+              <span style="text-align:right;color:var(--primary);">${homeName}</span>
+              <span style="padding:0 0.45rem;text-align:center;">${periodLabel}</span>
+              <span style="color:#dc2626;">${awayName}</span>
+            </div>
+
+            <div class="stats-coverage-note">
+              ${period === 'overview'
+                ? `The overview uses reported match totals. When an additive total is absent, it is summed only if every ${hasExtraTime ? 'regulation and extra-time period' : 'regulation half'} is available; rates are calculated from underlying counts when needed.`
+                : `${period === 'first_half' ? 'First-half' : 'Second-half'} fields available: ${homeAvailable}/${metricCount} for ${homeName} and ${awayAvailable}/${metricCount} for ${awayName}. A dash means this period was not supplied and could not be safely derived; match totals are never copied into a half.`}
+            </div>
+
+            ${statRows.map(group => html`
+              <section key=${group.key} aria-label=${group.title}>
+                <div class="stats-section-title">${group.title}</div>
+                ${group.rows.map(({ metric, home, away }) => {
+                  const homeNumber = asNumber(home.value);
+                  const awayNumber = asNumber(away.value);
+                  const barTotal = (homeNumber === null ? 0 : Math.abs(homeNumber)) + (awayNumber === null ? 0 : Math.abs(awayNumber));
+                  const homeWidth = barTotal && homeNumber !== null ? Math.abs(homeNumber) / barTotal * 100 : 0;
+                  const awayWidth = barTotal && awayNumber !== null ? Math.abs(awayNumber) / barTotal * 100 : 0;
+                  const homeSource = sourceLabel(home.source);
+                  const awaySource = sourceLabel(away.source);
+                  return html`
+                    <div key=${metric.key} class="stats-metric-row">
+                      <div class="stats-metric-values">
+                        <span class="stats-value-home" title=${homeSource || (home.value == null ? 'Not supplied for this period' : 'Reported by the match data')}>${formatValue(metric, home)}${homeSource && html`<small class="stats-source">${homeSource}</small>`}</span>
+                        <span class="stats-metric-label">${metric.label}</span>
+                        <span class="stats-value-away" title=${awaySource || (away.value == null ? 'Not supplied for this period' : 'Reported by the match data')}>${formatValue(metric, away)}${awaySource && html`<small class="stats-source">${awaySource}</small>`}</span>
+                      </div>
+                      <div class="stats-meter" aria-hidden="true">
+                        <div style=${`width:${homeWidth}%;background:var(--primary);`}></div>
+                        <div style=${`width:${awayWidth}%;background:var(--danger);`}></div>
+                      </div>
+                    </div>
+                  `;
+                })}
+              </section>
+            `)}
+
+            ${period === 'overview' && html`
+              <details class="stats-reconciliation">
+                <summary class="stats-reconciliation-title">Reconciliation checks · ${passedChecks} matched · ${mismatchedChecks} mismatches · ${unavailableChecks} not verifiable</summary>
+                <div class="stats-reconciliation-summary">
+                  ${passedChecks} matched · ${mismatchedChecks} mismatch${mismatchedChecks === 1 ? '' : 'es'} · ${unavailableChecks} not verifiable because required period/component fields were not supplied.
+                </div>
+                <div class="stats-check-row" style="border-top:0;font-weight:900;">
+                  <span class="stats-check-label">Check</span><span class="stats-check-status">${homeName}</span><span class="stats-check-status">${awayName}</span>
+                </div>
+                ${checkRows.map(row => html`
+                  <div key=${row.label} class="stats-check-row">
+                    <span class="stats-check-label">${row.label}</span>
+                    <span class=${`stats-check-status ${row.home}`}>${statusText(row.home)}</span>
+                    <span class=${`stats-check-status ${row.away}`}>${statusText(row.away)}</span>
+                  </div>
+                `)}
+              </details>
+            `}
+          </div>
+        `;
+      }
+
+      // ── LINEUPS TAB (Shared Pitch + Age/Height/Rating Toggles) ──
 function ClubMatchCentreStatsCompare({ match, homeName, awayName }) {
  const [activeResultTab, setActiveResultTab] = useState('summary');
  const homePhoto = match.home_team_badge_url || match.home_badge_url || null;
@@ -760,9 +1149,9 @@ function ClubMatchCentreStatsCompare({ match, homeName, awayName }) {
  const extraTimePlayed = match.extra_time_played ?? match.went_to_extra_time ?? match.has_extra_time ?? match.played_extra_time ?? match.extra_time;
  return html`<section class="club-detailed-result-card">
    <div class="match-sub-tabs" role="tablist" aria-label="Detailed match result sections">
-    ${['summary','stats','lineups','player_stats'].map(tab => html`<button type="button" role="tab" aria-selected=${activeResultTab===tab} class=${`match-sub-tab-btn ${activeResultTab===tab?'active':''}`} onClick=${()=>setActiveResultTab(tab)}>${tab==='player_stats'?'Player Stats':tab.charAt(0).toUpperCase()+tab.slice(1)}</button>`)}
+    ${['summary','stats','lineups','player_stats'].map((tab, index) => html`<button type="button" id=${`club-match-tab-${tab}`} role="tab" aria-controls="club-match-panel" aria-selected=${activeResultTab===tab} tabIndex=${activeResultTab===tab ? 0 : -1} class=${`match-sub-tab-btn ${activeResultTab===tab?'active':''}`} onClick=${()=>setActiveResultTab(tab)} onKeyDown=${event => { if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') { event.preventDefault(); const next = (index + (event.key === 'ArrowRight' ? 1 : -1) + 4) % 4; const nextTab = ['summary','stats','lineups','player_stats'][next]; setActiveResultTab(nextTab); requestAnimationFrame(() => document.getElementById(`club-match-tab-${nextTab}`)?.focus()); } }}>${tab==='player_stats'?'Player Stats':tab.charAt(0).toUpperCase()+tab.slice(1)}</button>`)}
    </div>
-   <div class="club-detailed-result-content" role="tabpanel">
+   <div id="club-match-panel" class="club-detailed-result-content" role="tabpanel" aria-labelledby=${`club-match-tab-${activeResultTab}`}>
     ${activeResultTab==='summary' && html`<${MatchSummary}
       events=${match.events} homeScore=${match.home_score ?? match.score?.home} awayScore=${match.away_score ?? match.score?.away}
       halfTimeScore=${halfTimeScore} homeHalfTimeScore=${homeHalfTimeScore} awayHalfTimeScore=${awayHalfTimeScore}
@@ -1146,349 +1535,6 @@ function ClubMatchCentreStatsCompare({ match, homeName, awayName }) {
         ]},
       ];
 
-      function MatchStatsCompare({ homeStats, awayStats, homeName, awayName, events, homeScore, awayScore, extraTimePlayed }) {
-        const [period, setPeriod] = useState('overview');
-        homeStats = homeStats || {};
-        awayStats = awayStats || {};
-        const explicitExtraTime = matchHasExtraTime(extraTimePlayed);
-        const hasExtraTime = Boolean(explicitExtraTime || (Array.isArray(events) && events.some(isExtraTimeEvent)));
-        const additivePeriods = hasExtraTime
-          ? ['first_half', 'second_half', 'extra_time_first_half', 'extra_time_second_half']
-          : ['first_half', 'second_half'];
-        const allMetrics = STAT_GROUPS.flatMap(group => group.metrics);
-        const metricsByKey = Object.fromEntries(allMetrics.map(metric => [metric.key, metric]));
-        const asNumber = value => {
-          if (value === null || value === undefined || value === '') return null;
-          const parsed = Number(String(value).replace(/,/g, '').replace(/%$/, '').trim());
-          return Number.isFinite(parsed) ? parsed : null;
-        };
-        const readPath = (source, path) => {
-          let value = source;
-          for (const part of path) {
-            if (!value || typeof value !== 'object' || value[part] === undefined || value[part] === null) return null;
-            value = value[part];
-          }
-          return value;
-        };
-        const readReported = (teamStats, metric, targetPeriod) => {
-          const periodKey = targetPeriod === 'overview' ? null : targetPeriod;
-          const extraPart = periodKey === 'extra_time_first_half' ? 'first_half' : periodKey === 'extra_time_second_half' ? 'second_half' : null;
-          const sources = periodKey
-            ? [
-                teamStats[periodKey],
-                teamStats.periods?.[periodKey],
-                teamStats.halves?.[periodKey],
-                extraPart ? teamStats.extra_time?.[extraPart] : null,
-                teamStats.overview?.[periodKey]
-              ]
-            : [teamStats.overview, teamStats];
-          const candidateKeys = [metric.key, ...(metric.aliases || [])];
-          for (const source of sources) {
-            if (!source || typeof source !== 'object') continue;
-            for (const key of candidateKeys) {
-              if (source[key] !== undefined && source[key] !== null) return source[key];
-              if (metric.group) {
-                const nested = readPath(source, [metric.group, key]);
-                if (nested !== null) return nested;
-              }
-            }
-          }
-          return null;
-        };
-        const scoreFor = side => asNumber(side === 'home' ? homeScore : awayScore);
-        const scoreKnown = scoreFor('home') !== null && scoreFor('away') !== null;
-        const goalEvents = Array.isArray(events)
-          ? events.filter(event => isMatchGoalEvent(event) && matchEventPeriod(event, hasExtraTime) !== 'penalty_shootout')
-          : [];
-        const eventGoalTotals = { home: 0, away: 0 };
-        let allEventGoalsAssigned = true;
-        goalEvents.forEach(event => {
-          const side = matchEventSide(event, homeName, awayName, true);
-          if (!side) allEventGoalsAssigned = false;
-          else eventGoalTotals[side] += 1;
-        });
-        const eventGoalLogComplete = Array.isArray(events) && allEventGoalsAssigned && (
-          (scoreKnown && eventGoalTotals.home === scoreFor('home') && eventGoalTotals.away === scoreFor('away')) ||
-          (scoreFor('home') === 0 && scoreFor('away') === 0 && goalEvents.length === 0) ||
-          (!scoreKnown && goalEvents.length > 0)
-        );
-        const eventGoalPeriodsComplete = eventGoalLogComplete && goalEvents.every(event => {
-          const eventPeriod = matchEventPeriod(event, hasExtraTime);
-          return ['first_half', 'second_half', 'extra_time_first_half', 'extra_time_second_half'].includes(eventPeriod);
-        });
-        const countEvents = (side, kind, targetPeriod) => {
-          if (!Array.isArray(events)) return null;
-          if (kind === 'goals' && (!eventGoalLogComplete || (targetPeriod !== 'overview' && !eventGoalPeriodsComplete))) return null;
-          const matchesKind = event => {
-            const type = normalizeMatchEventType(event);
-            if (kind === 'goals') return isMatchGoalEvent(event);
-            if (kind === 'yellow_cards') return type === 'yellowcard' || type === 'secondyellow';
-            if (kind === 'red_cards') return type === 'redcard' || type === 'secondyellow';
-            return false;
-          };
-          return events.filter(event => {
-            const eventPeriod = matchEventPeriod(event, hasExtraTime);
-            const inPeriod = targetPeriod === 'overview'
-              ? eventPeriod !== 'penalty_shootout'
-              : eventPeriod === targetPeriod;
-            const actualSide = matchEventSide(event, homeName, awayName, kind === 'goals');
-            return inPeriod && actualSide === side && matchesKind(event);
-          }).length;
-        };
-        const resolveStat = (metric, teamStats, targetPeriod, side, allowBalance = true, stack = new Set()) => {
-          const raw = readReported(teamStats, metric, targetPeriod);
-          if (stack.has(`${metric.key}:${targetPeriod}`)) return { value: null, source: 'unavailable' };
-          const nextStack = new Set(stack).add(`${metric.key}:${targetPeriod}`);
-          if (metric.special === 'goals' && targetPeriod === 'overview' && scoreFor(side) !== null) {
-            return { value: scoreFor(side), source: 'score' };
-          }
-          if (raw !== null) return { value: raw, source: 'reported' };
-
-          if (metric.special === 'goals') {
-            if (targetPeriod === 'overview' && scoreFor(side) !== null) return { value: scoreFor(side), source: 'score' };
-            if (targetPeriod !== 'overview' && scoreFor('home') === 0 && scoreFor('away') === 0) return { value: 0, source: 'score' };
-            const count = countEvents(side, 'goals', targetPeriod);
-            if (count !== null) return { value: count, source: 'events' };
-          }
-          if (metric.special === 'yellow_cards' || metric.special === 'red_cards') {
-            const count = countEvents(side, metric.special, targetPeriod);
-            if (count !== null) return { value: count, source: 'events' };
-          }
-          if (metric.special === 'goals_conceded') {
-            if (targetPeriod === 'overview' && scoreFor(side === 'home' ? 'away' : 'home') !== null) {
-              return { value: scoreFor(side === 'home' ? 'away' : 'home'), source: 'opponent score' };
-            }
-            if (targetPeriod !== 'overview' && scoreFor('home') === 0 && scoreFor('away') === 0) return { value: 0, source: 'score' };
-            const conceded = countEvents(side === 'home' ? 'away' : 'home', 'goals', targetPeriod);
-            if (conceded !== null) return { value: conceded, source: 'events' };
-          }
-          if (metric.special === 'goals_prevented') {
-            const faced = resolveStat(metricsByKey.xgot_faced, teamStats, targetPeriod, side, false, nextStack);
-            const conceded = resolveStat(metricsByKey.goals_conceded, teamStats, targetPeriod, side, false, nextStack);
-            const facedNumber = asNumber(faced.value);
-            const concededNumber = asNumber(conceded.value);
-            if (facedNumber !== null && concededNumber !== null) return { value: facedNumber - concededNumber, source: 'calculated' };
-          }
-          if (metric.ratio) {
-            const numerator = resolveStat(metricsByKey[metric.ratio[0]], teamStats, targetPeriod, side, false, nextStack);
-            const denominator = resolveStat(metricsByKey[metric.ratio[1]], teamStats, targetPeriod, side, false, nextStack);
-            const numeratorNumber = asNumber(numerator.value);
-            const denominatorNumber = asNumber(denominator.value);
-            if (numeratorNumber !== null && denominatorNumber > 0) {
-              return { value: (numeratorNumber / denominatorNumber) * 100, source: 'calculated' };
-            }
-          }
-
-          if (metric.additive && targetPeriod === 'overview') {
-            const periodValues = additivePeriods.map(periodKey => asNumber(resolveStat(metric, teamStats, periodKey, side, false, nextStack).value));
-            if (periodValues.every(value => value !== null)) {
-              return { value: periodValues.reduce((sum, value) => sum + value, 0), source: 'sum of periods' };
-            }
-          } else if (metric.additive && allowBalance) {
-            const total = resolveStat(metric, teamStats, 'overview', side, false, nextStack);
-            const otherPeriods = {
-              first_half: 'second_half',
-              second_half: 'first_half',
-              extra_time_first_half: 'extra_time_second_half',
-              extra_time_second_half: 'extra_time_first_half'
-            };
-            const otherPeriod = otherPeriods[targetPeriod];
-            if (!otherPeriod) return { value: null, source: 'unavailable' };
-            const other = resolveStat(metric, teamStats, otherPeriod, side, false, nextStack);
-            const totalNumber = asNumber(total.value);
-            const otherNumber = asNumber(other.value);
-            if (totalNumber !== null && otherNumber !== null) {
-              const remainder = totalNumber - otherNumber;
-              if (remainder >= 0 || metric.key === 'goals_prevented') return { value: remainder, source: 'reconciled from total' };
-            }
-          }
-          return { value: null, source: 'unavailable' };
-        };
-        const formatValue = (metric, result) => {
-          if (result.value === null || result.value === undefined) return '—';
-          const numeric = asNumber(result.value);
-          if (metric.unit === '%') {
-            if (typeof result.value === 'string' && /%$/.test(result.value.trim())) return result.value.trim();
-            if (numeric === null) return String(result.value);
-            const rounded = Number(numeric.toFixed(1));
-            return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(1)}%`;
-          }
-          if (numeric === null) return String(result.value);
-          return metric.precision != null ? numeric.toFixed(metric.precision) : numeric.toLocaleString(undefined, { maximumFractionDigits: 0 });
-        };
-        const sourceLabel = source => ({
-          'sum of halves': 'Summed from halves',
-          'sum of periods': 'Summed from periods',
-          'reconciled from total': 'Calculated from match total',
-          'calculated': 'Calculated from related stats',
-          'events': 'From event log',
-          'score': 'From final score',
-          'opponent score': 'From opponent score',
-        }[source] || '');
-        const statRows = STAT_GROUPS.map(group => ({
-          ...group,
-          rows: group.metrics.map(metric => ({
-            metric,
-            home: resolveStat(metric, homeStats, period, 'home'),
-            away: resolveStat(metric, awayStats, period, 'away')
-          }))
-        }));
-        const metricCount = allMetrics.length;
-        const availableFor = (stats, side) => allMetrics.filter(metric => resolveStat(metric, stats, period, side).value != null).length;
-        const homeAvailable = availableFor(homeStats, 'home');
-        const awayAvailable = availableFor(awayStats, 'away');
-
-        const compare = (actual, expected, tolerance = 0.01) => {
-          const actualNumber = asNumber(actual);
-          const expectedNumber = asNumber(expected);
-          if (actualNumber === null || expectedNumber === null) return 'unavailable';
-          return Math.abs(actualNumber - expectedNumber) <= tolerance ? 'ok' : 'mismatch';
-        };
-        const additiveChecks = allMetrics.filter(metric => metric.additive).map(metric => {
-          const teamCheck = (stats, side) => {
-            const reportedTotal = readReported(stats, metric, 'overview');
-            const total = reportedTotal !== null
-              ? reportedTotal
-              : metric.special === 'goals' || metric.special === 'goals_conceded'
-                ? resolveStat(metric, stats, 'overview', side, false).value
-                : metric.special === 'yellow_cards' || metric.special === 'red_cards'
-                  ? countEvents(side, metric.special, 'overview')
-                  : null;
-            const periodValues = additivePeriods.map(periodKey => asNumber(resolveStat(metric, stats, periodKey, side, false).value));
-            const periodTotal = periodValues.every(value => value !== null)
-              ? periodValues.reduce((sum, value) => sum + value, 0)
-              : null;
-            return compare(total, periodTotal, metric.precision != null ? 0.025 : 0.01);
-          };
-          return {
-            label: `${metric.label}: match total = period totals${hasExtraTime ? ' incl. extra time' : ''}`,
-            home: teamCheck(homeStats, 'home'),
-            away: teamCheck(awayStats, 'away')
-          };
-        });
-        const derivedChecks = [
-          { label: 'Possession: match value vs mean of regulation halves', metric: 'possession', method: (stats, side) => {
-            if (hasExtraTime) return 'unavailable';
-            const total = resolveStat(metricsByKey.possession, stats, 'overview', side, false).value;
-            const first = asNumber(resolveStat(metricsByKey.possession, stats, 'first_half', side, false).value);
-            const second = asNumber(resolveStat(metricsByKey.possession, stats, 'second_half', side, false).value);
-            return compare(total, first !== null && second !== null ? (first + second) / 2 : null, 1.1);
-          }},
-          { label: 'Shots inside + outside = total shots', method: (stats, side) => {
-            const inside = asNumber(resolveStat(metricsByKey.shots_inside_box, stats, 'overview', side, false).value);
-            const outside = asNumber(resolveStat(metricsByKey.shots_outside_box, stats, 'overview', side, false).value);
-            const total = resolveStat(metricsByKey.shots_total, stats, 'overview', side, false).value;
-            return compare(total, inside !== null && outside !== null ? inside + outside : null);
-          }},
-          { label: 'Big chances scored + missed = total', method: (stats, side) => {
-            const scored = asNumber(resolveStat(metricsByKey.big_chances_scored, stats, 'overview', side, false).value);
-            const missed = asNumber(resolveStat(metricsByKey.big_chances_missed, stats, 'overview', side, false).value);
-            const total = resolveStat(metricsByKey.big_chances, stats, 'overview', side, false).value;
-            return compare(total, scored !== null && missed !== null ? scored + missed : null);
-          }},
-          { label: 'Pass accuracy = accurate ÷ total', method: (stats, side) => {
-            const actual = resolveStat(metricsByKey.passes_accuracy_pct, stats, 'overview', side, false).value;
-            const accurate = asNumber(resolveStat(metricsByKey.passes_accurate, stats, 'overview', side, false).value);
-            const total = asNumber(resolveStat(metricsByKey.passes_total, stats, 'overview', side, false).value);
-            return compare(actual, accurate !== null && total > 0 ? accurate / total * 100 : null, 1.1);
-          }},
-          { label: 'Tackle success = won ÷ attempted', method: (stats, side) => {
-            const actual = resolveStat(metricsByKey.tackles_pct, stats, 'overview', side, false).value;
-            const won = asNumber(resolveStat(metricsByKey.tackles_won, stats, 'overview', side, false).value);
-            const attempted = asNumber(resolveStat(metricsByKey.tackles, stats, 'overview', side, false).value);
-            return compare(actual, won !== null && attempted > 0 ? won / attempted * 100 : null, 1.1);
-          }},
-          { label: 'Goals prevented = xGOT faced − goals conceded', method: (stats, side) => {
-            const prevented = resolveStat(metricsByKey.goals_prevented, stats, 'overview', side, false).value;
-            const xgot = asNumber(resolveStat(metricsByKey.xgot_faced, stats, 'overview', side, false).value);
-            const conceded = asNumber(resolveStat(metricsByKey.goals_conceded, stats, 'overview', side, false).value);
-            return compare(prevented, xgot !== null && conceded !== null ? xgot - conceded : null, 0.025);
-          }},
-        ].map(check => ({
-          label: check.label,
-          home: check.method(homeStats, 'home'),
-          away: check.method(awayStats, 'away')
-        }));
-        const checkRows = [...additiveChecks, ...derivedChecks];
-        const checkStatuses = checkRows.flatMap(row => [row.home, row.away]);
-        const passedChecks = checkStatuses.filter(status => status === 'ok').length;
-        const mismatchedChecks = checkStatuses.filter(status => status === 'mismatch').length;
-        const unavailableChecks = checkStatuses.filter(status => status === 'unavailable').length;
-        const statusText = status => status === 'ok' ? 'Matches' : status === 'mismatch' ? 'Mismatch' : 'Not verifiable';
-        const periodLabel = period === 'overview' ? 'MATCH OVERVIEW' : period === 'first_half' ? 'FIRST-HALF BREAKDOWN' : 'SECOND-HALF BREAKDOWN';
-
-        return html`
-          <div>
-            <div class="stats-sub-tabs" role="group" aria-label="Match statistics periods">
-              <button type="button" aria-pressed=${period === 'overview'} class=${`stats-sub-tab ${period === 'overview' ? 'active' : ''}`} onClick=${() => setPeriod('overview')}>MATCH OVERVIEW</button>
-              <button type="button" aria-pressed=${period === 'first_half'} class=${`stats-sub-tab ${period === 'first_half' ? 'active' : ''}`} onClick=${() => setPeriod('first_half')}>1ST HALF</button>
-              <button type="button" aria-pressed=${period === 'second_half'} class=${`stats-sub-tab ${period === 'second_half' ? 'active' : ''}`} onClick=${() => setPeriod('second_half')}>2ND HALF</button>
-            </div>
-
-            <div style="display:grid;grid-template-columns:1fr auto 1fr;padding:0.5rem 0.75rem;background:#f8fafc;border-radius:8px;margin-bottom:0.5rem;font-size:0.68rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:0.45px;">
-              <span style="text-align:right;color:var(--primary);">${homeName}</span>
-              <span style="padding:0 0.45rem;text-align:center;">${periodLabel}</span>
-              <span style="color:#dc2626;">${awayName}</span>
-            </div>
-
-            <div class="stats-coverage-note">
-              ${period === 'overview'
-                ? `The overview uses reported match totals. When an additive total is absent, it is summed only if every ${hasExtraTime ? 'regulation and extra-time period' : 'regulation half'} is available; rates are calculated from underlying counts when needed.`
-                : `${period === 'first_half' ? 'First-half' : 'Second-half'} fields available: ${homeAvailable}/${metricCount} for ${homeName} and ${awayAvailable}/${metricCount} for ${awayName}. A dash means this period was not supplied and could not be safely derived; match totals are never copied into a half.`}
-            </div>
-
-            ${statRows.map(group => html`
-              <section key=${group.key} aria-label=${group.title}>
-                <div class="stats-section-title">${group.title}</div>
-                ${group.rows.map(({ metric, home, away }) => {
-                  const homeNumber = asNumber(home.value);
-                  const awayNumber = asNumber(away.value);
-                  const barTotal = (homeNumber === null ? 0 : Math.abs(homeNumber)) + (awayNumber === null ? 0 : Math.abs(awayNumber));
-                  const homeWidth = barTotal && homeNumber !== null ? Math.abs(homeNumber) / barTotal * 100 : 0;
-                  const awayWidth = barTotal && awayNumber !== null ? Math.abs(awayNumber) / barTotal * 100 : 0;
-                  const homeSource = sourceLabel(home.source);
-                  const awaySource = sourceLabel(away.source);
-                  return html`
-                    <div key=${metric.key} class="stats-metric-row">
-                      <div class="stats-metric-values">
-                        <span class="stats-value-home" title=${homeSource || (home.value == null ? 'Not supplied for this period' : 'Reported by the match data')}>${formatValue(metric, home)}${homeSource && html`<small class="stats-source">${homeSource}</small>`}</span>
-                        <span class="stats-metric-label">${metric.label}</span>
-                        <span class="stats-value-away" title=${awaySource || (away.value == null ? 'Not supplied for this period' : 'Reported by the match data')}>${formatValue(metric, away)}${awaySource && html`<small class="stats-source">${awaySource}</small>`}</span>
-                      </div>
-                      <div class="stats-meter" aria-hidden="true">
-                        <div style=${`width:${homeWidth}%;background:var(--primary);`}></div>
-                        <div style=${`width:${awayWidth}%;background:var(--danger);`}></div>
-                      </div>
-                    </div>
-                  `;
-                })}
-              </section>
-            `)}
-
-            ${period === 'overview' && html`
-              <details class="stats-reconciliation">
-                <summary class="stats-reconciliation-title">Reconciliation checks · ${passedChecks} matched · ${mismatchedChecks} mismatches · ${unavailableChecks} not verifiable</summary>
-                <div class="stats-reconciliation-summary">
-                  ${passedChecks} matched · ${mismatchedChecks} mismatch${mismatchedChecks === 1 ? '' : 'es'} · ${unavailableChecks} not verifiable because required period/component fields were not supplied.
-                </div>
-                <div class="stats-check-row" style="border-top:0;font-weight:900;">
-                  <span class="stats-check-label">Check</span><span class="stats-check-status">${homeName}</span><span class="stats-check-status">${awayName}</span>
-                </div>
-                ${checkRows.map(row => html`
-                  <div key=${row.label} class="stats-check-row">
-                    <span class="stats-check-label">${row.label}</span>
-                    <span class=${`stats-check-status ${row.home}`}>${statusText(row.home)}</span>
-                    <span class=${`stats-check-status ${row.away}`}>${statusText(row.away)}</span>
-                  </div>
-                `)}
-              </details>
-            `}
-          </div>
-        `;
-      }
-
-
-      // ── LINEUPS TAB (Shared Pitch + Age/Height/Rating Toggles) ──
       function RefinedMatchLineups({ lineups, homeName, awayName, homePhoto, awayPhoto }) {
         const [viewMode, setViewMode] = useState('overview'); 
         
@@ -1613,7 +1659,7 @@ function ClubMatchCentreStatsCompare({ match, homeName, awayName }) {
       }
 
       // ── PLAYER STATS TABLE ──
-      function RefinedMatchPlayerStats({ lineups, homeName, awayName }) {
+function RefinedMatchPlayerStats({ lineups, homeName, awayName }) {
         if (!lineups) return html`<div class="empty-state"><i class="fas fa-user-check"></i><div>No player stats</div></div>`;
 
         const collectTeamPlayers = (team, teamName, side) => [
@@ -1660,162 +1706,9 @@ function ClubMatchCentreStatsCompare({ match, homeName, awayName }) {
       }
 
       // ══════════════════════════════════════════════════════════════════════
+      //  MAIN APP
+      // ══════════════════════════════════════════════════════════════════════
 
-// ── MATCH EVENTS TIMELINE (left=home, right=away, with timestamps) ──
-function MatchEventsTimeline({ events, homeName, awayName, homePhoto, awayPhoto }) {
-if (!events || events.length === 0) return html`<div class="empty-state"><i class="fas fa-list"></i><div>No events recorded</div></div>`;
-const getEventIcon = (type) => {
-if (type==='goal') return html`<i class="fas fa-futbol event-icon-goal"></i>`;
-if (type==='yellow_card') return html`<i class="fas fa-square event-icon-yellow"></i>`;
-if (type==='red_card') return html`<i class="fas fa-square event-icon-red"></i>`;
-if (type==='substitution') return html`<i class="fas fa-arrows-alt-v event-icon-sub"></i>`;
-return html`<i class="fas fa-circle" style="font-size:0.5rem;color:#94a3b8;"></i>`;
-};
-return html`
-<div>
-<div style="display:grid;grid-template-columns:1fr 48px 1fr;padding:0.4rem 0.6rem;background:#f8fafc;border-radius:6px;margin-bottom:0.5rem;font-size:0.7rem;font-weight:800;color:#64748b;text-transform:uppercase;">
-<span style="text-align:right;display:flex;align-items:center;justify-content:flex-end;gap:0.3rem;">
-${homePhoto?html`<img src=${homePhoto} style="width:16px;height:16px;object-fit:contain;border-radius:3px;" onError=${e=>{e.currentTarget.style.display='none'}} />`:''}
-${homeName||'Home'}
-</span>
-<span style="text-align:center;">Min</span>
-<span style="display:flex;align-items:center;gap:0.3rem;">
-${awayPhoto?html`<img src=${awayPhoto} style="width:16px;height:16px;object-fit:contain;border-radius:3px;" onError=${e=>{e.currentTarget.style.display='none'}} />`:''}
-${awayName||'Away'}
-</span>
-</div>
-<div class="events-timeline">
-${events.map((ev,i) => {
-const isHome = ev.team === 'home';
-const isAway = ev.team === 'away';
-return html`
-<div key=${i} class="event-row">
-<div class="event-home">
-${isHome ? html`
-<span>${getEventIcon(ev.type)} <span class="event-player">${ev.player||ev.playerOut||''}</span></span>
-${ev.assist?html`<div class="event-assist"><i class="fas fa-shoe-prints"></i> ${ev.assist}</div>`:''}
-${ev.playerIn?html`<div class="event-assist"><i class="fas fa-arrow-up" style="color:#16a34a;"></i> ${ev.playerIn}</div>`:''}
-` : ''}
-</div>
-<div class="event-minute">${ev.minute}'</div>
-<div class="event-away">
-${isAway ? html`
-<span><span class="event-player">${ev.player||ev.playerOut||''}</span> ${getEventIcon(ev.type)}</span>
-${ev.assist?html`<div class="event-assist"><i class="fas fa-shoe-prints"></i> ${ev.assist}</div>`:''}
-${ev.playerIn?html`<div class="event-assist"><i class="fas fa-arrow-up" style="color:#16a34a;"></i> ${ev.playerIn}</div>`:''}
-` : ''}
-</div>
-</div>
-`;
-})}
-</div>
-</div>
-`;
-}
-// ── MATCH LINEUPS (starters + used subs + unused subs, clickable player names) ──
-function MatchLineups({ lineups, homeName, awayName, homePhoto, awayPhoto }) {
-const [expandedPlayer, setExpandedPlayer] = useState(null);
-if (!lineups) return html`<div class="empty-state"><i class="fas fa-clipboard-list"></i><div>No lineup data</div></div>`;
-const renderTeam = (team, teamName, teamPhoto) => {
-const players = team?.players || [];
-const formation = team?.formation || '';
-const starters = players.filter(p=>!p.substitute);
-const usedSubs = players.filter(p=>p.substitute&&p.came_on);
-const unusedSubs = players.filter(p=>p.substitute&&!p.came_on);
-const renderSection = (label, arr) => {
-if (arr.length === 0) return null;
-return html`
-<div>
-<div class="lineup-section-label">${label}</div>
-${arr.map(p => {
-const pid = p.player_id||p._id||p.number;
-const isEx = expandedPlayer === `${teamName}-${pid}`;
-return html`
-<div key=${pid}>
-<div class="lineup-player-row" onClick=${()=>setExpandedPlayer(isEx?null:`${teamName}-${pid}`)}>
-<span class="lineup-player-num">${p.number||'—'}</span>
-<span class="lineup-player-name">${p.name||'—'}</span>
-<span class="lineup-player-pos">${p.position||''}</span>
-${p.rating?html`<span class="lineup-player-rating ${getRatingClass(p.rating)}">${p.rating}</span>`:''}
-<i class=${`fas ${isEx?'fa-chevron-up':'fa-chevron-down'} lineup-player-expand`}></i>
-</div>
-${isEx && html`
-<div class="lineup-player-stats-expanded">
-${p.goals?html`<div class="lineup-stat-row"><span class="lineup-stat-k">Goals</span><span class="lineup-stat-v">${p.goals}</span></div>`:''}
-${p.assists?html`<div class="lineup-stat-row"><span class="lineup-stat-k">Assists</span><span class="lineup-stat-v">${p.assists}</span></div>`:''}
-${p.shots?html`<div class="lineup-stat-row"><span class="lineup-stat-k">Shots</span><span class="lineup-stat-v">${p.shots}</span></div>`:''}
-${p.passes?html`<div class="lineup-stat-row"><span class="lineup-stat-k">Passes</span><span class="lineup-stat-v">${p.passes}</span></div>`:''}
-${p.tackles?html`<div class="lineup-stat-row"><span class="lineup-stat-k">Tackles</span><span class="lineup-stat-v">${p.tackles}</span></div>`:''}
-${p.saves?html`<div class="lineup-stat-row"><span class="lineup-stat-k">Saves</span><span class="lineup-stat-v">${p.saves}</span></div>`:''}
-${p.yellow_card?html`<div class="lineup-stat-row"><span class="lineup-stat-k">Yellow</span><span class="lineup-stat-v" style="color:#d97706;">1</span></div>`:''}
-${p.red_card?html`<div class="lineup-stat-row"><span class="lineup-stat-k">Red</span><span class="lineup-stat-v" style="color:#dc2626;">1</span></div>`:''}
-${p.minutes_played?html`<div class="lineup-stat-row"><span class="lineup-stat-k">Minutes</span><span class="lineup-stat-v">${p.minutes_played}'</span></div>`:''}
-${p.rating?html`<div class="lineup-stat-row"><span class="lineup-stat-k">Rating</span><span class="lineup-stat-v">${p.rating}/10</span></div>`:''}
-${(!p.goals&&!p.assists&&!p.shots&&!p.passes&&!p.tackles&&!p.saves&&!p.yellow_card&&!p.red_card&&!p.minutes_played&&!p.rating)?html`<div style="color:#94a3b8;font-size:0.75rem;grid-column:1/-1;">No detailed stats available</div>`:''}
-</div>
-`}
-</div>
-`;
-})}
-</div>
-`;
-};
-return html`
-<div class="lineup-team">
-<div class="lineup-team-header">
-${teamPhoto?html`<img src=${teamPhoto} class="lineup-team-badge" onError=${e=>{e.currentTarget.style.display='none'}} alt=${teamName} />`:''}
-<span>${teamName||'Team'}</span>
-${formation?html`<span style="font-size:0.68rem;color:var(--text-light);margin-left:auto;">${formation}</span>`:''}
-</div>
-${renderSection('STARTING XI', starters.length>0?starters:players.slice(0,11))}
-${renderSection('USED SUBS', usedSubs)}
-${renderSection('UNUSED SUBS', unusedSubs)}
-${starters.length===0&&usedSubs.length===0&&unusedSubs.length===0&&players.length>0?renderSection('PLAYERS', players):''}
-${players.length===0?html`<div class="empty-state" style="padding:1rem;"><div>No lineup data</div></div>`:''}
-</div>
-`;
-};
-return html`
-<div class="lineup-grid">
-${renderTeam(lineups.home, homeName, homePhoto)}
-${renderTeam(lineups.away, awayName, awayPhoto)}
-</div>
-`;
-}
-// ── MATCH PLAYER STATS TABLE ──
-function MatchPlayerStats({ lineups, homeName, awayName }) {
-if (!lineups) return html`<div class="empty-state"><i class="fas fa-user-check"></i><div>No player stats</div></div>`;
-const allPlayers = [
-...(lineups.home?.players||[]).map(p=>({...p, team:homeName, side:'home'})),
-...(lineups.away?.players||[]).map(p=>({...p, team:awayName, side:'away'})),
-];
-if (allPlayers.length === 0) return html`<div class="empty-state"><i class="fas fa-user-slash"></i><div>No player data</div></div>`;
-return html`
-<div class="table-scroll">
-<table class="player-stat-table">
-<thead>
-<tr>
-<th>Player</th><th>Team</th><th>Pos</th><th>Rating</th>
-<th>G</th><th>A</th><th>Shots</th><th>Passes</th><th>Tackles</th><th>Saves</th>
-</tr>
-</thead>
-<tbody>
-${allPlayers.map((p,i) => html`
-<tr key=${i} style="background:${p.side==='home'?'rgba(0,74,173,0.02)':'rgba(220,38,38,0.02)'}">
-<td><span class="player-stat-row-name">${p.name||'—'}</span></td>
-<td style="font-size:0.75rem;color:var(--text-light);">${p.team}</td>
-<td><span class="player-stat-row-pos">${p.position||'—'}</span></td>
-<td>${p.rating?html`<span class=${`player-rating-badge ${getRatingClass(p.rating)}`}>${p.rating}</span>`:'—'}</td>
-<td>${p.goals??'—'}</td><td>${p.assists??'—'}</td>
-<td>${p.shots??'—'}</td><td>${p.passes??'—'}</td>
-<td>${p.tackles??'—'}</td><td>${p.saves??'—'}</td>
-</tr>
-`)}
-</tbody>
-</table>
-</div>
-`;
-}
 // ── TABS ──
 const TABS = [
 { id:'profile', label:'Club Profile', icon:'fa-shield-halved' },
