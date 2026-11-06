@@ -1,1 +1,1676 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>EnejiStats Club Dashboard</title><link rel="stylesheet" href="/static/club-dashboard/club-dashboard.css"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><script src="https://unpkg.com/preact@10.19.3/dist/preact.umd.js"></script><script src="https://unpkg.com/preact@10.19.3/hooks/dist/hooks.umd.js"></script><script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js"></script></head><body><div id="app"><div class="loading-panel">Loading EnejiStats Club Dashboard…</div></div><script src="/static/club-dashboard/club-dashboard.js"></script></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Club Dashboard | EnejiStats</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="EnejiStats Club Dashboard — Africa's Football Intelligence Platform" />
+
+  <script src="https://unpkg.com/preact@10.19.3/dist/preact.umd.js"></script>
+  <script src="https://unpkg.com/preact@10.19.3/hooks/dist/hooks.umd.js"></script>
+  <script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js"></script>
+  <script src="https://checkout.flutterwave.com/v3.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+  <style>
+    /* ═══════════════ RESET & BASE ═══════════════ */
+    :root {
+      --primary: #004aad; --primary-light: #0066cc; --primary-dark: #003380;
+      --accent: #ffd700; --danger: #dc2626; --success: #16a34a; --warning: #d97706;
+      --bg: #f0f4f8; --card-bg: #ffffff; --border: #e2e8f0;
+      --text: #1e293b; --text-light: #64748b;
+      --sidebar-w: 240px; --header-h: 52px;
+      --radius: 10px; --shadow: 0 2px 12px rgba(0,74,173,0.08);
+      --mono: 'Courier New', monospace;
+      --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: clamp(13px, 1.05vw, 16px); }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* ═══════════════ HEADER ═══════════════ */
+    .dashboard-header {
+      position: fixed; top: 0; left: 0; right: 0; height: var(--header-h);
+      background: var(--primary); color: #fff; display: flex; align-items: center;
+      padding: 0 clamp(0.75rem, 2vw, 1.5rem); gap: 0.75rem; z-index: 1000;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    }
+    .header-logo { font-size: 1.1rem; font-weight: 900; letter-spacing: 0.5px; flex: 1; display: flex; align-items: center; }
+    .brand-mark-word { display: flex; align-items: baseline; }
+    .brand-mark-word > span { font-weight: 900; font-size: 26px; letter-spacing: 3px; line-height: 1; color: #fff; }
+    .brand-mark-word > span:last-child { color: #f5b800; }
+    .header-label { font-size: 0.72rem; font-weight: 500; opacity: 0.75; margin-left: 0.35rem; }
+    .nav-toggle { background: none; border: none; color: #fff; font-size: 1.2rem; cursor: pointer; padding: 6px; border-radius: 6px; }
+    .header-right { display: flex; align-items: center; gap: 0.6rem; flex-shrink: 0; }
+    .header-logout { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.3); color: #fff; border-radius: 6px; padding: 4px 10px; font-size: 0.75rem; cursor: pointer; }
+
+    /* ═══════════════ SIDEBAR ═══════════════ */
+    .sidebar {
+      position: fixed; top: 0; left: 0; bottom: 0; width: var(--sidebar-w);
+      background: linear-gradient(170deg, #001a4d 0%, var(--primary) 100%);
+      color: #fff; z-index: 900; display: flex; flex-direction: column;
+      transition: transform 0.28s ease; overflow-y: auto;
+    }
+    .sidebar-header { padding: 1rem 1rem 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.12); }
+    .sidebar-tagline { font-size: 0.65rem; color: rgba(255,255,255,0.55); margin-top: 1px; }
+    .sidebar-club { padding: 0.85rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); text-align: center; }
+    .sidebar-club-badge { width: 64px; height: 64px; border-radius: 10px; border: 3px solid rgba(255,255,255,0.3); object-fit: contain; background: rgba(255,255,255,0.08); margin-bottom: 0.35rem; }
+    .sidebar-club-name { font-size: 0.88rem; font-weight: 800; color: #fff; line-height: 1.2; }
+    .sidebar-club-cat { font-size: 0.7rem; color: rgba(255,255,255,0.6); margin-top: 2px; }
+    .sidebar-token-widget {
+      margin: 0.6rem 1rem; padding: 0.6rem 0.85rem; border-radius: 8px;
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.18);
+      cursor: pointer; text-align: center; transition: background 0.2s;
+    }
+    .sidebar-token-widget:hover { background: rgba(255,255,255,0.17); }
+    .sidebar-token-widget.low { border-color: #f59e0b; }
+    .sidebar-token-widget.empty { border-color: #ef4444; }
+    .sidebar-token-balance { font-size: 1.35rem; font-weight: 900; color: #ffd700; font-family: var(--mono); }
+    .sidebar-token-label { font-size: 0.65rem; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 0.5px; }
+    .sidebar-token-locked { font-size: 0.68rem; color: rgba(255,200,100,0.8); margin-top: 2px; }
+    .sidebar-token-topup { font-size: 0.72rem; color: #ffd700; font-weight: 700; display: block; margin-top: 3px; }
+    .sidebar-nav { flex: 1; padding: 0.5rem 0; }
+    .sidebar-nav-item {
+      display: flex; align-items: center; gap: 0.6rem; padding: clamp(0.5rem, 0.9vw, 0.7rem) clamp(0.85rem, 1.5vw, 1.2rem);
+      color: rgba(255,255,255,0.78); font-size: clamp(0.75rem, 0.88vw, 0.85rem);
+      font-weight: 600; cursor: pointer; transition: background 0.18s, color 0.18s;
+      border-left: 3px solid transparent;
+    }
+    .sidebar-nav-item:hover { background: rgba(255,255,255,0.1); color: #fff; }
+    .sidebar-nav-item.active { background: rgba(255,255,255,0.15); color: #fff; border-left-color: var(--accent); }
+    .sidebar-nav-item i { width: 16px; text-align: center; font-size: 0.85rem; }
+    .notif-badge {
+      background: #ef4444; color: #fff; border-radius: 999px; font-size: 0.62rem;
+      font-weight: 800; padding: 0 5px; margin-left: auto; min-width: 16px; text-align: center;
+    }
+    .sidebar-footer { padding: 0.75rem 1rem; font-size: 0.65rem; color: rgba(255,255,255,0.35); border-top: 1px solid rgba(255,255,255,0.08); }
+    .nav-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 850; }
+    .nav-overlay.active { display: block; }
+
+    /* ═══════════════ MAIN CONTENT ═══════════════ */
+    .main-content { margin-left: 0; padding-top: var(--header-h); min-height: 100vh; }
+    .tab-bar {
+      background: #fff; border-bottom: 2px solid var(--border);
+      padding: 0 clamp(0.5rem, 1.5vw, 1rem); display: flex; gap: 0;
+      overflow-x: auto; scrollbar-width: none;
+      position: sticky; top: var(--header-h); z-index: 100;
+    }
+    .tab-bar::-webkit-scrollbar { display: none; }
+    .tab-btn {
+      padding: clamp(0.6rem, 1.1vw, 0.82rem) clamp(0.65rem, 1.4vw, 1rem);
+      font-size: clamp(0.7rem, 0.88vw, 0.82rem); font-weight: 700;
+      color: var(--text-light); background: none; border: none;
+      border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap;
+      display: flex; align-items: center; gap: 0.35rem;
+      transition: color 0.18s, border-color 0.18s;
+    }
+    .tab-btn:hover { color: var(--primary); }
+    .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .page-inner { max-width: 1200px; margin: 0 auto; width: 100%; padding: clamp(0.85rem, 2vw, 1.5rem); }
+
+    /* ═══════════════ CARDS ═══════════════ */
+    .card {
+      background: var(--card-bg); border-radius: clamp(8px, 1vw, 12px);
+      box-shadow: var(--shadow); padding: clamp(0.75rem, 1.5vw, 1.25rem) clamp(0.85rem, 1.7vw, 1.3rem);
+      margin-bottom: clamp(0.6rem, 1.2vw, 1rem); border: 1px solid var(--border);
+    }
+    .card-title {
+      font-size: clamp(0.77rem, 0.92vw, 0.9rem); font-weight: 800;
+      color: var(--primary); margin-bottom: 0.75rem;
+      display: flex; align-items: center; gap: 0.4rem;
+      text-transform: uppercase; letter-spacing: 0.4px;
+    }
+
+    /* ═══════════════ SHARED: BADGES & EMPTY ═══════════════ */
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.3px; text-transform: uppercase; }
+    .badge-blue { background: #dbeafe; color: #1d4ed8; }
+    .badge-green { background: #dcfce7; color: #166534; }
+    .badge-red { background: #fee2e2; color: #991b1b; }
+    .badge-yellow { background: #fef3c7; color: #92400e; }
+    .empty-state { text-align: center; padding: 2rem 1rem; color: var(--text-light); }
+    .empty-state i { font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.4; }
+    .empty-state div { font-size: 0.88rem; margin-bottom: 0.25rem; }
+
+    /* ═══════════════ SHARED: BUTTONS & FORMS ═══════════════ */
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      padding: clamp(0.38rem, 0.8vw, 0.52rem) clamp(0.7rem, 1.4vw, 1rem);
+      border-radius: 6px; font-size: clamp(0.74rem, 0.88vw, 0.85rem);
+      font-weight: 700; cursor: pointer; border: none; transition: all 0.18s;
+      font-family: var(--font);
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-danger { background: #dc2626; color: #fff; }
+    .btn-danger:hover { background: #b91c1c; }
+    .btn-outline { background: #fff; color: var(--primary); border: 1.5px solid var(--primary); }
+    .btn-outline:hover { background: #f0f4ff; }
+    .btn-sm { padding: 0.3rem 0.65rem; font-size: 0.75rem; }
+    .form-group { margin-bottom: 0.75rem; }
+    .form-group label {
+      display: block; font-size: 0.78rem; font-weight: 700; color: var(--text-light);
+      margin-bottom: 0.3rem; text-transform: uppercase; letter-spacing: 0.3px;
+    }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%; padding: 0.5rem 0.75rem; border: 1.5px solid var(--border);
+      border-radius: 6px; font-size: 0.85rem; font-family: var(--font); outline: none;
+      transition: border-color 0.18s;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--primary); }
+    .form-group textarea { resize: vertical; min-height: 80px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+    .btn-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+    /* ═══════════════ TABS: PROFILE SPECIFIC ═══════════════ */
+    .profile-section { display: grid; grid-template-columns: 1fr; gap: clamp(0.85rem, 2vw, 1.5rem); align-items: start; }
+    @media (min-width: 600px) { .profile-section { grid-template-columns: 200px 1fr; } }
+    .club-badge-wrap {
+      width: 145px; height: 145px; background: #f8fafc; border-radius: 12px;
+      border: 3px solid var(--primary); display: flex; align-items: center;
+      justify-content: center; overflow: hidden; margin: 0 auto;
+    }
+    .club-badge-img { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .profile-badge-meta { text-align: center; margin-top: 0.5rem; }
+    .profile-id-on-badge { font-family: var(--mono); font-size: 0.65rem; color: var(--text-light); font-weight: 700; letter-spacing: 0.5px; }
+    .profile-complete-bar { height: 5px; background: #e2e8f0; border-radius: 3px; margin: 0.3rem 0; overflow: hidden; }
+    .profile-complete-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--success)); border-radius: 3px; }
+    .profile-completion-pct { font-size: 0.68rem; color: var(--text-light); }
+    .club-name { font-size: clamp(1.1rem, 2.2vw, 1.5rem); font-weight: 900; color: var(--primary); line-height: 1.1; }
+    .verified-tick { background: #1877f2; color: #fff; border-radius: 999px; font-size: 0.65rem; font-weight: 800; padding: 2px 8px; display: inline-flex; align-items: center; gap: 3px; }
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem 1.25rem; margin-top: 0.75rem; }
+    @media (max-width: 600px) { .detail-grid { grid-template-columns: 1fr; } }
+    .detail-row { display: grid; grid-template-columns: 140px 1fr; gap: 0.35rem; align-items: baseline; padding: 0.28rem 0; border-bottom: 1px solid #f8fafc; font-size: clamp(0.78rem, 0.95vw, 0.88rem); }
+    .detail-label { font-weight: 700; color: var(--text-light); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.3px; }
+    .detail-value { font-weight: 600; color: var(--text); word-break: break-word; }
+    .flag-img { width: 20px; height: 15px; object-fit: cover; border-radius: 2px; vertical-align: middle; margin-right: 3px; }
+    .contact-icons-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.5rem; }
+    .contact-icon-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.82rem; font-weight: 700; text-decoration: none; border: 1.5px solid transparent; cursor: pointer; transition: all 0.18s; }
+    .contact-icon-phone { background: #dcfce7; color: #166534; border-color: #86efac; }
+    .contact-icon-whatsapp { background: #dcfce7; color: #166534; border-color: #25d366; }
+    .contact-icon-email { background: #dbeafe; color: #1d4ed8; border-color: #93c5fd; }
+    .mgmt-section { margin-top: 0.75rem; }
+    .mgmt-role-group { margin-bottom: 0.75rem; }
+    .mgmt-role-title { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-light); margin-bottom: 0.3rem; padding-bottom: 0.2rem; border-bottom: 1px solid #f0f4f8; }
+    .mgmt-person-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0; }
+    .mgmt-pos-chip { background: rgba(0,74,173,0.1); color: var(--primary); border-radius: 4px; font-size: 0.68rem; font-weight: 800; padding: 2px 6px; flex-shrink: 0; }
+    .mgmt-name { flex: 1; font-size: 0.82rem; font-weight: 600; }
+    .mgmt-edit-btn { background: none; border: 1px solid var(--border); border-radius: 4px; color: var(--text-light); font-size: 0.7rem; cursor: pointer; padding: 2px 7px; display: flex; align-items: center; gap: 3px; }
+    .bio-card { background: #f8fafc; border-radius: 8px; padding: 0.85rem; border-left: 4px solid var(--primary); }
+    .bio-text { font-size: 0.85rem; color: #374151; line-height: 1.7; }
+    .achievement-item { display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0; border-bottom: 1px solid #f0f4f8; font-size: 0.82rem; }
+    .achievement-icon { color: var(--accent); font-size: 1rem; flex-shrink: 0; }
+    .achievement-year { font-size: 0.7rem; font-weight: 700; color: var(--text-light); background: #f0f4f8; border-radius: 4px; padding: 1px 5px; flex-shrink: 0; }
+
+    /* ═══════════════ TABS: SQUAD SPECIFIC ═══════════════ */
+    .sq-card {
+      background: #fff; border: 1.5px solid #e2e8f0; border-radius: 12px;
+      padding: 0.8rem 0.6rem 0.7rem; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center;
+      transition: border-color 0.18s, box-shadow 0.18s;
+      position: relative; overflow: hidden;
+    }
+    .sq-card:hover { border-color: var(--primary); box-shadow: 0 4px 18px rgba(0,74,173,0.14); }
+    .sq-avatar-wrap { position: relative; margin-bottom: 0.45rem; }
+    .sq-jersey-badge {
+      position: absolute; bottom: -4px; right: -4px; background: var(--primary); color: #fff;
+      border-radius: 50%; width: 19px; height: 19px; font-size: 0.58rem; font-weight: 900;
+      display: flex; align-items: center; justify-content: center; border: 2px solid #fff; line-height: 1;
+    }
+    .sq-name { font-size: 0.74rem; font-weight: 800; color: #1e293b; text-align: center; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; margin-bottom: 0.22rem; padding: 0 2px; }
+    .sq-pos-pill { font-size: 0.62rem; font-weight: 900; border-radius: 5px; padding: 0.1rem 0.45rem; margin-bottom: 0.28rem; letter-spacing: 0.2px; text-transform: uppercase; }
+    .sq-meta-row { display: flex; align-items: center; justify-content: center; gap: 0.3rem; margin-bottom: 0.3rem; }
+    .sq-flag { width: 15px; height: 11px; object-fit: cover; border-radius: 2px; vertical-align: middle; }
+    .sq-age { font-size: 0.62rem; color: #94a3b8; font-weight: 700; }
+    .sq-status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .sq-stats-row { display: flex; gap: 0.22rem; flex-wrap: wrap; justify-content: center; margin-top: 0.2rem; }
+    .sq-stat-pill { background: #f0f4ff; color: var(--primary); border-radius: 4px; padding: 0.1rem 0.32rem; font-size: 0.59rem; font-weight: 800; white-space: nowrap; }
+    .sq-modal-header-band { background: linear-gradient(135deg, var(--primary), var(--primary-light)); padding: 1.2rem 1.1rem; color: white; display: flex; align-items: center; gap: 0.9rem; }
+    .sq-modal-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; padding: 0.9rem; }
+    .sq-info-cell { background: #f8fafc; border-radius: 8px; padding: 0.5rem 0.65rem; border: 1px solid #f0f4f8; }
+    .sq-info-label { font-size: 0.63rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.12rem; font-weight: 700; }
+    .sq-info-value { font-size: 0.83rem; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; }
+    .sq-modal-stats-section { padding: 0 0.9rem 0.9rem; }
+    .sq-modal-stats-title { font-size: 0.7rem; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 0.45rem; display: flex; align-items: center; gap: 0.3rem; }
+    .sq-modal-stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; }
+    .sq-modal-stat-item { background: #f0f4ff; border-radius: 7px; padding: 0.45rem 0.3rem; text-align: center; }
+    .sq-modal-stat-val { font-size: 1.05rem; font-weight: 900; color: var(--primary); font-family: var(--mono); }
+    .sq-modal-stat-lbl { font-size: 0.59rem; color: #64748b; margin-top: 1px; line-height: 1.3; }
+
+    /* ═══════════════ TABS: TOKENS SPECIFIC ═══════════════ */
+    .token-balance-card { background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: #fff; border-radius: 10px; padding: 1.1rem; text-align: center; margin-bottom: 1rem; }
+    .token-balance-amount { font-size: 2.5rem; font-weight: 900; font-family: var(--mono); }
+    .token-balance-label { font-size: 0.75rem; font-weight: 700; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.5px; }
+    .token-packages { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-bottom: 1rem; }
+    @media (max-width: 480px) { .token-packages { grid-template-columns: repeat(2, 1fr); } }
+    .token-pkg { background: #f8fafc; border: 2px solid var(--border); border-radius: 8px; padding: 0.65rem 0.3rem; text-align: center; cursor: pointer; transition: all 0.18s; }
+    .token-pkg:hover { border-color: var(--primary); background: #f0f4ff; }
+    .token-pkg.selected { border-color: var(--primary); background: rgba(0,74,173,0.08); }
+    .pkg-tokens { font-size: 1.4rem; font-weight: 900; color: var(--primary); font-family: var(--mono); }
+    .pkg-price { font-size: 0.72rem; font-weight: 700; color: var(--text-light); }
+    .pkg-bonus { font-size: 0.65rem; font-weight: 700; color: var(--success); background: #dcfce7; border-radius: 4px; padding: 1px 4px; margin-top: 2px; display: inline-block; }
+    .pw-sub-card { background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: white; border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1rem; }
+    .pw-sub-card-title { font-size: 0.95rem; font-weight: 800; margin-bottom: 0.35rem; }
+    .pw-sub-card-desc { font-size: 0.8rem; opacity: 0.88; margin-bottom: 0.85rem; line-height: 1.5; }
+
+    /* ═══════════════ TABS: MEDIA SPECIFIC ═══════════════ */
+    .sub-tabs { display: flex; gap: 0.25rem; margin-bottom: 1rem; overflow-x: auto; scrollbar-width: none; }
+    .sub-tabs::-webkit-scrollbar { display: none; }
+    .sub-tab-btn { padding: 0.45rem 0.9rem; border: 1.5px solid var(--border); border-radius: 6px; background: #fff; color: var(--text-light); font-size: 0.78rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
+    .sub-tab-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.85rem; }
+    .yt-video-card { background: #fff; border-radius: 8px; border: 1px solid var(--border); overflow: hidden; }
+    .yt-video-thumb { position: relative; aspect-ratio: 16/9; background: #000; cursor: pointer; overflow: hidden; }
+    .yt-video-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .yt-play-btn { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.35); color: #ff0000; font-size: 2.5rem; }
+    .yt-add-form { background: #f0f9ff; border-radius: 8px; padding: 0.85rem; margin-bottom: 0.85rem; border: 1px solid #bfdbfe; }
+    .video-info { padding: 0.6rem; }
+    .video-title { font-size: 0.82rem; font-weight: 700; color: var(--text); line-height: 1.3; }
+    .photos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.5rem; }
+    .photo-item { position: relative; aspect-ratio: 1; border-radius: 6px; overflow: hidden; }
+    .photo-item img { width: 100%; height: 100%; object-fit: cover; }
+    .photo-item-del { position: absolute; top: 3px; right: 3px; background: rgba(220,38,38,0.85); color: #fff; border: none; border-radius: 50%; width: 18px; height: 18px; font-size: 0.65rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+    /* ═══════════════ TABS: NOTIFICATIONS SPECIFIC ═══════════════ */
+    .filter-bar { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.65rem; }
+    .filter-btn { padding: 0.35rem 0.85rem; border: 1.5px solid var(--border); border-radius: 6px; background: #fff; color: var(--text-light); font-size: 0.75rem; font-weight: 700; cursor: pointer; }
+    .filter-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .notif-item { padding: 0.65rem 0.75rem; border-bottom: 1px solid #f0f4f8; cursor: pointer; border-left: 3px solid transparent; }
+    .notif-item.unread { background: #f0f6ff; border-left-color: var(--primary); }
+    .notif-item-row { display: flex; align-items: flex-start; gap: 0.6rem; }
+    .notif-icon { width: 32px; height: 32px; background: rgba(0,74,173,0.1); color: var(--primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.82rem; flex-shrink: 0; }
+    .notif-body { flex: 1; min-width: 0; }
+    .notif-type { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-light); }
+    .notif-msg { font-size: 0.82rem; font-weight: 600; color: var(--text); line-height: 1.4; margin-top: 1px; }
+    .notif-time { font-size: 0.7rem; color: var(--text-light); margin-top: 2px; }
+    .notif-tick-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 0.3rem; }
+    .notif-tick { font-size: 0.68rem; font-weight: 800; }
+    .notif-tick.unread { color: var(--primary); }
+    .notif-tick.read { color: var(--success); }
+    .notif-expanded { padding: 0.5rem 0; font-size: 0.82rem; color: #374151; border-top: 1px solid #f0f4f8; margin-top: 0.4rem; line-height: 1.5; }
+
+    /* ═══════════════ TABS: ACCOUNT SPECIFIC ═══════════════ */
+    .chat-msg { display: flex; flex-direction: column; }
+    .chat-msg.sent { align-items: flex-end; }
+    .chat-msg.received { align-items: flex-start; }
+    .chat-msg-bubble { max-width: 80%; background: var(--primary); color: #fff; border-radius: 12px 12px 2px 12px; padding: 0.5rem 0.75rem; font-size: 0.82rem; line-height: 1.5; }
+    .chat-msg.received .chat-msg-bubble { background: #e2e8f0; color: #1e293b; border-radius: 12px 12px 12px 2px; }
+    .chat-msg-meta { font-size: 0.65rem; color: var(--text-light); margin-top: 2px; }
+    .chat-input { flex: 1; padding: 0.5rem 0.75rem; border: 1.5px solid var(--border); border-radius: 8px; font-size: 0.85rem; font-family: var(--font); }
+    .chat-send-btn { background: var(--primary); color: #fff; border: none; border-radius: 8px; padding: 0.5rem 1rem; cursor: pointer; }
+    .ticket-reason-select { width: 100%; padding: 0.5rem; border: 1.5px solid var(--border); border-radius: 6px; font-size: 0.85rem; margin-bottom: 0.65rem; font-family: var(--font); }
+    .ticket-start-btn { background: var(--primary); color: #fff; border: none; border-radius: 6px; padding: 0.55rem 1.25rem; font-size: 0.85rem; font-weight: 700; cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.4rem; }
+    .ticket-start-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ═══════════════ MODALS ═══════════════ */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+    .modal-box { background: #fff; border-radius: var(--radius); width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
+    .modal-header h3 { font-size: 1rem; font-weight: 800; color: var(--primary); }
+    .modal-close { background: none; border: none; color: var(--text-light); font-size: 1.1rem; cursor: pointer; padding: 4px; border-radius: 4px; }
+    .modal-body { padding: 1.25rem; }
+
+    /* ═══════════════ TOASTS ═══════════════ */
+    .toast-container { position: fixed; top: 60px; right: 1rem; z-index: 5000; display: flex; flex-direction: column; gap: 0.4rem; }
+    .toast { background: #1e293b; color: #fff; border-radius: 8px; padding: 0.6rem 1rem; font-size: 0.82rem; font-weight: 600; box-shadow: 0 4px 16px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 0.5rem; min-width: 220px; max-width: 340px; animation: slideIn 0.25s ease; }
+    .toast-success { border-left: 3px solid var(--success); }
+    .toast-error { border-left: 3px solid var(--danger); }
+    .toast-info { border-left: 3px solid #0369a1; }
+    .toast-warning { border-left: 3px solid var(--warning); }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    /* ═══════════════ SUPPORT FAB ═══════════════ */
+    .support-fab {
+      position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--primary);
+      color: #fff; border: none; border-radius: 50%; width: 48px; height: 48px;
+      font-size: 1.3rem; cursor: pointer; box-shadow: 0 4px 16px rgba(0,74,173,0.35); z-index: 800;
+    }
+
+    /* ═══════════════ IFRAME TABS ═══════════════ */
+    .iframe-tab-frame {
+      width: 100%; border: none; min-height: 80vh; display: block;
+    }
+
+    /* ═══════════════ RESPONSIVE SIDEBAR ═══════════════ */
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+    }
+
+    /* ═══════════════ PRINT ═══════════════ */
+    @media print {
+      .nav-toggle, .nav-overlay, .sidebar, .dashboard-header, .tab-bar,
+      .action-btns, .modal-overlay, .toast-container, .support-fab, .no-print,
+      .iframe-tab-frame { display: none !important; }
+      .main-content { margin-left: 0 !important; padding: 0 !important; }
+      .page-inner { max-width: 100% !important; padding: 0.5rem; }
+      .card { box-shadow: none !important; border: 1px solid #ccc !important; break-inside: avoid; page-break-inside: avoid; }
+      body { background: #fff !important; color: #000 !important; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script>
+    (function() {
+      const { h, render } = preact;
+      const { useState, useEffect, useCallback, useRef, useMemo } = preactHooks;
+      const html = htm.bind(h);
+      const API_BASE = '/api';
+
+      // ═══════════════ SHARED HELPERS ═══════════════
+      const fmtDate = (d) => {
+        if (!d) return '—';
+        try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); }
+        catch { return d; }
+      };
+      const timeAgo = (d) => {
+        if (!d) return '—';
+        const s = (Date.now() - new Date(d)) / 1000;
+        if (s < 60) return 'Just now';
+        if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+        if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+        return `${Math.floor(s / 86400)}d ago`;
+      };
+      const getFlagUrl = (country) => {
+        if (!country) return null;
+        const map = { Nigeria: 'ng', Ghana: 'gh', Kenya: 'ke', 'South Africa': 'za', Egypt: 'eg', Senegal: 'sn', Cameroon: 'cm', Morocco: 'ma', Ethiopia: 'et', Uganda: 'ug' };
+        const code = map[country];
+        return code ? `https://flagcdn.com/24x18/${code}.png` : null;
+      };
+      const extractYouTubeId = (url) => {
+        try {
+          const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([A-Za-z0-9_-]{11})/);
+          return m ? m[1] : null;
+        } catch { return null; }
+      };
+      const copyToClipboard = (text) => { navigator.clipboard.writeText(text).catch(() => {}); };
+      const MAX_PHOTOS_BYTES = 10 * 1024 * 1024;
+      const MEDIA_PHOTOS_KEY = '__enejistats_club_media_photos__';
+      const MGMT_POSITIONS = ['Director', 'General Manager', 'Team Manager', 'Head Coach', 'Assistant Coach', 'Goalkeeper Coach', 'Fitness Coach', 'Kit Manager', 'Club Secretary'];
+
+      async function apiCall(endpoint, opts = {}) {
+        const url = `${API_BASE}${endpoint}`;
+        const token = localStorage.getItem('enejistats_token');
+        const authHeader = token ? { 'Authorization': 'Bearer ' + token } : {};
+        const options = {
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json', ...authHeader, ...(opts.headers || {}) },
+          ...opts
+        };
+        if (opts.body instanceof FormData) delete options.headers['Content-Type'];
+        const res = await fetch(url, options);
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          const e = new Error(err.detail || `HTTP ${res.status}`);
+          e.status = res.status;
+          throw e;
+        }
+        return res.json();
+      }
+
+      const badgeFallback = `data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0OCIgZmlsbD0iI2UyZThmMCIvPjx0ZXh0IHg9IjUwIiB5PSI1NSIgZm9udC1zaXplPSIzMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzY0NzQ4YiI+8J+Quj48L3RleHQ+PC9zdmc+`;
+
+      // ═══════════════ SHARED COMPONENTS ═══════════════
+      function ToastContainer({ toasts, removeToast }) {
+        return html`
+          <div class="toast-container">
+            ${toasts.map(t => html`
+              <div key=${t.id} class=${`toast toast-${t.type}`} onClick=${() => removeToast(t.id)}>
+                <i class=${`fas ${t.type === 'success' ? 'fa-check-circle' : t.type === 'error' ? 'fa-exclamation-circle' : t.type === 'warning' ? 'fa-exclamation-triangle' : 'fa-info-circle'}`}></i>
+                ${t.msg}
+              </div>
+            `)}
+          </div>
+        `;
+      }
+
+      function BrandMark() {
+        return html`<div class="brand-mark-word"><span>Ene</span><span style="position:relative;">ȷı</span><span>Stats</span></div>`;
+      }
+
+      function MgmtEditModal({ person, onSave, onDelete, onClose }) {
+        const [pos, setPos] = useState(person ? person.position : MGMT_POSITIONS[0]);
+        const [name, setName] = useState(person ? person.name : '');
+        return html`
+          <div class="modal-overlay" onClick=${e => e.target === e.currentTarget && onClose()}>
+            <div class="modal-box" style="max-width:400px;">
+              <div class="modal-header">
+                <h3><i class="fas fa-user-edit"></i> ${person ? 'Edit' : 'Add'} Personnel</h3>
+                <button class="modal-close" onClick=${onClose}><i class="fas fa-times"></i></button>
+              </div>
+              <div class="modal-body">
+                <div class="form-group">
+                  <label>Position / Role</label>
+                  <select value=${pos} onChange=${e => setPos(e.target.value)}>
+                    ${MGMT_POSITIONS.map(p => html`<option key=${p} value=${p}>${p}</option>`)}
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Full Name</label>
+                  <input type="text" value=${name} onInput=${e => setName(e.target.value)} placeholder="Enter full name..." />
+                </div>
+                <div class="btn-row">
+                  <button class="btn btn-primary" style="flex:1;" onClick=${() => { if (!name.trim()) return; onSave({ position: pos, name: name.trim() }); }} disabled=${!name.trim()}>
+                    <i class="fas fa-check"></i> ${person ? 'Save' : 'Add'}
+                  </button>
+                  ${person && html`<button class="btn btn-danger" onClick=${onDelete}><i class="fas fa-trash"></i></button>`}
+                  <button class="btn btn-outline" onClick=${onClose}>Cancel</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // ═══════════════ TABS CONFIG ═══════════════
+      const TABS = [
+        { id: 'profile', label: 'Club Profile', icon: 'fa-shield-halved' },
+        { id: 'stats', label: 'Stats', icon: 'fa-chart-bar', iframe: 'club-stats-tab.html' },
+        { id: 'squad', label: 'Squad', icon: 'fa-users' },
+        { id: 'match-centre', label: 'Match Centre', icon: 'fa-futbol', iframe: 'club-match-centre-tab.html' },
+        { id: 'tokens', label: 'Tokens', icon: 'fa-coins' },
+        { id: 'media', label: 'Media', icon: 'fa-photo-video' },
+        { id: 'notifications', label: 'Notifications', icon: 'fa-bell' },
+        { id: 'account', label: 'Account', icon: 'fa-user-gear' },
+      ];
+
+      // ═══════════════ PROFILE TAB ═══════════════
+      function ProfileTab({ club, summaryStats, seasonStats, achievements, matchData, managementTeam, onAddMgmt, onEditMgmt, onDeleteMgmt, onViewMatchCentre, clubId, badgeUrl }) {
+        const profileCompleteness = useMemo(() => {
+          if (!club) return 0;
+          const fields = [club.club_name, club.founded_year || club.founded, club.country, club.home_ground || club.stadium, club.phone || club.club_phone, club.email || club.club_email, club.bio, club.photo_url || club.badge_url || club.logo || club.photo, club.club_category || club.category || club.club_level];
+          return Math.round((fields.filter(Boolean).length / fields.length) * 100);
+        }, [club]);
+
+        const mgmtGroups = useMemo(() => {
+          const isCoach = p => ['Head Coach', 'Assistant Coach', 'Goalkeeper Coach', 'Fitness Coach'].includes(p.position);
+          return {
+            directors: managementTeam.filter(m => m.position === 'Director'),
+            gms: managementTeam.filter(m => m.position === 'General Manager'),
+            tms: managementTeam.filter(m => m.position === 'Team Manager'),
+            coaches: managementTeam.filter(isCoach),
+            others: managementTeam.filter(m => !['Director', 'General Manager', 'Team Manager'].includes(m.position) && !isCoach(m)),
+          };
+        }, [managementTeam]);
+
+        const renderMgmt = (list, chipFn) => list.map((p, i) => html`
+          <div key=${i} class="mgmt-person-row">
+            <span class="mgmt-pos-chip">${chipFn(p)}</span>
+            <span class="mgmt-name">${p.name}</span>
+            <button class="mgmt-edit-btn" onClick=${() => onEditMgmt(managementTeam.indexOf(p))}><i class="fas fa-pen"></i></button>
+          </div>
+        `);
+
+        return html`
+          <div>
+            <div class="card">
+              <div class="card-title"><span><i class="fas fa-shield-halved"></i> Club Profile</span></div>
+              <div class="profile-section">
+                <div>
+                  <div class="club-badge-wrap">
+                    <img class="club-badge-img" src=${badgeUrl || badgeFallback} alt=${club?.club_name || 'Club'} onerror=${`this.src='${badgeFallback}'`} />
+                  </div>
+                  <div class="profile-badge-meta">
+                    <div class="profile-id-on-badge">${clubId}</div>
+                    <div class="profile-complete-bar"><div class="profile-complete-fill" style="width:${profileCompleteness}%;"></div></div>
+                    <div class="profile-completion-pct">${profileCompleteness}% complete</div>
+                    <div style="margin-top:0.35rem;">
+                      <span class="badge badge-blue">${club?.club_category || '—'}</span>
+                      ${club?.is_verified ? html`<span class="verified-tick" style="margin-left:4px;"><i class="fas fa-check"></i> Verified</span>` : ''}
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <div class="club-name">${club?.club_name || club?.name || 'Club'}</div>
+                  ${club?.nickname ? html`<div style="font-size:0.85rem;color:var(--text-light);font-style:italic;margin-top:2px;">"${club.nickname}"</div>` : ''}
+                  <div class="detail-grid">
+                    <div class="detail-row"><span class="detail-label">Club ID</span><span class="detail-value" style="font-family:var(--mono);font-size:0.78rem;">${clubId}</span></div>
+                    ${(club?.founded_year || club?.founded || club?.year_established) && html`<div class="detail-row"><span class="detail-label">Founded</span><span class="detail-value">${club?.founded_year || club?.founded || club?.year_established}</span></div>`}
+                    ${club?.country && html`<div class="detail-row"><span class="detail-label">Country</span><span class="detail-value">
+                      ${getFlagUrl(club?.country) ? html`<img src=${getFlagUrl(club?.country)} class="flag-img" />` : ''}
+                      ${club?.country}
+                    </span></div>`}
+                    ${(club?.home_ground || club?.stadium) && html`<div class="detail-row"><span class="detail-label">Home Ground</span><span class="detail-value">${club?.home_ground || club?.stadium}</span></div>`}
+                    ${(club?.league || club?.division) && html`<div class="detail-row"><span class="detail-label">League / Division</span><span class="detail-value">${club?.league || club?.division}</span></div>`}
+                    ${(club?.is_registered && club?.cac_number) && html`<div class="detail-row"><span class="detail-label">CAC Number</span><span class="detail-value">${club?.cac_number}</span></div>`}
+                    ${club?.state && html`<div class="detail-row"><span class="detail-label">State</span><span class="detail-value">${club?.state}</span></div>`}
+                    ${club?.city && html`<div class="detail-row"><span class="detail-label">City / District</span><span class="detail-value">${club.city}</span></div>`}
+                    ${club?.lga && html`<div class="detail-row"><span class="detail-label">LGA / Local Area</span><span class="detail-value">${club.lga}</span></div>`}
+                    ${club?.website && html`<div class="detail-row"><span class="detail-label">Website</span><span class="detail-value"><a href=${club?.website} target="_blank" style="color:var(--primary);">${club?.website}</a></span></div>`}
+                    ${club?.club_email && html`<div class="detail-row"><span class="detail-label">Club Email</span><span class="detail-value">${club?.club_email}</span></div>`}
+                  </div>
+                  <div style="margin-top:0.85rem;">
+                    <div style="font-size:0.75rem;font-weight:800;color:var(--text-light);text-transform:uppercase;letter-spacing:0.3px;margin-bottom:0.4rem;">Contact</div>
+                    <div class="contact-icons-row">
+                      ${club?.phone ? html`<a href=${`tel:${club.phone}`} class="contact-icon-btn contact-icon-phone"><i class="fas fa-phone"></i> ${club.phone}</a>` : ''}
+                      ${(club?.whatsapp || club?.phone) ? html`<a href=${`https://wa.me/${(club.whatsapp || club.phone).replace(/[^0-9]/g, '')}`} target="_blank" class="contact-icon-btn contact-icon-whatsapp"><i class="fab fa-whatsapp"></i> WhatsApp</a>` : ''}
+                      ${club?.email ? html`<a href=${`mailto:${club.email}`} class="contact-icon-btn contact-icon-email"><i class="fas fa-envelope"></i> ${club.email}</a>` : ''}
+                    </div>
+                  </div>
+                  <div class="mgmt-section">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.4rem;">
+                      <div style="font-size:0.75rem;font-weight:800;color:var(--text-light);text-transform:uppercase;letter-spacing:0.3px;">Management Team</div>
+                      <button class="btn btn-sm btn-outline" onClick=${onAddMgmt}><i class="fas fa-plus"></i> Add</button>
+                    </div>
+                    ${managementTeam.length === 0 ? html`<div style="font-size:0.82rem;color:var(--text-light);padding:0.5rem 0;">No management personnel added yet</div>` : html`
+                      ${mgmtGroups.directors.length > 0 && html`<div class="mgmt-role-group"><div class="mgmt-role-title">Directors</div>${renderMgmt(mgmtGroups.directors, p => p.position)}</div>`}
+                      ${mgmtGroups.gms.length > 0 && html`<div class="mgmt-role-group"><div class="mgmt-role-title">General Manager</div>${renderMgmt(mgmtGroups.gms, () => 'GM')}</div>`}
+                      ${mgmtGroups.tms.length > 0 && html`<div class="mgmt-role-group"><div class="mgmt-role-title">Team Manager</div>${renderMgmt(mgmtGroups.tms, () => 'TM')}</div>`}
+                      ${mgmtGroups.coaches.length > 0 && html`<div class="mgmt-role-group"><div class="mgmt-role-title">Coaching Staff</div>${renderMgmt(mgmtGroups.coaches, p => p.position.split(' ')[0])}</div>`}
+                      ${mgmtGroups.others.length > 0 && html`<div class="mgmt-role-group"><div class="mgmt-role-title">Other Staff</div>${renderMgmt(mgmtGroups.others, p => p.position)}</div>`}
+                    `}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-title"><i class="fas fa-chart-bar"></i> Club Performance Metrics</div>
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;">
+                ${[
+                  ['Matches', summaryStats?.matchesPlayed || summaryStats?.matches_played || 0],
+                  ['Wins', summaryStats?.wins || 0],
+                  ['Draws', summaryStats?.draws || 0],
+                  ['Losses', summaryStats?.losses || 0],
+                  ['Goals For', summaryStats?.goalsFor || summaryStats?.goals_for || 0],
+                  ['Clean Sheets', summaryStats?.cleanSheets || summaryStats?.clean_sheets || 0],
+                ].map(([label, val]) => html`
+                  <div key=${label} class="stat-overview-card" style="background:#fff;border-radius:8px;padding:0.65rem 0.5rem;text-align:center;border:1px solid var(--border);border-top:3px solid var(--primary);">
+                    <div style="font-size:1.6rem;font-weight:900;color:var(--primary);line-height:1;font-family:var(--mono);">${val}</div>
+                    <div style="font-size:0.65rem;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.4px;margin-top:2px;">${label}</div>
+                  </div>
+                `)}
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-title" style="justify-content:space-between;">
+                <span><i class="fas fa-history"></i> Recent Match Results</span>
+                <button class="btn btn-sm btn-outline" onClick=${onViewMatchCentre}>View All</button>
+              </div>
+              ${matchData.length === 0 ? html`<div class="empty-state"><i class="fas fa-futbol"></i><div>No results yet</div></div>` :
+                matchData.slice(0, 5).map(m => html`
+                  <div class="fixture-card" key=${m._id || m.id} style="border:1px solid var(--border);border-radius:8px;padding:0.75rem;margin-bottom:0.65rem;background:#fafbfc;">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.4rem;">
+                      <span style="font-size:0.88rem;font-weight:800;color:var(--text);">${m.home_team || 'Home'} ${m.home_score ?? '—'} – ${m.away_score ?? '—'} ${m.away_team || 'Away'}</span>
+                      <span class=${`badge ${m.result === 'W' ? 'badge-green' : m.result === 'L' ? 'badge-red' : 'badge-yellow'}`}>${m.result || 'D'}</span>
+                    </div>
+                    <div style="display:flex;flex-wrap:wrap;gap:0.4rem 0.75rem;font-size:0.75rem;color:var(--text-light);">
+                      ${m.date || m.match_date ? html`<span><i class="fas fa-calendar"></i> ${fmtDate(m.date || m.match_date)}</span>` : ''}
+                      ${m.competition ? html`<span><i class="fas fa-trophy"></i> ${m.competition}</span>` : ''}
+                    </div>
+                  </div>
+                `)
+              }
+            </div>
+
+            <div class="card">
+              <div class="card-title"><i class="fas fa-book-open"></i> Club History & Bio</div>
+              ${club?.bio ? html`<div class="bio-card"><p class="bio-text">${club.bio}</p></div>` : html`<div class="empty-state" style="padding:1rem;"><i class="fas fa-book"></i><div>No club bio added yet</div></div>`}
+            </div>
+
+            <div class="card">
+              <div class="card-title"><i class="fas fa-trophy"></i> Trophies & Achievements</div>
+              ${achievements.length === 0 ? html`<div class="empty-state" style="padding:1rem;"><i class="fas fa-medal"></i><div>No achievements recorded yet</div></div>` :
+                achievements.map((a, i) => html`
+                  <div key=${i} class="achievement-item">
+                    <span class="achievement-icon"><i class="fas fa-trophy"></i></span>
+                    <span style="flex:1;font-weight:600;">${a.title || a.name || a}</span>
+                    ${a.year ? html`<span class="achievement-year">${a.year}</span>` : ''}
+                  </div>
+                `)
+              }
+            </div>
+          </div>
+        `;
+      }
+
+      // ═══════════════ SQUAD TAB ═══════════════
+      const POS_COLORS = { GK: '#f59e0b', CB: '#3b82f6', RB: '#3b82f6', LB: '#3b82f6', RWB: '#3b82f6', LWB: '#3b82f6', CDM: '#8b5cf6', CM: '#8b5cf6', CAM: '#8b5cf6', RM: '#8b5cf6', LM: '#8b5cf6', ST: '#ef4444', CF: '#ef4444', LW: '#ef4444', RW: '#ef4444' };
+      const knownPositions = Object.keys(POS_COLORS);
+      const SQUAD_GROUPS = [
+        { label: 'Goalkeepers', icon: 'fa-hand-paper', color: '#f59e0b', positions: ['GK'] },
+        { label: 'Defenders', icon: 'fa-shield-alt', color: '#3b82f6', positions: ['CB', 'RB', 'LB', 'RWB', 'LWB'] },
+        { label: 'Midfielders', icon: 'fa-running', color: '#8b5cf6', positions: ['CDM', 'CM', 'CAM', 'RM', 'LM'] },
+        { label: 'Attackers', icon: 'fa-futbol', color: '#ef4444', positions: ['ST', 'CF', 'LW', 'RW'] },
+      ];
+
+      function resolvePhoto(pl) {
+        return pl.photo || pl.photo_url || pl.profile_photo || pl.profile_image || pl.avatar || pl.image || pl.image_url || pl.badge_url || pl.cloudinary_url || pl.headshot || pl.picture || '';
+      }
+      function playerSVG(name, size) {
+        const init = (name || 'P').trim().charAt(0).toUpperCase();
+        const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}'><circle cx='${size / 2}' cy='${size / 2}' r='${size / 2}' fill='#1a3de4'/><text x='${size / 2}' y='${size * 0.63}' text-anchor='middle' font-size='${size * 0.37}' font-weight='bold' fill='white' font-family='Arial,sans-serif'>${init}</text></svg>`;
+        return 'data:image/svg+xml,' + encodeURIComponent(svg);
+      }
+      function SquadAvatar({ pl, size }) {
+        const name = pl.name || [pl.firstName, pl.lastName].filter(Boolean).join(' ') || 'P';
+        const src = resolvePhoto(pl) || playerSVG(name, size);
+        const fb = playerSVG(name, size);
+        return html`<img src=${src} style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;border:${size >= 56 ? '2px solid rgba(255,255,255,0.35)' : '1.5px solid #e2e8f0'};background:#eef2ff;flex-shrink:0;"
+          onError=${e => { if (e.currentTarget.src !== fb) { e.currentTarget.src = fb; e.currentTarget.onerror = null; } }} />`;
+      }
+
+      function PlayerDetailModal({ player, onClose }) {
+        if (!player) return null;
+        const sp = player;
+        const dob = sp.dob || sp.date_of_birth;
+        let ageStr = '—';
+        if (dob && sp.dob_visible !== false) {
+          const d = new Date(dob);
+          if (!isNaN(d.getTime())) {
+            const now = new Date();
+            let a = now.getFullYear() - d.getFullYear();
+            if (now.getMonth() < d.getMonth() || (now.getMonth() === d.getMonth() && now.getDate() < d.getDate())) a--;
+            ageStr = a + 'y';
+          }
+        }
+        const natFlag = getFlagUrl(sp.nationality);
+        const statusActive = (sp.status || 'active').toLowerCase() === 'active';
+        const pos = (sp.position || '—').toUpperCase();
+        const posCol = POS_COLORS[pos] || '#64748b';
+        const st = sp.stats || sp.season_stats || {};
+        let statsToShow = [];
+        if (pos === 'GK') statsToShow = [{ k: 'saves', l: 'Saves' }, { k: 'goals_conceded', l: 'Goals Conceded' }, { k: 'clean_sheets', l: 'Clean Sheets' }, { k: 'penalty_saves', l: 'Pen. Saves' }];
+        else if (['CB', 'RB', 'LB', 'RWB', 'LWB'].includes(pos)) statsToShow = [{ k: 'tackles_won', l: 'Tackles Won' }, { k: 'interceptions', l: 'Interceptions' }, { k: 'clearances', l: 'Clearances' }, { k: 'aerial_duels_won', l: 'Aerial Duels Won' }];
+        else if (['CDM', 'CM', 'CAM', 'RM', 'LM'].includes(pos)) statsToShow = [{ k: 'successful_short_passes', l: 'Passes' }, { k: 'assists', l: 'Assists' }, { k: 'successful_dribbles', l: 'Dribbles' }, { k: 'key_passes', l: 'Key Passes' }];
+        else statsToShow = [{ k: 'goals', l: 'Goals' }, { k: 'assists', l: 'Assists' }, { k: 'shots_on_target', l: 'Shots OT' }, { k: 'successful_dribbles', l: 'Dribbles' }];
+        const hasStats = statsToShow.some(s => st[s.k] != null);
+        const rating = sp.rating || sp.overall_rating;
+
+        const cells = [
+          { label: 'Level/Category', val: sp.category || sp.player_level || sp.level || '—' },
+          { label: 'Nationality', val: html`${natFlag ? html`<img src=${natFlag} class="sq-flag" onerror="this.style.display='none'" />` : ''}${sp.nationality || '—'}` },
+          { label: 'Age', val: ageStr },
+          { label: 'Status', val: html`<span style=${`width:8px;height:8px;border-radius:50%;display:inline-block;background:${statusActive ? '#22c55e' : '#ef4444'};flex-shrink:0;`}></span> ${(sp.status || 'Active').charAt(0).toUpperCase() + (sp.status || 'Active').slice(1)}` },
+          { label: 'Playing Category', val: sp.playing_category || sp.club_category || sp.club_level || '—' },
+          { label: 'Contract', val: sp.contract_status || sp.contract || sp.current_contract || '—' },
+          { label: 'Height', val: sp.height ? sp.height + 'cm' : '—' },
+          { label: 'Preferred Foot', val: sp.preferred_foot || sp.foot || '—' },
+        ];
+
+        return html`
+          <div class="modal-overlay" onClick=${onClose} style="z-index:1000;">
+            <div class="modal-box" style="max-width:370px;padding:0;overflow:hidden;border-radius:16px;" onClick=${e => e.stopPropagation()}>
+              <div class="sq-modal-header-band">
+                <${SquadAvatar} pl=${sp} size=${56} />
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:1.05rem;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                    ${sp.name || [sp.firstName, sp.lastName].filter(Boolean).join(' ') || 'Player'}
+                  </div>
+                  <div style="display:flex;align-items:center;gap:0.4rem;margin-top:0.3rem;flex-wrap:wrap;">
+                    <span style=${`background:${posCol};color:#fff;border-radius:5px;font-size:0.7rem;font-weight:900;padding:0.15rem 0.5rem;`}>${sp.position || '—'}</span>
+                    ${sp.jersey_number != null ? html`<span style="background:rgba(255,255,255,0.2);color:#fff;border-radius:5px;font-size:0.7rem;font-weight:800;padding:0.15rem 0.45rem;">#${sp.jersey_number}</span>` : ''}
+                  </div>
+                  ${rating ? html`<div style=${`display:inline-flex;align-items:center;gap:0.3rem;margin-top:0.35rem;background:${rating >= 7 ? '#22c55e' : rating >= 5 ? '#f59e0b' : '#ef4444'};color:#fff;border-radius:5px;padding:0.15rem 0.5rem;font-size:0.72rem;font-weight:900;`}><i class="fas fa-star" style="font-size:0.6rem;"></i> ${rating}</div>` : ''}
+                </div>
+                <button class="modal-close" style="color:white;opacity:0.8;margin-left:auto;flex-shrink:0;align-self:flex-start;" onClick=${onClose}><i class="fas fa-times"></i></button>
+              </div>
+              <div class="sq-modal-info-grid">
+                ${cells.map(({ label, val }) => html`<div key=${label} class="sq-info-cell"><div class="sq-info-label">${label}</div><div class="sq-info-value">${val}</div></div>`)}
+              </div>
+              ${hasStats && html`
+                <div class="sq-modal-stats-section">
+                  <div class="sq-modal-stats-title"><i class="fas fa-chart-bar"></i> Season Stats</div>
+                  <div class="sq-modal-stat-grid">
+                    ${statsToShow.map(s => html`<div key=${s.k} class="sq-modal-stat-item"><div class="sq-modal-stat-val">${st[s.k] ?? '—'}</div><div class="sq-modal-stat-lbl">${s.l}</div></div>`)}
+                  </div>
+                </div>
+              `}
+            </div>
+          </div>
+        `;
+      }
+
+      function SquadPlayerCard({ pl, onClick }) {
+        const fullName = pl.name || [pl.firstName, pl.lastName].filter(Boolean).join(' ') || 'Player';
+        const pos = (pl.position || '').toUpperCase();
+        const posCol = POS_COLORS[pos] || '#64748b';
+        const flagUrl = getFlagUrl(pl.nationality);
+        const dob = pl.dob || pl.date_of_birth;
+        let age = null;
+        if (dob && pl.dob_visible !== false) {
+          const d = new Date(dob);
+          if (!isNaN(d.getTime())) {
+            const now = new Date();
+            let a = now.getFullYear() - d.getFullYear();
+            if (now.getMonth() < d.getMonth() || (now.getMonth() === d.getMonth() && now.getDate() < d.getDate())) a--;
+            age = a;
+          }
+        }
+        const st = pl.stats || pl.season_stats || {};
+        let pills = [];
+        if (pos === 'GK') pills = [{ l: 'Saves', v: st.saves ?? '—' }, { l: 'Conceded', v: st.goals_conceded ?? '—' }];
+        else if (['CB', 'RB', 'LB', 'RWB', 'LWB'].includes(pos)) pills = [{ l: 'Tackles', v: st.tackles_won ?? '—' }, { l: 'Clearances', v: st.clearances ?? '—' }];
+        else if (['CDM', 'CM', 'CAM', 'RM', 'LM'].includes(pos)) pills = [{ l: 'Passes', v: st.successful_short_passes ?? '—' }, { l: 'Assists', v: st.assists ?? '—' }];
+        else pills = [{ l: 'Goals', v: st.goals ?? '—' }, { l: 'Assists', v: st.assists ?? '—' }];
+        const isActive = (pl.status || 'active').toLowerCase() === 'active';
+
+        return html`
+          <div class="sq-card" onClick=${onClick}>
+            <div class="sq-avatar-wrap">
+              <${SquadAvatar} pl=${pl} size=${36} />
+              ${pl.jersey_number != null ? html`<div class="sq-jersey-badge">${pl.jersey_number}</div>` : ''}
+            </div>
+            <div class="sq-name">${fullName}</div>
+            <div class="sq-pos-pill" style=${`background:${posCol}18;color:${posCol};`}>${pl.position || '—'}</div>
+            <div class="sq-meta-row">
+              ${flagUrl ? html`<img src=${flagUrl} class="sq-flag" onerror="this.style.display='none'" title=${pl.nationality || ''} />` : ''}
+              ${age != null ? html`<span class="sq-age">${age}y</span>` : ''}
+              <span class="sq-status-dot" style=${`background:${isActive ? '#22c55e' : '#94a3b8'};`} title=${isActive ? 'Active' : 'Inactive'}></span>
+            </div>
+            ${pills.some(s => s.v !== '—') ? html`<div class="sq-stats-row">${pills.filter(s => s.v !== '—').map(s => html`<span key=${s.l} class="sq-stat-pill">${s.l}: ${s.v}</span>`)}</div>` : ''}
+          </div>
+        `;
+      }
+
+      function SquadTab({ squadPlayers, clubId, onGoStats, onGoMatchRequests }) {
+        const [selected, setSelected] = useState(null);
+        const known = useMemo(() => {
+          const set = new Set();
+          squadPlayers.forEach(p => { if (knownPositions.includes((p.position || '').toUpperCase().trim())) set.add(p._id || p.player_id || p.name); });
+          return set;
+        }, [squadPlayers]);
+        const others = squadPlayers.filter(p => !knownPositions.includes((p.position || '').toUpperCase().trim()));
+
+        return html`
+          <div>
+            ${selected && html`<${PlayerDetailModal} player=${selected} onClose=${() => setSelected(null)} />`}
+            <div class="card" style="background:linear-gradient(135deg,var(--primary),var(--primary-light));color:white;margin-bottom:1rem;">
+              <div style="font-size:1rem;font-weight:900;margin-bottom:0.25rem;"><i class="fas fa-users"></i> Squad — ${squadPlayers.length} Player${squadPlayers.length !== 1 ? 's' : ''}</div>
+              <div style="font-size:0.82rem;opacity:0.88;">Club ID: ${clubId}. All registered, affiliated and contracted players appear below.</div>
+            </div>
+            ${squadPlayers.length === 0 && html`
+              <div class="card" style="text-align:center;padding:2rem 1rem;color:#94a3b8;">
+                <i class="fas fa-users" style="font-size:2rem;margin-bottom:0.75rem;display:block;"></i>
+                <div style="font-weight:700;font-size:0.9rem;margin-bottom:0.4rem;color:#374151;">No squad members found</div>
+                <div style="font-size:0.8rem;">Players registered or affiliated with your club will automatically appear here.</div>
+              </div>
+            `}
+            ${SQUAD_GROUPS.map(group => {
+              const gp = squadPlayers.filter(p => group.positions.includes((p.position || '').toUpperCase().trim()));
+              if (!gp.length) return null;
+              return html`
+                <div key=${group.label} class="card" style="margin-bottom:1rem;">
+                  <div class="card-title" style="margin-bottom:0.75rem;">
+                    <span style="display:flex;align-items:center;gap:0.5rem;">
+                      <span style=${`width:28px;height:28px;border-radius:50%;background:${group.color}18;display:flex;align-items:center;justify-content:center;`}>
+                        <i class=${`fas ${group.icon}`} style=${`color:${group.color};font-size:0.85rem;`}></i>
+                      </span>
+                      <span style="font-weight:800;font-size:0.92rem;">${group.label}</span>
+                      <span style="background:#f1f5f9;color:#64748b;border-radius:12px;padding:0.1rem 0.5rem;font-size:0.75rem;font-weight:700;">${gp.length}</span>
+                    </span>
+                  </div>
+                  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:0.55rem;">
+                    ${gp.map(pl => html`<${SquadPlayerCard} key=${pl._id || pl.player_id || pl.name} pl=${pl} onClick=${() => setSelected(pl)} />`)}
+                  </div>
+                </div>
+              `;
+            })}
+            ${others.length > 0 && html`
+              <div class="card" style="margin-bottom:1rem;">
+                <div class="card-title" style="margin-bottom:0.75rem;">
+                  <span style="display:flex;align-items:center;gap:0.5rem;">
+                    <span style="width:28px;height:28px;border-radius:50%;background:#6b728018;display:flex;align-items:center;justify-content:center;">
+                      <i class="fas fa-user-circle" style="color:#6b7280;font-size:0.85rem;"></i>
+                    </span>
+                    <span style="font-weight:800;font-size:0.92rem;">Other</span>
+                    <span style="background:#f1f5f9;color:#64748b;border-radius:12px;padding:0.1rem 0.5rem;font-size:0.75rem;font-weight:700;">${others.length}</span>
+                  </span>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:0.55rem;">
+                  ${others.map(pl => html`<${SquadPlayerCard} key=${pl._id || pl.player_id || pl.name} pl=${pl} onClick=${() => setSelected(pl)} />`)}
+                </div>
+              </div>
+            `}
+            <div style="margin-top:0.5rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+              <button class="btn btn-primary" style="font-size:0.82rem;" onClick=${onGoStats}><i class="fas fa-satellite-dish"></i> Stats Tracking</button>
+              <button class="btn btn-outline" style="font-size:0.82rem;" onClick=${onGoMatchRequests}><i class="fas fa-handshake"></i> Match Requests</button>
+            </div>
+          </div>
+        `;
+      }
+
+      // ═══════════════ TOKENS TAB ═══════════════
+      function TokensTab({ tokens, tokenPackages, transactions, onBuy, onFlutterwave, selectedTokenPkg, setSelectedTokenPkg }) {
+        return html`
+          <div>
+            <div class="pw-sub-card">
+              <div class="pw-sub-card-title"><i class="fas fa-crown"></i> Club Subscription Plans</div>
+              <div class="pw-sub-card-desc">Get a club subscription for premium features, verified badge, and priority placement.</div>
+              <button class="btn" style="background:white;color:var(--primary);font-weight:700;font-size:0.85rem;padding:0.55rem 1.25rem;border-radius:8px;border:none;cursor:pointer;" onClick=${() => onBuy('SUBSCRIPTION')}>
+                <i class="fas fa-crown"></i> View Subscription Plans
+              </button>
+            </div>
+            <div class="token-balance-card">
+              <div class="token-balance-amount">${tokens.balance}</div>
+              <div class="token-balance-label">Token Balance</div>
+              <div style="font-size:0.82rem;opacity:0.85;margin-top:2px;">Available: ${tokens.balance - tokens.locked} · Locked: ${tokens.locked}</div>
+            </div>
+            <div class="card">
+              <div class="card-title"><i class="fas fa-shopping-cart"></i> Purchase Tokens</div>
+              <div class="token-packages">
+                ${tokenPackages.map(pkg => html`
+                  <div key=${pkg.tokens} class=${`token-pkg ${selectedTokenPkg?.tokens === pkg.tokens ? 'selected' : ''}`} onClick=${() => setSelectedTokenPkg(pkg)}>
+                    <div class="pkg-tokens">${pkg.tokens}</div>
+                    <div style="font-size:0.62rem;color:#94a3b8;margin-bottom:2px;">Token${pkg.tokens > 1 ? 's' : ''}</div>
+                    <div class="pkg-price">₦${(pkg.price || 0).toLocaleString()}</div>
+                    ${pkg.bonus ? html`<div class="pkg-bonus">${pkg.bonus}</div>` : ''}
+                  </div>
+                `)}
+              </div>
+              ${selectedTokenPkg && html`
+                <div style="margin-top:0.75rem;">
+                  <div style="font-size:0.85rem;font-weight:700;margin-bottom:0.5rem;">Selected: <strong>${selectedTokenPkg.tokens} tokens</strong> — ₦${(selectedTokenPkg.price || 0).toLocaleString()}</div>
+                  <button class="btn btn-primary" style="width:100%;" onClick=${() => onBuy('TOKEN_PURCHASE')}>
+                    <i class="fas fa-university"></i> Buy Tokens via Bank Transfer
+                  </button>
+                  <button class="btn btn-outline" style="width:100%;margin-top:0.5rem;border-color:#f59e0b;color:#f59e0b;" onClick=${() => onFlutterwave(selectedTokenPkg)}>
+                    <i class="fas fa-credit-card"></i> Pay via Flutterwave
+                  </button>
+                </div>
+              `}
+            </div>
+            <div class="card">
+              <div class="card-title"><i class="fas fa-receipt"></i> Transaction History</div>
+              ${transactions.length === 0 ? html`<div class="empty-state"><i class="fas fa-receipt"></i><div>No transactions yet</div></div>` :
+                transactions.slice(0, 20).map((t, i) => html`
+                  <div key=${t._id || i} style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid #f0f4f8;font-size:0.82rem;">
+                    <div>
+                      <div style="font-weight:700;">${t.description || t.type || 'Transaction'}</div>
+                      <div style="font-size:0.72rem;color:var(--text-light);">${fmtDate(t.date || t.created_at)}</div>
+                    </div>
+                    <div style="font-weight:800;color:${t.type === 'credit' || t.amount > 0 ? '#16a34a' : '#dc2626'};">
+                      ${t.type === 'credit' || t.amount > 0 ? '+' : ''}${t.tokens || t.amount || 0} ${t.tokens != null ? 'tokens' : ''}
+                    </div>
+                  </div>
+                `)
+              }
+            </div>
+          </div>
+        `;
+      }
+
+      // ═══════════════ MEDIA TAB ═══════════════
+      function MediaTab({ mediaPhotos, onAddPhoto, onDeletePhoto, ytVideos, onAddVideo, onDeleteVideo, onPlayVideo }) {
+        const [subTab, setSubTab] = useState('videos');
+        const [newYtUrl, setNewYtUrl] = useState('');
+        const [newYtTitle, setNewYtTitle] = useState('');
+        const photoSize = mediaPhotos.reduce((a, p) => a + (p.size || 0), 0);
+        const photoPct = Math.min(100, (photoSize / MAX_PHOTOS_BYTES) * 100);
+
+        return html`
+          <div>
+            <div class="sub-tabs" style="max-width:300px;">
+              <button class=${`sub-tab-btn ${subTab === 'videos' ? 'active' : ''}`} onClick=${() => setSubTab('videos')}><i class="fab fa-youtube"></i> Videos</button>
+              <button class=${`sub-tab-btn ${subTab === 'photos' ? 'active' : ''}`} onClick=${() => setSubTab('photos')}><i class="fas fa-images"></i> Photos</button>
+            </div>
+            ${subTab === 'videos' ? html`
+              <div class="card">
+                <div class="card-title"><i class="fab fa-youtube" style="color:#ff0000;"></i> YouTube Videos</div>
+                <div class="yt-add-form">
+                  <div style="font-size:0.85rem;font-weight:700;color:#0369a1;margin-bottom:0.5rem;"><i class="fas fa-plus-circle"></i> Add YouTube Video</div>
+                  <div class="form-row">
+                    <div class="form-group" style="margin-bottom:0.5rem;"><label>YouTube URL</label><input type="url" value=${newYtUrl} onInput=${e => setNewYtUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=..." /></div>
+                    <div class="form-group" style="margin-bottom:0.5rem;"><label>Title (optional)</label><input type="text" value=${newYtTitle} onInput=${e => setNewYtTitle(e.target.value)} placeholder="Match highlight title" /></div>
+                  </div>
+                  <button class="btn btn-primary btn-sm" onClick=${() => {
+                    const id = extractYouTubeId(newYtUrl);
+                    if (!id) return;
+                    onAddVideo({ id, youtube_id: id, title: newYtTitle || 'Club Video', url: newYtUrl });
+                    setNewYtUrl(''); setNewYtTitle('');
+                  }} disabled=${!newYtUrl.trim()}>
+                    <i class="fab fa-youtube"></i> Add Video
+                  </button>
+                </div>
+                ${ytVideos.length === 0 ? html`<div class="empty-state"><i class="fab fa-youtube" style="font-size:2rem;color:#ff0000;opacity:0.4;"></i><div>No videos added yet</div></div>` :
+                  html`<div class="video-grid">${ytVideos.map(v => html`
+                    <div key=${v.youtube_id || v.id} class="yt-video-card">
+                      <div class="yt-video-thumb" onClick=${() => onPlayVideo(v)}>
+                        <img src=${`https://img.youtube.com/vi/${v.youtube_id || v.id}/mqdefault.jpg`} alt=${v.title || 'Video'} onerror="this.style.display='none'" />
+                        <div class="yt-play-btn"><i class="fab fa-youtube"></i></div>
+                      </div>
+                      <div class="video-info">
+                        <div class="video-title">${v.title || 'Club Video'}</div>
+                        <div style="display:flex;gap:0.5rem;margin-top:0.35rem;">
+                          <button class="btn btn-primary btn-sm" onClick=${() => onPlayVideo(v)}><i class="fas fa-play"></i> Watch</button>
+                          <button class="btn btn-danger btn-sm" onClick=${() => onDeleteVideo(v.youtube_id || v.id)}><i class="fas fa-trash"></i></button>
+                        </div>
+                      </div>
+                    </div>
+                  `)}</div>`
+                }
+              </div>
+            ` : html`
+              <div class="card">
+                <div class="card-title" style="justify-content:space-between;">
+                  <span><i class="fas fa-images"></i> Club Photos</span>
+                  <span style="font-size:0.75rem;color:#64748b;">${(photoSize / 1024 / 1024).toFixed(2)} MB / 10 MB</span>
+                </div>
+                <div style="background:#f0f4f8;border-radius:999px;height:8px;overflow:hidden;margin-bottom:0.75rem;">
+                  <div style="height:100%;width:${photoPct}%;background:${photoPct > 90 ? '#ef4444' : photoPct > 70 ? '#f59e0b' : 'var(--primary)'};border-radius:999px;transition:width 0.4s;"></div>
+                </div>
+                <label class="btn btn-primary btn-sm" style="cursor:pointer;margin-bottom:0.85rem;">
+                  <i class="fas fa-plus"></i> Add Photos
+                  <input type="file" accept="image/*" multiple style="display:none;" onChange=${e => { onAddPhoto(e.target.files); e.target.value = ''; }} />
+                </label>
+                ${mediaPhotos.length === 0 ? html`<div class="empty-state"><i class="fas fa-camera"></i><div>No photos yet</div></div>` :
+                  html`<div class="photos-grid">${mediaPhotos.map(p => html`
+                    <div key=${p.id} class="photo-item">
+                      <img src=${p.dataUrl} alt=${p.name || 'Photo'} />
+                      <button class="photo-item-del" onClick=${() => onDeletePhoto(p.id)}><i class="fas fa-times"></i></button>
+                    </div>
+                  `)}</div>`
+                }
+              </div>
+            `}
+          </div>
+        `;
+      }
+
+      // ═══════════════ NOTIFICATIONS TAB ═══════════════
+      function NotificationsTab({ notifications, onMarkRead, onMarkAllRead, onDelete }) {
+        const [subTab, setSubTab] = useState('all');
+        const [expanded, setExpanded] = useState(null);
+        const unread = notifications.filter(n => !n.read).length;
+        const iconMap = { match_result: 'fa-futbol', admin: 'fa-shield-halved', competition: 'fa-trophy', player_inquiry: 'fa-user' };
+
+        const filtered = notifications.filter(n => subTab === 'all' || n.type === subTab || (n.type || '').includes(subTab));
+
+        return html`
+          <div>
+            <div class="card">
+              <div class="card-title" style="justify-content:space-between;">
+                <span><i class="fas fa-bell"></i> Notifications ${unread > 0 ? html`<span style="background:var(--primary);color:white;font-size:0.68rem;padding:1px 8px;border-radius:999px;margin-left:0.25rem;">${unread}</span>` : ''}</span>
+                ${unread > 0 && html`<button class="btn btn-sm btn-outline" onClick=${onMarkAllRead}>Mark All Read</button>`}
+              </div>
+              <div class="filter-bar" style="margin-bottom:0.75rem;">
+                ${['all', 'match_result', 'admin', 'competition', 'player_inquiry'].map(f => html`
+                  <button key=${f} class=${`filter-btn ${subTab === f ? 'active' : ''}`} onClick=${() => setSubTab(f)}>
+                    ${f === 'all' ? 'All' : f.replace(/_/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                  </button>
+                `)}
+              </div>
+              ${filtered.length === 0 ? html`<div class="empty-state"><i class="fas fa-bell-slash"></i><div>No notifications</div></div>` :
+                filtered.map(n => {
+                  const nid = n._id || n.id;
+                  const isEx = expanded === nid;
+                  return html`
+                    <div key=${nid} class=${`notif-item ${!n.read ? 'unread' : ''}`} onClick=${() => { setExpanded(isEx ? null : nid); if (!n.read) onMarkRead(nid); }}>
+                      <div class="notif-item-row">
+                        <div class="notif-icon"><i class=${`fas ${iconMap[n.type] || 'fa-bell'}`}></i></div>
+                        <div class="notif-body">
+                          <div class="notif-type">${(n.type || 'notification').replace(/_/g, ' ').toUpperCase()}</div>
+                          <div class="notif-msg">${n.message || n.body || '—'}</div>
+                          <div class="notif-time">${timeAgo(n.created_at || n.timestamp)}</div>
+                        </div>
+                        <div class="notif-tick-wrap">
+                          <span class=${`notif-tick ${!n.read ? 'unread' : 'read'}`}>${!n.read ? '✓' : '✓✓'}</span>
+                          <button style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:0.78rem;padding:0.15rem;" onClick=${e => { e.stopPropagation(); onDelete(nid); }} title="Delete"><i class="fas fa-trash"></i></button>
+                        </div>
+                      </div>
+                      ${isEx && html`<div class="notif-expanded">${n.message || n.body || '—'}</div>`}
+                    </div>
+                  `;
+                })
+              }
+            </div>
+          </div>
+        `;
+      }
+
+      // ═══════════════ ACCOUNT TAB ═══════════════
+      function AccountTab({ club, clubId, clubName, tokens, managementTeam, onSaveBadge, onSaveMgmt, onDeleteMgmt, onAddMgmt, pwForm, setPwForm, onChangePassword, onLogout, badgeUrl }) {
+        const [subTab, setSubTab] = useState('settings');
+        const [editPreview, setEditPreview] = useState(null);
+        const [editFile, setEditFile] = useState(null);
+        const photoInputRef = useRef(null);
+
+        // Support chat state
+        const [ticket, setTicket] = useState(null);
+        const [messages, setMessages] = useState([]);
+        const [input, setInput] = useState('');
+        const [reason, setReason] = useState('');
+        const chatBottomRef = useRef(null);
+
+        useEffect(() => { chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+
+        const startChat = () => {
+          if (!reason) return;
+          const tk = { ticket_id: 'TKT-' + Date.now(), reason };
+          setTicket(tk);
+          setMessages([
+            { id: Date.now(), sender: 'system', text: `Ticket #${tk.ticket_id} opened. A support agent will join shortly.`, time: new Date().toISOString() },
+            { id: Date.now() + 1, sender: 'support', text: `Hi ${clubName}! How can we help you today?`, time: new Date().toISOString() },
+          ]);
+        };
+
+        const sendMsg = () => {
+          if (!input.trim()) return;
+          const msg = { id: Date.now(), sender: 'club', text: input.trim(), time: new Date().toISOString() };
+          setMessages(p => [...p, msg]); setInput('');
+          setTimeout(() => chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+        };
+
+        const handlePhotoSelect = (e) => {
+          const file = e.target.files[0]; if (!file) return;
+          setEditFile(file);
+          const reader = new FileReader();
+          reader.onload = ev => setEditPreview(ev.target.result);
+          reader.readAsDataURL(file);
+        };
+
+        return html`
+          <div>
+            <div class="sub-tabs" style="max-width:320px;">
+              <button class=${`sub-tab-btn ${subTab === 'settings' ? 'active' : ''}`} onClick=${() => setSubTab('settings')}><i class="fas fa-gear"></i> Settings</button>
+              <button class=${`sub-tab-btn ${subTab === 'support' ? 'active' : ''}`} onClick=${() => setSubTab('support')}><i class="fas fa-headset"></i> Support</button>
+            </div>
+            ${subTab === 'settings' ? html`
+              <div>
+                <div class="card">
+                  <div class="card-title"><i class="fas fa-image"></i> Club Badge / Photo</div>
+                  <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+                    <img src=${editPreview || badgeUrl || badgeFallback} alt=${clubName} style="width:80px;height:80px;border-radius:10px;border:3px solid var(--primary);object-fit:contain;background:#f8fafc;padding:4px;" onerror=${`this.src='${badgeFallback}'`} />
+                    <div style="flex:1;">
+                      <div style="font-size:0.85rem;font-weight:700;color:#374151;margin-bottom:0.5rem;">Upload a new club badge or photo</div>
+                      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                        <label class="btn btn-outline btn-sm" style="cursor:pointer;">
+                          <i class="fas fa-upload"></i> Choose Image
+                          <input ref=${photoInputRef} type="file" accept="image/*" style="display:none;" onChange=${handlePhotoSelect} />
+                        </label>
+                        ${editFile && html`<button class="btn btn-primary btn-sm" onClick=${() => { onSaveBadge(editFile, editPreview); setEditFile(null); }}><i class="fas fa-check"></i> Save Badge</button>`}
+                        ${editPreview && html`<button class="btn btn-sm" style="border:1.5px solid #e2e8f0;" onClick=${() => { setEditPreview(null); setEditFile(null); }}><i class="fas fa-times"></i> Cancel</button>`}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="card">
+                  <div class="card-title" style="justify-content:space-between;">
+                    <span><i class="fas fa-users-gear"></i> Management Team</span>
+                    <button class="btn btn-primary btn-sm" onClick=${onAddMgmt}><i class="fas fa-plus"></i> Add Personnel</button>
+                  </div>
+                  ${managementTeam.length === 0 ? html`<div class="empty-state" style="padding:1rem;"><i class="fas fa-users-slash"></i><div>No management personnel added yet</div></div>` :
+                    managementTeam.map((p, idx) => html`
+                      <div key=${idx} class="mgmt-person-row">
+                        <span class="mgmt-pos-chip">${p.position}</span>
+                        <span class="mgmt-name">${p.name}</span>
+                        <button class="mgmt-edit-btn" onClick=${() => onSaveMgmt(idx)}><i class="fas fa-pen"></i> Edit</button>
+                      </div>
+                    `)
+                  }
+                </div>
+                <div class="card">
+                  <div class="card-title"><i class="fas fa-lock"></i> Change Password</div>
+                  <div class="form-group"><label>Current Password</label><input type="password" value=${pwForm.current} onInput=${e => setPwForm(p => ({ ...p, current: e.target.value }))} placeholder="Enter current password" /></div>
+                  <div class="form-row">
+                    <div class="form-group"><label>New Password</label><input type="password" value=${pwForm.newpw} onInput=${e => setPwForm(p => ({ ...p, newpw: e.target.value }))} placeholder="New password" /></div>
+                    <div class="form-group"><label>Confirm New Password</label><input type="password" value=${pwForm.confirm} onInput=${e => setPwForm(p => ({ ...p, confirm: e.target.value }))} placeholder="Confirm new password" /></div>
+                  </div>
+                  <button class="btn btn-primary" onClick=${onChangePassword} disabled=${!pwForm.current || !pwForm.newpw || !pwForm.confirm}><i class="fas fa-key"></i> Change Password</button>
+                </div>
+                <div class="card">
+                  <div class="card-title"><i class="fas fa-info-circle"></i> Account Information</div>
+                  <div style="font-size:0.85rem;line-height:2;">
+                    <div><strong>Club ID:</strong> <span style="font-family:var(--mono);">${clubId}</span></div>
+                    <div><strong>Club Name:</strong> ${clubName}</div>
+                    <div><strong>Email:</strong> ${club?.email || '—'}</div>
+                    <div><strong>Category:</strong> ${club?.club_category || '—'}</div>
+                    <div><strong>Country:</strong> ${club?.country || '—'}</div>
+                    <div><strong>Token Balance:</strong> ${tokens.balance} tokens</div>
+                  </div>
+                </div>
+                <div class="card">
+                  <div class="card-title"><i class="fas fa-sign-out-alt"></i> Session</div>
+                  <button class="btn btn-danger" onClick=${onLogout}><i class="fas fa-sign-out-alt"></i> Logout</button>
+                </div>
+              </div>
+            ` : html`
+              <div>
+                <div class="card">
+                  <div class="card-title"><i class="fas fa-headset"></i> Club Support</div>
+                  ${!ticket ? html`
+                    <div style="text-align:center;padding:1.5rem 0;">
+                      <div style="font-size:2rem;color:var(--primary);margin-bottom:0.75rem;"><i class="fas fa-comments"></i></div>
+                      <div style="font-weight:700;font-size:1rem;margin-bottom:0.35rem;">Need Help?</div>
+                      <div style="font-size:0.85rem;color:#64748b;margin-bottom:1.25rem;">Open a support ticket and chat with our team.</div>
+                      <div style="max-width:320px;margin:0 auto;">
+                        <label style="font-size:0.82rem;font-weight:700;color:#374151;display:block;text-align:left;margin-bottom:0.35rem;">Reason for contacting support</label>
+                        <select class="ticket-reason-select" value=${reason} onChange=${e => setReason(e.target.value)}>
+                          <option value="">Select a reason...</option>
+                          <option value="profile_issue">Club Profile Issue</option>
+                          <option value="stats_issue">Match Stats Issue</option>
+                          <option value="match_request">Match Request Issue</option>
+                          <option value="technical">Technical Problem</option>
+                          <option value="account">Account & Access</option>
+                          <option value="billing">Billing / Tokens</option>
+                          <option value="other">Other</option>
+                        </select>
+                        <button class="ticket-start-btn" onClick=${startChat} disabled=${!reason}><i class="fas fa-comments"></i> Start Support Chat</button>
+                      </div>
+                    </div>
+                  ` : html`
+                    <div>
+                      <div style="font-size:0.82rem;font-weight:700;color:#16a34a;margin-bottom:0.75rem;"><i class="fas fa-circle-check"></i> Ticket #${ticket.ticket_id} — ${ticket.reason}</div>
+                      <div style="height:300px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;padding:0.75rem;display:flex;flex-direction:column;gap:0.65rem;background:#f8fafc;">
+                        ${messages.map(msg => html`
+                          <div key=${msg.id} class=${`chat-msg ${msg.sender === 'club' ? 'sent' : msg.sender === 'system' ? '' : msg.sender === 'support' ? 'received' : ''}`}>
+                            ${msg.sender === 'system' ? html`<div style="text-align:center;font-size:0.72rem;color:#94a3b8;">${msg.text}</div>` :
+                              html`<div class="chat-msg-bubble">${msg.text}</div><div class="chat-msg-meta">${msg.sender === 'club' ? 'You' : 'Support Agent'}</div>`
+                            }
+                          </div>
+                        `)}
+                        <div ref=${chatBottomRef}></div>
+                      </div>
+                      <div style="display:flex;gap:0.5rem;margin-top:0.65rem;">
+                        <input class="chat-input" placeholder="Type your message..." value=${input} onInput=${e => setInput(e.target.value)} onKeyDown=${e => e.key === 'Enter' && !e.shiftKey && sendMsg()} />
+                        <button class="chat-send-btn" onClick=${sendMsg}><i class="fas fa-paper-plane"></i></button>
+                      </div>
+                    </div>
+                  `}
+                </div>
+                <div class="card">
+                  <div class="card-title"><i class="fas fa-phone"></i> Direct Contact</div>
+                  <div style="font-size:0.85rem;color:#374151;line-height:2;">
+                    <div><i class="fas fa-envelope" style="color:var(--primary);width:18px;"></i> <strong>Email:</strong> enejistats@gmail.com</div>
+                    <div><i class="fas fa-phone" style="color:var(--primary);width:18px;"></i> <strong>Phone:</strong> +234 808 394 0039</div>
+                    <div><i class="fab fa-whatsapp" style="color:#25d366;width:18px;"></i> <strong>WhatsApp:</strong> +234 706 555 6569</div>
+                  </div>
+                </div>
+              </div>
+            `}
+          </div>
+        `;
+      }
+
+      // ═══════════════ MAIN APP ═══════════════
+      function App() {
+        // ═══ AUTH & DATA ═══
+        const [authState, setAuthState] = useState('loading');
+        const [club, setClub] = useState(null);
+        const [seasonStats, setSeasonStats] = useState({});
+        const [summaryStats, setSummaryStats] = useState({});
+        const [matchData, setMatchData] = useState([]);
+        const [fixtures, setFixtures] = useState([]);
+        const [tokens, setTokens] = useState({ balance: 0, locked: 0 });
+        const [tokenPackages, setTokenPackages] = useState([
+          { tokens: 5, price: 500, bonus: 'Starter' },
+          { tokens: 10, price: 950, bonus: 'Save ₦50' },
+          { tokens: 25, price: 2200, bonus: 'Save ₦300' },
+          { tokens: 50, price: 4000, bonus: 'Save ₦1000' },
+          { tokens: 100, price: 7500, bonus: 'Best Value' },
+          { tokens: 200, price: 14000, bonus: 'Pro Pack' },
+        ]);
+        const [notifications, setNotifications] = useState([]);
+        const [achievements, setAchievements] = useState([]);
+        const [competitions, setCompetitions] = useState([]);
+        const [ytVideos, setYtVideos] = useState([]);
+        const [mediaPhotos, setMediaPhotos] = useState([]);
+        const [managementTeam, setManagementTeam] = useState([]);
+        const [statsRequests, setStatsRequests] = useState([]);
+        const [transactions, setTransactions] = useState([]);
+        const [matchRequests, setMatchRequests] = useState({ sent: [], received: [] });
+        const [squadPlayers, setSquadPlayers] = useState([]);
+        const [selectedSquadPlayer, setSelectedSquadPlayer] = useState(null);
+
+        // ═══ UI STATE ═══
+        const [activeTab, setActiveTab] = useState('profile');
+        const [sidebarOpen, setSidebarOpen] = useState(false);
+        const [loading, setLoading] = useState(true);
+        const [toasts, setToasts] = useState([]);
+        const [selectedTokenPkg, setSelectedTokenPkg] = useState(null);
+        const [pwForm, setPwForm] = useState({ current: '', newpw: '', confirm: '' });
+        const [mgmtModal, setMgmtModal] = useState({ open: false, target: null });
+        const matchCentreIframeRef = useRef(null);
+        const statsIframeRef = useRef(null);
+
+        // ═══ HELPERS ═══
+        const addToast = (msg, type = 'info', dur = 3500) => {
+          const id = Date.now() + Math.random();
+          setToasts(p => [...p, { id, msg, type }]);
+          setTimeout(() => setToasts(p => p.filter(t => t.id !== id)), dur);
+        };
+        const removeToast = (id) => setToasts(p => p.filter(t => t.id !== id));
+
+        const clubId = club?.club_id || club?._id || '—';
+        const clubName = club?.club_name || club?.name || 'Club';
+        const badgeUrl = club?.photo_url || club?.badge_url || club?.logo || club?.photo;
+        const tokenBalance = tokens?.balance ?? 0;
+        const tokenLocked = tokens?.locked ?? 0;
+        const availableTokens = tokenBalance - tokenLocked;
+        const unreadCount = notifications.filter(n => !n.read).length;
+
+        // ═══ AUTH ═══
+        useEffect(() => {
+          async function checkAuth() {
+            try {
+              const me = await apiCall('/auth/me');
+              if (me && (me.club_id || me.user_id || me._id) && (me.role === 'club' || me.role === 'Club')) {
+                await loadDashboard(me.club_id || me.user_id || me._id);
+                setAuthState('authenticated');
+              } else {
+                window.location.replace('/login');
+              }
+            } catch (err) {
+              if (err.status === 401 || err.status === 403) {
+                localStorage.clear(); sessionStorage.clear();
+                window.location.replace('/login');
+              } else {
+                setAuthState('error');
+                setLoading(false);
+                addToast('Could not connect to server. Please check your connection.', 'error', 8000);
+              }
+            }
+          }
+          checkAuth();
+        }, []);
+
+        // ═══ NOTIFICATIONS POLLING ═══
+        useEffect(() => {
+          if (authState !== 'authenticated' || !club) return;
+          const interval = setInterval(async () => {
+            try {
+              const d = await apiCall(`/club/${club.club_id || club.user_id}/notifications`);
+              if (d) setNotifications(Array.isArray(d) ? d : []);
+            } catch {}
+          }, 60000);
+          return () => clearInterval(interval);
+        }, [authState, club]);
+
+        // ═══ INACTIVITY LOGOUT ═══
+        useEffect(() => {
+          if (authState !== 'authenticated') return;
+          let timer;
+          const INACTIVITY_MS = 15 * 60 * 1000;
+          const reset = () => { clearTimeout(timer); timer = setTimeout(() => handleLogout(), INACTIVITY_MS); };
+          const events = ['mousemove', 'keydown', 'click', 'scroll'];
+          events.forEach(e => window.addEventListener(e, reset));
+          reset();
+          return () => { clearTimeout(timer); events.forEach(e => window.removeEventListener(e, reset)); };
+        }, [authState]);
+
+        // ═══ POSTMESSAGE BRIDGE (from child iframes) ═══
+        useEffect(() => {
+          const handler = (e) => {
+            if (!e.data || !e.data.type) return;
+            switch (e.data.type) {
+              case 'OPEN_TOKEN_WIZARD':
+                addToast('Token purchase wizard opened from child tab.', 'info');
+                // In production, wire to a PaymentWizard modal. For now, navigate to tokens tab.
+                setActiveTab('tokens');
+                break;
+              case 'TOP_UP_TOKENS':
+                setActiveTab('tokens');
+                break;
+              case 'NAVIGATE':
+                if (e.data.tab) setActiveTab(e.data.tab);
+                break;
+              case 'TOAST':
+                addToast(e.data.msg, e.data.level || 'info');
+                break;
+              default:
+                break;
+            }
+          };
+          window.addEventListener('message', handler);
+          return () => window.removeEventListener('message', handler);
+        }, []);
+
+        async function loadDashboard(uid) {
+          try {
+            const [profileData, statsData, matchHistoryData, fixturesData, tokenData, notifData, achieveData, txData, compData, costsData, stReqData, mrSentData, mrRecvData, squadData] = await Promise.allSettled([
+              apiCall(`/club/${uid}/profile`),
+              apiCall(`/club/${uid}/stats/summary`),
+              apiCall(`/club/${uid}/matches`),
+              apiCall(`/club/${uid}/upcoming-fixtures`),
+              apiCall(`/club/${uid}/tokens`),
+              apiCall(`/club/${uid}/notifications`),
+              apiCall(`/club/${uid}/achievements`),
+              apiCall(`/club/${uid}/transactions`),
+              apiCall('/competitions'),
+              apiCall('/token/costs'),
+              apiCall(`/club/${uid}/stats-requests`),
+              apiCall(`/club/${uid}/match-requests/sent`),
+              apiCall(`/club/${uid}/match-requests/received`),
+              apiCall(`/club/${uid}/squad`),
+            ]);
+            const v = (r) => r.status === 'fulfilled' ? r.value : null;
+            if (v(profileData)) {
+              const p = v(profileData);
+              setClub(p);
+              setManagementTeam(Array.isArray(p.management) ? p.management : []);
+              if (p.youtube_videos) setYtVideos(p.youtube_videos);
+            }
+            if (v(statsData)) {
+              setSeasonStats(v(statsData).season_stats || v(statsData).stats || {});
+              setSummaryStats(v(statsData).summary_stats || v(statsData).summary || {});
+            }
+            if (v(matchHistoryData)) { const arr = Array.isArray(v(matchHistoryData)) ? v(matchHistoryData) : v(matchHistoryData).matches || []; setMatchData(arr); }
+            if (v(fixturesData)) setFixtures(Array.isArray(v(fixturesData)) ? v(fixturesData) : v(fixturesData).fixtures || []);
+            if (v(tokenData)) setTokens(v(tokenData));
+            if (v(notifData)) setNotifications(Array.isArray(v(notifData)) ? v(notifData) : []);
+            if (v(achieveData)) setAchievements(Array.isArray(v(achieveData)) ? v(achieveData) : []);
+            if (v(txData)) setTransactions(Array.isArray(v(txData)) ? v(txData) : v(txData).transactions || []);
+            if (v(compData)) setCompetitions(Array.isArray(v(compData)) ? v(compData) : v(compData).competitions || []);
+            if (v(costsData)) { const cd = v(costsData); if (cd?.packages) setTokenPackages(cd.packages); }
+            if (v(stReqData)) setStatsRequests(Array.isArray(v(stReqData)) ? v(stReqData) : v(stReqData).requests || []);
+            if (v(mrSentData)) setMatchRequests(p => ({ ...p, sent: Array.isArray(v(mrSentData)) ? v(mrSentData) : v(mrSentData).requests || [] }));
+            if (v(mrRecvData)) setMatchRequests(p => ({ ...p, received: Array.isArray(v(mrRecvData)) ? v(mrRecvData) : v(mrRecvData).requests || [] }));
+            if (v(squadData)) setSquadPlayers(Array.isArray(v(squadData)) ? v(squadData) : v(squadData).squad || []);
+            try { const stored = localStorage.getItem(MEDIA_PHOTOS_KEY); if (stored) setMediaPhotos(JSON.parse(stored)); } catch {}
+          } catch (e) { addToast('Failed to load some dashboard data', 'warning'); }
+          finally { setLoading(false); }
+        }
+
+        async function handleLogout() {
+          try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); } catch {}
+          localStorage.clear(); sessionStorage.clear();
+          window.location.replace('/login');
+        }
+
+        // ═══ HANDLERS ═══
+        const showTab = (tab) => { setActiveTab(tab); setSidebarOpen(false); };
+
+        const markNotifRead = async (id) => {
+          try { await apiCall(`/club/${(club?.club_id || club?.user_id)}/notifications/${id}/read`, { method: 'PATCH' }); } catch {}
+          setNotifications(p => p.map(n => (n._id === id || n.id === id) ? { ...n, read: true } : n));
+        };
+        const markAllRead = async () => {
+          try { await apiCall(`/club/${(club?.club_id || club?.user_id)}/notifications/read-all`, { method: 'PATCH' }); } catch {}
+          setNotifications(p => p.map(n => ({ ...n, read: true })));
+        };
+        const deleteNotif = (id) => {
+          setNotifications(p => p.filter(n => (n._id || n.id) !== id));
+          try { apiCall(`/club/${(club?.club_id || club?.user_id)}/notifications/${id}`, { method: 'DELETE' }); } catch {}
+        };
+
+        const handleSaveBadge = async (file, preview) => {
+          try {
+            const fd = new FormData(); fd.append('photo', file);
+            await apiCall(`/club/${(club?.club_id || club?.user_id)}/logo`, { method: 'POST', headers: {}, body: fd });
+            setClub(p => ({ ...p, photo_url: preview }));
+            addToast('Club badge updated!', 'success');
+          } catch { addToast('Failed to upload badge', 'error'); }
+        };
+
+        const handleSaveMgmt = async (data) => {
+          const updated = mgmtModal.target === -1
+            ? [...managementTeam, data]
+            : managementTeam.map((m, i) => i === mgmtModal.target ? data : m);
+          setManagementTeam(updated);
+          setMgmtModal({ open: false, target: null });
+          try { await apiCall(`/club/${(club?.club_id || club?.user_id)}/management`, { method: 'PUT', body: JSON.stringify({ management: updated }) }); addToast('Management team updated', 'success'); }
+          catch { addToast('Saved locally', 'info'); }
+        };
+        const handleDeleteMgmt = async () => {
+          const updated = managementTeam.filter((_, i) => i !== mgmtModal.target);
+          setManagementTeam(updated);
+          setMgmtModal({ open: false, target: null });
+          try { await apiCall(`/club/${(club?.club_id || club?.user_id)}/management`, { method: 'PUT', body: JSON.stringify({ management: updated }) }); addToast('Personnel removed', 'success'); }
+          catch { addToast('Removed locally', 'info'); }
+        };
+
+        const handlePasswordChange = async () => {
+          if (!pwForm.current || !pwForm.newpw) { addToast('Fill in all fields', 'warning'); return; }
+          if (pwForm.newpw !== pwForm.confirm) { addToast('Passwords do not match', 'error'); return; }
+          try {
+            await apiCall(`/club/${(club?.club_id || club?.user_id)}/change-password`, { method: 'POST', body: JSON.stringify({ old_password: pwForm.current, new_password: pwForm.newpw }) });
+            addToast('Password changed!', 'success'); setPwForm({ current: '', newpw: '', confirm: '' });
+          } catch (e) { addToast(e?.message || 'Failed', 'error'); }
+        };
+
+        const handleFlutterwavePayment = async (pkg) => {
+          try {
+            const r = await apiCall(`/club/${(club?.club_id || club?.user_id)}/tokens/topup`, { method: 'POST', body: JSON.stringify({ amount: pkg.price, tokens: pkg.tokens, description: pkg.tokens + ' Token purchase', entity: 'club', entity_id: (club?.club_id || club?.user_id) }) });
+            if (r?.public_key) {
+              window.FlutterwaveCheckout({
+                public_key: r.public_key, tx_ref: r.tx_ref, amount: pkg.price, currency: 'NGN',
+                payment_options: 'card,mobilemoney,ussd,banktransfer',
+                customer: { email: club?.email || '', phone_number: club?.phone || '', name: clubName },
+                customizations: { title: 'EnejiStats Payment', description: pkg.tokens + ' Token purchase', logo: '/static/images/logo.png' },
+                callback: async (data) => {
+                  if (data.status === 'successful') {
+                    try {
+                      const v = await apiCall(`/club/${(club?.club_id || club?.user_id)}/tokens/verify`, { method: 'POST', body: JSON.stringify({ transaction_id: data.transaction_id, tx_ref: data.tx_ref }) });
+                      if (v?.tokens_credited) { setTokens(p => ({ ...p, balance: (p.balance || 0) + v.tokens_credited })); addToast(`${v.tokens_credited} tokens credited!`, 'success'); }
+                    } catch {}
+                  }
+                },
+                onclose: () => {}
+              });
+            } else addToast('Payment initialization failed', 'error');
+          } catch (e) { addToast(e?.message || 'Payment failed', 'error'); }
+        };
+
+        const handleAddYouTubeVideo = (v) => {
+          setYtVideos(p => [...p, v]);
+          try { apiCall(`/club/${(club?.club_id || club?.user_id)}/media/youtube`, { method: 'POST', body: JSON.stringify({ url: v.url, title: v.title }) }); } catch {}
+          addToast('Video added!', 'success');
+        };
+        const handleDeleteYtVideo = (ytId) => {
+          setYtVideos(p => p.filter(v => (v.youtube_id || v.id) !== ytId));
+          try { apiCall(`/club/${(club?.club_id || club?.user_id)}/media/youtube/${ytId}`, { method: 'DELETE' }); } catch {}
+        };
+        const handleMediaPhotoUpload = (files) => {
+          Array.from(files || []).forEach(file => {
+            if (!file.type.startsWith('image/')) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+              setMediaPhotos(prev => {
+                const newTotal = prev.reduce((acc, p) => acc + (p.size || 0), 0) + file.size;
+                if (newTotal > MAX_PHOTOS_BYTES) { addToast('10MB photo limit reached', 'error'); return prev; }
+                const updated = [...prev, { id: Date.now() + Math.random(), dataUrl: ev.target.result, size: file.size, name: file.name }];
+                try { localStorage.setItem(MEDIA_PHOTOS_KEY, JSON.stringify(updated)); } catch {}
+                return updated;
+              });
+            };
+            reader.readAsDataURL(file);
+          });
+        };
+        const handleMediaPhotoDelete = (id) => {
+          setMediaPhotos(prev => { const u = prev.filter(p => p.id !== id); try { localStorage.setItem(MEDIA_PHOTOS_KEY, JSON.stringify(u)); } catch {} return u; });
+        };
+
+        // ═══ IFRAME POSTMESSAGE ═══
+        const handleIframeLoad = (ref) => {
+          if (!ref.current) return;
+          try {
+            ref.current.contentWindow.postMessage({
+              type: 'INIT',
+              clubId,
+              clubName,
+              tokens,
+              tokenCosts: {},
+              squadPlayers,
+            }, '*');
+          } catch {}
+        };
+
+        // ═══ RENDER ═══
+        if (authState === 'loading' || loading) return html`
+          <div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:1rem;">
+            <i class="fas fa-spinner fa-spin" style="font-size:2.5rem;color:var(--primary);"></i>
+            <div style="color:#64748b;font-weight:600;">Loading Club Dashboard...</div>
+          </div>
+        `;
+
+        if (authState === 'error') return html`
+          <div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:1rem;">
+            <i class="fas fa-exclamation-triangle" style="font-size:2.5rem;color:#dc2626;"></i>
+            <div style="font-weight:700;color:#1e293b;">Connection Error</div>
+            <div style="font-size:0.85rem;color:#64748b;">Could not connect to the server. Please check your internet connection.</div>
+            <button class="btn btn-primary" onClick=${() => window.location.reload()}>Retry</button>
+          </div>
+        `;
+
+        const activeIframe = TABS.find(t => t.id === activeTab && t.iframe);
+
+        return html`
+          <${ToastContainer} toasts=${toasts} removeToast=${removeToast} />
+
+          ${mgmtModal.open && html`
+            <${MgmtEditModal}
+              person=${mgmtModal.target !== null && mgmtModal.target >= 0 ? managementTeam[mgmtModal.target] : null}
+              onSave=${handleSaveMgmt}
+              onDelete=${handleDeleteMgmt}
+              onClose=${() => setMgmtModal({ open: false, target: null })}
+            />
+          `}
+
+          <header class="dashboard-header">
+            <button class="nav-toggle" onClick=${() => setSidebarOpen(p => !p)}><i class="fas fa-bars"></i></button>
+            <div class="header-logo"><${BrandMark} /> <span class="header-label">Club Dashboard</span></div>
+            <div class="header-right">
+              <button class="header-logout" onClick=${handleLogout}><i class="fas fa-sign-out-alt"></i> Logout</button>
+            </div>
+          </header>
+
+          <div class=${`nav-overlay ${sidebarOpen ? 'active' : ''}`} onClick=${() => setSidebarOpen(false)}></div>
+
+          <nav class=${`sidebar ${sidebarOpen ? 'open' : ''}`}>
+            <div class="sidebar-header">
+              <div><${BrandMark} /></div>
+              <div class="sidebar-tagline">Africa's Football Intelligence Platform</div>
+            </div>
+            <div class="sidebar-club">
+              <img class="sidebar-club-badge" src=${badgeUrl || badgeFallback} alt=${clubName} onerror=${`this.src='${badgeFallback}'`} />
+              <div class="sidebar-club-name">${clubName}</div>
+              <div class="sidebar-club-cat">${club?.club_category || '—'}</div>
+              ${club?.is_verified && html`<span style="background:#1877f2;color:white;font-size:0.65rem;font-weight:800;padding:2px 8px;border-radius:999px;display:inline-block;margin-top:4px;"><i class="fas fa-check"></i> Verified</span>`}
+            </div>
+            <div class=${`sidebar-token-widget ${availableTokens <= 0 ? 'empty' : availableTokens < 5 ? 'low' : ''}`} onClick=${() => showTab('tokens')}>
+              <div class="sidebar-token-balance">${tokenBalance}</div>
+              <div class="sidebar-token-label">Tokens</div>
+              ${tokenLocked > 0 && html`<div class="sidebar-token-locked"><i class="fas fa-lock"></i> ${tokenLocked} locked</div>`}
+              <span class="sidebar-token-topup"><i class="fas fa-plus"></i> Top Up</span>
+            </div>
+            <nav class="sidebar-nav">
+              ${TABS.map(tab => html`
+                <div key=${tab.id} class=${`sidebar-nav-item ${activeTab === tab.id ? 'active' : ''}`} onClick=${() => showTab(tab.id)}>
+                  <i class=${`fas ${tab.icon}`}></i>
+                  <span>${tab.label}</span>
+                  ${tab.id === 'notifications' && unreadCount > 0 ? html`<span class="notif-badge">${unreadCount}</span>` : ''}
+                </div>
+              `)}
+              <div class="sidebar-nav-item" onClick=${handleLogout}><i class="fas fa-sign-out-alt"></i><span>Logout</span></div>
+            </nav>
+            <div class="sidebar-footer">© 2025 EnejiStats | Club v3.0</div>
+          </nav>
+
+          <main class="main-content">
+            <div class="tab-bar">
+              ${TABS.map(tab => html`
+                <button key=${tab.id} class=${`tab-btn ${activeTab === tab.id ? 'active' : ''}`} onClick=${() => setActiveTab(tab.id)}>
+                  <i class=${`fas ${tab.icon}`}></i> ${tab.label}
+                  ${tab.id === 'notifications' && unreadCount > 0 ? html`<span style="background:#ef4444;color:white;border-radius:999px;font-size:0.6rem;padding:0 5px;">${unreadCount}</span>` : ''}
+                </button>
+              `)}
+            </div>
+
+            <div class="page-inner">
+              ${activeTab === 'profile' && html`
+                <${ProfileTab}
+                  club=${club}
+                  summaryStats=${summaryStats}
+                  seasonStats=${seasonStats}
+                  achievements=${achievements}
+                  matchData=${matchData}
+                  managementTeam=${managementTeam}
+                  clubId=${clubId}
+                  badgeUrl=${badgeUrl}
+                  onAddMgmt=${() => setMgmtModal({ open: true, target: -1 })}
+                  onEditMgmt=${(i) => setMgmtModal({ open: true, target: i })}
+                  onDeleteMgmt=${handleDeleteMgmt}
+                  onViewMatchCentre=${() => setActiveTab('match-centre')}
+                />
+              `}
+
+              ${activeTab === 'squad' && html`
+                <${SquadTab}
+                  squadPlayers=${squadPlayers}
+                  clubId=${clubId}
+                  onGoStats=${() => setActiveTab('stats')}
+                  onGoMatchRequests=${() => setActiveTab('match-centre')}
+                />
+              `}
+
+              ${activeTab === 'tokens' && html`
+                <${TokensTab}
+                  tokens=${tokens}
+                  tokenPackages=${tokenPackages}
+                  transactions=${transactions}
+                  selectedTokenPkg=${selectedTokenPkg}
+                  setSelectedTokenPkg=${setSelectedTokenPkg}
+                  onBuy=${(type) => addToast(`${type === 'SUBSCRIPTION' ? 'Subscription' : 'Token purchase'} wizard — integrate PaymentWizard here.`, 'info')}
+                  onFlutterwave=${handleFlutterwavePayment}
+                />
+              `}
+
+              ${activeTab === 'media' && html`
+                <${MediaTab}
+                  mediaPhotos=${mediaPhotos}
+                  onAddPhoto=${handleMediaPhotoUpload}
+                  onDeletePhoto=${handleMediaPhotoDelete}
+                  ytVideos=${ytVideos}
+                  onAddVideo=${handleAddYouTubeVideo}
+                  onDeleteVideo=${handleDeleteYtVideo}
+                  onPlayVideo=${(v) => window.open(`https://www.youtube.com/watch?v=${v.youtube_id || v.id}`, '_blank')}
+                />
+              `}
+
+              ${activeTab === 'notifications' && html`
+                <${NotificationsTab}
+                  notifications=${notifications}
+                  onMarkRead=${markNotifRead}
+                  onMarkAllRead=${markAllRead}
+                  onDelete=${deleteNotif}
+                />
+              `}
+
+              ${activeTab === 'account' && html`
+                <${AccountTab}
+                  club=${club}
+                  clubId=${clubId}
+                  clubName=${clubName}
+                  tokens=${tokens}
+                  managementTeam=${managementTeam}
+                  badgeUrl=${badgeUrl}
+                  pwForm=${pwForm}
+                  setPwForm=${setPwForm}
+                  onSaveBadge=${handleSaveBadge}
+                  onSaveMgmt=${(i) => setMgmtModal({ open: true, target: i })}
+                  onDeleteMgmt=${handleDeleteMgmt}
+                  onAddMgmt=${() => setMgmtModal({ open: true, target: -1 })}
+                  onChangePassword=${handlePasswordChange}
+                  onLogout=${handleLogout}
+                />
+              `}
+
+              ${activeIframe && html`
+                <iframe
+                  ref=${activeTab === 'match-centre' ? matchCentreIframeRef : statsIframeRef}
+                  class="iframe-tab-frame"
+                  src=${activeIframe.iframe}
+                  title=${activeIframe.label}
+                  onLoad=${() => handleIframeLoad(activeTab === 'match-centre' ? matchCentreIframeRef : statsIframeRef)}
+                  style="min-height:80vh;"
+                />
+              `}
+            </div>
+          </main>
+
+          <button class="support-fab" onClick=${() => setActiveTab('account')} title="Support"><i class="fas fa-headset"></i></button>
+        `;
+      }
+
+      render(h(App, null), document.getElementById('root'));
+    })();
+  </script>
+</body>
+</html>
