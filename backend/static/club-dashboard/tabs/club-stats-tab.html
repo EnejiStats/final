@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EnejiStats | Club Stats</title>
+<meta name="description" content="EnejiStats club statistics tab (embedded in the Club Dashboard)">
+<link rel="preconnect" href="https://unpkg.com" crossorigin>
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<script src="https://unpkg.com/preact@10.19.3/dist/preact.umd.js" crossorigin></script>
+<script src="https://unpkg.com/preact@10.19.3/hooks/dist/hooks.umd.js" crossorigin></script>
+<script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js" crossorigin></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+:root{--primary:#004aad;--primary-light:#0668d7;--danger:#dc2626;--success:#16a34a;--bg:#f0f4f8;--card:#fff;--border:#e2e8f0;--text:#1e293b;--muted:#64748b;--radius:10px;--shadow:0 2px 12px #004aad12;--vp-top:0px;--vp-h:600px}
+*,*::before,*::after{box-sizing:border-box}
+/* The dashboard owns scrolling: this document never scrolls, it only reports its natural height. */
+html,body{margin:0;padding:0;height:auto;overflow:hidden;background:transparent}
+body{color:var(--text);font:14px/1.45 "Segoe UI",system-ui,-apple-system,sans-serif}
+#root{display:flow-root;padding:clamp(10px,1.6vw,16px)}
+button,input{font:inherit}button{cursor:pointer}
+.status{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.pill{font-size:.72rem;font-weight:800;border-radius:999px;padding:4px 9px;background:#e2e8f0;color:#475569}
+.pill.live{background:#dcfce7;color:#166534}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+.btn{border:1px solid var(--border);border-radius:7px;padding:8px 12px;font-weight:750;background:#fff;color:var(--primary)}
+.btn:hover:not(:disabled){background:#f0f4ff}
+.btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+.btn.primary:hover:not(:disabled){background:#003380}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.tabs{display:flex;gap:6px;overflow-x:auto;margin:0 0 16px;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}
+.tab{white-space:nowrap;border:1px solid var(--border);background:#fff;color:var(--muted);border-radius:7px;padding:9px 13px;font-weight:800}
+.tab.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
+.card-title{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:.9rem;font-weight:900;color:var(--primary);text-transform:uppercase;letter-spacing:.35px;margin-bottom:12px}
+.metric-toggle{display:flex;align-items:center;gap:8px;font-size:.75rem;text-transform:none;letter-spacing:0;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px}
+.stat{border:1px solid var(--border);border-top:3px solid var(--primary);border-radius:8px;background:#fff;padding:12px 8px;text-align:center;min-width:0}
+.value{font:900 clamp(1.1rem,2.3vw,1.7rem)/1.2 "Courier New",monospace;color:var(--primary);overflow-wrap:anywhere}
+.label{font-size:.68rem;font-weight:800;color:var(--muted);text-transform:uppercase;margin-top:4px}
+.schema{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.schema-card{border:1px solid var(--border);border-radius:9px;overflow:hidden}
+.schema-head{background:#f8fafc;padding:10px 12px;color:var(--primary);font-weight:900;font-size:.78rem}
+.schema-body{padding:10px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.metric{background:#f8fafc;border:1px solid #f0f4f8;border-radius:5px;padding:7px;display:flex;justify-content:space-between;gap:6px;align-items:center}
+.metric span{font-size:.7rem;color:var(--muted);font-weight:650}
+.metric b{font:800 .78rem "Courier New",monospace;color:var(--primary)}
+.search{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:7px;margin-bottom:12px;outline-color:var(--primary)}
+.navigator{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:#f8fafc;padding:10px;border-radius:8px;margin-bottom:12px}
+.navigator div{text-align:center;flex:1}.navigator small{display:block;color:var(--muted)}
+.match-head{background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px}
+.teams{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;text-align:center}
+.team{font-weight:850}
+.score{font:900 1.5rem "Courier New",monospace;color:var(--primary);white-space:nowrap}
+.meta{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 14px;color:var(--muted);font-size:.75rem;margin-top:10px}
+.compare-row{padding:9px 10px;border-bottom:1px solid #f0f4f8}
+.compare-label{display:grid;grid-template-columns:60px 1fr 60px;gap:8px;align-items:center;text-align:center}
+.compare-label b:first-child{color:var(--primary);text-align:right}
+.compare-label b:last-child{color:var(--danger);text-align:left}
+.bar{display:flex;height:5px;gap:2px;margin-top:5px}
+.bar span:first-child{background:var(--primary);border-radius:4px 0 0 4px}
+.bar span:last-child{background:var(--danger);border-radius:0 4px 4px 0}
+.empty{text-align:center;color:var(--muted);padding:32px 12px}
+.empty i{display:block;font-size:2rem;opacity:.4;margin-bottom:8px}
+.splash{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;min-height:240px;color:var(--muted);font-weight:600}
+@media(max-width:850px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}.schema{grid-template-columns:1fr}}
+@media(max-width:480px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.schema-body{grid-template-columns:1fr}.card{padding:12px}.teams{gap:5px}.score{font-size:1.2rem}.actions{margin-left:0}}
+@media print{html,body{overflow:visible}.actions,.tabs,.status,.navigator,.search{display:none!important}.card{box-shadow:none;break-inside:avoid}}
+</style>
+</head>
+<body>
+<div id="root"><div class="splash"><i class="fa-solid fa-spinner fa-spin"></i>Loading club stats…</div></div>
+<script>
+(function(){
+'use strict';
+
+/* ═══════════════ DASHBOARD BRIDGE ═══════════════
+   This tab is only ever shown inside /club-dashboard. The dashboard owns auth, inactivity logout, toasts,
+   page scroll and the shared club data; this tab just renders it and reports its own height. */
+const TAB_ID='stats';
+const ORIGIN=location.origin;
+if(window.parent===window){location.replace('/club-dashboard');return}
+const Bridge=(function(){
+  const listeners={init:[],viewport:[],visible:[]};
+  let lastHeight=0,lastActivity=0,root=null;
+  const post=(type,payload)=>{try{window.parent.postMessage(Object.assign({type,tab:TAB_ID},payload||{}),ORIGIN)}catch(_){}};
+  function report(force){if(!root)return;const hgt=Math.ceil(root.getBoundingClientRect().height);if(force||hgt!==lastHeight){lastHeight=hgt;post('RESIZE',{height:hgt})}}
+  window.addEventListener('message',e=>{
+    if(e.source!==window.parent||e.origin!==ORIGIN||!e.data||!e.data.type)return;
+    const d=e.data;
+    if(d.type==='INIT')listeners.init.forEach(f=>f(d));
+    else if(d.type==='VIEWPORT'){const s=document.documentElement.style;s.setProperty('--vp-top',(d.top||0)+'px');s.setProperty('--vp-h',(d.height||600)+'px')}
+    else if(d.type==='VISIBILITY'){if(d.visible)requestAnimationFrame(()=>report(true))}
+    else if(d.type==='REFRESHED')listeners.visible.forEach(f=>f(d));
+  });
+  ['mousemove','keydown','click','scroll','touchstart'].forEach(ev=>window.addEventListener(ev,()=>{const t=Date.now();if(t-lastActivity>4000){lastActivity=t;post('ACTIVITY')}},{passive:true}));
+  return{
+    post,
+    mount(el){root=el;if('ResizeObserver' in window)new ResizeObserver(()=>report()).observe(root);window.addEventListener('load',()=>report(true));window.addEventListener('resize',()=>report());post('REQUEST_INIT')},
+    onInit:f=>listeners.init.push(f),
+    onRefreshed:f=>listeners.visible.push(f),
+    remeasure:()=>requestAnimationFrame(()=>report(true)),
+    refresh:scopes=>post('REFRESH',{scopes}),
+    toast:(msg,level)=>post('TOAST',{msg,level:level||'info'})
+  };
+})();
+
+const {h,render}=preact;const {useState,useEffect,useMemo,useRef}=preactHooks;const html=htm.bind(h);
+
+/* ═══════════════ STATS SCHEMA ═══════════════ */
+const SCHEMA=[
+{id:'attack',title:'ATTACK',fields:[['goals_for','Goals For'],['goals_against','Goals Against'],['shots_total','Total Shots'],['shots_on_target','Shots On Target'],['big_chances','Big Chances'],['corners','Corner Kicks'],['offsides','Offsides']]},
+{id:'control',title:'MATCH CONTROL',fields:[['possession','Possession %']]},
+{id:'passing',title:'PASSING',fields:[['passes_total','Total Passes'],['passes_accurate','Acc. Passes'],['pass_accuracy','Pass Accuracy %'],['key_passes','Key Passes'],['crosses_total','Total Crosses'],['crosses_accurate','Acc. Crosses']]},
+{id:'defence',title:'DEFENCE',fields:[['clean_sheets','Clean Sheets'],['tackles_total','Total Tackles'],['tackles_won','Tackles Won'],['interceptions','Interceptions'],['clearances','Clearances'],['aerial_duels_won','Aerial Duels Won'],['aerial_duels_total','Aerial Duels Total']]},
+{id:'goalkeeping',title:'GOALKEEPING',fields:[['saves','Saves'],['shots_faced','Shots Faced'],['penalty_saves','Penalty Saves'],['goals_against_avg','Goals Ag. Avg'],['save_percentage','Save %']]},
+{id:'discipline',title:'DISCIPLINE',fields:[['yellow_cards','Yellow Cards'],['red_cards','Red Cards'],['fouls_committed','Fouls Committed'],['fouls_won','Fouls Won']]}
+];
+const COMPARE=[['possession','Ball Possession','%'],['shots_total','Total Shots',''],['shots_on_target','Shots on Target',''],['big_chances','Big Chances',''],['corners','Corner Kicks',''],['passes_total','Total Passes',''],['pass_accuracy','Pass Accuracy','%'],['key_passes','Key Passes',''],['crosses_total','Total Crosses',''],['tackles_total','Total Tackles',''],['interceptions','Interceptions',''],['aerial_duels_won','Aerial Duels Won',''],['fouls_committed','Fouls Committed',''],['yellow_cards','Yellow Cards',''],['red_cards','Red Cards',''],['saves','GK Saves','']];
+const AVG_KEYS=['possession','pass_accuracy','goals_against_avg','save_percentage'];
+const PCT_KEYS=['possession','pass_accuracy','save_percentage'];
+
+const n=v=>{if(v===null||v===undefined||v==='')return null;const x=Number(String(v).replace(/%$/,''));return Number.isFinite(x)?x:null};
+const fmt=v=>v==null?'—':Number.isInteger(Number(v))?String(v):Number(v).toFixed(1);
+const dateOf=m=>m&&(m.date||m.match_date);
+const fmtDate=d=>{if(!d)return '';const x=new Date(d);return isNaN(x)?String(d):x.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})};
+const statsFor=(m,side)=>m?.[side+'_stats']||m?.[side+'Stats']||m?.statistics?.[side]||m?.stats?.[side]||m?.[side]?.statistics||{};
+const homeName=m=>m.home_team||m.homeTeam||'Home';
+const awayName=m=>m.away_team||m.awayTeam||'Away';
+const homeScore=m=>m.home_score??m.score?.home??m.score?.home_score;
+const awayScore=m=>m.away_score??m.score?.away??m.score?.away_score;
+
+/* ═══════════════ APP ═══════════════ */
+function App(){
+  const [shared,setShared]=useState(null);
+  const [view,setView]=useState('summary'),[mode,setMode]=useState('summary'),[search,setSearch]=useState(''),[idx,setIdx]=useState(0);
+  const [refreshing,setRefreshing]=useState(false),[updated,setUpdated]=useState(null);
+  const rootRef=useRef(null);
+
+  useEffect(()=>{
+    Bridge.onInit(d=>{setShared(d);setUpdated(new Date());setRefreshing(false)});
+    Bridge.onRefreshed(()=>setRefreshing(false));
+    Bridge.mount(document.getElementById('root'));
+  },[]);
+  // Content height changes (tab switch, pagination, mode toggle) are picked up by ResizeObserver; this covers instant swaps.
+  useEffect(()=>{Bridge.remeasure()},[view,mode,idx,search,shared]);
+
+  if(!shared)return html`<div class="splash"><i class="fa-solid fa-spinner fa-spin"></i>Loading club stats…</div>`;
+
+  const club=shared.club||{},matches=Array.isArray(shared.matches)?shared.matches:[],summary=shared.summaryStats||{},season=shared.seasonStats||{};
+  const clubName=shared.clubName||club.club_name||club.name||'';
+  return html`<${Content} club=${club} clubId=${shared.clubId} apiId=${shared.apiId} clubName=${clubName} matches=${matches} summary=${summary} season=${season}
+    view=${view} setView=${setView} mode=${mode} setMode=${setMode} search=${search} setSearch=${setSearch} idx=${idx} setIdx=${setIdx}
+    refreshing=${refreshing} onRefresh=${()=>{setRefreshing(true);Bridge.refresh(['matches','summary','tokens']);setTimeout(()=>setRefreshing(false),8000)}} updated=${updated} />`;
+}
+
+function Content(p){
+  const {club,clubId,apiId,clubName,matches,summary,season,view,setView,mode,setMode,search,setSearch,idx,setIdx,refreshing,onRefresh,updated}=p;
+
+  const filtered=useMemo(()=>{
+    const q=search.trim().toLowerCase();
+    return matches.filter(m=>!q||[m.home_team,m.homeTeam,m.away_team,m.awayTeam,m.competition,m.venue,m.venue_address].some(x=>String(x||'').toLowerCase().includes(q)));
+  },[matches,search]);
+  useEffect(()=>setIdx(0),[search,view]);
+  const safeIdx=Math.min(idx,Math.max(0,filtered.length-1));
+  const current=filtered[safeIdx]||null;
+
+  const ownSide=m=>{
+    const own=[club.club_id,club.id,club._id,clubId,apiId].filter(Boolean).map(String);
+    for(const side of ['home','away']){
+      const ids=[m?.[side+'_club_id'],m?.[side+'_team_id'],m?.[side+'ClubId'],m?.[side+'TeamId']].filter(Boolean).map(String);
+      if(own.some(x=>ids.includes(x)))return side;
+    }
+    const name=String(clubName||'').toLowerCase();
+    if(name)for(const side of ['home','away'])if(String(m?.[side+'_team']||m?.[side+'Team']||'').toLowerCase()===name)return side;
+    return null;
+  };
+
+  const totals=useMemo(()=>{
+    const sums={},counts={};
+    matches.forEach(m=>{const side=ownSide(m);if(!side)return;const st=statsFor(m,side);SCHEMA.forEach(c=>c.fields.forEach(([k])=>{const v=n(st[k]);if(v!==null){sums[k]=(sums[k]||0)+v;counts[k]=(counts[k]||0)+1}}))});
+    const out={};
+    SCHEMA.forEach(c=>c.fields.forEach(([k])=>{
+      if(counts[k])out[k]=AVG_KEYS.includes(k)?Math.round(sums[k]/counts[k]*10)/10:Math.round(sums[k]*100)/100;
+      else if(n(season[k])!==null)out[k]=n(season[k]);
+      else if(k==='possession'&&n(season.possession_avg)!==null)out[k]=n(season.possession_avg);
+    }));
+    return out;
+  },[matches,club,clubName,season]);
+
+  const summaryCards=useMemo(()=>{
+    let played=0,wins=0,draws=0,losses=0,gf=0,ga=0,scored=0,cs=0;const poss=[];
+    matches.forEach(m=>{
+      const side=ownSide(m),hs=n(homeScore(m)),as=n(awayScore(m));
+      if(side&&hs!==null&&as!==null){
+        const f=side==='home'?hs:as,g=side==='home'?as:hs;
+        played++;scored++;gf+=f;ga+=g;if(f>g)wins++;else if(f===g)draws++;else losses++;if(g===0)cs++;
+        const pp=n(statsFor(m,side).possession);if(pp!==null)poss.push(pp);
+      }else{
+        const r=String(m.result||'').toLowerCase();
+        if(r==='w'||r==='win'){played++;wins++}else if(r==='d'||r==='draw'){played++;draws++}else if(r==='l'||r==='loss'){played++;losses++}
+      }
+    });
+    const pick=(...vals)=>{for(const v of vals){if(v!==null&&v!==undefined)return v}return '—'};
+    const P=played||n(summary.matchesPlayed??summary.matches_played)||matches.length;
+    const W=played?wins:(n(summary.wins)||0),D=played?draws:(n(summary.draws)||0),L=played?losses:(n(summary.losses)||0);
+    return [
+      ['Played',P],['Wins',W],['Draws',D],['Losses',L],
+      ['Points',pick(n(summary.points),n(summary.points_earned),W*3+D)],
+      ['Win Rate',P?((W/P)*100).toFixed(1)+'%':'—'],
+      ['Goals For',scored?gf:pick(n(summary.goalsFor),n(summary.goals_for))],
+      ['Goals Against',scored?ga:pick(n(summary.goalsAgainst),n(summary.goals_against))],
+      ['Clean Sheets',scored?cs:pick(n(summary.cleanSheets),n(summary.clean_sheets),n(season.clean_sheets))],
+      ['Avg Possession',poss.length?(poss.reduce((a,b)=>a+b,0)/poss.length).toFixed(1)+'%':(()=>{const v=pick(n(summary.avgPossession),n(season.possession_avg));return v==='—'?v:fmt(v)+'%'})()]
+    ];
+  },[matches,club,clubName,summary,season]);
+
+  const exportPng=()=>{
+    const canvas=document.createElement('canvas');canvas.width=1200;canvas.height=900;const c=canvas.getContext('2d');
+    c.fillStyle='#f0f4f8';c.fillRect(0,0,1200,900);c.fillStyle='#004aad';c.fillRect(0,0,1200,100);
+    c.fillStyle='#fff';c.font='bold 34px Arial';c.fillText('EnejiStats | '+(clubName||'Club')+' — Club Stats',40,58);
+    c.font='16px Arial';c.fillText('Generated '+new Date().toLocaleString(),40,84);
+    let rows;
+    if(view==='summary'&&mode==='summary')rows=summaryCards;
+    else if(view==='summary')rows=SCHEMA.flatMap(g=>g.fields.filter(([k])=>totals[k]!=null).map(([k,l])=>[l,fmt(totals[k])+(PCT_KEYS.includes(k)?'%':'')]));
+    else rows=filtered.slice(0,12).map(m=>[homeName(m)+' '+(homeScore(m)??'—')+' - '+(awayScore(m)??'—')+' '+awayName(m),m.competition||fmtDate(dateOf(m))||'']);
+    rows.slice(0,18).forEach((r,i)=>{const x=40+(i%3)*390,y=140+Math.floor(i/3)*125;c.fillStyle='#fff';c.fillRect(x,y,360,95);c.fillStyle='#004aad';c.font='bold 16px Arial';c.fillText(String(r[0]).slice(0,36),x+14,y+28);c.font='bold 28px Arial';c.fillText(String(r[1]??'—'),x+14,y+68)});
+    const a=document.createElement('a');a.download='club-stats-'+String(clubName||'club').toLowerCase().replace(/[^a-z0-9]+/g,'-')+'.png';a.href=canvas.toDataURL('image/png');a.click();
+  };
+
+  const matchPanel=()=>{
+    if(!current)return null;
+    const hs=statsFor(current,'home'),as=statsFor(current,'away');
+    const has=COMPARE.some(([k])=>n(hs[k])!==null||n(as[k])!==null);
+    const d=dateOf(current);
+    return html`<article>
+      <div class="match-head">
+        <div class="teams"><div class="team">${homeName(current)}</div><div class="score">${homeScore(current)??'—'} – ${awayScore(current)??'—'}</div><div class="team">${awayName(current)}</div></div>
+        <div class="meta">
+          ${d?html`<span><i class="fa-regular fa-calendar"></i> ${fmtDate(d)}</span>`:null}
+          ${current.time||current.match_time?html`<span><i class="fa-regular fa-clock"></i> ${current.time||current.match_time}</span>`:null}
+          ${current.competition?html`<span><i class="fa-solid fa-trophy"></i> ${current.competition}</span>`:null}
+          ${current.venue||current.venue_address?html`<span><i class="fa-solid fa-location-dot"></i> ${current.venue||current.venue_address}</span>`:null}
+          ${current.attendance?html`<span><i class="fa-solid fa-users"></i> ${Number(current.attendance).toLocaleString()} attendance</span>`:null}
+        </div>
+      </div>
+      <div class="card-title"><span><i class="fa-solid fa-chart-column"></i> Match Statistics</span></div>
+      ${has?COMPARE.map(([k,label,unit])=>{
+        const hv=n(hs[k]),av=n(as[k]),total=(hv||0)+(av||0),hp=total?((hv||0)/total*100):50,ap=total?((av||0)/total*100):50;
+        return html`<div class="compare-row" key=${k}><div class="compare-label"><b>${hv===null?'—':fmt(hv)+unit}</b><span>${label}</span><b>${av===null?'—':fmt(av)+unit}</b></div><div class="bar"><span style=${{width:hp+'%'}}></span><span style=${{width:ap+'%'}}></span></div></div>`;
+      }):html`<div class="empty">No recorded home/away statistics are attached to this match.</div>`}
+    </article>`;
+  };
+
+  return html`
+    <div class="status">
+      <span class="pill live">● LIVE CLUB DATA</span>
+      ${refreshing?html`<span class="pill">Refreshing…</span>`:null}
+      ${updated?html`<span class="pill">Updated ${updated.toLocaleTimeString()}</span>`:null}
+      <div class="actions">
+        <button class="btn" onClick=${()=>window.print()}><i class="fa-solid fa-print"></i> Print Stats</button>
+        <button class="btn primary" onClick=${exportPng}><i class="fa-solid fa-image"></i> Download PNG</button>
+        <button class="btn" onClick=${onRefresh} disabled=${refreshing}><i class=${'fa-solid fa-rotate'+(refreshing?' fa-spin':'')}></i> Refresh</button>
+      </div>
+    </div>
+    <nav class="tabs">
+      <button class=${'tab '+(view==='summary'?'active':'')} onClick=${()=>setView('summary')}><i class="fa-solid fa-chart-pie"></i> Summary</button>
+      <button class=${'tab '+(view==='detailed'?'active':'')} onClick=${()=>setView('detailed')}><i class="fa-solid fa-table"></i> Detailed Match Stats</button>
+    </nav>
+    ${view==='summary'?html`
+      <section class="card">
+        <div class="card-title"><span><i class="fa-solid fa-chart-column"></i> Club Performance</span>
+          <div class="metric-toggle"><span>${mode==='summary'?'Summary':'Season Totals'}</span>
+            <button class="btn" onClick=${()=>setMode(mode==='summary'?'totals':'summary')}><i class="fa-solid fa-repeat"></i> Show ${mode==='summary'?'Season Totals':'Summary'}</button></div></div>
+        ${mode==='summary'
+          ?html`<div class="grid">${summaryCards.map(([label,value])=>html`<div class="stat" key=${label}><div class="value">${value??'—'}</div><div class="label">${label}</div></div>`)}</div>`
+          :html`<div class="schema">${SCHEMA.map(g=>{const rows=g.fields.filter(([k])=>totals[k]!=null);return rows.length?html`<section class="schema-card" key=${g.id}><div class="schema-head">${g.title}</div><div class="schema-body">${rows.map(([k,label])=>html`<div class="metric" key=${k}><span>${label}</span><b>${fmt(totals[k])}${PCT_KEYS.includes(k)?'%':''}</b></div>`)}</div></section>`:null})}</div>
+            ${!Object.keys(totals).length?html`<div class="empty"><i class="fa-solid fa-chart-simple"></i>No season metric data has been recorded yet.</div>`:null}`}
+      </section>`
+    :html`
+      <section class="card">
+        <div class="card-title"><span><i class="fa-solid fa-table"></i> Detailed Match Stats</span><span>${filtered.length} match${filtered.length===1?'':'es'}</span></div>
+        <input class="search" type="search" value=${search} onInput=${e=>setSearch(e.currentTarget.value)} placeholder="Search opponent, competition or venue…"/>
+        ${!filtered.length
+          ?html`<div class="empty"><i class="fa-solid fa-futbol"></i>No detailed match stats available${search?' for this search':' yet'}.</div>`
+          :html`
+            <div class="navigator">
+              <button class="btn" onClick=${()=>setIdx(x=>Math.max(0,x-1))} disabled=${safeIdx<=0}><i class="fa-solid fa-chevron-left"></i> Previous match</button>
+              <div><strong>Match ${safeIdx+1} of ${filtered.length}</strong><small>${current?.competition||'Match details'}${dateOf(current)?' · '+fmtDate(dateOf(current)):''}</small></div>
+              <button class="btn" onClick=${()=>setIdx(x=>Math.min(filtered.length-1,x+1))} disabled=${safeIdx>=filtered.length-1}>Next match <i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+            ${matchPanel()}`}
+      </section>`}`;
+}
+
+const mountEl=document.getElementById('root');mountEl.textContent='';
+render(h(App,null),mountEl);
+})();
+</script>
+</body>
+</html>

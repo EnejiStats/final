@@ -1,22 +1,1553 @@
-<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="EnejiStats Match Centre application">
-<title>EnejiStats — Match Centre</title>
-<link rel="stylesheet" href="/static/club-dashboard/club-dashboard.css">
-<style>
-/* Tab iframe presentation: the shell owns global chrome and navigation. */
-html,body{min-height:100%;height:auto;overflow-x:hidden}
-body{padding-top:0!important}
-.dashboard-header,.sidebar,.nav-overlay,.tab-bar,.action-btns,.support-fab{display:none!important}
-.main-content{margin:0!important;padding:0!important;min-height:100vh}
-.page-inner{max-width:1200px;padding:1rem;margin:0 auto}
-@media(max-width:640px){.page-inner{padding:.65rem}}
-</style>
-<script>window.__ENEJISTATS_TAB__="match-centre";</script>
-<script src="https://unpkg.com/preact@10.19.3/dist/preact.umd.js"></script>
-<script src="https://unpkg.com/preact@10.19.3/hooks/dist/hooks.umd.js"></script>
-<script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js"></script>
-<script src="https://checkout.flutterwave.com/v3.js"></script>
-</head><body><div id="root"></div>
-<script src="/static/club-dashboard/club-dashboard.js"></script>
-</body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Match Centre | EnejiStats</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="EnejiStats Match Centre — Africa's Football Intelligence Platform" />
+
+  <link rel="preconnect" href="https://unpkg.com" crossorigin />
+  <script src="https://unpkg.com/preact@10.19.3/dist/preact.umd.js" crossorigin></script>
+  <script src="https://unpkg.com/preact@10.19.3/hooks/dist/hooks.umd.js" crossorigin></script>
+  <script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js" crossorigin></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+  <style>
+    /* ═══ TOKENS & BASE ═══ */
+    :root {
+      --primary: #004aad; --primary-light: #0066cc; --primary-dark: #003380;
+      --danger: #dc2626; --success: #16a34a; --warning: #d97706;
+      --bg: #f0f4f8; --card-bg: #fff; --border: #e2e8f0; --muted-bg: #f8fafc;
+      --text: #1e293b; --text-light: #64748b; --text-faint: #94a3b8;
+      --radius: 10px; --shadow: 0 2px 12px rgba(0, 74, 173, 0.08);
+      --vp-top: 0px; --vp-h: 600px;
+      --mono: 'Courier New', monospace;
+      --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    [hidden] { display: none !important; }
+    html { font-size: 14px; }
+    /* The dashboard owns scrolling: this document never scrolls, it only reports its natural height. */
+    html, body { height: auto; overflow: hidden; background: transparent; }
+    body { font-family: var(--font); color: var(--text); }
+    #root { display: flow-root; padding: clamp(10px, 1.6vw, 16px); }
+    .modal-open #root { min-height: calc(var(--vp-top) + var(--vp-h)); }
+
+    /* ═══ LAYOUT PRIMITIVES ═══ */
+    .card { background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1rem 1.1rem; margin-bottom: 0.85rem; border: 1px solid var(--border); }
+    .card-title { font-size: 0.88rem; font-weight: 800; color: var(--primary); margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; text-transform: uppercase; letter-spacing: 0.4px; flex-wrap: wrap; }
+    .banner { background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: #fff; }
+    .banner-title { font-size: 1.05rem; font-weight: 900; margin-bottom: 0.3rem; }
+    .banner-text { font-size: 0.82rem; opacity: 0.88; }
+    .g2, .g3 { display: grid; gap: 0.75rem; }
+    .g2 { grid-template-columns: 1fr 1fr; }
+    .g3 { grid-template-columns: repeat(3, 1fr); }
+    .row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .row-between { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
+    .empty-state { text-align: center; padding: 2rem 1rem; color: var(--text-light); }
+    .empty-state i { font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.4; display: block; }
+    .empty-state small { display: block; font-size: 0.78rem; color: var(--text-faint); }
+    .splash { display: flex; align-items: center; justify-content: center; min-height: 240px; flex-direction: column; gap: 1rem; text-align: center; }
+
+    /* ═══ TABS & FILTERS ═══ */
+    .tabs { display: flex; gap: 0.25rem; margin-bottom: 1rem; overflow-x: auto; scrollbar-width: none; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab-btn, .filter-btn, .pagination button {
+      padding: 0.45rem 0.9rem; border: 1.5px solid var(--border); border-radius: 6px; background: #fff;
+      color: var(--text-light); font-size: 0.78rem; font-weight: 700; cursor: pointer; white-space: nowrap; font-family: var(--font);
+    }
+    .filter-btn, .pagination button { padding: 0.35rem 0.85rem; font-size: 0.75rem; }
+    .tab-btn.active, .filter-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .tabs.compact { padding: 0.5rem; background: var(--muted-bg); border-bottom: 1px solid var(--border); margin-bottom: 0; }
+    .tabs.compact .tab-btn { padding: 0.3rem 0.65rem; font-size: 0.72rem; border-radius: 5px; }
+    .filter-bar { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .pagination { display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 1rem 0 0.25rem; }
+    .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ═══ BUTTONS & BADGES ═══ */
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem; padding: 0.45rem 0.9rem; border-radius: 6px; font-size: 0.8rem; font-weight: 700; cursor: pointer; border: none; transition: all 0.18s; font-family: var(--font); }
+    .btn-block { width: 100%; }
+    .btn-sm { padding: 0.3rem 0.65rem; font-size: 0.75rem; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: var(--primary-dark); }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-danger:hover { background: #b91c1c; }
+    .btn-outline { background: #fff; color: var(--primary); border: 1.5px solid var(--primary); }
+    .btn-outline:hover { background: #f0f4ff; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.3px; text-transform: uppercase; }
+    .badge-blue { background: #dbeafe; color: #1d4ed8; }
+    .badge-green { background: #dcfce7; color: #166534; }
+    .badge-red { background: #fee2e2; color: #991b1b; }
+    .badge-yellow { background: #fef3c7; color: #92400e; }
+    .applied-badge { background: #dcfce7; color: #166534; border-radius: 6px; font-size: 0.75rem; font-weight: 800; padding: 0.3rem 0.75rem; display: flex; align-items: center; gap: 0.3rem; }
+
+    /* ═══ FORMS ═══ */
+    .fg { margin-bottom: 0.65rem; position: relative; }
+    .fl { display: block; font-size: 0.78rem; font-weight: 700; color: var(--text-light); margin-bottom: 0.3rem; text-transform: uppercase; }
+    .fc { width: 100%; padding: 0.5rem 0.75rem; border: 1.5px solid var(--border); border-radius: 6px; font-size: 0.85rem; font-family: var(--font); background: #fff; }
+    .fc:focus { outline: none; border-color: var(--primary); }
+    textarea.fc { resize: vertical; min-height: 80px; }
+    .fhint { font-size: 0.7rem; color: var(--text-light); margin-top: 0.2rem; }
+    .note { border-radius: 6px; padding: 0.5rem 0.75rem; font-size: 0.78rem; margin-top: 0.35rem; border: 1px solid; }
+    .note-green { background: #f0fdf4; border-color: #86efac; color: #166534; }
+    .note-amber { background: #fffbeb; border-color: #fcd34d; color: #92400e; }
+    .note-red { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
+    .venue-suggestions { background: var(--card-bg); border: 1.5px solid var(--primary); border-radius: 0 0 8px 8px; margin-top: -2px; z-index: 20; position: absolute; width: 100%; max-height: 220px; overflow-y: auto; box-shadow: 0 4px 16px rgba(0, 74, 173, 0.12); }
+    .venue-option { padding: 8px 12px; border-bottom: 1px solid rgba(0, 0, 0, 0.06); cursor: pointer; }
+    .venue-option:hover { background: var(--muted-bg); }
+    .venue-option b { display: block; font-size: 0.85rem; color: var(--text); }
+    .venue-option small { display: block; font-size: 0.72rem; color: var(--text-light); margin-top: 2px; }
+    .picker { border: 1px solid var(--border); border-radius: 8px; padding: 0.65rem; background: var(--muted-bg); margin-bottom: 0.75rem; }
+    .picker-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.4rem; max-height: 220px; overflow: auto; }
+    .picker-item { display: flex; align-items: center; gap: 0.4rem; padding: 0.35rem 0.45rem; background: #fff; border: 1px solid var(--border); border-radius: 6px; font-size: 0.78rem; cursor: pointer; }
+
+    /* ═══ STEP BAR ═══ */
+    .steps { display: flex; align-items: flex-start; margin-bottom: 1.1rem; background: var(--muted-bg); border-radius: 10px; padding: 0.75rem 0.5rem 0.6rem; border: 1px solid var(--border); }
+    .step { display: flex; flex-direction: column; align-items: center; flex: 1; }
+    .step-dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border); background: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 900; color: var(--text-faint); }
+    .step-label { font-size: 0.58rem; color: var(--text-faint); font-weight: 700; white-space: nowrap; margin-top: 3px; text-align: center; }
+    .step.on .step-dot { border-color: var(--primary); background: var(--primary); color: #fff; }
+    .step.on .step-label { color: var(--primary); }
+
+    /* ═══ TOKEN BOX, TOASTS, MODAL ═══ */
+    .token-box { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 0.7rem 0.9rem; margin-bottom: 0.75rem; color: #78350f; }
+    .token-box-title { font-size: 0.75rem; font-weight: 800; color: #92400e; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.35rem; }
+    .token-line { display: flex; justify-content: space-between; font-size: 0.78rem; padding: 0.18rem 0; }
+    .token-line.total { font-size: 0.82rem; font-weight: 800; border-top: 1px solid #fde68a; margin-top: 0.3rem; padding-top: 0.38rem; color: #92400e; }
+    .token-foot { font-size: 0.75rem; margin-top: 0.3rem; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.55); z-index: 2000; display: flex; align-items: flex-start; justify-content: center; padding: calc(var(--vp-top) + 16px) 12px 12px; overflow: hidden; }
+    .modal-box { background: #fff; border-radius: 10px; width: 100%; max-height: calc(var(--vp-h) - 32px); overflow-y: auto; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
+    .modal-header h3 { font-size: 1rem; font-weight: 800; color: var(--primary); }
+    .modal-close { background: none; border: none; color: var(--text-light); font-size: 1.1rem; cursor: pointer; padding: 4px; }
+    .modal-body { padding: 1.25rem; }
+
+    /* ═══ KEY/VALUE GRID & REQUEST CARDS ═══ */
+    .kv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem 1rem; margin-top: 0.5rem; font-size: 0.8rem; }
+    .kv-k { display: block; color: var(--text-light); font-weight: 600; font-size: 0.72rem; text-transform: uppercase; }
+    .kv-v { font-weight: 700; word-break: break-word; }
+    .kv-v.mono { font-family: var(--mono); font-size: 0.72rem; }
+    .item-card { border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem; margin-bottom: 0.65rem; background: #fafbfc; }
+    .item-title { font-size: 0.88rem; font-weight: 800; }
+    .item-meta { display: flex; flex-wrap: wrap; gap: 0.4rem 0.85rem; font-size: 0.75rem; color: var(--text-light); margin-top: 0.4rem; }
+    .item-meta span { display: flex; align-items: center; gap: 0.25rem; }
+    .item-note { margin-top: 0.5rem; font-size: 0.8rem; background: var(--muted-bg); padding: 0.45rem; border-radius: 6px; color: #374151; }
+    .club-card { border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem; margin-bottom: 0.65rem; display: flex; align-items: center; gap: 0.85rem; cursor: pointer; transition: box-shadow 0.18s; background: #fff; }
+    .club-card:hover { box-shadow: 0 4px 20px rgba(0, 74, 173, 0.15); }
+    .club-badge { width: 48px; height: 48px; border-radius: 8px; object-fit: contain; background: var(--muted-bg); border: 1px solid var(--border); padding: 3px; flex-shrink: 0; }
+    .club-badge.fallback { display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
+    .metric-panel { margin: 0.25rem 0 0.65rem; border: 1px solid var(--border); border-radius: 8px; background: var(--muted-bg); }
+    .metric-panel summary { cursor: pointer; padding: 0.55rem 0.7rem; color: var(--primary); font-size: 0.78rem; font-weight: 800; }
+    .metric-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.45rem; padding: 0 0.7rem 0.7rem; }
+    .metric-row { display: grid; grid-template-columns: minmax(90px, 1fr) 58px auto 58px; align-items: center; gap: 0.3rem; font-size: 0.72rem; }
+    .metric-row label { font-weight: 700; color: var(--text-light); }
+    .metric-row input { width: 100%; padding: 0.3rem; font-size: 0.72rem; }
+
+    /* ═══ MATCH CARDS ═══ */
+    .match-card { background: #fff; border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 0.65rem; overflow: hidden; box-shadow: var(--shadow); cursor: pointer; transition: box-shadow 0.18s; }
+    .match-card:hover { box-shadow: 0 4px 20px rgba(0, 74, 173, 0.15); }
+    .match-hdr { padding: 0.75rem 1rem; }
+    .match-teams { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem; }
+    .match-team { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.2rem; }
+    .match-team-badge { width: 36px; height: 36px; border-radius: 6px; object-fit: contain; background: var(--muted-bg); border: 1px solid var(--border); padding: 2px; }
+    .match-team-name { font-size: 0.75rem; font-weight: 800; text-align: center; line-height: 1.2; }
+    .match-score-block { text-align: center; flex-shrink: 0; padding: 0 0.5rem; }
+    .match-score { font-size: 1.5rem; font-weight: 900; color: var(--primary); font-family: var(--mono); line-height: 1; }
+    .result-badge { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 0.7rem; font-weight: 900; text-transform: uppercase; margin-top: 3px; }
+    .result-w { background: #dcfce7; color: #166534; }
+    .result-d { background: #fef3c7; color: #92400e; }
+    .result-l { background: #fee2e2; color: #991b1b; }
+    .stat-card { background: #fff; border-radius: 8px; padding: 0.65rem 0.5rem; text-align: center; border: 1px solid var(--border); border-top: 3px solid var(--primary); }
+    .stat-value { font-size: 1.6rem; font-weight: 900; color: var(--primary); line-height: 1; font-family: var(--mono); }
+    .stat-label { font-size: 0.65rem; font-weight: 700; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.4px; margin-top: 2px; }
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.65rem; margin-bottom: 0.75rem; }
+
+    /* ═══ EVENTS ═══ */
+    .events-head, .event-row { display: grid; grid-template-columns: 1fr 48px 1fr; align-items: center; gap: 0.25rem; }
+    .events-head { padding: 0.4rem 0.6rem; background: var(--muted-bg); border-radius: 6px; margin-bottom: 0.5rem; font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase; }
+    .events-head > span { display: flex; align-items: center; gap: 0.3rem; }
+    .events-head > span:first-child { justify-content: flex-end; }
+    .events-head img { width: 16px; height: 16px; object-fit: contain; border-radius: 3px; }
+    .event-row { padding: 0.3rem 0; border-bottom: 1px solid var(--muted-bg); font-size: 0.78rem; }
+    .event-home { text-align: right; }
+    .event-minute { text-align: center; font-size: 0.7rem; font-weight: 800; color: var(--primary); background: var(--bg); border-radius: 4px; padding: 2px 4px; }
+    .event-player { font-weight: 700; }
+    .event-assist { font-size: 0.68rem; color: var(--text-light); }
+    .ev-goal { color: var(--success); } .ev-yellow { color: var(--warning); } .ev-red { color: var(--danger); } .ev-sub { color: #0369a1; } .ev-default { font-size: 0.5rem; color: var(--text-faint); }
+
+    /* ═══ LINEUPS & PLAYER TABLE ═══ */
+    .lineup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+    .lineup-header { font-size: 0.78rem; font-weight: 800; color: var(--primary); padding: 0.4rem 0.5rem; background: var(--muted-bg); border-radius: 6px; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.4rem; }
+    .lineup-header img { width: 22px; height: 22px; object-fit: contain; border-radius: 4px; background: #fff; border: 1px solid var(--border); }
+    .lineup-section { font-size: 0.65rem; font-weight: 800; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.4px; padding: 0.2rem 0.4rem; margin-top: 0.3rem; }
+    .lineup-row { display: flex; align-items: center; gap: 0.35rem; padding: 0.28rem 0.4rem; border-bottom: 1px solid var(--muted-bg); cursor: pointer; border-radius: 4px; }
+    .lineup-row:hover { background: var(--bg); }
+    .lineup-num { font-size: 0.7rem; font-weight: 900; color: var(--text-light); width: 18px; text-align: center; }
+    .lineup-name { flex: 1; font-size: 0.8rem; font-weight: 700; color: var(--primary); }
+    .pos-tag { font-size: 0.65rem; font-weight: 700; background: rgba(0, 74, 173, 0.1); color: var(--primary); border-radius: 3px; padding: 1px 5px; }
+    .rating { font-size: 0.72rem; font-weight: 800; border-radius: 4px; padding: 1px 6px; font-family: var(--mono); }
+    .rating-great { background: #dcfce7; color: #166534; }
+    .rating-good { background: #fef3c7; color: #92400e; }
+    .rating-low { background: #fee2e2; color: #991b1b; }
+    .lineup-detail { background: var(--muted-bg); border-radius: 6px; padding: 0.5rem 0.6rem; margin: 0.2rem 0.4rem; font-size: 0.75rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.25rem 0.75rem; }
+    .lineup-stat { display: flex; justify-content: space-between; }
+    .lineup-stat span:first-child { color: var(--text-light); }
+    .lineup-stat span:last-child { font-weight: 800; font-family: var(--mono); }
+    .table-scroll { overflow-x: auto; }
+    .data-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    .data-table th { background: var(--muted-bg); color: var(--primary); font-weight: 800; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.4px; padding: 0.45rem 0.6rem; border-bottom: 2px solid var(--border); text-align: left; white-space: nowrap; }
+    .data-table td { padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--bg); }
+    .compare-head { display: grid; grid-template-columns: 1fr auto 1fr; padding: 0.5rem 0.75rem; background: var(--muted-bg); border-radius: 8px; margin-bottom: 0.5rem; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+    .compare-row { padding: 0.4rem 0.75rem; border-bottom: 1px solid var(--bg); }
+    .compare-line { display: grid; grid-template-columns: 60px 1fr 60px; align-items: center; gap: 0.5rem; margin-bottom: 3px; }
+    .compare-bar { display: flex; height: 5px; border-radius: 3px; overflow: hidden; gap: 1px; }
+
+    @media print { html, body { overflow: visible; } }
+    @media (max-width: 768px) {
+      .lineup-grid, .g3 { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      .g2, .kv-grid, .metric-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"><div class="splash"><i class="fas fa-spinner fa-spin" style="font-size:2rem;color:var(--primary);"></i></div></div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      const { h, render } = preact;
+      const { useState, useEffect, useMemo, useRef } = preactHooks;
+      const html = htm.bind(h);
+
+      /* ═══════════════════════════════════════════════════════════
+         CONFIG & STATIC SCHEMA
+      ═══════════════════════════════════════════════════════════ */
+      /* ═══════════════ DASHBOARD BRIDGE ═══════════════
+         Embedded in /club-dashboard only. The dashboard owns auth, inactivity logout, toasts, page scroll and the shared
+         club data; this tab renders that data and reports its own height so the page scrolls naturally. */
+      const TAB_ID = 'match-centre';
+      const ORIGIN = location.origin;
+      if (window.parent === window) { location.replace('/club-dashboard'); return; }
+      const Bridge = (function () {
+        const initListeners = [];
+        let lastHeight = 0, lastActivity = 0, root = null, modals = 0;
+        const post = (type, payload) => { try { window.parent.postMessage(Object.assign({ type, tab: TAB_ID }, payload || {}), ORIGIN); } catch (e) { /* ignore */ } };
+        const report = (force) => {
+          if (!root) return;
+          const hgt = Math.ceil(root.getBoundingClientRect().height);
+          if (force || hgt !== lastHeight) { lastHeight = hgt; post('RESIZE', { height: hgt }); }
+        };
+        window.addEventListener('message', (e) => {
+          if (e.source !== window.parent || e.origin !== ORIGIN || !e.data || !e.data.type) return;
+          const d = e.data;
+          if (d.type === 'INIT') initListeners.forEach((f) => f(d));
+          else if (d.type === 'VIEWPORT') { const st = document.documentElement.style; st.setProperty('--vp-top', (d.top || 0) + 'px'); st.setProperty('--vp-h', (d.height || 600) + 'px'); }
+          else if (d.type === 'VISIBILITY' && d.visible) requestAnimationFrame(() => report(true));
+        });
+        ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach((ev) => window.addEventListener(ev, () => {
+          const t = Date.now();
+          if (t - lastActivity > 4000) { lastActivity = t; post('ACTIVITY'); }
+        }, { passive: true }));
+        return {
+          post,
+          mount(el) {
+            root = el;
+            if ('ResizeObserver' in window) new ResizeObserver(() => report()).observe(root);
+            window.addEventListener('load', () => report(true));
+            window.addEventListener('resize', () => report());
+            post('REQUEST_INIT');
+          },
+          onInit: (f) => initListeners.push(f),
+          remeasure: () => requestAnimationFrame(() => report(true)),
+          refresh: (scopes) => post('REFRESH', { scopes }),
+          toast: (msg, level) => post('TOAST', { msg, level: level || 'info' }),
+          // Open overlays lock the dashboard's page scroll and keep the frame tall enough to hold the modal
+          modal(delta) {
+            modals = Math.max(0, modals + delta);
+            document.body.classList.toggle('modal-open', modals > 0);
+            post('MODAL_STATE', { open: modals > 0 });
+            report(true);
+          },
+        };
+      })();
+
+      const API_BASE = '/api';
+            const MATCHES_PER_PAGE = 10;
+      const CLUBS_PER_PAGE = 12;
+      const PHONE_PATTERN = '^(0[7-9][0-1]\\d{8}|234[7-9][0-1]\\d{8})$';
+      const DEFAULT_REGION_LABEL = 'State / Region';
+      const DEFAULT_SUBREGION_LABEL = 'LGA / Local Area';
+      const GEO_DEFAULT = { venue_country: 'Nigeria', venue_country_code: 'NG', venue_state: '', venue_lga: '', venue_city: '' };
+
+      const MAIN_TABS = [
+        ['results', 'Results', 'fa-history'],
+        ['upcoming', 'Upcoming', 'fa-calendar-plus'],
+        ['operations', 'Operations', 'fa-satellite-dish'],
+        ['competitions', 'Competitions', 'fa-trophy'],
+      ];
+      const OPS_TABS = [
+        ['stats-tracking', 'Stats Tracking', 'fa-satellite-dish'],
+        ['match-requests', 'Match Requests', 'fa-handshake'],
+      ];
+      const MATCH_DETAIL_TABS = [
+        ['events', 'Events'], ['summary', 'Summary'], ['stats', 'Stats'], ['lineups', 'Lineups'], ['player_stats', 'Player Stats'],
+      ];
+      const RESULT_FILTERS = [['all', 'All'], ['W', 'Wins'], ['D', 'Draws'], ['L', 'Losses']];
+
+      const MATCH_COMPARE_STATS = [
+        { key: 'possession', label: 'Ball Possession', unit: '%' },
+        { key: 'shots_total', label: 'Total Shots' },
+        { key: 'shots_on_target', label: 'Shots on Target' },
+        { key: 'big_chances', label: 'Big Chances' },
+        { key: 'corners', label: 'Corner Kicks' },
+        { key: 'passes_total', label: 'Total Passes' },
+        { key: 'pass_accuracy', label: 'Pass Accuracy', unit: '%' },
+        { key: 'key_passes', label: 'Key Passes' },
+        { key: 'crosses_total', label: 'Total Crosses' },
+        { key: 'tackles_total', label: 'Total Tackles' },
+        { key: 'interceptions', label: 'Interceptions' },
+        { key: 'aerial_duels_won', label: 'Aerial Duels Won' },
+        { key: 'fouls_committed', label: 'Fouls Committed' },
+        { key: 'yellow_cards', label: 'Yellow Cards' },
+        { key: 'red_cards', label: 'Red Cards' },
+        { key: 'saves', label: 'GK Saves' },
+      ];
+
+      const EVENT_ICONS = {
+        goal: 'fa-futbol ev-goal', yellow_card: 'fa-square ev-yellow', red_card: 'fa-square ev-red',
+        substitution: 'fa-arrows-alt-v ev-sub', default: 'fa-circle ev-default',
+      };
+
+      const LINEUP_STATS = [
+        { key: 'goals', label: 'Goals' }, { key: 'assists', label: 'Assists' }, { key: 'shots', label: 'Shots' },
+        { key: 'passes', label: 'Passes' }, { key: 'tackles', label: 'Tackles' }, { key: 'saves', label: 'Saves' },
+        { key: 'yellow_card', label: 'Yellow', fmt: () => '1', color: '#d97706' },
+        { key: 'red_card', label: 'Red', fmt: () => '1', color: '#dc2626' },
+        { key: 'minutes_played', label: 'Minutes', fmt: (v) => `${v}'` },
+        { key: 'rating', label: 'Rating', fmt: (v) => `${v}/10` },
+      ];
+
+      const PLAYER_TABLE_COLUMNS = [['goals', 'G'], ['assists', 'A'], ['shots', 'Shots'], ['passes', 'Passes'], ['tackles', 'Tackles'], ['saves', 'Saves']];
+
+      const STATS_TRACKING_OPTIONS = [
+        ['club_only', 'Club-level Stats Only'], ['club_and_players', 'Club + Selected Players'],
+        ['player_only', 'Selected Players Only'], ['no_tracking', 'No Stats Tracking'],
+      ];
+      const MATCH_REQUEST_TRACKING_OPTIONS = [
+        ['club_and_players', 'Club + Players Stats Tracking'], ['club_only', 'Club Stats Only'], ['no_tracking', 'No Tracking'],
+      ];
+      const MATCH_TYPES = [['League', 'League Match'], ['Cup', 'Cup Match'], ['Friendly', 'Friendly'], ['Playoff', 'Playoff'], ['Tournament', 'Tournament']];
+      const CLUB_CATEGORIES = [
+        ['Professional', 'Professional'], ['Semi-Professional', 'Semi-Professional'], ['Academy', 'Academy'],
+        ['University', 'University'], ['Local', 'Local Teams'],
+      ];
+      const CLUB_METRICS = [
+        ['possession', 'Possession (%)', 100], ['short_passes', 'Short passes', 1000], ['long_passes', 'Long passes', 1000],
+        ['goals_scored', 'Goals scored', 20], ['goals_conceded', 'Goals conceded', 20], ['win_rate', 'Win rate (%)', 100],
+      ];
+      const emptyMetricFilters = () => Object.fromEntries(CLUB_METRICS.flatMap(([k]) => [[`${k}_min`, ''], [`${k}_max`, '']]));
+
+      const REQUEST_FILTERS_SENT = ['all', 'pending', 'accepted', 'rejected', 'cancelled', 'modified'];
+      const REQUEST_FILTERS_RECEIVED = ['all', 'pending', 'accepted', 'rejected', 'modified'];
+      const STATUS_BADGES = { approved: 'green', completed: 'green', accepted: 'green', rejected: 'red', cancelled: 'red', modified: 'blue' };
+
+      /* ═══════════════════════════════════════════════════════════
+         HELPERS
+      ═══════════════════════════════════════════════════════════ */
+      const clsx = (...parts) => parts.filter(Boolean).join(' ');
+      const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+      const idOf = (o) => o?._id || o?.id;
+      const refOf = (r) => r?.reference_id || r?.id;
+      const clubIdOf = (c) => c?.club_id || c?.user_id || c?._id;
+      const asList = (data, key) => (Array.isArray(data) ? data : (data && data[key]) || []);
+      const hideOnError = (e) => { e.target.style.display = 'none'; };
+      const humanize = (s) => (s || '—').replace(/_/g, ' ');
+      const statusBadgeClass = (s) => `badge badge-${STATUS_BADGES[String(s || '').toLowerCase()] || 'yellow'}`;
+      const ratingClass = (r) => (r >= 7 ? 'rating-great' : r >= 5 ? 'rating-good' : 'rating-low');
+      const resultClass = (r) => {
+        const u = String(r || '').toUpperCase();
+        return u === 'W' || u === 'WIN' ? 'result-w' : u === 'L' || u === 'LOSS' ? 'result-l' : 'result-d';
+      };
+
+      const fmtDate = (d) => {
+        if (!d) return '—';
+        try {
+          return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        } catch (e) { return d; }
+      };
+
+      async function apiCall(endpoint, opts = {}) {
+        const token = localStorage.getItem('enejistats_token');
+        const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(opts.headers || {}) };
+        if (opts.body instanceof FormData) delete headers['Content-Type'];
+        const res = await fetch(`${API_BASE}${endpoint}`, { credentials: 'include', ...opts, headers });
+        if (res.status === 401 || res.status === 403) Bridge.post('AUTH_EXPIRED');
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          const error = new Error(err.detail || `HTTP ${res.status}`);
+          error.status = res.status;
+          throw error;
+        }
+        return res.json();
+      }
+      const jsonBody = (method, data) => ({ method, body: JSON.stringify(data) });
+
+      /** Token cost for a given tracking type. */
+      function costFor(type, costs) {
+        if (!type || type === 'no_tracking') return 0;
+        if (type === 'club_only') return costs.club_stats_tracking || costs.club_tracking || 3;
+        return costs.club_and_player_tracking || costs.full_tracking || 5;
+      }
+
+      /** Loads regions/subregions for a country (and region) with stale-response protection. */
+      function useGeo(countryCode, region) {
+        const [geo, setGeo] = useState({ regions: [], regionLabel: DEFAULT_REGION_LABEL, subregions: [], subregionLabel: DEFAULT_SUBREGION_LABEL });
+
+        useEffect(() => {
+          if (!countryCode) { setGeo((g) => ({ ...g, regions: [], regionLabel: DEFAULT_REGION_LABEL })); return undefined; }
+          let alive = true;
+          apiCall(`/public/countries/${encodeURIComponent(countryCode.toUpperCase())}/regions`)
+            .then((d) => alive && setGeo((g) => ({ ...g, regions: d.regions || [], regionLabel: d.region_label || DEFAULT_REGION_LABEL })))
+            .catch(() => alive && setGeo((g) => ({ ...g, regions: [] })));
+          return () => { alive = false; };
+        }, [countryCode]);
+
+        useEffect(() => {
+          if (!countryCode || !region) { setGeo((g) => ({ ...g, subregions: [], subregionLabel: DEFAULT_SUBREGION_LABEL })); return undefined; }
+          let alive = true;
+          apiCall(`/public/countries/${encodeURIComponent(countryCode.toUpperCase())}/regions/${encodeURIComponent(region)}/subregions`)
+            .then((d) => alive && setGeo((g) => ({ ...g, subregions: d.subregions || [], subregionLabel: d.subregion_label || DEFAULT_SUBREGION_LABEL })))
+            .catch(() => alive && setGeo((g) => ({ ...g, subregions: [] })));
+          return () => { alive = false; };
+        }, [countryCode, region]);
+
+        return geo;
+      }
+
+      /** Form state helper: returns [form, patch, reset]. */
+      function useForm(initial) {
+        const [form, setForm] = useState(initial);
+        const patch = (changes) => setForm((f) => ({ ...f, ...changes }));
+        return [form, patch, setForm];
+      }
+
+      /* ═══════════════════════════════════════════════════════════
+         GENERIC UI COMPONENTS
+      ═══════════════════════════════════════════════════════════ */
+      function EmptyState({ icon, text, sub }) {
+        return html`<div class="empty-state"><i class=${`fas ${icon}`}></i><div>${text}</div>${sub ? html`<small>${sub}</small>` : null}</div>`;
+      }
+
+      function Splash({ icon, color, title, text, onRetry }) {
+        return html`
+          <div class="splash">
+            <i class=${`fas ${icon}`} style=${{ fontSize: '2.5rem', color }}></i>
+            <div style="font-weight:700;">${title}</div>
+            ${text ? html`<div style="font-size:0.85rem;color:var(--text-light);">${text}</div>` : null}
+            ${onRetry ? html`<button class="btn btn-primary" onClick=${onRetry}>Retry</button>` : null}
+          </div>`;
+      }
+
+      function Tabs({ tabs, active, onChange, compact }) {
+        return html`
+          <div class=${clsx('tabs', compact && 'compact')}>
+            ${tabs.map(([key, label, icon]) => html`
+              <button key=${key} class=${clsx('tab-btn', active === key && 'active')} onClick=${(e) => { e.stopPropagation(); onChange(key); }}>
+                ${icon ? html`<i class=${`fas ${icon}`}></i> ` : null}${label}
+              </button>`)}
+          </div>`;
+      }
+
+      function FilterBar({ options, value, onChange }) {
+        return html`
+          <div class="filter-bar">
+            ${options.map((o) => {
+              const [key, label] = Array.isArray(o) ? o : [o, cap(o)];
+              return html`<button key=${key} class=${clsx('filter-btn', value === key && 'active')} onClick=${() => onChange(key)}>${label}</button>`;
+            })}
+          </div>`;
+      }
+
+      function Pagination({ page, pages, hasNext, onChange }) {
+        const last = pages != null ? page >= pages : !hasNext;
+        return html`
+          <div class="pagination">
+            <button disabled=${page <= 1} onClick=${() => onChange(page - 1)}>Prev</button>
+            <span>Page ${page}${pages != null ? ` of ${pages}` : ''}</span>
+            <button disabled=${last} onClick=${() => onChange(page + 1)}>Next</button>
+          </div>`;
+      }
+
+      function Modal({ title, icon, maxWidth = 460, onClose, children }) {
+        useEffect(() => { Bridge.modal(1); return () => Bridge.modal(-1); }, []);
+        return html`
+          <div class="modal-overlay" onClick=${(e) => e.target === e.currentTarget && onClose()}>
+            <div class="modal-box" style=${{ maxWidth }}>
+              <div class="modal-header">
+                <h3><i class=${`fas ${icon}`}></i> ${title}</h3>
+                <button type="button" class="modal-close" onClick=${onClose}><i class="fas fa-times"></i></button>
+              </div>
+              <div class="modal-body">${children}</div>
+            </div>
+          </div>`;
+      }
+
+      function Badge({ status, children }) {
+        return html`<span class=${statusBadgeClass(status)}>${children}</span>`;
+      }
+
+      function KvGrid({ items }) {
+        return html`
+          <div class="kv-grid">
+            ${items.map(([label, value, opts = {}]) => html`
+              <div key=${label}>
+                <span class="kv-k">${label}</span>
+                <span class=${clsx('kv-v', opts.mono && 'mono')} style=${opts.color ? { color: opts.color } : null}>${value || '—'}</span>
+              </div>`)}
+          </div>`;
+      }
+
+      function TokenBox({ title, detail, lines, totalLabel, total, footer }) {
+        return html`
+          <div class="token-box">
+            <div class="token-box-title"><i class="fas fa-receipt"></i> ${title}</div>
+            ${detail ? html`<div style="font-size:0.8rem;margin-bottom:0.45rem;">${detail}</div>` : null}
+            ${lines.filter(Boolean).map(([label, value]) => html`<div key=${label} class="token-line"><span>${label}</span><strong>${value}</strong></div>`)}
+            <div class="token-line total"><span>${totalLabel}</span><span>${total}</span></div>
+            ${footer ? html`<div class="token-foot"><i class="fas fa-info-circle"></i> ${footer}</div>` : null}
+          </div>`;
+      }
+
+      function TokenConfirmModal({ data, onCancel }) {
+        return html`
+          <${Modal} title="Confirm token usage" icon="fa-coins" onClose=${onCancel}>
+            <${TokenBox} title=${data.title} detail=${data.details} lines=${[]} totalLabel="Total token cost" total=${`${data.cost} tokens`} />
+            <div style="font-size:0.8rem;color:var(--text-light);margin-bottom:0.8rem;">
+              Available after this request: <strong>${data.available - data.cost}</strong> tokens
+            </div>
+            <div class="row">
+              <button class="btn btn-primary" style="flex:1;" onClick=${data.onConfirm}><i class="fas fa-check"></i> Confirm & Continue</button>
+              <button class="btn btn-outline" onClick=${onCancel}>Cancel</button>
+            </div>
+          <//>`;
+      }
+
+      /* ── Form field components ── */
+      function Field({ label, required, hint, children }) {
+        return html`
+          <div class="fg">
+            <label class="fl">${label}${required ? ' *' : ''}</label>
+            ${children}
+            ${hint ? html`<div class="fhint">${hint}</div>` : null}
+          </div>`;
+      }
+
+      function Input({ onChange, ...rest }) {
+        return html`<input class="fc" onInput=${(e) => onChange(e.target.value)} ...${rest} />`;
+      }
+
+      function Textarea({ onChange, ...rest }) {
+        return html`<textarea class="fc" onInput=${(e) => onChange(e.target.value)} ...${rest}></textarea>`;
+      }
+
+      function Select({ value, onChange, options, placeholder, ...rest }) {
+        return html`
+          <select class="fc" value=${value} onChange=${(e) => onChange(e.target.value)} ...${rest}>
+            ${placeholder != null ? html`<option value="">${placeholder}</option>` : null}
+            ${options.map((o) => {
+              const [v, l] = Array.isArray(o) ? o : [o, o];
+              return html`<option key=${v} value=${v}>${l}</option>`;
+            })}
+          </select>`;
+      }
+
+      /** Country → Region → Subregion → City fields bound to venue_* form keys. */
+      function LocationFields({ form, set, countries }) {
+        const geo = useGeo(form.venue_country_code, form.venue_state);
+        const countryOptions = useMemo(() => countries.map((c) => [String(c.code).toUpperCase(), c.name]), [countries]);
+
+        const onCountry = (code) => {
+          const c = countries.find((x) => String(x.code || '').toUpperCase() === code.toUpperCase());
+          set({ venue_country_code: code, venue_country: c?.name || code, venue_state: '', venue_lga: '', venue_city: '', venue_address: '' });
+        };
+
+        return html`
+          <${Field} label="Country" required>
+            <${Select} value=${form.venue_country_code} onChange=${onCountry} options=${countryOptions} placeholder="Select country" required />
+          <//>
+          <div class="g2">
+            <${Field} label=${geo.regionLabel} required>
+              <${Select} value=${form.venue_state} options=${geo.regions} required
+                placeholder=${`Select ${geo.regionLabel.toLowerCase()}…`}
+                onChange=${(v) => set({ venue_state: v, venue_lga: '', venue_address: '' })} />
+            <//>
+            <${Field} label=${geo.subregionLabel} required=${geo.subregions.length > 0}>
+              ${geo.subregions.length
+                ? html`<${Select} value=${form.venue_lga} options=${geo.subregions} required
+                    placeholder=${`Select ${geo.subregionLabel.toLowerCase()}…`} onChange=${(v) => set({ venue_lga: v })} />`
+                : html`<${Input} value=${form.venue_lga} placeholder=${geo.subregionLabel} onChange=${(v) => set({ venue_lga: v })} />`}
+            <//>
+          </div>
+          <${Field} label="City / District" required>
+            <${Input} value=${form.venue_city} placeholder="City or district" required onChange=${(v) => set({ venue_city: v })} />
+          <//>`;
+      }
+
+      /** Venue autocomplete with debounce. */
+      function VenueInput({ form, set }) {
+        const [suggestions, setSuggestions] = useState([]);
+        const timer = useRef(null);
+        useEffect(() => () => clearTimeout(timer.current), []);
+
+        const onType = (value) => {
+          set({ venue_address: value });
+          clearTimeout(timer.current);
+          if (value.length < 3) { setSuggestions([]); return; }
+          timer.current = setTimeout(async () => {
+            try {
+              const params = new URLSearchParams({ search: value, limit: 8, country: form.venue_country_code || '' });
+              [['state', form.venue_state], ['lga', form.venue_lga], ['city', form.venue_city]].forEach(([k, v]) => v && params.append(k, v));
+              const res = await apiCall(`/public/venues?${params}`);
+              setSuggestions(res?.venues || res?.results || []);
+            } catch (e) { setSuggestions([]); }
+          }, 250);
+        };
+
+        return html`
+          <${Field} label="Venue Match Will Take Place" required hint="Search a registered stadium or type a ground name">
+            <${Input} value=${form.venue_address} onChange=${onType} placeholder="Start typing stadium or ground name..." autocomplete="off" required />
+            ${suggestions.length > 0 ? html`
+              <div class="venue-suggestions">
+                ${suggestions.map((s, i) => {
+                  const name = s?.name || s?.stadium_name || (typeof s === 'string' ? s : '');
+                  const addr = s?.address || s?.location || '';
+                  return html`
+                    <div key=${`${name}-${i}`} class="venue-option" onClick=${() => { set({ venue_address: name }); setSuggestions([]); }}>
+                      <b>${name}</b>
+                      ${addr ? html`<small><i class="fas fa-map-marker-alt"></i> ${addr}</small>` : null}
+                      ${s?.capacity ? html`<small><i class="fas fa-users"></i> Capacity: ${s.capacity.toLocaleString()}</small>` : null}
+                    </div>`;
+                })}
+              </div>` : null}
+          <//>`;
+      }
+
+      /** Jersey + phone + tracking type (shared by stats form and match-request modal). */
+      function CoverageFields({ form, set, trackingOptions, trackingPlaceholder, children }) {
+        return html`
+          <div class="g2">
+            <${Field} label="Your Jersey Color" required>
+              <${Input} value=${form.jersey_color} placeholder="e.g. Blue and White" required onChange=${(v) => set({ jersey_color: v })} />
+            <//>
+            <${Field} label="Contact Phone" required hint="Nigerian format: 080xxxxxxxx or 2348xxxxxxxxx">
+              <${Input} type="tel" value=${form.contact_phone} placeholder="080xxxxxxxx" pattern=${PHONE_PATTERN} required onChange=${(v) => set({ contact_phone: v })} />
+            <//>
+          </div>
+          <${Field} label="Stats Tracking Type" required>
+            <${Select} value=${form.tracking_type} options=${trackingOptions} placeholder=${trackingPlaceholder} required onChange=${(v) => set({ tracking_type: v })} />
+            ${children}
+          <//>`;
+      }
+
+      /* ═══════════════════════════════════════════════════════════
+         MATCH DETAIL COMPONENTS
+      ═══════════════════════════════════════════════════════════ */
+      function EventSide({ ev, side }) {
+        const icon = html`<i class=${`fas ${EVENT_ICONS[ev.type] || EVENT_ICONS.default}`}></i>`;
+        const name = html`<span class="event-player">${ev.player || ev.playerOut || ''}</span>`;
+        return html`
+          <span>${side === 'home' ? html`${icon} ${name}` : html`${name} ${icon}`}</span>
+          ${ev.assist ? html`<div class="event-assist"><i class="fas fa-shoe-prints"></i> ${ev.assist}</div>` : null}
+          ${ev.playerIn ? html`<div class="event-assist"><i class="fas fa-arrow-up" style="color:#16a34a;"></i> ${ev.playerIn}</div>` : null}`;
+      }
+
+      function MatchEventsTimeline({ events, homeName, awayName, homePhoto, awayPhoto }) {
+        if (!events || !events.length) return html`<${EmptyState} icon="fa-list" text="No events recorded" />`;
+        const header = (photo, name, fallback) => html`${photo ? html`<img src=${photo} onError=${hideOnError} alt="" />` : null}${name || fallback}`;
+        return html`
+          <div>
+            <div class="events-head">
+              <span>${header(homePhoto, homeName, 'Home')}</span>
+              <span style="justify-content:center;">Min</span>
+              <span>${header(awayPhoto, awayName, 'Away')}</span>
+            </div>
+            ${events.map((ev, i) => html`
+              <div key=${i} class="event-row">
+                <div class="event-home">${ev.team === 'home' ? html`<${EventSide} ev=${ev} side="home" />` : null}</div>
+                <div class="event-minute">${ev.minute}'</div>
+                <div>${ev.team === 'away' ? html`<${EventSide} ev=${ev} side="away" />` : null}</div>
+              </div>`)}
+          </div>`;
+      }
+
+      function LineupPlayer({ player, expanded, onToggle }) {
+        const rows = LINEUP_STATS.filter((s) => player[s.key]);
+        return html`
+          <div>
+            <div class="lineup-row" onClick=${onToggle}>
+              <span class="lineup-num">${player.number || '—'}</span>
+              <span class="lineup-name">${player.name || '—'}</span>
+              ${player.position ? html`<span class="pos-tag">${player.position}</span>` : null}
+              ${player.rating ? html`<span class=${`rating ${ratingClass(player.rating)}`}>${player.rating}</span>` : null}
+              <i class=${`fas ${expanded ? 'fa-chevron-up' : 'fa-chevron-down'}`} style="font-size:0.7rem;color:var(--text-light);"></i>
+            </div>
+            ${expanded ? html`
+              <div class="lineup-detail">
+                ${rows.length
+                  ? rows.map((s) => html`
+                      <div key=${s.key} class="lineup-stat">
+                        <span>${s.label}</span>
+                        <span style=${s.color ? { color: s.color } : null}>${s.fmt ? s.fmt(player[s.key]) : player[s.key]}</span>
+                      </div>`)
+                  : html`<div style="color:var(--text-faint);grid-column:1/-1;">No detailed stats available</div>`}
+              </div>` : null}
+          </div>`;
+      }
+
+      function LineupTeam({ team, name, photo, expandedKey, onToggle }) {
+        const players = team?.players || [];
+        const starters = players.filter((p) => !p.substitute);
+        const sections = [
+          ['STARTING XI', starters.length ? starters : players.slice(0, 11)],
+          ['USED SUBS', players.filter((p) => p.substitute && p.came_on)],
+          ['UNUSED SUBS', players.filter((p) => p.substitute && !p.came_on)],
+        ].filter(([, list]) => list.length);
+
+        return html`
+          <div>
+            <div class="lineup-header">
+              ${photo ? html`<img src=${photo} onError=${hideOnError} alt=${name} />` : null}
+              <span>${name || 'Team'}</span>
+              ${team?.formation ? html`<span style="font-size:0.68rem;color:var(--text-light);margin-left:auto;">${team.formation}</span>` : null}
+            </div>
+            ${sections.map(([label, list]) => html`
+              <div key=${label}>
+                <div class="lineup-section">${label}</div>
+                ${list.map((p, i) => {
+                  const key = `${name}-${p.player_id || p._id || p.number || i}`;
+                  return html`<${LineupPlayer} key=${key} player=${p} expanded=${expandedKey === key} onToggle=${() => onToggle(expandedKey === key ? null : key)} />`;
+                })}
+              </div>`)}
+            ${!players.length ? html`<${EmptyState} icon="fa-clipboard-list" text="No lineup data" />` : null}
+          </div>`;
+      }
+
+      function MatchLineups({ lineups, homeName, awayName, homePhoto, awayPhoto }) {
+        const [expandedKey, setExpandedKey] = useState(null);
+        if (!lineups) return html`<${EmptyState} icon="fa-clipboard-list" text="No lineup data" />`;
+        return html`
+          <div class="lineup-grid">
+            <${LineupTeam} team=${lineups.home} name=${homeName} photo=${homePhoto} expandedKey=${expandedKey} onToggle=${setExpandedKey} />
+            <${LineupTeam} team=${lineups.away} name=${awayName} photo=${awayPhoto} expandedKey=${expandedKey} onToggle=${setExpandedKey} />
+          </div>`;
+      }
+
+      function MatchPlayerStats({ lineups, homeName, awayName }) {
+        const players = [
+          ...(lineups?.home?.players || []).map((p) => ({ ...p, team: homeName, side: 'home' })),
+          ...(lineups?.away?.players || []).map((p) => ({ ...p, team: awayName, side: 'away' })),
+        ];
+        if (!players.length) return html`<${EmptyState} icon="fa-user-slash" text="No player data" />`;
+        return html`
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead>
+                <tr><th>Player</th><th>Team</th><th>Pos</th><th>Rating</th>${PLAYER_TABLE_COLUMNS.map(([, label]) => html`<th key=${label}>${label}</th>`)}</tr>
+              </thead>
+              <tbody>
+                ${players.map((p, i) => html`
+                  <tr key=${i} style=${{ background: p.side === 'home' ? 'rgba(0,74,173,0.02)' : 'rgba(220,38,38,0.02)' }}>
+                    <td style="font-weight:700;">${p.name || '—'}</td>
+                    <td style="font-size:0.75rem;color:var(--text-light);">${p.team}</td>
+                    <td>${p.position ? html`<span class="pos-tag">${p.position}</span>` : '—'}</td>
+                    <td>${p.rating ? html`<span class=${`rating ${ratingClass(p.rating)}`}>${p.rating}</span>` : '—'}</td>
+                    ${PLAYER_TABLE_COLUMNS.map(([key]) => html`<td key=${key}>${p[key] ?? '—'}</td>`)}
+                  </tr>`)}
+              </tbody>
+            </table>
+          </div>`;
+      }
+
+      function MatchStatsCompare({ homeStats, awayStats, homeName, awayName }) {
+        if (!homeStats || !awayStats) return html`<${EmptyState} icon="fa-chart-bar" text="No stats available" />`;
+        return html`
+          <div>
+            <div class="compare-head">
+              <span style="text-align:right;color:var(--primary);">${homeName}</span>
+              <span style="width:100px;"></span>
+              <span style="color:var(--danger);">${awayName}</span>
+            </div>
+            ${MATCH_COMPARE_STATS.map((s) => {
+              const hv = Number(homeStats[s.key]) || 0;
+              const av = Number(awayStats[s.key]) || 0;
+              const total = hv + av;
+              const hPct = total > 0 ? (hv / total) * 100 : 50;
+              const fmt = (v) => (s.unit === '%' ? `${v}%` : v);
+              return html`
+                <div key=${s.key} class="compare-row">
+                  <div class="compare-line">
+                    <span style="font-weight:900;color:var(--primary);text-align:right;font-size:0.85rem;">${fmt(hv)}</span>
+                    <span style="font-size:0.72rem;font-weight:700;color:#374151;text-align:center;">${s.label}</span>
+                    <span style="font-weight:900;color:var(--danger);font-size:0.85rem;">${fmt(av)}</span>
+                  </div>
+                  <div class="compare-bar">
+                    <div style=${{ width: `${hPct}%`, background: 'var(--primary)' }}></div>
+                    <div style=${{ width: `${100 - hPct}%`, background: 'var(--danger)' }}></div>
+                  </div>
+                </div>`;
+            })}
+          </div>`;
+      }
+
+      function MatchSummary({ match: m }) {
+        const cards = [
+          [m.home_score ?? '?', 'Home Goals', '#16a34a'], [m.away_score ?? '?', 'Away Goals', '#dc2626'],
+          m.home_stats && [`${m.home_stats.possession || 0}%`, 'Home Poss.'], m.away_stats && [`${m.away_stats.possession || 0}%`, 'Away Poss.'],
+        ].filter(Boolean);
+        return html`
+          <div>
+            <div class="stat-grid">
+              ${cards.map(([value, label, color]) => html`
+                <div key=${label} class="stat-card" style=${color ? { borderTopColor: color } : null}>
+                  <div class="stat-value" style=${color ? { color } : null}>${value}</div>
+                  <div class="stat-label">${label}</div>
+                </div>`)}
+            </div>
+            ${m.attendance ? html`<div style="font-size:0.8rem;color:var(--text-light);"><i class="fas fa-users"></i> Attendance: ${m.attendance.toLocaleString()}</div>` : null}
+            ${m.notes || m.description ? html`<div class="item-note">${m.notes || m.description}</div>` : null}
+          </div>`;
+      }
+
+      function MatchCard({ match: m, expanded, tab, onToggle, onTab, badgeFor }) {
+        const homePhoto = badgeFor(m.home_team);
+        const awayPhoto = badgeFor(m.away_team);
+        const common = { homeName: m.home_team, awayName: m.away_team };
+        const side = (name, photo, fallback) => html`
+          <div class="match-team">
+            ${photo ? html`<img class="match-team-badge" src=${photo} alt=${name} onError=${hideOnError} />` : null}
+            <div class="match-team-name">${name || fallback}</div>
+          </div>`;
+        const date = m.date || m.match_date;
+
+        return html`
+          <div class="match-card" onClick=${onToggle}>
+            <div class="match-hdr">
+              <div class="match-teams">
+                ${side(m.home_team, homePhoto, 'Home')}
+                <div class="match-score-block">
+                  <div class="match-score">${m.home_score ?? '?'} – ${m.away_score ?? '?'}</div>
+                  <span class=${`result-badge ${resultClass(m.result)}`}>${m.result || 'D'}</span>
+                </div>
+                ${side(m.away_team, awayPhoto, 'Away')}
+              </div>
+              <div class="item-meta">
+                ${date ? html`<span><i class="fas fa-calendar"></i> ${fmtDate(date)}</span>` : null}
+                ${m.competition ? html`<span><i class="fas fa-trophy"></i> ${m.competition}</span>` : null}
+                ${m.venue ? html`<span><i class="fas fa-map-pin"></i> ${m.venue}</span>` : null}
+                ${m.attendance ? html`<span><i class="fas fa-users"></i> ${m.attendance.toLocaleString()}</span>` : null}
+                <span style="margin-left:auto;color:var(--primary);">${expanded ? '▲' : '▼'}</span>
+              </div>
+            </div>
+            ${expanded ? html`
+              <div style="border-top:1px solid var(--border);">
+                <${Tabs} compact tabs=${MATCH_DETAIL_TABS} active=${tab} onChange=${onTab} />
+                <div style="padding:0.75rem;" onClick=${(e) => e.stopPropagation()}>
+                  ${tab === 'events' ? html`<${MatchEventsTimeline} events=${m.events} ...${common} homePhoto=${homePhoto} awayPhoto=${awayPhoto} />` : null}
+                  ${tab === 'summary' ? html`<${MatchSummary} match=${m} />` : null}
+                  ${tab === 'stats' ? html`<${MatchStatsCompare} homeStats=${m.home_stats} awayStats=${m.away_stats} ...${common} />` : null}
+                  ${tab === 'lineups' ? html`<${MatchLineups} lineups=${m.lineups} ...${common} homePhoto=${homePhoto} awayPhoto=${awayPhoto} />` : null}
+                  ${tab === 'player_stats' ? html`<${MatchPlayerStats} lineups=${m.lineups} ...${common} />` : null}
+                </div>
+              </div>` : null}
+          </div>`;
+      }
+
+      /* ═══════════════════════════════════════════════════════════
+         TABS: RESULTS / UPCOMING / COMPETITIONS
+      ═══════════════════════════════════════════════════════════ */
+      function ResultsTab({ matches, club }) {
+        const [filter, setFilter] = useState({ result: 'all', search: '' });
+        const [page, setPage] = useState(1);
+        const [expanded, setExpanded] = useState({ id: null, tab: 'events' });
+
+        const filtered = useMemo(() => {
+          const q = filter.search.toLowerCase();
+          return matches.filter((m) => {
+            if (filter.result !== 'all' && String(m.result || '').toUpperCase() !== filter.result) return false;
+            return !q || [m.home_team, m.away_team, m.competition].some((v) => String(v || '').toLowerCase().includes(q));
+          });
+        }, [matches, filter]);
+
+        const pages = Math.max(1, Math.ceil(filtered.length / MATCHES_PER_PAGE));
+        const visible = filtered.slice((page - 1) * MATCHES_PER_PAGE, page * MATCHES_PER_PAGE);
+
+        const badgeFor = (teamName) => {
+          const mine = String(club?.club_name || '').toLowerCase();
+          const team = String(teamName || '').toLowerCase();
+          if (!mine || !team || !(team.includes(mine) || mine.includes(team))) return null;
+          return club.photo_url || club.badge_url || club.logo || club.photo || null;
+        };
+
+        const updateFilter = (changes) => { setFilter((f) => ({ ...f, ...changes })); setPage(1); };
+
+        return html`
+          <div>
+            <div class="card">
+              <div class="filter-bar">
+                ${RESULT_FILTERS.map(([key, label]) => html`
+                  <button key=${key} class=${clsx('filter-btn', filter.result === key && 'active')} onClick=${() => updateFilter({ result: key })}>${label}</button>`)}
+                <input class="fc" style="flex:1;min-width:120px;padding:0.3rem 0.6rem;font-size:0.78rem;" type="text"
+                  placeholder="Search team / competition..." value=${filter.search} onInput=${(e) => updateFilter({ search: e.target.value })} />
+              </div>
+            </div>
+            ${visible.length === 0
+              ? html`<div class="card"><${EmptyState} icon="fa-futbol" text="No results match your filter" /></div>`
+              : visible.map((m, i) => {
+                  const id = idOf(m) || `${m.home_team}-${m.away_team}-${i}`;
+                  const isOpen = expanded.id === id;
+                  return html`<${MatchCard} key=${id} match=${m} expanded=${isOpen} tab=${expanded.tab} badgeFor=${badgeFor}
+                    onToggle=${() => setExpanded({ id: isOpen ? null : id, tab: 'events' })}
+                    onTab=${(tab) => setExpanded({ id, tab })} />`;
+                })}
+            ${pages > 1 ? html`<${Pagination} page=${page} pages=${pages} onChange=${(pg) => { setPage(pg); Bridge.post('SCROLL_TOP'); }} />` : null}
+          </div>`;
+      }
+
+      function UpcomingTab({ fixtures }) {
+        return html`
+          <div class="card">
+            <div class="card-title"><span><i class="fas fa-calendar-plus"></i> Upcoming Fixtures</span></div>
+            ${fixtures.length === 0
+              ? html`<${EmptyState} icon="fa-calendar" text="No upcoming fixtures" sub="Fixtures will appear here when scheduled" />`
+              : fixtures.map((f, i) => {
+                  const venue = f.venue || f.venue_address;
+                  const time = f.time || f.match_time;
+                  return html`
+                    <div key=${idOf(f) || i} class="item-card">
+                      <div class="row-between">
+                        <span class="item-title">${f.home_team || 'TBD'} vs ${f.away_team || 'TBD'}</span>
+                        <${Badge} status="modified">Upcoming<//>
+                      </div>
+                      <div class="item-meta">
+                        <span><i class="fas fa-calendar"></i> ${fmtDate(f.date || f.match_date)}</span>
+                        ${time ? html`<span><i class="fas fa-clock"></i> ${time}</span>` : null}
+                        ${venue ? html`<span><i class="fas fa-map-pin"></i> ${venue}</span>` : null}
+                        ${f.competition ? html`<span><i class="fas fa-trophy"></i> ${f.competition}</span>` : null}
+                      </div>
+                    </div>`;
+                })}
+          </div>`;
+      }
+
+      function CompetitionsTab({ ctx, competitions }) {
+        const [applications, setApplications] = useState({});
+
+        const apply = async (comp) => {
+          const id = idOf(comp);
+          const title = comp.title || comp.name;
+          if (applications[id]) return;
+          setApplications((a) => ({ ...a, [id]: 'applying' }));
+          try {
+            await apiCall(`/club/${ctx.clubId}/competitions/${id}/apply`, jsonBody('POST', {
+              competition_id: id, club_id: ctx.clubId, club_name: ctx.club?.club_name || ctx.club?.name,
+            }));
+            setApplications((a) => ({ ...a, [id]: 'applied' }));
+            ctx.toast(`Applied for "${title}"!`, 'success', 5000);
+          } catch (err) {
+            setApplications((a) => { const next = { ...a }; delete next[id]; return next; });
+            ctx.toast(err?.message || `Could not apply for "${title}"`, 'error');
+          }
+        };
+
+        return html`
+          <div>
+            <div class="card banner">
+              <div class="banner-title"><i class="fas fa-trophy"></i> Competitions & Tournaments</div>
+              <div class="banner-text">Express your club's interest in competitions. Club ID (${ctx.clubId || '—'}) will be automatically attached to all applications.</div>
+            </div>
+            <div class="card">
+              <div class="card-title"><span><i class="fas fa-list"></i> Available Competitions</span></div>
+              ${competitions.length === 0
+                ? html`<${EmptyState} icon="fa-trophy" text="No competitions available at this time" />`
+                : competitions.map((c, i) => {
+                    const id = idOf(c) || i;
+                    const state = applications[id];
+                    return html`
+                      <div key=${id} class="item-card">
+                        <div class="row-between" style="align-items:flex-start;">
+                          <div class="item-title" style="color:var(--primary);font-size:0.92rem;">${c.title || c.name}</div>
+                          ${state === 'applied'
+                            ? html`<span class="applied-badge"><i class="fas fa-check-circle"></i> Applied</span>`
+                            : html`<button class="btn btn-primary btn-sm" disabled=${state === 'applying'} onClick=${() => apply(c)}>
+                                ${state === 'applying' ? html`<i class="fas fa-spinner fa-spin"></i> Applying...` : html`<i class="fas fa-paper-plane"></i> Apply`}
+                              </button>`}
+                        </div>
+                        <p style="font-size:0.83rem;color:#374151;line-height:1.5;margin:0.4rem 0;">${c.description || '—'}</p>
+                        <div class="item-meta">
+                          ${c.organizer ? html`<span><i class="fas fa-building"></i> ${c.organizer}</span>` : null}
+                          ${c.date ? html`<span><i class="fas fa-calendar"></i> ${fmtDate(c.date)}</span>` : null}
+                          ${c.location ? html`<span><i class="fas fa-map-pin"></i> ${c.location}</span>` : null}
+                        </div>
+                        ${c.eligibility ? html`<div class="note" style="background:#f0f9ff;border-color:#bae6fd;color:#0369a1;"><i class="fas fa-check-circle"></i> Eligibility: ${c.eligibility}</div>` : null}
+                        ${state === 'applied' ? html`<div class="note note-green"><i class="fas fa-check"></i> Application submitted. Club ID ${ctx.clubId} attached.</div>` : null}
+                      </div>`;
+                  })}
+            </div>
+          </div>`;
+      }
+
+      /* ═══════════════════════════════════════════════════════════
+         OPERATIONS: STATS TRACKING
+      ═══════════════════════════════════════════════════════════ */
+      const needsPlayers = (type) => type === 'club_and_players' || type === 'player_only';
+
+      const makeStatsForm = (clubName) => ({
+        match_date: '', match_time: '', match_type: 'League', club_role: 'home',
+        home_team: clubName || '', away_team: '', venue_address: '', ...GEO_DEFAULT,
+        jersey_color: '', tracking_type: 'club_and_players', contact_phone: '', notes: '', player_ids: [],
+      });
+
+      function StepBar({ steps }) {
+        return html`
+          <div class="steps">
+            ${steps.map((s, i) => html`
+              <div key=${s.label} class=${clsx('step', (s.done || s.active) && 'on')}>
+                <div class="step-dot">${s.done ? html`<i class="fas fa-check" style="font-size:0.6rem;"></i>` : i + 1}</div>
+                <div class="step-label">${s.label}</div>
+              </div>`)}
+          </div>`;
+      }
+
+      function PlayerPicker({ squad, selected, onChange }) {
+        const toggle = (pid, on) => onChange(on ? [...new Set([...selected, pid])] : selected.filter((id) => id !== pid));
+        return html`
+          <div class="picker">
+            <div style="font-size:0.82rem;font-weight:800;margin-bottom:0.45rem;"><i class="fas fa-users"></i> Select players to track</div>
+            <div class="fhint" style="margin-bottom:0.5rem;">Choose one or more squad members. The selected player requests are submitted together.</div>
+            <div class="picker-list">
+              ${squad.length === 0
+                ? html`<div class="fhint">No squad players available.</div>`
+                : squad.map((p, i) => {
+                    const pid = p._id || p.player_id || p.id || i;
+                    const name = p.name || [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Player';
+                    return html`
+                      <label key=${pid} class="picker-item">
+                        <input type="checkbox" checked=${selected.includes(pid)} onChange=${(e) => toggle(pid, e.target.checked)} />
+                        <span>${name}${p.position ? html` <small style="color:var(--text-light);">(${p.position})</small>` : null}</span>
+                      </label>`;
+                  })}
+            </div>
+            ${selected.length === 0 ? html`<div class="fhint" style="color:#b45309;margin-top:0.45rem;"><i class="fas fa-info-circle"></i> Select at least one player for this request type.</div>` : null}
+          </div>`;
+      }
+
+      function StatsRequestHistory({ requests }) {
+        return html`
+          <div class="card">
+            <div class="card-title"><span><i class="fas fa-history"></i> Request History</span></div>
+            ${requests.length === 0
+              ? html`<${EmptyState} icon="fa-satellite-dish" text="No tracking requests yet" />`
+              : requests.map((r, i) => html`
+                  <div key=${r.reference_id || i} class="item-card">
+                    <div class="row-between">
+                      <div class="item-title">${r.home_team || r.homeTeam || '—'} vs ${r.away_team || r.awayTeam || '—'}</div>
+                      <${Badge} status=${r.status}>${r.status || 'Pending'}<//>
+                    </div>
+                    <${KvGrid} items=${[
+                      ['Date', fmtDate(r.match_date || r.matchDate || r.submitted_at)],
+                      ['Ref ID', r.reference_id, { mono: true }],
+                      ['Tracking', humanize(r.tracking_type || r.trackingType)],
+                      ['Venue State', r.venue_state || r.state],
+                      ['Match Type', r.match_type || r.matchType],
+                      ['Submitted', fmtDate(r.submitted_at || r.created_at)],
+                    ]} />
+                  </div>`)}
+          </div>`;
+      }
+
+      function StatsTrackingTab({ ctx }) {
+        const { club, clubId, countries, squad, costs, availableTokens, toast, confirm } = ctx;
+        const [subTab, setSubTab] = useState('request');
+        const [form, set, setForm] = useForm(() => makeStatsForm(club?.club_name || club?.name));
+        const [busy, setBusy] = useState(false);
+
+        const cost = costFor(form.tracking_type, costs);
+        const baseCost = costFor('club_only', costs);
+        const withPlayers = needsPlayers(form.tracking_type);
+        const insufficient = cost > 0 && availableTokens < cost;
+
+        const step1 = !!(form.match_date && form.match_time && form.home_team && form.away_team && form.match_type);
+        const step2 = !!(form.venue_country && form.venue_state && form.venue_city && form.venue_address);
+        const step3 = !!(form.tracking_type && form.jersey_color && form.contact_phone);
+        const steps = [
+          { label: 'Match Details', done: step1, active: !step1 },
+          { label: 'Location', done: step1 && step2, active: step1 && !step2 },
+          { label: 'Coverage', done: step3, active: step1 && step2 },
+        ];
+
+        const canSubmit = step1 && step2 && step3 && !busy && !insufficient && (!withPlayers || form.player_ids.length > 0);
+
+        const send = async () => {
+          setBusy(true);
+          try {
+            const payload = { ...form, player_ids: withPlayers ? form.player_ids : [] };
+            const r = await apiCall(`/club/${clubId}/stats-request`, jsonBody('POST', payload));
+            if (!(r?.request_id || r?.reference_id || r?.status === 'SUBMITTED')) throw new Error(r?.detail || 'Request failed');
+            toast(`Stats tracking requested!${cost > 0 ? ` ${cost} tokens reserved.` : ''}`, 'success');
+            ctx.refresh(['tokens', 'statsRequests']);
+            ctx.addStatsRequest({ ...payload, reference_id: r.reference_id || r.request_id, status: 'Pending', submitted_at: new Date().toISOString() });
+            setForm(makeStatsForm(club?.club_name));
+            setSubTab('history');
+            ctx.scrollTop();
+          } catch (err) {
+            toast(err?.message || 'Request failed', 'error');
+          } finally {
+            setBusy(false);
+          }
+        };
+
+        const onSubmit = (e) => {
+          e.preventDefault();
+          if (insufficient) { toast('Insufficient tokens', 'error'); return; }
+          if (cost > 0) {
+            confirm({
+              title: 'Stats tracking request', cost, available: availableTokens,
+              details: form.tracking_type === 'club_only' ? 'Club coverage only.' : 'Club coverage + player coverage.',
+              onConfirm: () => { confirm(null); send(); },
+            });
+            return;
+          }
+          send();
+        };
+
+        const onRole = (role) => {
+          const mine = club?.club_name || club?.name || '';
+          const other = role === 'home' ? 'away_team' : 'home_team';
+          const own = role === 'home' ? 'home_team' : 'away_team';
+          set({ club_role: role, [own]: mine, ...(form[other] === mine ? { [other]: '' } : {}) });
+        };
+
+        return html`
+          <div>
+            <div class="card banner">
+              <div class="banner-title"><i class="fas fa-satellite-dish"></i> Stats Tracking</div>
+              <div class="banner-text">Request professional match statistics coverage for your club and players.</div>
+            </div>
+            <${Tabs} tabs=${[['request', 'New Request', 'fa-plus-circle'], ['history', 'Request History', 'fa-history']]} active=${subTab} onChange=${setSubTab} />
+
+            ${subTab === 'history' ? html`<${StatsRequestHistory} requests=${ctx.statsRequests} />` : html`
+              <div class="card">
+                <div class="card-title"><span><i class="fas fa-clipboard-list"></i> Request Club Stats Tracking</span></div>
+                <${StepBar} steps=${steps} />
+
+                ${cost > 0 ? html`
+                  <${TokenBox} title="Token Cost Breakdown" totalLabel="Total Reserved" total=${`${cost} tokens`}
+                    lines=${[['Club Stats Coverage', `${baseCost} tokens`], cost > baseCost && ['Player Stats Coverage', `+${cost - baseCost} tokens`]]}
+                    footer=${html`Available balance: <strong>${availableTokens} tokens</strong>`} />` : null}
+
+                <form onSubmit=${onSubmit}>
+                  <div class="g2">
+                    <${Field} label="Match Date" required><${Input} type="date" value=${form.match_date} required onChange=${(v) => set({ match_date: v })} /><//>
+                    <${Field} label="Match Time" required><${Input} type="time" value=${form.match_time} required onChange=${(v) => set({ match_time: v })} /><//>
+                    <${Field} label="Match Type"><${Select} value=${form.match_type} options=${MATCH_TYPES} onChange=${(v) => set({ match_type: v })} /><//>
+                    <${Field} label="Your Club's Role">
+                      <${Select} value=${form.club_role} options=${[['home', 'Home Team'], ['away', 'Away Team']]} onChange=${onRole} />
+                    <//>
+                    <${Field} label="Home Team" required><${Input} value=${form.home_team} placeholder="Home team name" required onChange=${(v) => set({ home_team: v })} /><//>
+                    <${Field} label="Away Team" required><${Input} value=${form.away_team} placeholder="Away team name" required onChange=${(v) => set({ away_team: v })} /><//>
+                  </div>
+
+                  <${LocationFields} form=${form} set=${set} countries=${countries} />
+                  <${VenueInput} form=${form} set=${set} />
+
+                  <${CoverageFields} form=${form} set=${set} trackingOptions=${STATS_TRACKING_OPTIONS}>
+                    ${form.tracking_type === 'club_and_players' ? html`<div class="note note-green"><i class="fas fa-check-circle"></i> Full match statistics for the team and all selected players. Best value for comprehensive analysis.</div>` : null}
+                    ${form.tracking_type === 'club_only' ? html`<div class="note note-amber"><i class="fas fa-info-circle"></i> Team-level stats only. Player-level statistics will not be captured.</div>` : null}
+                  <//>
+
+                  ${withPlayers ? html`<${PlayerPicker} squad=${squad} selected=${form.player_ids} onChange=${(ids) => set({ player_ids: ids })} />` : null}
+
+                  <${Field} label="Additional Notes (optional)">
+                    <${Textarea} rows="3" value=${form.notes} placeholder="Any special instructions, opponent details, or additional notes for the data scout..." onChange=${(v) => set({ notes: v })} />
+                  <//>
+
+                  ${insufficient ? html`<div class="note note-red" style="margin-bottom:0.75rem;"><i class="fas fa-exclamation-circle"></i> Insufficient tokens. You need ${cost} tokens but have ${availableTokens} available. <button type="button" class="btn btn-primary btn-sm" style="margin-left:0.4rem;" onClick=${ctx.topUp}><i class="fas fa-plus"></i> Top up tokens</button></div>` : null}
+
+                  <button type="submit" class="btn btn-primary btn-block" disabled=${!canSubmit}>
+                    ${busy ? html`<i class="fas fa-spinner fa-spin"></i> Submitting...` : html`<i class="fas fa-paper-plane"></i> Submit Stats Tracking Request`}
+                  </button>
+                </form>
+              </div>`}
+          </div>`;
+      }
+
+      /* ═══════════════════════════════════════════════════════════
+         OPERATIONS: MATCH REQUESTS
+      ═══════════════════════════════════════════════════════════ */
+      function FindClubs({ ctx, onSelect }) {
+        const { countries } = ctx;
+        const [query, setQuery] = useState('');
+        const [category, setCategory] = useState('');
+        const [country, setCountry] = useState('');
+        const [region, setRegion] = useState('');
+        const [lga, setLga] = useState('');
+        const [metrics, setMetrics] = useState(emptyMetricFilters);
+        const [clubs, setClubs] = useState([]);
+        const [page, setPage] = useState(1);
+        const [loading, setLoading] = useState(false);
+        const [searched, setSearched] = useState(false);
+        const geo = useGeo(country, region);
+        const countryOptions = useMemo(() => countries.map((c) => [String(c.code).toUpperCase(), c.name]), [countries]);
+
+        const search = async (targetPage = 1) => {
+          setLoading(true);
+          setPage(targetPage);
+          try {
+            const params = new URLSearchParams({ limit: CLUBS_PER_PAGE, page: targetPage });
+            Object.entries({ category, country, state: region, lga, q: query, ...metrics }).forEach(([k, v]) => v !== '' && params.append(k, v));
+            setClubs(asList(await apiCall(`/clubs/search?${params}`), 'clubs').filter((c) => String(clubIdOf(c)) !== String(ctx.clubId)));
+          } catch (e) {
+            setClubs([]);
+          }
+          setSearched(true);
+          setLoading(false);
+        };
+
+        return html`
+          <div>
+            <div class="card">
+              <div class="card-title"><span><i class="fas fa-search"></i> Find Clubs for Match Request</span></div>
+              <div class="g2">
+                <${Field} label="Search by Name">
+                  <${Input} value=${query} placeholder="Club name..." onChange=${setQuery} onKeyDown=${(e) => e.key === 'Enter' && search(1)} />
+                <//>
+                <${Field} label="Category"><${Select} value=${category} options=${CLUB_CATEGORIES} placeholder="All Categories" onChange=${setCategory} /><//>
+              </div>
+
+              <details class="metric-panel">
+                <summary><i class="fas fa-sliders"></i> Advanced performance filters</summary>
+                <div class="metric-grid">
+                  ${CLUB_METRICS.map(([key, label, max]) => html`
+                    <div key=${key} class="metric-row">
+                      <label>${label}</label>
+                      <input type="number" min="0" max=${max} placeholder="Min" value=${metrics[`${key}_min`]} onInput=${(e) => setMetrics((m) => ({ ...m, [`${key}_min`]: e.target.value }))} />
+                      <span style="color:var(--text-light);">to</span>
+                      <input type="number" min="0" max=${max} placeholder="Max" value=${metrics[`${key}_max`]} onInput=${(e) => setMetrics((m) => ({ ...m, [`${key}_max`]: e.target.value }))} />
+                    </div>`)}
+                </div>
+                <button type="button" class="btn btn-sm btn-outline" style="margin:0 0.7rem 0.7rem;" onClick=${() => setMetrics(emptyMetricFilters())}>
+                  <i class="fas fa-rotate-left"></i> Reset performance filters
+                </button>
+              </details>
+
+              <div class="g3">
+                <${Field} label="Country">
+                  <${Select} value=${country} options=${countryOptions} placeholder="All Countries" onChange=${(v) => { setCountry(v); setRegion(''); setLga(''); }} />
+                <//>
+                <${Field} label=${geo.regionLabel}>
+                  <${Select} value=${region} options=${geo.regions} placeholder=${`All ${geo.regionLabel}s`} disabled=${!country} onChange=${(v) => { setRegion(v); setLga(''); }} />
+                <//>
+                <${Field} label=${geo.subregionLabel}>
+                  <${Select} value=${lga} options=${geo.subregions} placeholder=${`All ${geo.subregionLabel}s`} disabled=${!region} onChange=${setLga} />
+                <//>
+              </div>
+              <button class="btn btn-primary btn-block" onClick=${() => search(1)} disabled=${loading}>
+                ${loading ? html`<i class="fas fa-spinner fa-spin"></i> Searching...` : html`<i class="fas fa-search"></i> Search Clubs`}
+              </button>
+            </div>
+
+            ${clubs.map((c, i) => {
+              const badge = c.photo_url || c.badge_url || c.logo || c.photo;
+              const name = c.club_name || c.name || '—';
+              const ground = c.home_ground || c.stadium;
+              return html`
+                <div key=${c._id || c.club_id || i} class="club-card" onClick=${() => onSelect(c)}>
+                  ${badge ? html`<img class="club-badge" src=${badge} alt=${name} onError=${hideOnError} />` : html`<div class="club-badge fallback">⚽</div>`}
+                  <div style="flex:1;">
+                    <div style="font-weight:800;font-size:0.9rem;">${name}</div>
+                    <div class="fhint">${c.club_category || c.category || c.club_level || '—'} · ${c.state || c.city || '—'} · ${c.country || 'Nigeria'}</div>
+                    ${ground ? html`<div class="fhint"><i class="fas fa-map-pin"></i> ${ground}</div>` : null}
+                  </div>
+                  <button class="btn btn-primary btn-sm"><i class="fas fa-handshake"></i> Request</button>
+                </div>`;
+            })}
+            ${clubs.length === 0 && !loading ? html`<div class="card"><${EmptyState} icon="fa-search" text=${searched ? 'No clubs found' : 'Search for clubs to send a match request'} /></div>` : null}
+            ${clubs.length > 0 || page > 1 ? html`<${Pagination} page=${page} hasNext=${clubs.length >= CLUBS_PER_PAGE} onChange=${search} />` : null}
+          </div>`;
+      }
+
+      function RequestCard({ request: r, mode, actions }) {
+        const sent = mode === 'sent';
+        const id = refOf(r);
+        const title = sent ? r.opponent_club_name || r.requested_club_name || '—' : `From: ${r.requesting_club_name || r.requestingClub || '—'}`;
+        const who = sent ? 'Your' : 'Their';
+        const position = r.team_position === 'home' ? 'Home Team' : r.team_position === 'away' ? 'Away Team' : r.team_position;
+        const status = r.status || 'pending';
+
+        return html`
+          <div class="item-card">
+            <div class="row-between" style="margin-bottom:0.5rem;">
+              <div class="item-title">${title}</div>
+              <${Badge} status=${status}>${status.toUpperCase()}<//>
+            </div>
+            <${KvGrid} items=${[
+              ['Ref ID', id, { mono: true }],
+              ['Match Date', fmtDate(r.match_date || r.matchDate)],
+              ['Time', r.match_time || r.matchTime],
+              ['Match Fixture', `${r.home_team || 'Home'} vs ${r.away_team || 'Away'}`],
+              [`${who} Position`, position],
+              [`${who} Jersey`, r.jersey_color || r.home_jersey || r.away_jersey, { color: sent ? 'var(--primary)' : 'var(--danger)' }],
+              ['Venue State', r.venue_state || r.matchState],
+              ['LGA', r.venue_lga],
+              ['Venue Address', r.venue_address],
+              ['Tracking', humanize(r.tracking_type)],
+              ['Contact Phone', r.contact_phone],
+              [sent ? 'Sent' : 'Received', fmtDate(r.created_at || r.submitted_at)],
+            ]} />
+            ${r.notes ? html`<div class="item-note"><strong>Notes:</strong> ${r.notes}</div>` : null}
+            <div class="row" style="margin-top:0.5rem;">
+              ${sent && status === 'pending' ? html`
+                <button class="btn btn-sm btn-outline" onClick=${() => actions.modify(r)}><i class="fas fa-pen"></i> Modify</button>
+                <button class="btn btn-sm btn-danger" onClick=${() => actions.cancel(id)}><i class="fas fa-ban"></i> Cancel</button>` : null}
+              ${sent && status === 'modified' ? html`
+                <button class="btn btn-sm btn-primary" onClick=${() => actions.respond(id, 'accepted')}><i class="fas fa-check"></i> Accept Changes</button>
+                <button class="btn btn-sm btn-danger" onClick=${() => actions.respond(id, 'rejected')}><i class="fas fa-times"></i> Reject</button>` : null}
+              ${!sent && status === 'pending' ? html`
+                <button class="btn btn-sm btn-primary" onClick=${() => actions.respond(id, 'accepted')}><i class="fas fa-check"></i> Accept</button>
+                <button class="btn btn-sm btn-danger" onClick=${() => actions.respond(id, 'rejected')}><i class="fas fa-times"></i> Decline</button>
+                <button class="btn btn-sm btn-outline" onClick=${() => actions.modify(r)}><i class="fas fa-pen"></i> Modify</button>` : null}
+            </div>
+          </div>`;
+      }
+
+      function RequestList({ title, icon, requests, statuses, mode, actions }) {
+        const [filter, setFilter] = useState('all');
+        const visible = filter === 'all' ? requests : requests.filter((r) => r.status === filter);
+        return html`
+          <div class="card">
+            <div class="card-title">
+              <span><i class=${`fas ${icon}`}></i> ${title}</span>
+              <${FilterBar} options=${statuses} value=${filter} onChange=${setFilter} />
+            </div>
+            ${visible.length === 0
+              ? html`<${EmptyState} icon=${icon} text=${`No ${mode} requests`} />`
+              : visible.map((r, i) => html`<${RequestCard} key=${refOf(r) || i} request=${r} mode=${mode} actions=${actions} />`)}
+          </div>`;
+      }
+
+      const makeRequestForm = (base = {}) => {
+        const form = {
+          match_date: '', match_time: '', team_position: '', ...GEO_DEFAULT, venue_address: '',
+          jersey_color: '', tracking_type: '', contact_phone: '', notes: '',
+        };
+        // Only known form fields are copied, so server fields (ids, status, timestamps) never leak into the payload
+        Object.keys(form).forEach((k) => { if (base[k] != null && base[k] !== '') form[k] = base[k]; });
+        form.match_date = String(form.match_date).slice(0, 10);
+        form.match_time = String(form.match_time).slice(0, 5);
+        return form;
+      };
+
+      function MatchRequestModal({ ctx, club, editing, onClose, onDone }) {
+        const { clubId, costs, availableTokens, toast, confirm } = ctx;
+        const [form, set] = useForm(() => makeRequestForm(editing || {}));
+        const [busy, setBusy] = useState(false);
+        const cost = costFor(form.tracking_type, costs);
+        const chargeable = editing ? 0 : cost;
+        const insufficient = chargeable > 0 && availableTokens < chargeable;
+        const editRef = refOf(editing);
+        const clubName = club.club_name || club.name;
+
+        const send = async () => {
+          setBusy(true);
+          try {
+            const payload = {
+              requested_club_id: club.club_id || club._id,
+              requested_club_name: clubName,
+              ...form,
+            };
+            const endpoint = editRef ? `/club/${clubId}/match-requests/${editRef}/modify` : `/club/${clubId}/match-requests`;
+            const r = await apiCall(endpoint, jsonBody(editRef ? 'PUT' : 'POST', payload));
+            if (!(r?.reference_id || r?.request_id)) throw new Error(r?.detail || 'Request failed');
+            toast(editRef ? 'Match request modified!' : 'Match request sent!', 'success');
+            ctx.refresh(['matchRequests', 'tokens']);
+            ctx.setMatchRequests((p) => ({
+              ...p,
+              sent: editRef
+                ? p.sent.map((x) => (refOf(x) === editRef ? { ...x, ...payload, status: 'modified' } : x))
+                : [{ ...payload, reference_id: r.reference_id || r.request_id, status: 'pending', created_at: new Date().toISOString() }, ...p.sent],
+            }));
+            onDone();
+          } catch (err) {
+            toast(err?.message || 'Request failed', 'error');
+            setBusy(false);
+          }
+        };
+
+        const onSubmit = (e) => {
+          e.preventDefault();
+          if (insufficient) { toast(`Insufficient tokens. You need ${cost} tokens.`, 'error'); return; }
+          if (chargeable > 0) {
+            confirm({
+              title: editRef ? 'Modify match request' : 'New match request', cost, available: availableTokens,
+              details: form.tracking_type === 'club_and_players' ? 'Club + player statistics coverage.' : 'Club statistics coverage.',
+              onConfirm: () => { confirm(null); send(); },
+            });
+            return;
+          }
+          send();
+        };
+
+        return html`
+          <${Modal} title=${`${editRef ? 'Modify' : 'Send'} Match Request to ${clubName}`} icon="fa-handshake" maxWidth=${600} onClose=${onClose}>
+            <form onSubmit=${onSubmit}>
+              <div class="g2">
+                <${Field} label="Match Date" required><${Input} type="date" value=${form.match_date} required onChange=${(v) => set({ match_date: v })} /><//>
+                <${Field} label="Match Time" required><${Input} type="time" value=${form.match_time} required onChange=${(v) => set({ match_time: v })} /><//>
+              </div>
+              <${Field} label="Your Team Position" required>
+                <${Select} value=${form.team_position} options=${[['home', 'Home Team'], ['away', 'Away Team']]} placeholder="Select..." required onChange=${(v) => set({ team_position: v })} />
+              <//>
+              <${LocationFields} form=${form} set=${set} countries=${ctx.countries} />
+              <${VenueInput} form=${form} set=${set} />
+              <${CoverageFields} form=${form} set=${set} trackingOptions=${MATCH_REQUEST_TRACKING_OPTIONS} trackingPlaceholder="Select tracking type" />
+              ${cost > 0 ? html`
+                <${TokenBox} title="Request cost" totalLabel="Available after request" total=${availableTokens - cost}
+                  lines=${[[form.tracking_type === 'club_and_players' ? 'Club + player coverage' : 'Club coverage', `${cost} tokens`]]} />` : null}
+              <${Field} label="Additional Notes (optional)">
+                <${Textarea} rows="2" value=${form.notes} placeholder="Any additional information..." onChange=${(v) => set({ notes: v })} />
+              <//>
+              ${insufficient ? html`<div class="note note-red" style="margin-bottom:0.75rem;"><i class="fas fa-exclamation-circle"></i> Insufficient tokens: ${cost} needed, ${availableTokens} available. <button type="button" class="btn btn-primary btn-sm" style="margin-left:0.4rem;" onClick=${ctx.topUp}><i class="fas fa-plus"></i> Top up tokens</button></div>` : null}
+              <div class="row">
+                <button type="submit" class="btn btn-primary" style="flex:1;" disabled=${busy || insufficient}>
+                  ${busy ? html`<i class="fas fa-spinner fa-spin"></i> Saving...` : html`<i class="fas fa-paper-plane"></i> ${editRef ? 'Save Modification' : 'Send Match Request'}`}
+                </button>
+                <button type="button" class="btn btn-outline" onClick=${onClose}>Cancel</button>
+              </div>
+            </form>
+          <//>`;
+      }
+
+      function MatchRequestsTab({ ctx }) {
+        const { clubId, toast, matchRequests, setMatchRequests } = ctx;
+        const [subTab, setSubTab] = useState('find');
+        const [modal, setModal] = useState(null);
+
+        const respond = async (refId, action) => {
+          try {
+            await apiCall(`/club/${clubId}/match-requests/${refId}/${action === 'accepted' ? 'accept' : 'decline'}`, { method: 'PATCH' });
+            const update = (list) => list.map((r) => (refOf(r) === refId ? { ...r, status: action } : r));
+            setMatchRequests((p) => ({ sent: update(p.sent), received: update(p.received) }));
+            toast(action === 'accepted' ? 'Match request accepted!' : 'Request declined.', action === 'accepted' ? 'success' : 'info');
+            ctx.refresh(['matchRequests', 'tokens']);
+          } catch (err) {
+            toast(err?.message || 'Action failed', 'error');
+          }
+        };
+
+        const cancel = async (refId) => {
+          if (!window.confirm('Cancel this pending match request?')) return;
+          try {
+            await apiCall(`/club/${clubId}/match-requests/${refId}/cancel`, { method: 'PUT' });
+            setMatchRequests((p) => ({ ...p, sent: p.sent.map((r) => (refOf(r) === refId ? { ...r, status: 'cancelled' } : r)) }));
+            toast('Match request cancelled.', 'info');
+            ctx.refresh(['matchRequests', 'tokens']);
+          } catch (err) {
+            toast(err?.message || 'Could not cancel request', 'error');
+          }
+        };
+
+        const modify = (request) => setModal({
+          editing: request,
+          club: {
+            club_name: request.opponent_club_name || request.requested_club_name || request.requesting_club_name || 'Selected club',
+            club_id: request.requested_club_id,
+          },
+        });
+
+        const actions = { respond, cancel, modify };
+
+        return html`
+          <div>
+            <${Tabs} tabs=${[['find', 'Find Clubs', 'fa-search'], ['sent', 'Sent', 'fa-paper-plane'], ['received', 'Received', 'fa-inbox']]} active=${subTab} onChange=${setSubTab} />
+            <div hidden=${subTab !== 'find'}><${FindClubs} ctx=${ctx} onSelect=${(club) => setModal({ club, editing: null })} /></div>
+            ${subTab === 'sent' ? html`<${RequestList} title="Sent Match Requests" icon="fa-paper-plane" mode="sent" requests=${matchRequests.sent} statuses=${REQUEST_FILTERS_SENT} actions=${actions} />` : null}
+            ${subTab === 'received' ? html`<${RequestList} title="Received Match Requests" icon="fa-inbox" mode="received" requests=${matchRequests.received} statuses=${REQUEST_FILTERS_RECEIVED} actions=${actions} />` : null}
+            ${modal ? html`<${MatchRequestModal} key=${refOf(modal.editing) || 'new'} ctx=${ctx} club=${modal.club} editing=${modal.editing}
+              onClose=${() => setModal(null)} onDone=${() => { setModal(null); setSubTab('sent'); ctx.scrollTop(); }} />` : null}
+          </div>`;
+      }
+
+      /* ═══════════════════════════════════════════════════════════
+         APP ROOT — renders data owned by the dashboard
+      ═══════════════════════════════════════════════════════════ */
+      function MatchCentreApp() {
+        const [shared, setShared] = useState(null);
+        const [matchRequests, setMatchRequests] = useState({ sent: [], received: [] });
+        const [statsRequests, setStatsRequests] = useState([]);
+        const [confirmation, setConfirmation] = useState(null);
+        const [tab, setTab] = useState('results');
+        const [opsTab, setOpsTab] = useState('stats-tracking');
+        const lastNonce = useRef(-1);
+
+        useEffect(() => {
+          Bridge.onInit((d) => {
+            setShared(d);
+            setMatchRequests({ sent: asList(d.matchRequests?.sent, 'requests'), received: asList(d.matchRequests?.received, 'requests') });
+            setStatsRequests(asList(d.statsRequests, 'requests'));
+            const r = d.route;
+            if (r && r.nonce !== lastNonce.current) {
+              lastNonce.current = r.nonce;
+              if (MAIN_TABS.some(([k]) => k === r.tab)) setTab(r.tab);
+              if (r.sub && OPS_TABS.some(([k]) => k === r.sub)) setOpsTab(r.sub);
+            }
+          });
+          Bridge.mount(document.getElementById('root'));
+        }, []);
+        useEffect(() => { Bridge.remeasure(); }, [tab, opsTab, shared, matchRequests, statsRequests]);
+
+        if (!shared) return html`<${Splash} icon="fa-spinner fa-spin" color="var(--primary)" title="Loading Match Centre..." />`;
+
+        const club = shared.club || null;
+        const clubId = shared.apiId || clubIdOf(club);
+        const tokens = shared.tokens || { balance: 0, locked: 0 };
+        const availableTokens = (tokens.balance ?? 0) - (tokens.locked ?? 0);
+
+        const ctx = {
+          club, clubId, toast: Bridge.toast, confirm: setConfirmation, availableTokens,
+          countries: asList(shared.countries, 'countries'), squad: asList(shared.squadPlayers, 'squad'),
+          costs: shared.tokenCosts || {}, statsRequests, matchRequests, setMatchRequests,
+          refresh: (scopes) => Bridge.refresh(scopes),
+          topUp: () => Bridge.post('TOP_UP_TOKENS'),
+          scrollTop: () => Bridge.post('SCROLL_TOP'),
+          addStatsRequest: (entry) => setStatsRequests((l) => [entry, ...l]),
+        };
+
+        return html`
+          <div>
+            ${confirmation ? html`<${TokenConfirmModal} data=${confirmation} onCancel=${() => setConfirmation(null)} />` : null}
+
+            <${Tabs} tabs=${MAIN_TABS} active=${tab} onChange=${setTab} />
+
+            ${tab === 'results' ? html`<${ResultsTab} matches=${asList(shared.matches, 'matches')} club=${club} />` : null}
+            ${tab === 'upcoming' ? html`<${UpcomingTab} fixtures=${asList(shared.fixtures, 'fixtures')} />` : null}
+            ${tab === 'competitions' ? html`<${CompetitionsTab} ctx=${ctx} competitions=${asList(shared.competitions, 'competitions')} />` : null}
+
+            <div hidden=${tab !== 'operations'}>
+              <${Tabs} tabs=${OPS_TABS} active=${opsTab} onChange=${setOpsTab} />
+              <div hidden=${opsTab !== 'stats-tracking'}><${StatsTrackingTab} ctx=${ctx} /></div>
+              <div hidden=${opsTab !== 'match-requests'}><${MatchRequestsTab} ctx=${ctx} /></div>
+            </div>
+          </div>`;
+      }
+
+      const mountEl = document.getElementById('root');
+      mountEl.textContent = '';
+      render(h(MatchCentreApp, null), mountEl);
+    })();
+  </script>
+</body>
+</html>
