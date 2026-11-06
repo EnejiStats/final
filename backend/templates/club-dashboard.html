@@ -85,6 +85,16 @@ fetch('/api/auth/me',{credentials:'include',cache:'no-store'})
 .club-metric-matrix .stat-field{min-height:43px;padding:.38rem .5rem}
 .club-metric-matrix .stat-field .label{font-size:.72rem}
 .club-metric-matrix .stat-field .value{font-size:.84rem;font-weight:900}
+.tracker-metric-matrix .category-block{margin:.5rem 0;padding:.55rem;border:1px solid #e8edf4;border-radius:9px;background:#fff}
+.tracker-metric-matrix .tracker-metric-group{padding:.48rem .2rem;border-top:1px solid #edf1f6}
+.tracker-metric-matrix .tracker-metric-group:first-of-type{border-top:0}
+.tracker-metric-matrix .tracker-metric-title{font-size:.78rem;font-weight:900;color:#12346a;margin-bottom:.35rem}
+.tracker-metric-matrix .tracker-metric-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:.35rem}
+.tracker-metric-matrix .tracker-metric-field{display:flex;align-items:center;justify-content:space-between;gap:.45rem;min-height:38px;padding:.4rem .5rem;border:1px solid #e7edf5;border-radius:7px;background:#f8fafc;font-size:.7rem;color:#475569}
+.tracker-metric-matrix .tracker-metric-field strong{color:#102f60;font-size:.82rem;font-weight:900;white-space:nowrap}
+.tracker-metric-matrix .tracker-metric-empty{font-size:.68rem;color:#94a3b8;padding:.15rem .1rem}
+@media(max-width:520px){.tracker-metric-matrix .tracker-metric-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.tracker-metric-matrix .tracker-metric-field{font-size:.65rem;align-items:flex-start;flex-direction:column;gap:.2rem}}
+
 .club-match-breakdown-head small,.club-player-aggregation-note,.club-match-metric-missing,.club-summary-note{display:none!important}
 .club-match-metric{min-height:34px;padding:.28rem .45rem}
 .club-match-value{font-size:.74rem}
@@ -178,6 +188,23 @@ fetch('/api/auth/me',{credentials:'include',cache:'no-store'})
   .club-print-footer-contacts{font-size:.62rem!important;gap:.3rem .65rem!important}
   .club-print-footer-disclaimer{font-size:.6rem!important}
 }
+
+  .mr-tracker-metric{padding:.55rem 0;border-top:1px solid var(--mr-line,#e5eaf1)}
+  .mr-tracker-metric-title{display:flex;justify-content:space-between;gap:.5rem;margin-bottom:.35rem;color:var(--mr-ink,#172b4d);font-size:.78rem}
+  .mr-tracker-metric-title span{font-weight:900;color:var(--mr-muted,#64748b);white-space:nowrap}
+  .mr-tracker-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:.35rem}
+  .mr-tracker-field{display:flex;justify-content:space-between;align-items:center;gap:.4rem;padding:.38rem .5rem;border:1px solid var(--mr-line,#e5eaf1);border-radius:7px;background:#f8fafc;font-size:.68rem;color:#475569}
+  .mr-tracker-field strong{font-size:.78rem;color:#12346a;white-space:nowrap}
+  @media(max-width:520px){.mr-tracker-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.mr-tracker-field{align-items:flex-start;flex-direction:column;gap:.2rem}}
+
+/* Compact metric-first dashboard: suppress explanatory copy while retaining labels and controls. */
+.dashboard-description,.description-text,.field-description,.help-text,.form-help,.helper-text,.inline-help,
+.matchday-help,.sidebar-tagline,.header-label,.sidebar-club-cat,.overview-welcome p,
+.club-match-breakdown-head small,.club-player-aggregation-note,.club-match-metric-missing,.club-summary-note,
+.club-metric-matrix .tracker-metric-empty,.tracker-metric-empty,.empty-state > div:not(:first-child),
+[class*="-description"],[class*="-help-text"],[class*="-summary-note"],[class*="-metric-note"]{display:none!important}
+/* Metric values are always numeric; a missing side is rendered as zero when the other side has data. */
+.tracker-metric-field strong{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
 </style>
 <style>
     .match-history-card { background: #fff; border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 0.65rem; overflow: hidden; box-shadow: var(--shadow); transition: box-shadow 0.18s, border-color 0.18s; }
@@ -463,10 +490,14 @@ fetch('/api/auth/me',{credentials:'include',cache:'no-store'})
     const typeRaw = first(e.type, e.event_type, e.eventType, e.kind, "");
     const metricRaw = first(e.key, e.metric, e.metric_key, e.metricKey, "");
     const detailRaw = first(e.detail_label, e.detailLabel, e.detail, e.description, "");
-    const outcomeRaw = first(e.outcome, e.result, e.status, e.value_type, e.valueType, e.outcome_label, e.outcomeLabel, "");
+    const outcomeRaw = first(e.outcome_detail, e.outcomeDetail, e.outcome, e.result, e.status, e.value_type, e.valueType, e.outcome_label, e.outcomeLabel, "");
     const all = [typeRaw, metricRaw, e.metric_label, e.metricLabel].map(nkey).filter(Boolean).join(" ");
     const det = [detailRaw, outcomeRaw, e.type_label, e.typeLabel, e.card_type, e.cardType].map(nkey).join(" ");
     const cls = classify(all, det);
+    const rawMetricKey = String(metricRaw || '').trim().toLowerCase();
+    const canonicalMetricKey = rawMetricKey === 'substitution' ? 'substitutions' : rawMetricKey;
+    const trackerMetricKeys = new Set(PLAYER_SCHEMA.flatMap(section => section.metrics.map(metric => metric.key)));
+    const normalizedMetric = trackerMetricKeys.has(canonicalMetricKey) ? canonicalMetricKey : cls.metric;
     const minuteRaw = parseMinute(first(e.minute, e.time_elapsed, e.elapsed, e.time));
     const period = periodOf(e, minuteRaw, extraTime);
     const pn = period === "first_half" ? 1 : period === "second_half" ? 2 : period === "extra_time_first_half" ? 3 : period === "extra_time_second_half" ? 4 : 0;
@@ -896,41 +927,59 @@ fetch('/api/auth/me',{credentials:'include',cache:'no-store'})
   // ══════════════════════════════════════════════════════════════════════
   //  PLAYER SCHEMA + CATEGORY POLICY (popup)
   // ══════════════════════════════════════════════════════════════════════
-  const PLAYER_SCHEMA = [
-    { id: "attack", title: "ATTACK", metrics: [
-      { key: "goals", label: "Goals", outfieldOnly: true, types: [["header", "Header"], ["shot", "Shot"], ["penalty", "Penalty"]] },
-      { key: "shots", label: "Shots", outfieldOnly: true, outcomes: [["on_target", "On Target"], ["off_target", "Off Target"], ["blocked", "Blocked"], ["woodwork", "Woodwork"]], types: [["foot", "Foot"], ["header", "Header"], ["set_piece", "Set Piece"]] },
-      { key: "assists", label: "Assists", outfieldOnly: true, types: [["open_play", "Open Play"], ["set_piece", "Set Piece"], ["transition", "Transition"]] },
-      { key: "key_passes", label: "Key Passes", outfieldOnly: true, types: [["open_play", "Open Play"], ["set_piece", "Set Piece"], ["penetrative", "Penetrative / Delivery"]] },
-      { key: "crosses", label: "Crosses", outfieldOnly: true, outcomes: [["successful", "Successful"], ["unsuccessful", "Unsuccessful"]], types: [["open_play", "Open Play"], ["cutback", "Cutback"], ["set_piece", "Set Piece"]] },
-      { key: "passes", label: "Passes", outfieldOnly: true, goalkeeperAvailable: true, outcomes: [["successful", "Successful"], ["unsuccessful", "Unsuccessful"]], types: [["short_medium", "Short / Medium"], ["long", "Long"], ["through_ball", "Through Ball"]] },
-      { key: "dribbles", label: "Dribbles", outfieldOnly: true, goalkeeperAvailable: true, outcomes: [["successful", "Successful"], ["unsuccessful", "Unsuccessful"]], types: [["standard", "Standard"], ["progressive", "Progressive"], ["take_on", "Take-On"]] },
-      { key: "carries", label: "Carries", outfieldOnly: true, outcomes: [["successful", "Successful"], ["unsuccessful", "Unsuccessful"]], types: [["standard", "Standard"], ["progressive", "Progressive"], ["final_third", "Final Third"]] },
-      { key: "big_chances", label: "Big Chances", outfieldOnly: true, types: [["created", "Created"], ["missed", "Missed"]] }] },
-    { id: "defence", title: "DEFENCE", metrics: [
-      { key: "tackles", label: "Tackles", outfieldOnly: true, outcomes: [["won", "Won"], ["lost", "Lost"], ["foul", "Foul"]], types: [["standing", "Standing"], ["sliding", "Sliding / Recovery"], ["pressing", "Pressing"]] },
-      { key: "duels", label: "Duels", outfieldOnly: true, goalkeeperAvailable: true, outcomes: [["won", "Won"], ["lost", "Lost"]], types: [["ground", "Ground"], ["aerial", "Aerial"], ["loose_ball", "Loose Ball"]] },
-      { key: "recoveries", label: "Recoveries", outfieldOnly: true, types: [["defensive", "Defensive Third"], ["midfield", "Midfield / Second Ball"], ["attacking", "Attacking Third"]] },
-      { key: "interceptions", label: "Interceptions", outfieldOnly: true, goalkeeperAvailable: true, types: [["pass", "Pass"], ["cross", "Cross"], ["shot", "Shot / Pass Block"]] },
-      { key: "clearances", label: "Clearances", outfieldOnly: true, goalkeeperAvailable: true, types: [["headed", "Headed"], ["kicked", "Kicked"], ["other", "Other"]] },
-      { key: "blocks", label: "Blocks", outfieldOnly: true, types: [["shot", "Shot"], ["pass", "Pass"], ["cross", "Cross"]] },
-      { key: "fouls_won", label: "Fouls Won", outfieldOnly: true, goalkeeperAvailable: true, types: [["attacking", "Attacking Third"], ["midfield", "Midfield"], ["defensive", "Defensive Third"]] },
-      { key: "fouls_committed", label: "Fouls Committed", outfieldOnly: true, goalkeeperAvailable: true, types: [["tactical", "Tactical / Challenge"], ["handball", "Handball"], ["dangerous", "Dangerous Area"]] },
-      { key: "defensive_errors", label: "Defensive Errors", outfieldOnly: true, types: [["led_to_shot", "Led to Shot"], ["led_to_goal", "Led to Goal"], ["possession_loss", "Possession Loss"]] }] },
-    { id: "discipline", title: "DISCIPLINE", metrics: [
-      { key: "cards", label: "Cards", outfieldOnly: true, goalkeeperAvailable: true, types: [["yellow", "Yellow"], ["second_yellow", "Second Yellow"], ["red", "Straight Red"]] },
-      { key: "offsides", label: "Offsides", outfieldOnly: true, types: [["attacking", "Attacking"], ["set_piece", "Set Piece"], ["other", "Other"]] },
-      { key: "substitutions", label: "Substitution", types: [["on", "On"], ["off", "Off"], ["reason", "Reason"]] }] },
-    { id: "advanced", title: "ADVANCED", metrics: [
-      { key: "pressure_actions", label: "Pressure Actions", outfieldOnly: true, outcomes: [["successful", "Successful"], ["unsuccessful", "Unsuccessful"]], types: [["press", "Press"], ["counterpress", "Counterpress"], ["pressure_on_ball", "Pressure on Ball"]] },
-      { key: "possession_losses", label: "Possession Losses", outfieldOnly: true, types: [["dispossessed", "Dispossessed"], ["bad_touch", "Bad Touch"], ["misplaced_pass", "Misplaced Pass"]] }] },
-    { id: "goalkeeping", title: "GOALKEEPING", goalkeeperOnly: true, metrics: [
-      { key: "saves", label: "Saves", goalkeeperOnly: true, types: [["open_play", "Open Play"], ["close", "Close-range / 1v1"], ["set_piece", "Set Piece / Penalty"]] },
-      { key: "shots_faced", label: "Shots Faced", goalkeeperOnly: true, outcomes: [["saved", "Saved"], ["goal", "Goal"], ["off_target", "Off Target / Missed"]], types: [["open_play", "Open Play"], ["set_piece", "Set Piece"], ["penalty", "Penalty"]] },
-      { key: "claims", label: "Claims", goalkeeperOnly: true, outcomes: [["successful", "Successful"], ["unsuccessful", "Unsuccessful"]], types: [["high_low_cross", "High / Low Cross"], ["set_piece", "Set Piece"], ["aerial_other", "Aerial / Other"]] },
-      { key: "punches", label: "Punches", goalkeeperOnly: true, outcomes: [["successful", "Successful"], ["unsuccessful", "Unsuccessful"]], types: [["cross", "Cross"], ["under_pressure", "Under Pressure"], ["other", "Other"]] },
-      { key: "distribution", label: "Distribution", goalkeeperOnly: true, outcomes: [["successful", "Successful"], ["unsuccessful", "Unsuccessful"]], types: [["short", "Short"], ["long", "Long"], ["restart", "Restart"]] }] }
-  ];
+  const PLAYER_SCHEMA = [ { id:'attack', title:'ATTACK', metrics:[ {key:'goals',label:'Goals',icon:'fa-futbol',
+outfieldOnly:true,types:[['open_play','Open Play'],['set_piece','Set Piece'],['penalty','Penalty'],['free_kick',
+'Free Kick']]}, {key:'shots',label:'Shots',icon:'fa-crosshairs',outfieldOnly:true,outcomes:[['on_target',
+'On Target'],['off_target','Off Target'],['blocked','Blocked'],['woodwork','Woodwork']],types:[['foot','Foot'],
+['header','Header'],['set_piece','Set Piece']]}, {key:'assists',label:'Assists',icon:'fa-hands-helping',
+outfieldOnly:true,types:[['open_play','Open Play'],['set_piece','Set Piece'],['transition','Transition']]},
+{key:'key_passes',label:'Key Passes',icon:'fa-lightbulb',outfieldOnly:true,types:[['open_play','Open Play'],
+['set_piece','Set Piece'],['penetrative','Penetrative / Delivery']]}, {key:'crosses',label:'Crosses',icon:'fa-share',
+outfieldOnly:true,outcomes:[['successful','Successful'],['unsuccessful','Unsuccessful']],types:[['open_play',
+'Open Play'],['cutback','Cutback'],['set_piece','Set Piece']]}, {key:'passes',label:'Passes',icon:'fa-exchange-alt',
+outfieldOnly:true,goalkeeperAvailable:true,outcomes:[['successful','Successful'],['unsuccessful','Unsuccessful']],
+types:[['short_medium','Short / Medium'],['long','Long'],['through_ball','Through Ball']]}, {key:'dribbles',
+label:'Dribbles',icon:'fa-running',outfieldOnly:true,goalkeeperAvailable:true,outcomes:[['successful','Successful'],
+['unsuccessful','Unsuccessful']],types:[['standard','Standard'],['progressive','Progressive'],['take_on',
+'Take-On']]}, {key:'carries',label:'Carries',icon:'fa-road',outfieldOnly:true,outcomes:[['successful','Successful'],
+['unsuccessful','Unsuccessful']],types:[['standard','Standard'],['progressive','Progressive'],['final_third',
+'Final Third']]}, {key:'big_chances',label:'Big Chances',icon:'fa-star',outfieldOnly:true,types:[['created',
+'Created'],['missed','Missed']]} ]}, { id:'defence', title:'DEFENCE', metrics:[ {key:'tackles',label:'Tackles',
+icon:'fa-shield-alt',outfieldOnly:true,outcomes:[['won','Won'],['lost','Lost'],['foul','Foul']],types:[['standing',
+'Standing'],['sliding','Sliding / Recovery'],['pressing','Pressing']]}, {key:'duels',label:'Duels',icon:'fa-arrows-alt-v',
+outfieldOnly:true,goalkeeperAvailable:true,outcomes:[['won','Won'],['lost','Lost']],types:[['ground','Ground'],
+['aerial','Aerial'],['loose_ball','Loose Ball']]}, {key:'recoveries',label:'Recoveries',icon:'fa-sync',outfieldOnly:true,
+types:[['defensive','Defensive Third'],['midfield','Midfield / Second Ball'],['attacking','Attacking Third']]},
+{key:'interceptions',label:'Interceptions',icon:'fa-hand-paper',outfieldOnly:true,goalkeeperAvailable:true,
+types:[['pass','Pass'],['cross','Cross'],['shot','Shot / Pass Block']]}, {key:'clearances',label:'Clearances',
+icon:'fa-broom',outfieldOnly:true,goalkeeperAvailable:true,types:[['headed','Headed'],['kicked','Kicked'],
+['other','Other']]}, {key:'blocks',label:'Blocks',icon:'fa-stop',outfieldOnly:true,types:[['shot','Shot'],
+['pass','Pass'],['cross','Cross']]}, {key:'fouls_won',label:'Fouls Won',icon:'fa-balance-scale',outfieldOnly:true,
+goalkeeperAvailable:true,types:[['attacking','Attacking Third'],['midfield','Midfield'],['defensive','Defensive Third']]},
+{key:'fouls_committed',label:'Fouls Committed',icon:'fa-fist-raised',outfieldOnly:true,goalkeeperAvailable:true,
+types:[['tactical','Tactical / Challenge'],['handball','Handball'],['dangerous','Dangerous Area']]}, {key:'defensive_errors',
+label:'Defensive Errors',icon:'fa-exclamation-triangle',outfieldOnly:true,types:[['led_to_shot','Led to Shot'],
+['led_to_goal','Led to Goal'],['possession_loss','Possession Loss']]} ]}, { id:'discipline', title:'DISCIPLINE',
+metrics:[ {key:'cards',label:'Cards',icon:'fa-square',outfieldOnly:true,goalkeeperAvailable:true,types:[['yellow',
+'Yellow'],['second_yellow','Second Yellow'],['red','Straight Red']]}, {key:'offsides',label:'Offsides',icon:'fa-flag',
+outfieldOnly:true,types:[['attacking','Attacking'],['set_piece','Set Piece'],['other','Other']]}, {key:'substitutions',
+label:'Substitution',icon:'fa-exchange-alt',types:[['on','On'],['off','Off'],{key:'reason',label:'Reason',
+children:[['injury','Injury'],['tactical','Tactical'],['forced','Forced']]}]} ]}, { id:'advanced', title:'ADVANCED',
+metrics:[ {key:'pressure_actions',label:'Pressure Actions',icon:'fa-compress-arrows-alt',outfieldOnly:true,
+outcomes:[['successful','Successful'],['unsuccessful','Unsuccessful']],types:[['press','Press'],['counterpress',
+'Counterpress'],['pressure_on_ball','Pressure on Ball']]}, {key:'possession_losses',label:'Possession Losses',
+icon:'fa-exclamation',outfieldOnly:true,types:[['dispossessed','Dispossessed'],['bad_touch','Bad Touch'],
+['misplaced_pass','Misplaced Pass']]} ]}, { id:'goalkeeping', title:'GOALKEEPING', goalkeeperOnly:true, metrics:[ {key:'saves',
+label:'Saves',icon:'fa-hands',goalkeeperOnly:true,types:[['open_play','Open Play'],['close','Close-range / 1v1'],
+['set_piece','Set Piece / Penalty']]}, {key:'shots_faced',label:'Shots Faced',icon:'fa-crosshairs',goalkeeperOnly:true,
+outcomes:[['saved','Saved'],['goal','Goal'],['off_target','Off Target / Missed']],types:[['open_play','Open Play'],
+['set_piece','Set Piece'],['penalty','Penalty']]}, {key:'claims',label:'Claims',icon:'fa-hand-paper',goalkeeperOnly:true,
+outcomes:[['successful','Successful'],['unsuccessful','Unsuccessful']],types:[['high_low_cross','High / Low Cross'],
+['set_piece','Set Piece'],['aerial_other','Aerial / Other']]}, {key:'punches',label:'Punches',icon:'fa-hand-paper',
+goalkeeperOnly:true,outcomes:[['successful','Successful'],['unsuccessful','Unsuccessful']],types:[['cross',
+'Cross'],['under_pressure','Under Pressure'],['other','Other']]}, {key:'distribution',label:'Distribution',
+icon:'fa-exchange-alt',goalkeeperOnly:true,outcomes:[['successful','Successful'],['unsuccessful','Unsuccessful']],
+types:[['short','Short'],['long','Long'],['restart','Restart']]} ]} ];
   const CATEGORY_MAP = { professional: "professional", pro: "professional", professionals: "professional", "semi professional": "semi-professional", "semi pro": "semi-professional", "semi-professional": "semi-professional", academy: "academy", academies: "academy", youth: "academy", university: "university", universities: "university", varsity: "university", other: "others", others: "others", local: "others" };
   const BASE_SECTIONS = new Set(["attack", "defence", "discipline", "goalkeeping"]);
   const CATEGORY_POLICY = { professional: { sections: null, maxTypes: Infinity }, "semi-professional": { sections: BASE_SECTIONS, maxTypes: Infinity }, university: { sections: BASE_SECTIONS, maxTypes: 3 }, academy: { sections: BASE_SECTIONS, maxTypes: 3 }, others: { sections: BASE_SECTIONS, maxTypes: 3 } };
@@ -1483,7 +1532,6 @@ fetch('/api/auth/me',{credentials:'include',cache:'no-store'})
   }
 
   function Timeline({ view }) {
-    // No selected bands means include all available match periods by default.
     const [selectedBands, setSelectedBands] = useState([]);
     const matchEnd = view.hasExtraTime ? 120 : 90;
     const bands = [];
@@ -1497,12 +1545,6 @@ fetch('/api/auth/me',{credentials:'include',cache:'no-store'})
       ? selectedBands.map(start => ({ start: start * 60, end: (start + 5) * 60 }))
       : [{ start: 0, end: matchEnd * 60 }];
     const poss = possessionFromEvents(tracker, intervals);
-    const visibleSections = TIMELINE_SECTIONS.map(sec => ({
-      ...sec,
-      fields: sec.fields.filter(([key]) => tracker.some(e => e.metric === key || (key === "goals" && GOAL_KINDS.has(e.kind)) || (key === "cards" && CARD_KINDS.has(e.kind))))
-    })).filter(sec => sec.fields.length);
-    const fmtPair = v => Array.isArray(v) ? `${v[0]}/${v[1]}` : String(v);
-    const numOf = v => Array.isArray(v) ? v[0] : v;
     const toggleBand = start => setSelectedBands(current =>
       current.includes(start) ? current.filter(x => x !== start) : [...current, start].sort((a, b) => a - b)
     );
@@ -1515,68 +1557,78 @@ fetch('/api/auth/me',{credentials:'include',cache:'no-store'})
     const selectionLabel = selectedBands.length
       ? `${selectedBands.length} selected 5-minute band${selectedBands.length === 1 ? "" : "s"}`
       : "Full match · no time filter";
+    const eventOutcome = (event, metric) => {
+      const raw = String(event.outcome || '').toLowerCase();
+      const allowed = (metric.outcomes || []).map(o => String(o[0]));
+      if (allowed.includes(raw)) return raw;
+      if (['success','successful','completed'].includes(raw)) return 'successful';
+      if (['failure','fail','unsuccessful'].includes(raw)) return 'unsuccessful';
+      return raw;
+    };
+    const eventSubtype = (event, metric) => {
+      let raw = String(event.subtype || '').toLowerCase();
+      const aliases = {pass_build_up:'short_medium',pass_long:'long',pass_through_ball:'through_ball',short:'short_medium',short_pass:'short_medium',long_pass:'long',through:'through_ball',substitution_on:'on',substitution_off:'off',substitution_reason:'reason',shot_open_play:'foot',shot_header:'header',shot_set_piece:'set_piece',save_open_play:'open_play',save_close:'close',save_set_piece:'set_piece',distribution_short:'short',distribution_long:'long',distribution_restart:'restart'};
+      raw = aliases[raw] || raw;
+      const types = (metric.types || []).flatMap(t => Array.isArray(t) ? [String(t[0])] : [String(t.key), ...(t.children || []).map(c => String(Array.isArray(c) ? c[0] : c.key))]);
+      const exact = types.find(key => raw === key || raw.endsWith('_' + key));
+      if (exact) return exact;
+      if (metric.key === 'passes' && /(short|medium|build_up)/.test(raw)) return 'short_medium';
+      if (metric.key === 'passes' && /long/.test(raw)) return 'long';
+      if (metric.key === 'passes' && /through/.test(raw)) return 'through_ball';
+      return raw;
+    };
+    const descriptors = metric => {
+      const types = (metric.types || []).flatMap(t => {
+        if (Array.isArray(t)) return [{key:String(t[0]),label:String(t[1])}];
+        if (t.children) return t.children.map(c => Array.isArray(c) ? {key:String(c[0]),label:`${t.label}: ${c[1]}`} : {key:String(c.key),label:`${t.label}: ${c.label}`});
+        return [{key:String(t.key),label:String(t.label)}];
+      });
+      const outcomes = (metric.outcomes || []).map(o => ({key:String(o[0]),label:String(o[1])}));
+      if (outcomes.length && types.length) return outcomes.flatMap(o => types.map(t => ({key:`${o.key}::${t.key}`,label:`${o.label} · ${t.label}`,outcome:o.key,type:t.key})));
+      if (outcomes.length) return outcomes.map(o => ({...o,outcome:o.key}));
+      if (types.length) return types.map(t => ({...t,type:t.key}));
+      return [{key:'total',label:'Total'}];
+    };
+    const count = (side, metric, descriptor) => selected.filter(event => {
+      if (event.side !== side || event.metric !== metric.key) return false;
+      if (descriptor.outcome && eventOutcome(event, metric) !== descriptor.outcome) return false;
+      if (descriptor.type && eventSubtype(event, metric) !== descriptor.type) return false;
+      return true;
+    }).length;
     return html`
       <div>
         <div class="mr-timebox">
           <div class="mr-timerow">
-            <strong>Match time bands</strong>
-            <span class="mr-timesum">${selectionLabel}</span>
+            <strong>Match time bands</strong><span class="mr-timesum">${selectionLabel}</span>
             <button type="button" class="mr-time-action" onClick=${() => setSelectedBands([])}>Full match</button>
             <button type="button" class="mr-time-action" onClick=${() => setSelectedBands(bands.map(b => b.start))}>Select all</button>
           </div>
           <div class="mr-time-groups">
-            <div class="mr-time-group">
-              <div class="mr-time-group-head"><b>1st half</b><button type="button" class="mr-time-action" onClick=${() => toggleGroup(0, 45)}>Toggle half</button></div>
-              <div class="mr-band-grid">${bands.filter(b => b.start < 45).map(b => html`
-                <label class=${`mr-band-option ${selectedBands.includes(b.start) ? "selected" : ""}`} key=${b.start}>
-                  <input type="checkbox" checked=${selectedBands.includes(b.start)} onChange=${() => toggleBand(b.start)} />
-                  <span>${b.label}</span>
-                </label>`)}
-              </div>
+            <div class="mr-time-group"><div class="mr-time-group-head"><b>1st half</b><button type="button" class="mr-time-action" onClick=${() => toggleGroup(0,45)}>Toggle half</button></div>
+              <div class="mr-band-grid">${bands.filter(b=>b.start<45).map(b=>html`<label class=${`mr-band-option ${selectedBands.includes(b.start)?'selected':''}`} key=${b.start}><input type="checkbox" checked=${selectedBands.includes(b.start)} onChange=${()=>toggleBand(b.start)}/><span>${b.label}</span></label>`)}</div>
             </div>
-            <div class="mr-time-group">
-              <div class="mr-time-group-head"><b>2nd half</b><button type="button" class="mr-time-action" onClick=${() => toggleGroup(45, 90)}>Toggle half</button></div>
-              <div class="mr-band-grid">${bands.filter(b => b.start >= 45 && b.start < 90).map(b => html`
-                <label class=${`mr-band-option ${selectedBands.includes(b.start) ? "selected" : ""}`} key=${b.start}>
-                  <input type="checkbox" checked=${selectedBands.includes(b.start)} onChange=${() => toggleBand(b.start)} />
-                  <span>${b.label}</span>
-                </label>`)}
-              </div>
+            <div class="mr-time-group"><div class="mr-time-group-head"><b>2nd half</b><button type="button" class="mr-time-action" onClick=${() => toggleGroup(45,90)}>Toggle half</button></div>
+              <div class="mr-band-grid">${bands.filter(b=>b.start>=45&&b.start<90).map(b=>html`<label class=${`mr-band-option ${selectedBands.includes(b.start)?'selected':''}`} key=${b.start}><input type="checkbox" checked=${selectedBands.includes(b.start)} onChange=${()=>toggleBand(b.start)}/><span>${b.label}</span></label>`)}</div>
             </div>
-            ${view.hasExtraTime ? html`<div class="mr-time-group">
-              <div class="mr-time-group-head"><b>Extra time</b><button type="button" class="mr-time-action" onClick=${() => toggleGroup(90, 120)}>Toggle extra time</button></div>
-              <div class="mr-band-grid">${bands.filter(b => b.start >= 90).map(b => html`
-                <label class=${`mr-band-option ${selectedBands.includes(b.start) ? "selected" : ""}`} key=${b.start}>
-                  <input type="checkbox" checked=${selectedBands.includes(b.start)} onChange=${() => toggleBand(b.start)} />
-                  <span>${b.label}</span>
-                </label>`)}
-              </div>
-            </div>` : ""}
+            ${view.hasExtraTime?html`<div class="mr-time-group"><div class="mr-time-group-head"><b>Extra time</b><button type="button" class="mr-time-action" onClick=${()=>toggleGroup(90,120)}>Toggle extra time</button></div>
+              <div class="mr-band-grid">${bands.filter(b=>b.start>=90).map(b=>html`<label class=${`mr-band-option ${selectedBands.includes(b.start)?'selected':''}`} key=${b.start}><input type="checkbox" checked=${selectedBands.includes(b.start)} onChange=${()=>toggleBand(b.start)}/><span>${b.label}</span></label>`)}</div>
+            </div>`:''}
           </div>
-          <div class="mr-timesum">By default, all available timestamped tracker actions across the match are included. Select one or more 5-minute bands to filter every tracker metric, possession estimate and the event list to the combined selected periods. Reset with “Full match”.</div>
+          <div class="mr-timesum">All available tracker events are included by default. Select one or more 5-minute bands to filter every metric and event together.</div>
         </div>
-        ${poss ? html`<section class="mr-card">
-          <div class="mr-card-head"><div class="mr-card-title">Possession</div><span class="mr-pill">${selectionLabel}</span></div>
-          <${StatRow} label="Ball possession" home=${poss[0] + "%"} away=${poss[1] + "%"} homeNum=${poss[0]} awayNum=${poss[1]} />
-        </section>` : ""}
-        ${visibleSections.length ? html`<div class="mr-grid">
-          ${visibleSections.map(sec => html`
-            <section class="mr-card" key=${sec.id}>
-              <div class="mr-card-head"><div class="mr-card-title">${sec.title}</div><span class="mr-pill">TRACKER</span></div>
-              ${sec.fields.map(([k, label]) => {
-                const hv = timelineValue(selected, "home", k), av = timelineValue(selected, "away", k);
-                return html`<${StatRow} key=${k} label=${label} home=${fmtPair(hv)} away=${fmtPair(av)} homeNum=${numOf(hv)} awayNum=${numOf(av)} />`;
-              })}
-            </section>`)}
-        </div>` : html`<${Empty} text="No tracker metric fields are available for this match." />`}
-        <section class="mr-card" style="margin-top:12px">
-          <div class="mr-card-head"><div class="mr-card-title">Timestamped tracker events</div><span class="mr-pill">${selected.length} EVENTS</span></div>
-          ${selected.length ? selected.map(e => html`
-            <div class="mr-event" key=${e.id}>
-              <div class="mr-minute">${fmtClock(e.sec)}</div>
-              <div><div class="mr-event-main">${e.metric || e.kind}</div><div class="mr-event-sub">${[e.player, e.detail].filter(Boolean).join(" · ")}</div></div>
-              <div class="mr-event-side">${e.side === "home" ? view.match.home : e.side === "away" ? view.match.away : ""}</div>
-            </div>`) : html`<${Empty} text="No timestamped tracker events are available in this selection." />`}
+        ${poss?html`<section class="mr-card"><div class="mr-card-head"><div class="mr-card-title">Possession</div><span class="mr-pill">${selectionLabel}</span></div><${StatRow} label="Ball possession" home=${poss[0]+"%"} away=${poss[1]+"%"} homeNum=${poss[0]} awayNum=${poss[1]}/></section>`:''}
+        ${PLAYER_SCHEMA.map(section=>html`<section class="mr-card" key=${section.id}><div class="mr-card-head"><div class="mr-card-title">${section.title}</div><span class="mr-pill">${section.metrics.length} METRICS</span></div>
+          ${section.metrics.map(metric=>{
+            const fields=descriptors(metric);
+            const homeTotal=selected.filter(e=>e.side==='home'&&e.metric===metric.key).length;
+            const awayTotal=selected.filter(e=>e.side==='away'&&e.metric===metric.key).length;
+            return html`<div class="mr-tracker-metric" key=${metric.key}><div class="mr-tracker-metric-title"><b>${metric.label}</b><span>${homeTotal} / ${awayTotal}</span></div>
+              <div class="mr-tracker-fields">${fields.map(field=>html`<div class="mr-tracker-field" key=${field.key}><span>${field.label}</span><strong>${count('home',metric,field)} / ${count('away',metric,field)}</strong></div>`)}</div>
+            </div>`;
+          })}
+        </section>`)}
+        <section class="mr-card" style="margin-top:12px"><div class="mr-card-head"><div class="mr-card-title">Timestamped tracker events</div><span class="mr-pill">${selected.length} EVENTS</span></div>
+          ${selected.length?selected.map(e=>html`<div class="mr-event" key=${e.id}><div class="mr-minute">${fmtClock(e.sec)}</div><div><div class="mr-event-main">${e.metric||e.kind}</div><div class="mr-event-sub">${[e.player,e.detail].filter(Boolean).join(' · ')}</div></div><div class="mr-event-side">${e.side==='home'?view.match.home:e.side==='away'?view.match.away:''}</div></div>`):html`<${Empty} text="No timestamped tracker events are available in this selection."/>`}
         </section>
       </div>`;
   }
@@ -1843,6 +1895,217 @@ const CLUB_STAT_SCHEMA = [
 {key:'fouls_committed', label:'Fouls Committed'},{key:'fouls_won', label:'Fouls Won'},
 ]},
 ];
+
+// Canonical metric registry copied from the Club Stats Tracker. This is the
+// display contract for every club metric card and match-results comparison.
+const CLUB_TRACKER_METRIC_SECTIONS = [ { id:'attack', title:'ATTACK', metrics:[ {key:'goals',label:'Goals',icon:'fa-futbol',
+outfieldOnly:true,types:[['open_play','Open Play'],['set_piece','Set Piece'],['penalty','Penalty'],['free_kick',
+'Free Kick']]}, {key:'shots',label:'Shots',icon:'fa-crosshairs',outfieldOnly:true,outcomes:[['on_target',
+'On Target'],['off_target','Off Target'],['blocked','Blocked'],['woodwork','Woodwork']],types:[['foot','Foot'],
+['header','Header'],['set_piece','Set Piece']]}, {key:'assists',label:'Assists',icon:'fa-hands-helping',
+outfieldOnly:true,types:[['open_play','Open Play'],['set_piece','Set Piece'],['transition','Transition']]},
+{key:'key_passes',label:'Key Passes',icon:'fa-lightbulb',outfieldOnly:true,types:[['open_play','Open Play'],
+['set_piece','Set Piece'],['penetrative','Penetrative / Delivery']]}, {key:'crosses',label:'Crosses',icon:'fa-share',
+outfieldOnly:true,outcomes:[['successful','Successful'],['unsuccessful','Unsuccessful']],types:[['open_play',
+'Open Play'],['cutback','Cutback'],['set_piece','Set Piece']]}, {key:'passes',label:'Passes',icon:'fa-exchange-alt',
+outfieldOnly:true,goalkeeperAvailable:true,outcomes:[['successful','Successful'],['unsuccessful','Unsuccessful']],
+types:[['short_medium','Short / Medium'],['long','Long'],['through_ball','Through Ball']]}, {key:'dribbles',
+label:'Dribbles',icon:'fa-running',outfieldOnly:true,goalkeeperAvailable:true,outcomes:[['successful','Successful'],
+['unsuccessful','Unsuccessful']],types:[['standard','Standard'],['progressive','Progressive'],['take_on',
+'Take-On']]}, {key:'carries',label:'Carries',icon:'fa-road',outfieldOnly:true,outcomes:[['successful','Successful'],
+['unsuccessful','Unsuccessful']],types:[['standard','Standard'],['progressive','Progressive'],['final_third',
+'Final Third']]}, {key:'big_chances',label:'Big Chances',icon:'fa-star',outfieldOnly:true,types:[['created',
+'Created'],['missed','Missed']]} ]}, { id:'defence', title:'DEFENCE', metrics:[ {key:'tackles',label:'Tackles',
+icon:'fa-shield-alt',outfieldOnly:true,outcomes:[['won','Won'],['lost','Lost'],['foul','Foul']],types:[['standing',
+'Standing'],['sliding','Sliding / Recovery'],['pressing','Pressing']]}, {key:'duels',label:'Duels',icon:'fa-arrows-alt-v',
+outfieldOnly:true,goalkeeperAvailable:true,outcomes:[['won','Won'],['lost','Lost']],types:[['ground','Ground'],
+['aerial','Aerial'],['loose_ball','Loose Ball']]}, {key:'recoveries',label:'Recoveries',icon:'fa-sync',outfieldOnly:true,
+types:[['defensive','Defensive Third'],['midfield','Midfield / Second Ball'],['attacking','Attacking Third']]},
+{key:'interceptions',label:'Interceptions',icon:'fa-hand-paper',outfieldOnly:true,goalkeeperAvailable:true,
+types:[['pass','Pass'],['cross','Cross'],['shot','Shot / Pass Block']]}, {key:'clearances',label:'Clearances',
+icon:'fa-broom',outfieldOnly:true,goalkeeperAvailable:true,types:[['headed','Headed'],['kicked','Kicked'],
+['other','Other']]}, {key:'blocks',label:'Blocks',icon:'fa-stop',outfieldOnly:true,types:[['shot','Shot'],
+['pass','Pass'],['cross','Cross']]}, {key:'fouls_won',label:'Fouls Won',icon:'fa-balance-scale',outfieldOnly:true,
+goalkeeperAvailable:true,types:[['attacking','Attacking Third'],['midfield','Midfield'],['defensive','Defensive Third']]},
+{key:'fouls_committed',label:'Fouls Committed',icon:'fa-fist-raised',outfieldOnly:true,goalkeeperAvailable:true,
+types:[['tactical','Tactical / Challenge'],['handball','Handball'],['dangerous','Dangerous Area']]}, {key:'defensive_errors',
+label:'Defensive Errors',icon:'fa-exclamation-triangle',outfieldOnly:true,types:[['led_to_shot','Led to Shot'],
+['led_to_goal','Led to Goal'],['possession_loss','Possession Loss']]} ]}, { id:'discipline', title:'DISCIPLINE',
+metrics:[ {key:'cards',label:'Cards',icon:'fa-square',outfieldOnly:true,goalkeeperAvailable:true,types:[['yellow',
+'Yellow'],['second_yellow','Second Yellow'],['red','Straight Red']]}, {key:'offsides',label:'Offsides',icon:'fa-flag',
+outfieldOnly:true,types:[['attacking','Attacking'],['set_piece','Set Piece'],['other','Other']]}, {key:'substitutions',
+label:'Substitution',icon:'fa-exchange-alt',types:[['on','On'],['off','Off'],{key:'reason',label:'Reason',
+children:[['injury','Injury'],['tactical','Tactical'],['forced','Forced']]}]} ]}, { id:'advanced', title:'ADVANCED',
+metrics:[ {key:'pressure_actions',label:'Pressure Actions',icon:'fa-compress-arrows-alt',outfieldOnly:true,
+outcomes:[['successful','Successful'],['unsuccessful','Unsuccessful']],types:[['press','Press'],['counterpress',
+'Counterpress'],['pressure_on_ball','Pressure on Ball']]}, {key:'possession_losses',label:'Possession Losses',
+icon:'fa-exclamation',outfieldOnly:true,types:[['dispossessed','Dispossessed'],['bad_touch','Bad Touch'],
+['misplaced_pass','Misplaced Pass']]} ]}, { id:'goalkeeping', title:'GOALKEEPING', goalkeeperOnly:true, metrics:[ {key:'saves',
+label:'Saves',icon:'fa-hands',goalkeeperOnly:true,types:[['open_play','Open Play'],['close','Close-range / 1v1'],
+['set_piece','Set Piece / Penalty']]}, {key:'shots_faced',label:'Shots Faced',icon:'fa-crosshairs',goalkeeperOnly:true,
+outcomes:[['saved','Saved'],['goal','Goal'],['off_target','Off Target / Missed']],types:[['open_play','Open Play'],
+['set_piece','Set Piece'],['penalty','Penalty']]}, {key:'claims',label:'Claims',icon:'fa-hand-paper',goalkeeperOnly:true,
+outcomes:[['successful','Successful'],['unsuccessful','Unsuccessful']],types:[['high_low_cross','High / Low Cross'],
+['set_piece','Set Piece'],['aerial_other','Aerial / Other']]}, {key:'punches',label:'Punches',icon:'fa-hand-paper',
+goalkeeperOnly:true,outcomes:[['successful','Successful'],['unsuccessful','Unsuccessful']],types:[['cross',
+'Cross'],['under_pressure','Under Pressure'],['other','Other']]}, {key:'distribution',label:'Distribution',
+icon:'fa-exchange-alt',goalkeeperOnly:true,outcomes:[['successful','Successful'],['unsuccessful','Unsuccessful']],
+types:[['short','Short'],['long','Long'],['restart','Restart']]} ]} ];
+const CLUB_TRACKER_METRIC_INDEX = new Map(CLUB_TRACKER_METRIC_SECTIONS.flatMap(section => section.metrics.map(metric => [metric.key, metric])));
+function trackerMetricKey(event) {
+  const raw = String(event?.metric_key || event?.metricKey || event?.metric || event?.key || event?.event_type || event?.eventType || event?.type || '').trim().toLowerCase();
+  const aliases = { pass:'passes', pass_long:'passes', long_pass:'passes', longpass:'passes', cross:'crosses', shot:'shots', tackle:'tackles', duel:'duels', assist:'assists', goal:'goals', substitution:'substitutions', defensive_error:'defensive_errors', key_pass:'key_passes', recovery:'recoveries', interception:'interceptions', clearance:'clearances', block:'blocks', foul_won:'fouls_won', foul_committed:'fouls_committed', pressure:'pressure_actions', possession_loss:'possession_losses', save:'saves', shot_faced:'shots_faced', punch:'punches', claim:'claims' };
+  return aliases[raw] || raw;
+}
+function trackerEventSide(event, match, trackedSide) {
+  const raw = String(event?.team_side || event?.teamSide || event?.club_side || event?.clubSide || event?.side || event?.team || '').trim().toLowerCase();
+  if (/^(home|h|home_team)$/.test(raw)) return 'home';
+  if (/^(away|a|away_team|visitor)$/.test(raw)) return 'away';
+  const home = String(match?.home_team || match?.homeTeam || '').trim().toLowerCase();
+  const away = String(match?.away_team || match?.awayTeam || '').trim().toLowerCase();
+  if (raw && raw === home) return 'home';
+  if (raw && raw === away) return 'away';
+  return trackedSide || null;
+}
+function trackerRawEvents(match) {
+  const tracking = match?.club_tracking || match?.clubTracking || match?.club_tracker || match?.clubTracker || {};
+  const candidates = [tracking.events, match?.events, match?.data?.events, match?.tracker?.events];
+  return candidates.find(Array.isArray) || [];
+}
+function trackerOutcomeKey(event, metric) {
+  const raw = String(event?.outcome_detail || event?.outcomeDetail || event?.outcome_label || event?.outcomeLabel || event?.outcome || event?.result || '').trim().toLowerCase();
+  const value = String(event?.value_type || event?.valueType || event?.sub_key || event?.subKey || '').trim().toLowerCase();
+  const source = raw || value;
+  const allowedOutcomes = (CLUB_TRACKER_METRIC_INDEX.get(metric)?.outcomes || []).map(item => String(item[0]));
+  if (allowedOutcomes.includes(source)) return source;
+  if (['success','successful','completed'].includes(source)) return 'successful';
+  if (['failure','fail','unsuccessful'].includes(source)) return 'unsuccessful';
+  if (['on_target','off_target','blocked','woodwork','goal','saved'].includes(source)) return source;
+  if (['foul'].includes(source)) return source;
+  if (source.endsWith('_fail') || source.endsWith('_failure') || source.endsWith('_unsuccessful')) return 'unsuccessful';
+  if (source.endsWith('_success') || source.endsWith('_successful')) return 'successful';
+  return source;
+}
+function trackerSubtypeKey(event, metric) {
+  let value = String(event?.sub_key || event?.subKey || event?.sub_type || event?.subtype || event?.type_key || event?.value_type || event?.valueType || '').trim().toLowerCase();
+  const aliases = { pass_build_up:'short_medium', pass_long:'long', pass_through_ball:'through_ball', short:'short_medium', short_pass:'short_medium', long_pass:'long', through:'through_ball', substitution_on:'on', substitution_off:'off', substitution_reason:'reason', shot_open_play:'foot', shot_header:'header', shot_set_piece:'set_piece', save_open_play:'open_play', save_close:'close', save_set_piece:'set_piece', distribution_short:'short', distribution_long:'long', distribution_restart:'restart' };
+  value = aliases[value] || value;
+  const metricDef = CLUB_TRACKER_METRIC_INDEX.get(metric);
+  const types = (metricDef?.types || []).flatMap(t => Array.isArray(t) ? [String(t[0])] : [String(t.key), ...(t.children || []).map(c => String(Array.isArray(c) ? c[0] : c.key))]);
+  const exact = types.find(k => value === k || value.endsWith('_' + k));
+  if (exact) return exact;
+  if (metric === 'passes' && /long/.test(value)) return 'long';
+  if (metric === 'passes' && /(short|medium|build_up)/.test(value)) return 'short_medium';
+  if (metric === 'passes' && /through/.test(value)) return 'through_ball';
+  return value;
+}
+function trackerMetricDescriptors(metric) {
+  const types = (metric.types || []).flatMap(t => {
+    if (Array.isArray(t)) return [{key:String(t[0]),label:String(t[1])}];
+    if (t.children) return (t.children || []).map(c => Array.isArray(c) ? {key:String(c[0]),label:`${t.label}: ${c[1]}`} : {key:String(c.key),label:`${t.label}: ${c.label}`});
+    return [{key:String(t.key),label:String(t.label)}];
+  });
+  const outcomes = (metric.outcomes || []).map(o => ({key:String(o[0]),label:String(o[1])}));
+  if (outcomes.length && types.length) return outcomes.flatMap(o => types.map(t => ({key:`${o.key}::${t.key}`,label:`${o.label} · ${t.label}`,outcome:o.key,type:t.key})));
+  if (outcomes.length) return outcomes.map(o => ({...o,outcome:o.key}));
+  if (types.length) return types.map(t => ({...t,type:t.key}));
+  return [{key:'total',label:'Total'}];
+}
+function trackerEventMatchesDescriptor(event, metric, descriptor) {
+  if (trackerMetricKey(event) !== metric.key) return false;
+  const outcome = trackerOutcomeKey(event, metric.key);
+  const subtype = trackerSubtypeKey(event, metric.key);
+  if (descriptor.outcome && outcome !== descriptor.outcome) return false;
+  if (descriptor.type && subtype !== descriptor.type) return false;
+  return true;
+}
+function trackerSuccessfulOutcomes(metric) {
+  const configured = (metric.outcomes || []).map(item => String(item[0]));
+  if (configured.includes('successful')) return new Set(['successful','success','completed']);
+  if (configured.includes('won')) return new Set(['won']);
+  if (configured.includes('saved')) return new Set(['saved']);
+  if (configured.includes('on_target')) return new Set(['on_target','goal']);
+  if (configured.includes('goal')) return new Set(['goal']);
+  return new Set();
+}
+function trackerRowsSuccess(rows, metric) {
+  const positive = trackerSuccessfulOutcomes(metric);
+  return positive.size ? rows.filter(event => positive.has(trackerOutcomeKey(event, metric.key))).length : 0;
+}
+function getTrackerMetricCounts(match, side, trackedSide) {
+  const events = trackerRawEvents(match);
+  const usable = events.filter(event => trackerEventSide(event, match, trackedSide) === side && CLUB_TRACKER_METRIC_INDEX.has(trackerMetricKey(event)));
+  const counts = {};
+  for (const section of CLUB_TRACKER_METRIC_SECTIONS) for (const metric of section.metrics) {
+    const rows = usable.filter(event => trackerMetricKey(event) === metric.key);
+    if (!rows.length) continue;
+    counts[metric.key] = rows.length;
+    counts[`${metric.key}::total`] = rows.length;
+    counts[`${metric.key}::success`] = trackerRowsSuccess(rows, metric);
+    for (const descriptor of trackerMetricDescriptors(metric)) {
+      const subset = rows.filter(event => trackerEventMatchesDescriptor(event, metric, descriptor));
+      counts[`${metric.key}::${descriptor.key}`] = subset.length;
+      if (descriptor.type) {
+        counts[`${metric.key}::${descriptor.type}::total`] = subset.length;
+        counts[`${metric.key}::${descriptor.type}::success`] = trackerRowsSuccess(subset, metric);
+      }
+    }
+    for (const type of trackerMetricDescriptors(metric).filter(item => item.type).map(item => item.type)) {
+      const subset = rows.filter(event => trackerSubtypeKey(event, metric.key) === type);
+      counts[`${metric.key}::${type}::total`] = subset.length;
+      counts[`${metric.key}::${type}::success`] = trackerRowsSuccess(subset, metric);
+    }
+  }
+  return {counts, hasEvents:usable.length > 0, eventCount:usable.length};
+}
+function aggregateTrackerMetricCounts(matches, club, clubName) {
+  const totals = {};
+  let eventCount = 0;
+  for (const match of (Array.isArray(matches) ? matches : [])) {
+    const side = getClubMatchSide(match, club, clubName);
+    if (!side) continue;
+    const result = getTrackerMetricCounts(match, side, side);
+    if (!result.hasEvents) continue;
+    eventCount += result.eventCount;
+    for (const [key,value] of Object.entries(result.counts)) totals[key] = (totals[key] || 0) + value;
+  }
+  return {counts:totals, hasEvents:eventCount > 0, eventCount};
+}
+function TrackerMetricMatrix({match, homeName, awayName, trackedSide, matches, club, clubName, embedded=false}) {
+  const home = matches ? aggregateTrackerMetricCounts(matches, club, clubName) : getTrackerMetricCounts(match, 'home', trackedSide);
+  const away = matches ? {counts:{},hasEvents:false} : getTrackerMetricCounts(match, 'away', trackedSide);
+  const val = (side, key) => Number(side.counts[key] ?? 0);
+  const metricHasData = metric => val(home,metric.key)>0 || val(away,metric.key)>0;
+  const field = (label, h, a, key) => html`<div class="tracker-metric-field" key=${key}><span>${label}</span><strong>${matches ? h : `${h} / ${a}`}</strong></div>`;
+  return html`<div class=${embedded ? 'club-metric-matrix tracker-metric-matrix' : 'tracker-metric-matrix'}>
+    ${!matches && html`<div class="club-centre-stats-head"><span class="club-centre-team club-centre-home">${homeName || 'Home'}</span><span class="club-centre-metric-heading">TRACKER METRICS</span><span class="club-centre-team club-centre-away">${awayName || 'Away'}</span></div>`}
+    ${CLUB_TRACKER_METRIC_SECTIONS.map(section => {
+      const groups = section.metrics.filter(metricHasData);
+      if (!groups.length) return null;
+      return html`<section class="category-block" key=${section.id}><div class="cat-chip">${section.title}</div>
+        ${groups.map(metric => {
+          const totalH=val(home,`${metric.key}::total`), totalA=val(away,`${metric.key}::total`);
+          const successH=val(home,`${metric.key}::success`), successA=val(away,`${metric.key}::success`);
+          const hasOutcomes=!!(metric.outcomes && metric.outcomes.length);
+          const types=trackerMetricDescriptors(metric).filter(d=>d.type).filter(d=>val(home,`${metric.key}::${d.type}::total`)>0 || val(away,`${metric.key}::${d.type}::total`)>0).map(d=>({...d,label:metric.key==='passes'?({short_medium:'Short Passes',long:'Long Passes',through_ball:'Through Balls'}[d.type]||d.label):d.label}));
+          return html`<div class="tracker-metric-group" key=${metric.key}>
+            <div class="tracker-metric-title">${metric.label}</div>
+            <div class="tracker-metric-fields">
+              ${hasOutcomes ? field(metric.label,successH+'/'+totalH,successA+'/'+totalA,`${metric.key}-overall`)
+                : field('Total',totalH,totalA,`${metric.key}-total`)}
+              ${types.map(type=>{
+                const h=val(home,`${metric.key}::${type.type}::total`), a=val(away,`${metric.key}::${type.type}::total`);
+                const sh=val(home,`${metric.key}::${type.type}::success`), sa=val(away,`${metric.key}::${type.type}::success`);
+                return field(type.label,hasOutcomes?`${sh}/${h}`:h,hasOutcomes?`${sa}/${a}`:a,`${metric.key}-${type.type}`);
+              })}
+            </div>
+          </div>`;
+        })}
+      </section>`;
+    })}
+  </div>`;
+}
+
 const MATCH_COMPARE_STATS = [
 {key:'possession', label:'Ball Possession', unit:'%'},
 {key:'shots_total', label:'Total Shots'},
@@ -1955,7 +2218,7 @@ let value = clubNumeric(stats?.[key]);
 const attempts = pair ? clubNumeric(stats?.[pair.attempts]) : null;
 const rateValue = pair?.rate ? clubNumeric(stats?.[pair.rate]) : null;
 if (value === null && pair && attempts !== null && rateValue !== null) value = Math.round(attempts * rateValue / 100);
-if (value === null) return '—';
+if (value === null) return '0';
 let text = fmt2(value);
 if (pair) {
 if (attempts !== null) {
@@ -2297,29 +2560,15 @@ ${person && html`<button class="btn btn-danger" onClick=${onDelete}><i class="fa
 `;
 }
 // ── CLUB STAT MATRIX ──
-function ClubMatrixCard({ title, stats, filterCat, embedded = false }) {
-const filtered = filterCat === 'all' ? CLUB_STAT_SCHEMA : CLUB_STAT_SCHEMA.filter(s => s.id === filterCat);
-return html`
-<div class=${embedded ? 'club-metric-matrix' : 'matrix-card'}>
-${!embedded && title && html`<div class="matrix-card-hd"><div class="matrix-card-title">${title}</div></div>`}
-<div class="matrix-card-body">
-${filtered.map(cat => html`
-<div key=${cat.id} class="category-block">
-<div class="cat-chip">${cat.title}</div>
-<div class="fields-grid">
-${cat.fields.filter(f => !shouldHideClubMetric(stats, f.key)).map(f => html`
-<div key=${f.key} class="stat-field">
-<span class="label">${f.label}</span>
-<span class="value">${formatClubMetric(stats, f.key)}</span>
-</div>
-`)}
-</div>
-</div>
-`)}
-${filtered.every(cat=>cat.fields.every(f=>!clubMetricHasData(stats,f.key))) && html`<div class="empty-state" style="padding:1rem;"><i class="fas fa-chart-bar"></i><div>No stats data yet</div></div>`}
-</div>
-</div>
-`;
+function ClubMatrixCard({ title, stats, filterCat, embedded = false, matches, club, clubName }) {
+  if (Array.isArray(matches)) return html`<div class=${embedded ? 'club-metric-matrix tracker-metric-matrix' : 'matrix-card'}>
+    ${!embedded && title && html`<div class="matrix-card-hd"><div class="matrix-card-title">${title}</div></div>`}
+    <${TrackerMetricMatrix} matches=${matches} club=${club} clubName=${clubName} embedded=${embedded} />
+  </div>`;
+  return html`<div class=${embedded ? 'club-metric-matrix tracker-metric-matrix' : 'matrix-card'}>
+    ${!embedded && title && html`<div class="matrix-card-hd"><div class="matrix-card-title">${title}</div></div>`}
+    <${TrackerMetricMatrix} matches=${[]} club=${club} clubName=${clubName} embedded=${embedded} />
+  </div>`;
 }
 function ClubSummaryGrid({ summary }) {
 const cards = [
@@ -2332,71 +2581,11 @@ return html`<div class="stats-row-cards club-summary-grid">${cards.map(([label,v
 `)}</div>`;
 }
 // ── MATCH STATS COMPARE ──
-function MatchStatsCompare({ homeStats, awayStats, homeName, awayName }) {
-if (!homeStats || !awayStats) return html`<div class="empty-state"><i class="fas fa-chart-bar"></i><div>No stats available</div></div>`;
-return html`
-<div>
-<div style="display:grid;grid-template-columns:1fr auto 1fr;padding:0.5rem 0.75rem;background:#f8fafc;border-radius:8px;margin-bottom:0.5rem;font-size:0.7rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">
-<span style="text-align:right;color:var(--primary);">${homeName}</span>
-<span style="width:100px;"></span>
-<span style="color:#dc2626;">${awayName}</span>
-</div>
-${MATCH_COMPARE_STATS.map(s=>{
-const hv = homeStats[s.key]??0; const av = awayStats[s.key]??0;
-const total = Number(hv)+Number(av); const hP = total>0?(hv/total)*100:50; const aP = total>0?(av/total)*100:50;
-return html`
-<div key=${s.key} style="padding:0.4rem 0.75rem;border-bottom:1px solid #f0f4f8;">
-<div style="display:grid;grid-template-columns:60px 1fr 60px;align-items:center;gap:0.5rem;margin-bottom:3px;">
-<span style="font-weight:900;color:var(--primary);text-align:right;font-size:0.85rem;">${s.unit==='%'?`${hv}%`:hv}</span>
-<span style="font-size:0.72rem;font-weight:700;color:#374151;text-align:center;">${s.label}</span>
-<span style="font-weight:900;color:#dc2626;font-size:0.85rem;">${s.unit==='%'?`${av}%`:av}</span>
-</div>
-<div style="display:flex;height:5px;border-radius:3px;overflow:hidden;gap:1px;">
-<div style="width:${hP}%;background:var(--primary);border-radius:3px 0 0 3px;"></div>
-<div style="width:${aP}%;background:#dc2626;border-radius:0 3px 3px 0;"></div>
-</div>
-</div>
-`;
-})}
-</div>
-`;
+function MatchStatsCompare({ homeStats, awayStats, homeName, awayName, match, trackedSide }) {
+  return html`<${TrackerMetricMatrix} match=${match} homeName=${homeName} awayName=${awayName} trackedSide=${trackedSide} />`;
 }
-function ClubMatchCentreStatsCompare({ match, homeName, awayName }) {
-const home = getMatchTeamStats(match, 'home').stats;
-const away = getMatchTeamStats(match, 'away').stats;
-const valueText = (stats, metric) => {
-const value = clubNumeric(stats?.[metric.key]);
-return value === null ? '—' : `${fmt2(value)}${metric.unit === '%' ? '%' : ''}`;
-};
-const numericValue = (stats, key) => clubNumeric(stats?.[key]);
-return html`
-<section class="club-centre-stats" aria-label="Home and away match statistics comparison">
-<div class="club-centre-stats-head">
-<span class="club-centre-team club-centre-home">${homeName || 'Home'}</span>
-<span class="club-centre-metric-heading">Match metric</span>
-<span class="club-centre-team club-centre-away">${awayName || 'Away'}</span>
-</div>
-${MATCH_COMPARE_STATS.map(metric => {
-const homeValue = numericValue(home, metric.key);
-const awayValue = numericValue(away, metric.key);
-const total = Math.abs(homeValue || 0) + Math.abs(awayValue || 0);
-const homeWidth = total > 0 ? (Math.abs(homeValue || 0) / total) * 100 : 50;
-const awayWidth = total > 0 ? (Math.abs(awayValue || 0) / total) * 100 : 50;
-return html`
-<div class="club-centre-stat-row" key=${metric.key}>
-<span class="club-centre-stat-value club-centre-home">${valueText(home, metric)}</span>
-<div class="club-centre-stat-main">
-<span class="club-centre-stat-label">${metric.label}</span>
-${homeValue !== null || awayValue !== null ? html`
-<span class="club-centre-stat-bar" aria-hidden="true">
-<i class="club-centre-home-fill" style=${`width:${homeWidth}%;`}></i>
-<i class="club-centre-away-fill" style=${`width:${awayWidth}%;`}></i>
-</span>` : ''}
-</div>
-<span class="club-centre-stat-value club-centre-away">${valueText(away, metric)}</span>
-</div>`;
-})}
-</section>`;
+function ClubMatchCentreStatsCompare({ match, homeName, awayName, trackedSide }) {
+  return html`<${TrackerMetricMatrix} match=${match} homeName=${homeName} awayName=${awayName} trackedSide=${trackedSide} />`;
 }
 // ── MATCH EVENTS TIMELINE (left=home, right=away, with timestamps) ──
 function MatchEventsTimeline({ events, homeName, awayName, homePhoto, awayPhoto }) {
@@ -4076,7 +4265,7 @@ ${m.result?html`<span>${m.result}</span>`:''}
 </header>
 <div class="club-match-breakdown">
 <div class="club-match-breakdown-head"><span><i class="fas fa-chart-column"></i> Match Statistics</span></div>
-<${ClubMatchCentreStatsCompare} match=${m} homeName=${m.home_team||m.homeTeam||'Home'} awayName=${m.away_team||m.awayTeam||'Away'} />
+<${ClubMatchCentreStatsCompare} match=${m} homeName=${m.home_team||m.homeTeam||'Home'} awayName=${m.away_team||m.awayTeam||'Away'} trackedSide=${getClubMatchSide(m, club, clubName)} />
 </div>
 </article>
 `)}
@@ -4086,7 +4275,7 @@ ${m.result?html`<span>${m.result}</span>`:''}
 <div class="card">
 ${statsMetricMode==='summary'
 ? html`<${ClubSummaryGrid} summary=${clubResultsSummary} />`
-: html`<${ClubMatrixCard} stats=${clubSeasonMetrics.totals} filterCat="all" embedded=${true} />`}
+: html`<${ClubMatrixCard} stats=${clubSeasonMetrics.totals} filterCat="all" embedded=${true} matches=${matchData} club=${club} clubName=${clubName} />`}
 </div>
 `}
 <footer class="club-print-footer">
@@ -4261,7 +4450,7 @@ ${m.home_stats?html`<div class="stat-overview-card"><div class="stat-ov-value">$
 ${m.attendance?html`<div style="font-size:0.8rem;color:#64748b;"><i class="fas fa-users"></i> Attendance: ${m.attendance.toLocaleString()}</div>`:''}
 </div>
 `}
-${expandedMatchTab==='stats' && html`<${MatchStatsCompare} homeStats=${m.home_stats} awayStats=${m.away_stats} homeName=${m.home_team} awayName=${m.away_team} />`}
+${expandedMatchTab==='stats' && html`<${MatchStatsCompare} homeStats=${m.home_stats} awayStats=${m.away_stats} homeName=${m.home_team} awayName=${m.away_team} match=${m} trackedSide=${getClubMatchSide(m, club, clubName)} />`}
 ${expandedMatchTab==='lineups' && html`<${MatchLineups} lineups=${m.lineups} homeName=${m.home_team} awayName=${m.away_team} homePhoto=${homePhoto} awayPhoto=${awayPhoto} />`}
 ${expandedMatchTab==='player_stats' && html`<${MatchPlayerStats} lineups=${m.lineups} homeName=${m.home_team} awayName=${m.away_team} />`}
 </div>
@@ -4483,7 +4672,7 @@ ${a.year?html`<span class="achievement-year">${a.year}</span>`:''}
 </div>
 <div class="card">
 <div class="card-title"><i class="fas fa-chart-bar"></i> Season Stats</div>
-<${ClubMatrixCard} title="Season Performance" stats=${seasonStats} filterCat="all" />
+<${ClubMatrixCard} title="Season Performance" stats=${seasonStats} filterCat="all" matches=${matchData} club=${club} clubName=${clubName} />
 </div>
 </div>
 `}
@@ -4956,7 +5145,7 @@ ${statsView==='summary' && html`
 </div>
 ${statsMetricMode==='summary'
 ? html`<${ClubSummaryGrid} summary=${clubResultsSummary} />`
-: html`<${ClubMatrixCard} stats=${clubSeasonMetrics.totals} filterCat="all" embedded=${true} />`}
+: html`<${ClubMatrixCard} stats=${clubSeasonMetrics.totals} filterCat="all" embedded=${true} matches=${matchData} club=${club} clubName=${clubName} />`}
 </div>
 `}
 ${statsView==='detailed' && html`
@@ -4995,7 +5184,7 @@ ${m.result?html`<span class=${`result-badge ${getResultClass(m.result)}`}>${m.re
 </header>
 <div class="club-match-breakdown">
 <div class="club-match-breakdown-head"><span><i class="fas fa-chart-column"></i> Match Statistics</span></div>
-<${ClubMatchCentreStatsCompare} match=${m} homeName=${m.home_team||m.homeTeam||'Home'} awayName=${m.away_team||m.awayTeam||'Away'} />
+<${ClubMatchCentreStatsCompare} match=${m} homeName=${m.home_team||m.homeTeam||'Home'} awayName=${m.away_team||m.awayTeam||'Away'} trackedSide=${getClubMatchSide(m, club, clubName)} />
 </div>
 </article>
 `;})()}
