@@ -1344,9 +1344,9 @@ draftSaveInFlightRef.current = false; setDraftSaving(false); }
 ; const saveDraftRef = useRef(saveDraft); useEffect(() => {
 saveDraftRef.current = saveDraft; }
 , [currentUser?.id, players, scoreA, scoreB, timerSeconds, period, geoStatus, geoCoordinates, homeTeam, awayTeam, initialData]); useEffect(() => {
- draftIntervalRef.current = setInterval(() => {
+draftIntervalRef.current = setInterval(() => {
 if (currentUser?.id) saveDraftRef.current?.(); }
-, isClubAssignment ? 10000 : 120000); return () => clearInterval(draftIntervalRef.current); }
+, 120000); return () => clearInterval(draftIntervalRef.current); }
 , [currentUser?.id]); const handleStatClick = (pIdx, key) => {
 const btnKey = `${pIdx}-${key}`; if (activeStatBtn===btnKey) {
 setActiveStatBtn(null); return; }
