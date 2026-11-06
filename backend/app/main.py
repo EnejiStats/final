@@ -3250,6 +3250,9 @@ advertising cookies without your consent.</p>
 # ============================================================
 # HTML PAGE ROUTES
 # ============================================================
+# ============================================================
+# HTML PAGE ROUTES
+# ============================================================
 
 @app.head("/")
 async def home_head():
@@ -3666,6 +3669,113 @@ async def cc_dashboard(request: Request):
 
 
 # ============================================================
+# ENEJISTATS CLUB DASHBOARD — SHELL ASSETS + STANDALONE TAB FILES
+# ============================================================
+#
+# Canonical shell template:
+#     backend/templates/club-dashboard.html
+#
+# Shell assets:
+#     backend/static/club-dashboard/
+#
+# Standalone tab documents:
+#     backend/static/club-dashboard/tabs/
+#
+# The shell is served by the existing /club-dashboard route above.
+# These allow-listed routes serve only the assets included in the
+# Club Dashboard deployment package. Keep this section separate
+# from API router mounts.
+# ============================================================
+
+from pathlib import Path as _ClubDashboardPath
+from fastapi.responses import FileResponse as _ClubDashboardFileResponse
+
+
+_CLUB_DASHBOARD_STATIC_DIR = (
+    _ClubDashboardPath(__file__).resolve().parents[1]
+    / "static"
+    / "club-dashboard"
+)
+
+_CLUB_DASHBOARD_ASSET_FILES = frozenset(
+    {
+        "shell.js",
+        "shell.css",
+        "iframe-registry.js",
+    }
+)
+
+_CLUB_DASHBOARD_TAB_FILES = frozenset(
+    {
+        "club-profile.html",
+        "club-stats.html",
+        "club-squad.html",
+        "club-match-centre.html",
+        "club-tokens.html",
+        "club-media.html",
+        "club-notifications.html",
+        "club-account.html",
+    }
+)
+
+
+def _club_dashboard_file_response(file_path: _ClubDashboardPath):
+    """Return a non-cacheable response for a verified Club Dashboard asset."""
+    if not file_path.is_file():
+        raise HTTPException(
+            status_code=404,
+            detail="Club Dashboard asset not found",
+        )
+
+    return _ClubDashboardFileResponse(
+        path=file_path,
+        media_type=(
+            "text/html; charset=utf-8"
+            if file_path.suffix.lower() == ".html"
+            else None
+        ),
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
+@app.get(
+    "/static/club-dashboard/{asset_name}",
+    include_in_schema=False,
+)
+async def serve_club_dashboard_shell_asset(asset_name: str):
+    """Serve an allow-listed shell JavaScript/CSS asset."""
+    if asset_name not in _CLUB_DASHBOARD_ASSET_FILES:
+        raise HTTPException(
+            status_code=404,
+            detail="Club Dashboard asset not found",
+        )
+
+    asset_path = _CLUB_DASHBOARD_STATIC_DIR / asset_name
+    return _club_dashboard_file_response(asset_path)
+
+
+@app.get(
+    "/static/club-dashboard/tabs/{tab_filename}",
+    include_in_schema=False,
+)
+async def serve_club_dashboard_preact_tab(tab_filename: str):
+    """Serve one allow-listed standalone Club Dashboard tab document."""
+    if tab_filename not in _CLUB_DASHBOARD_TAB_FILES:
+        raise HTTPException(
+            status_code=404,
+            detail="Club Dashboard tab not found",
+        )
+
+    tab_path = _CLUB_DASHBOARD_STATIC_DIR / "tabs" / tab_filename
+    return _club_dashboard_file_response(tab_path)
+
+
+# ============================================================
 # ENEJISTATS ADMIN DASHBOARD — PREACT UMD STATIC TAB FILES
 # ============================================================
 #
@@ -3750,6 +3860,8 @@ async def serve_admin_dashboard_preact_tab(tab_name: str):
             "Expires": "0",
         },
     )
+# ============================================================
+
 # ============================================================
 # ROUTER MOUNTS — each sub-module gets a unique alias
 # ============================================================
