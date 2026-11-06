@@ -3699,9 +3699,8 @@ _CLUB_DASHBOARD_STATIC_DIR = (
 
 _CLUB_DASHBOARD_ASSET_FILES = frozenset(
     {
-        "shell.js",
-        "shell.css",
-        "iframe-registry.js",
+        "club-dashboard.js",
+        "club-dashboard.css",
     }
 )
 
@@ -3727,13 +3726,16 @@ def _club_dashboard_file_response(file_path: _ClubDashboardPath):
             detail="Club Dashboard asset not found",
         )
 
+    suffix = file_path.suffix.lower()
+    media_type = {
+        ".html": "text/html; charset=utf-8",
+        ".js": "application/javascript; charset=utf-8",
+        ".css": "text/css; charset=utf-8",
+    }.get(suffix)
+
     return _ClubDashboardFileResponse(
         path=file_path,
-        media_type=(
-            "text/html; charset=utf-8"
-            if file_path.suffix.lower() == ".html"
-            else None
-        ),
+        media_type=media_type,
         headers={
             "Cache-Control": "no-cache, no-store, must-revalidate",
             "Pragma": "no-cache",
@@ -3748,7 +3750,7 @@ def _club_dashboard_file_response(file_path: _ClubDashboardPath):
     include_in_schema=False,
 )
 async def serve_club_dashboard_shell_asset(asset_name: str):
-    """Serve an allow-listed shell JavaScript/CSS asset."""
+    """Serve the consolidated Club Dashboard JavaScript or CSS bundle."""
     if asset_name not in _CLUB_DASHBOARD_ASSET_FILES:
         raise HTTPException(
             status_code=404,
