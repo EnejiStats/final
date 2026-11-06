@@ -3669,96 +3669,36 @@ async def cc_dashboard(request: Request):
 
 
 # ============================================================
-# ENEJISTATS CLUB DASHBOARD — SHELL ASSETS + STANDALONE TAB FILES
+# ENEJISTATS CLUB DASHBOARD — EMBEDDED PREACT UMD TAB FILES
 # ============================================================
 #
-# Canonical shell template:
+# Shell template (served by the existing /club-dashboard route above):
 #     backend/templates/club-dashboard.html
 #
-# Shell assets:
-#     backend/static/club-dashboard/
+# Embedded tab documents (loaded by the shell as iframes):
+#     backend/static/club-dashboard/tabs/club-stats-tab.html
+#     backend/static/club-dashboard/tabs/club-match-centre.html
 #
-# Standalone tab documents:
-#     backend/static/club-dashboard/tabs/
-#
-# The shell is served by the existing /club-dashboard route above.
-# These allow-listed routes serve only the assets included in the
-# Club Dashboard deployment package. Keep this section separate
-# from API router mounts.
+# Only the explicitly allow-listed tab filenames below are served.
 # ============================================================
 
 from pathlib import Path as _ClubDashboardPath
 from fastapi.responses import FileResponse as _ClubDashboardFileResponse
 
 
-_CLUB_DASHBOARD_STATIC_DIR = (
+_CLUB_DASHBOARD_TABS_DIR = (
     _ClubDashboardPath(__file__).resolve().parents[1]
     / "static"
     / "club-dashboard"
-)
-
-_CLUB_DASHBOARD_ASSET_FILES = frozenset(
-    {
-        "club-dashboard.js",
-        "club-dashboard.css",
-    }
+    / "tabs"
 )
 
 _CLUB_DASHBOARD_TAB_FILES = frozenset(
     {
-        "club-profile.html",
-        "club-stats.html",
-        "club-squad.html",
+        "club-stats-tab.html",
         "club-match-centre.html",
-        "club-tokens.html",
-        "club-media.html",
-        "club-notifications.html",
-        "club-account.html",
     }
 )
-
-
-def _club_dashboard_file_response(file_path: _ClubDashboardPath):
-    """Return a non-cacheable response for a verified Club Dashboard asset."""
-    if not file_path.is_file():
-        raise HTTPException(
-            status_code=404,
-            detail="Club Dashboard asset not found",
-        )
-
-    suffix = file_path.suffix.lower()
-    media_type = {
-        ".html": "text/html; charset=utf-8",
-        ".js": "application/javascript; charset=utf-8",
-        ".css": "text/css; charset=utf-8",
-    }.get(suffix)
-
-    return _ClubDashboardFileResponse(
-        path=file_path,
-        media_type=media_type,
-        headers={
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            "Pragma": "no-cache",
-            "Expires": "0",
-            "X-Content-Type-Options": "nosniff",
-        },
-    )
-
-
-@app.get(
-    "/static/club-dashboard/{asset_name}",
-    include_in_schema=False,
-)
-async def serve_club_dashboard_shell_asset(asset_name: str):
-    """Serve the consolidated Club Dashboard JavaScript or CSS bundle."""
-    if asset_name not in _CLUB_DASHBOARD_ASSET_FILES:
-        raise HTTPException(
-            status_code=404,
-            detail="Club Dashboard asset not found",
-        )
-
-    asset_path = _CLUB_DASHBOARD_STATIC_DIR / asset_name
-    return _club_dashboard_file_response(asset_path)
 
 
 @app.get(
@@ -3766,15 +3706,34 @@ async def serve_club_dashboard_shell_asset(asset_name: str):
     include_in_schema=False,
 )
 async def serve_club_dashboard_preact_tab(tab_filename: str):
-    """Serve one allow-listed standalone Club Dashboard tab document."""
+    """Serve one allow-listed Club Dashboard tab document."""
     if tab_filename not in _CLUB_DASHBOARD_TAB_FILES:
         raise HTTPException(
             status_code=404,
             detail="Club Dashboard tab not found",
         )
 
-    tab_path = _CLUB_DASHBOARD_STATIC_DIR / "tabs" / tab_filename
-    return _club_dashboard_file_response(tab_path)
+    tab_path = _CLUB_DASHBOARD_TABS_DIR / tab_filename
+
+    if not tab_path.is_file():
+        raise HTTPException(
+            status_code=404,
+            detail="Club Dashboard tab file missing",
+        )
+
+    return _ClubDashboardFileResponse(
+        path=tab_path,
+        media_type="text/html; charset=utf-8",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+            "X-Content-Type-Options": "nosniff",
+            # Tabs may only be framed by the dashboard on the same origin.
+            "X-Frame-Options": "SAMEORIGIN",
+            "Content-Security-Policy": "frame-ancestors 'self'",
+        },
+    )
 
 
 # ============================================================
@@ -3863,7 +3822,6 @@ async def serve_admin_dashboard_preact_tab(tab_name: str):
         },
     )
 # ============================================================
-
 # ============================================================
 # ROUTER MOUNTS — each sub-module gets a unique alias
 # ============================================================
