@@ -471,9 +471,9 @@ _CLUB_METRIC_ALIASES = {
     ),
     "pass_accuracy": ("pass_accuracy", "passing_accuracy", "pass_accuracy_pct"),
     "key_passes": ("key_passes",),
-    "crosses_total": ("crosses_total", "crosses", "total_crosses"),
+    "crosses_total": ("crosses_total", "crosses", "total_crosses", "crosses_attempted"),
     "crosses_accurate": (
-        "crosses_accurate", "accurate_crosses", "successful_crosses",
+        "crosses_accurate", "accurate_crosses", "successful_crosses", "crosses_completed",
     ),
     "clean_sheets": ("clean_sheets", "clean_sheet"),
     "tackles_total": ("tackles_total", "tackles", "total_tackles"),
@@ -543,7 +543,11 @@ def _team_metrics_from_container(container: Any, side: str) -> Dict[str, Any]:
         for raw_key, value in node.items():
             key = _club_key(raw_key)
             if key in side_names[side]:
-                visit(value, depth + 1)
+                if isinstance(value, dict):
+                    visit(value, depth + 1)
+                elif value is not None:
+                    # Direct home/away numeric pairs are used by the tracker possession snapshot.
+                    result.setdefault("possession", value)
                 continue
             if key in side_names[other_side]:
                 continue
@@ -577,9 +581,9 @@ def _team_metrics_from_container(container: Any, side: str) -> Dict[str, Any]:
                 if group in {"passes", "passing"}:
                     for child_key, child_value in value.items():
                         child = _club_key(child_key)
-                        if child in {"attempted", "attempts", "total", "total_passes"}:
+                        if child in {"attempted", "attempts", "total", "total_passes", "count"}:
                             result["passes_total"] = child_value
-                        elif child in {"completed", "accurate", "successful"}:
+                        elif child in {"completed", "accurate", "successful", "success"}:
                             result["passes_accurate"] = child_value
                         elif child in {"accuracy", "pass_accuracy"}:
                             result["pass_accuracy"] = child_value
@@ -593,17 +597,36 @@ def _team_metrics_from_container(container: Any, side: str) -> Dict[str, Any]:
                 elif group in {"crosses", "crossing"}:
                     for child_key, child_value in value.items():
                         child = _club_key(child_key)
-                        if child in {"total", "attempted", "attempts"}:
+                        if child in {"total", "attempted", "attempts", "count"}:
                             result["crosses_total"] = child_value
-                        elif child in {"accurate", "completed", "successful"}:
+                        elif child in {"accurate", "completed", "successful", "success"}:
                             result["crosses_accurate"] = child_value
                 elif group in {"tackles", "tackling"}:
                     for child_key, child_value in value.items():
                         child = _club_key(child_key)
-                        if child in {"total", "attempted", "attempts"}:
+                        if child in {"total", "attempted", "attempts", "count"}:
                             result["tackles_total"] = child_value
-                        elif child in {"won", "successful"}:
+                        elif child in {"won", "successful", "success"}:
                             result["tackles_won"] = child_value
+                elif group in {"duels", "duel"}:
+                    for child_key, child_value in value.items():
+                        if _club_key(child_key) in {"won", "successful", "success"}:
+                            result["duels_won"] = child_value
+                elif group in {"saves", "goalkeeping"}:
+                    if value.get("count") is not None:
+                        result["saves"] = value["count"]
+                # Stats Tracker stores each club metric as {count, success, failure, types, outcomes}.
+                canonical_metric = _CLUB_ALIAS_TO_METRIC.get(group)
+                if canonical_metric and value.get("count") is not None:
+                    result[canonical_metric] = value["count"]
+                if group in {"passes", "passing"} and isinstance(value.get("success"), (int, float)):
+                    result["passes_accurate"] = value["success"]
+                elif group in {"crosses", "crossing"} and isinstance(value.get("success"), (int, float)):
+                    result["crosses_accurate"] = value["success"]
+                elif group in {"tackles", "tackling"} and isinstance(value.get("success"), (int, float)):
+                    result["tackles_won"] = value["success"]
+                elif group in {"duels", "duel"} and isinstance(value.get("success"), (int, float)):
+                    result["duels_won"] = value["success"]
                 visit(value, depth + 1)
             elif key not in {"events", "players", "lineups", "metadata"}:
                 result[key] = value
@@ -882,6 +905,23 @@ def _tracker_record_matches_club(
     )
 
 
+def _match_report_stats_shape(flat: Dict[str, Any]) -> Dict[str, Any]:
+    """Map club-tracker totals to the grouped metric schema consumed by MatchReport."""
+    groups: Dict[str, Dict[str, Any]] = {"overview": {}, "attack": {}, "passes": {}, "defense": {}, "goalkeeper": {}}
+    mapping = {
+        "overview": {"possession": "possession", "shots_total": "shots_total", "shots_on_target": "shots_on_target", "big_chances": "big_chances"},
+        "attack": {"shots_inside_box": "shots_inside_box", "shots_outside_box": "shots_outside_box", "hit_woodwork": "hit_woodwork", "corners": "corners", "free_kicks": "free_kicks", "offsides": "offsides", "touches_opposition_box": "touches_opposition_box", "headed_goals": "headed_goals", "big_chances_scored": "big_chances_scored", "big_chances_missed": "big_chances_missed"},
+        "passes": {"passes_total": "passes_total", "passes_accurate": "passes_accurate", "long_passes": "long_passes", "long_passes_accurate": "long_passes_accurate", "passes_final_third": "passes_final_third", "passes_final_third_accurate": "passes_final_third_accurate", "crosses_total": "crosses", "crosses_accurate": "crosses_accurate", "expected_assists": "expected_assists", "key_passes": "key_passes", "throw_ins": "throw_ins"},
+        "defense": {"fouls_committed": "fouls_committed", "tackles_total": "tackles", "tackles_won": "tackles_won", "duels_won": "duels_won", "clearances": "clearances", "interceptions": "interceptions", "errors_leading_to_shot": "errors_leading_to_shot", "errors_leading_to_goal": "errors_leading_to_goal", "yellow_cards": "yellow_cards", "red_cards": "red_cards"},
+        "goalkeeper": {"saves": "saves", "xgot_faced": "xgot_faced", "goals_prevented": "goals_prevented", "goal_kicks": "goal_kicks"},
+    }
+    for group, fields in mapping.items():
+        for source_key, target_key in fields.items():
+            if flat.get(source_key) is not None:
+                groups[group][target_key] = flat[source_key]
+    return {key: value for key, value in groups.items() if value}
+
+
 def _tracker_match_document(
     source: dict, club: dict, uid: str, request_lookup: Dict[str, dict]
 ) -> dict:
@@ -1025,6 +1065,15 @@ def _tracker_match_document(
     elif side == "away":
         away_team_id = away_team_id or club_id
 
+    home_report_stats = _match_report_stats_shape(home_stats)
+    away_report_stats = _match_report_stats_shape(away_stats)
+    result_code = ""
+    if side in {"home", "away"} and home_score is not None and away_score is not None:
+        hs, aws = _numeric_metric(home_score), _numeric_metric(away_score)
+        if hs is not None and aws is not None:
+            own, opponent = (hs, aws) if side == "home" else (aws, hs)
+            result_code = "W" if own > opponent else "L" if own < opponent else "D"
+
     result = dict(record)
     result.update({
         "_id": str(record.get("_id") or record.get("match_id") or ""),
@@ -1048,10 +1097,11 @@ def _tracker_match_document(
         "away_team_id": away_team_id,
         "home_club_id": home_team_id if side == "home" else record.get("home_club_id"),
         "away_club_id": away_team_id if side == "away" else record.get("away_club_id"),
-        "home_stats": home_stats,
-        "away_stats": away_stats,
-        "team_stats": {"home": home_stats, "away": away_stats},
+        "home_stats": home_report_stats,
+        "away_stats": away_report_stats,
+        "team_stats": {"home": home_report_stats, "away": away_report_stats},
         "club_stats": (home_stats if side == "home" else away_stats if side == "away" else {}),
+        "result": result_code,
         "competition": pick(raw_match.get("competition"), record.get("competition"), request_doc.get("competition"), default=""),
         "venue": pick(raw_match.get("venue_name"), raw_match.get("venue"), record.get("venue"), default=""),
         "status": record.get("status") or "submitted",
@@ -1640,6 +1690,128 @@ async def get_club_matches(
     except Exception as e:
         logger.error(f"get_club_matches error: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+async def _load_tracker_match_report(match_id: str) -> dict:
+    """Read a Stats Tracker club submission and adapt only persisted fields for MatchReport."""
+    if stat_submissions_collection is None:
+        raise HTTPException(status_code=503, detail="Stats Tracker submissions are unavailable")
+    value = str(match_id or "").strip()
+    if not value:
+        raise HTTPException(status_code=400, detail="A match id is required")
+    clauses: List[dict] = [
+        {"match_id": value}, {"assignment_id": value}, {"assignment_ids": value},
+        {"match.match_id": value}, {"match.id": value},
+    ]
+    if ObjectId.is_valid(value):
+        clauses.insert(0, {"_id": ObjectId(value)})
+    record = await stat_submissions_collection.find_one({"$or": clauses})
+    if not record:
+        raise HTTPException(status_code=404, detail="No saved Stats Tracker report exists for this match")
+    entity = _club_key(record.get("entity_type") or record.get("tracking_type"))
+    if entity and entity not in {"club", "club_tracking", "club_match"}:
+        raise HTTPException(status_code=404, detail="No club match report exists for this match")
+
+    raw_match = record.get("match") if isinstance(record.get("match"), dict) else {}
+    tracking = record.get("club_tracking") if isinstance(record.get("club_tracking"), dict) else {}
+    events = tracking.get("events") if isinstance(tracking.get("events"), list) else []
+    if not events and stat_events_collection is not None and record.get("_id") is not None:
+        events = await stat_events_collection.find({
+            "submission_id": record["_id"], "entity_type": "club"
+        }).sort("event_order", 1).limit(10000).to_list(length=10000)
+    events = [dict(event) for event in events if isinstance(event, dict)]
+
+    def first(*values):
+        for item in values:
+            if item is not None and item != "":
+                return item
+        return None
+
+    home = first(raw_match.get("home_team_name"), raw_match.get("home_team"), raw_match.get("homeTeam"), record.get("home_team"), record.get("home_team_name"))
+    away = first(raw_match.get("away_team_name"), raw_match.get("away_team"), raw_match.get("awayTeam"), record.get("away_team"), record.get("away_team_name"))
+    score = raw_match.get("score") if isinstance(raw_match.get("score"), dict) else {}
+    home_score = first(raw_match.get("home_score"), raw_match.get("homeScore"), score.get("home"), record.get("home_score"))
+    away_score = first(raw_match.get("away_score"), raw_match.get("awayScore"), score.get("away"), record.get("away_score"))
+
+    home_raw: Dict[str, Any] = {}
+    away_raw: Dict[str, Any] = {}
+    metric_sources = [tracking, tracking.get("stats"), tracking.get("derived"), tracking.get("possession"), raw_match.get("team_stats"), raw_match.get("teamStats"), record.get("team_stats"), record.get("teamStats"), record.get("home_stats"), record.get("away_stats")]
+    for source in metric_sources:
+        home_raw.update(_team_metrics_from_container(source, "home"))
+        away_raw.update(_team_metrics_from_container(source, "away"))
+    home_stats = _canonical_club_metrics(home_raw)
+    away_stats = _canonical_club_metrics(away_raw)
+    for side, stats in (("home", home_stats), ("away", away_stats)):
+        for key, count in _club_event_metrics(events, side).items():
+            stats.setdefault(key, count)
+    if home_score is not None and away_score is not None:
+        h, a = _numeric_metric(home_score), _numeric_metric(away_score)
+        if h is not None and a is not None:
+            home_stats.setdefault("goals_for", h); home_stats.setdefault("goals_against", a)
+            away_stats.setdefault("goals_for", a); away_stats.setdefault("goals_against", h)
+
+    def report_stat_shape(flat: Dict[str, Any]) -> Dict[str, Any]:
+        """Translate persisted club metric keys into MatchReport's grouped schema."""
+        groups: Dict[str, Dict[str, Any]] = {"overview": {}, "attack": {}, "passes": {}, "defense": {}, "goalkeeper": {}}
+        mapping = {
+            "overview": {"possession": "possession", "shots_total": "shots_total", "shots_on_target": "shots_on_target", "big_chances": "big_chances"},
+            "attack": {"shots_inside_box": "shots_inside_box", "shots_outside_box": "shots_outside_box", "hit_woodwork": "hit_woodwork", "corners": "corners", "free_kicks": "free_kicks", "offsides": "offsides", "touches_opposition_box": "touches_opposition_box", "headed_goals": "headed_goals", "big_chances_scored": "big_chances_scored", "big_chances_missed": "big_chances_missed"},
+            "passes": {"passes_total": "passes_total", "passes_accurate": "passes_accurate", "long_passes": "long_passes", "long_passes_accurate": "long_passes_accurate", "passes_final_third": "passes_final_third", "passes_final_third_accurate": "passes_final_third_accurate", "crosses_total": "crosses", "crosses_accurate": "crosses_accurate", "expected_assists": "expected_assists", "key_passes": "key_passes", "throw_ins": "throw_ins"},
+            "defense": {"fouls_committed": "fouls_committed", "tackles_total": "tackles", "tackles_won": "tackles_won", "duels_won": "duels_won", "clearances": "clearances", "interceptions": "interceptions", "errors_leading_to_shot": "errors_leading_to_shot", "errors_leading_to_goal": "errors_leading_to_goal", "yellow_cards": "yellow_cards", "red_cards": "red_cards"},
+            "goalkeeper": {"saves": "saves", "xgot_faced": "xgot_faced", "goals_prevented": "goals_prevented", "goal_kicks": "goal_kicks"},
+        }
+        for group, fields in mapping.items():
+            for source_key, target_key in fields.items():
+                if flat.get(source_key) is not None:
+                    groups[group][target_key] = flat[source_key]
+        return {key: value for key, value in groups.items() if value}
+
+    report_match = {
+        "home": home, "away": away, "home_team": home, "away_team": away,
+        "home_score": home_score, "away_score": away_score,
+        "score": {"home": home_score, "away": away_score},
+        "date": first(raw_match.get("match_date"), raw_match.get("date"), record.get("match_date")),
+        "match_date": first(raw_match.get("match_date"), raw_match.get("date"), record.get("match_date")),
+        "time": first(raw_match.get("match_time"), record.get("match_time")),
+        "competition": first(raw_match.get("competition"), record.get("competition")),
+        "venue": first(raw_match.get("venue_name"), raw_match.get("venue"), record.get("venue")),
+        "status": record.get("status"),
+    }
+    result = {
+        "available": bool(events or home_stats or away_stats or home is not None or away is not None),
+        "source": "stats_tracker", "updated_at": record.get("submitted_at") or record.get("created_at"),
+        "match": report_match, "home_team": home, "away_team": away,
+        "home_score": home_score, "away_score": away_score,
+        "home_stats": report_stat_shape(home_stats), "away_stats": report_stat_shape(away_stats),
+        "team_stats": {"home": report_stat_shape(home_stats), "away": report_stat_shape(away_stats)},
+        "events": _tracker_timeline_events(events),
+        "club_tracking": {"events": events},
+    }
+    # Include optional sections only when they were actually persisted.
+    lineups = first(raw_match.get("lineups"), record.get("lineups"))
+    if isinstance(lineups, dict) and lineups:
+        result["lineups"] = lineups
+    players = first(record.get("players"), raw_match.get("players"), record.get("player_stats"))
+    if isinstance(players, (dict, list)) and players:
+        result["players"] = players
+    if MongoSerializer is not None:
+        result = MongoSerializer.serialize_document(result)
+    return result
+
+
+@router.get("/public/matches/{match_id}/report")
+@router.get("/matches/{match_id}/report")
+@router.get("/match-report/{match_id}")
+async def get_stats_tracker_match_report(match_id: str):
+    """Public read-only report adapter for the canonical Stats Tracker submission."""
+    try:
+        return JSONResponse(content=await _load_tracker_match_report(match_id))
+    except HTTPException:
+        raise
+    except Exception as exc:
+        if logger:
+            logger.exception("get_stats_tracker_match_report failed: %s", exc)
+        raise HTTPException(status_code=500, detail="Unable to load match report") from exc
 
 
 # ============================================================
