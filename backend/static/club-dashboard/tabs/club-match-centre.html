@@ -203,7 +203,8 @@
     .compare-line { display: grid; grid-template-columns: 60px 1fr 60px; align-items: center; gap: 0.5rem; margin-bottom: 3px; }
     .compare-bar { display: flex; height: 5px; border-radius: 3px; overflow: hidden; gap: 1px; }
 
-    @media print { html, body { overflow: visible; } }
+    .no-print{display:flex}
+    @media print { html, body { overflow:visible!important;background:#fff!important; } body *{visibility:hidden!important} [data-active-match-view],[data-active-match-view] *{visibility:visible!important} [data-active-match-view]{position:absolute;left:0;top:0;width:100%;padding:12px;background:#fff} .no-print,.tabs,.filter-bar,.pagination{display:none!important} }
     @media (max-width: 768px) {
       .lineup-grid, .g3 { grid-template-columns: 1fr; }
     }
@@ -788,61 +789,21 @@
           </div>`;
       }
 
-      function MatchStatsCompare({ homeStats, awayStats, homeName, awayName, metricBreakdown }) {
-        const hs = homeStats || {}, as = awayStats || {};
-        const hasValue = (v) => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
-        const available = MATCH_COMPARE_STATS.filter((metric) => hasValue(hs[metric.key]) || hasValue(as[metric.key]));
-        const sides = [
-          { key: 'home', label: homeName || 'Home', data: metricBreakdown?.home || {} },
-          { key: 'away', label: awayName || 'Away', data: metricBreakdown?.away || {} },
-        ];
-        const breakdownRows = sides.flatMap((side) => Object.values(side.data).map((item) => ({ ...item, side: side.label })));
-        if (!available.length && !breakdownRows.length) return html`<${EmptyState} icon="fa-chart-bar" text="No recorded metric statistics are available for this match" />`;
-        const fmt = (value, unit) => !hasValue(value) ? '—' : `${Number(value).toLocaleString()}${unit === '%' ? '%' : ''}`;
-        return html`
-          <div>
-            <div class="compare-head">
-              <span style="text-align:right;color:var(--primary);">${homeName}</span>
-              <span style="width:100px;"></span>
-              <span style="color:var(--danger);">${awayName}</span>
-            </div>
-            ${available.map((metric) => {
-              const hv = hasValue(hs[metric.key]) ? Number(hs[metric.key]) : null;
-              const av = hasValue(as[metric.key]) ? Number(as[metric.key]) : null;
-              const total = (hv || 0) + (av || 0);
-              const hPct = total > 0 ? ((hv || 0) / total) * 100 : 50;
-              return html`
-                <div key=${metric.key} class="compare-row">
-                  <div class="compare-line">
-                    <span style="font-weight:900;color:var(--primary);text-align:right;font-size:0.85rem;">${fmt(hv, metric.unit)}</span>
-                    <span style="font-size:0.72rem;font-weight:700;color:#374151;text-align:center;">${metric.label}</span>
-                    <span style="font-weight:900;color:var(--danger);font-size:0.85rem;">${fmt(av, metric.unit)}</span>
-                  </div>
-                  <div class="compare-bar">
-                    <div style=${{ width: `${hPct}%`, background: 'var(--primary)' }}></div>
-                    <div style=${{ width: `${100 - hPct}%`, background: 'var(--danger)' }}></div>
-                  </div>
-                </div>`;
-            })}
-            ${breakdownRows.length ? html`
-              <details open style="margin-top:1rem;border:1px solid var(--border);border-radius:10px;padding:0.65rem 0.8rem;">
-                <summary style="cursor:pointer;color:var(--primary);font-weight:800;font-size:0.8rem;">Complete recorded metric breakdown and subtypes</summary>
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:0.65rem;margin-top:0.7rem;">
-                  ${sides.map((side) => html`
-                    <section key=${side.key} style="border:1px solid var(--border);border-radius:8px;padding:0.6rem;min-width:0;">
-                      <strong style=${{display:'block',marginBottom:'0.45rem',color:side.key==='home'?'var(--primary)':'var(--danger)'}}>${side.label}</strong>
-                      ${Object.values(side.data).length ? Object.values(side.data).map((item) => html`
-                        <div key=${item.key} style="padding:0.4rem 0;border-top:1px solid var(--border);">
-                          <div style="display:flex;justify-content:space-between;gap:0.5rem;font-size:0.78rem;"><b>${item.label || item.key}</b><b>${item.count}</b></div>
-                          ${Object.keys(item.outcomes || {}).length ? html`<div style="font-size:0.7rem;color:var(--text-light);margin-top:0.2rem;">Outcomes: ${Object.entries(item.outcomes).map(([k,v])=>`${k.replace(/_/g,' ')} ${v}`).join(' · ')}</div>` : null}
-                          ${Object.keys(item.types || {}).length ? html`<div style="font-size:0.7rem;color:var(--text-light);margin-top:0.15rem;">Types: ${Object.entries(item.types).map(([k,v])=>`${k.replace(/_/g,' ')} ${v}`).join(' · ')}</div>` : null}
-                          ${(item.events || []).length ? html`<div style="font-size:0.68rem;color:var(--text-light);margin-top:0.15rem;">${item.events.map(ev=>[ev.match_clock,ev.outcome_label||ev.outcome,ev.type_label||ev.type,ev.detail_label||ev.detail].filter(Boolean).join(' · ')).filter(Boolean).join(' | ')}</div>` : null}
-                        </div>`)
-                      : html`<span style="font-size:0.72rem;color:var(--text-light);">No events recorded</span>`}
-                    </section>`)}
-                </div>
-              </details>` : null}
-          </div>`;
+      function MatchStatsCompare({ homeStats, awayStats, homeName, awayName }) {
+        const [period,setPeriod]=useState('overview');
+        const selectStats=(raw)=>{const obj=raw||{};if(period==='overview')return obj;if(period==='time_bands')return obj.time_bands||obj.time_band||obj.timeBands||obj.statistics?.time_bands||{};return obj[period]||obj.periods?.[period]||obj.halves?.[period]||obj.overview?.[period]||obj.statistics?.[period]||{};};
+        const hs=selectStats(homeStats),as=selectStats(awayStats);
+        const hasValue=(v)=>v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v));
+        const bandRows=period==='time_bands'?(()=>{const labels=[...new Set([...Object.keys(hs||{}),...Object.keys(as||{})])];return labels.flatMap(band=>MATCH_COMPARE_STATS.map(metric=>({key:`${band}-${metric.key}`,sourceKey:metric.key,label:`${String(band).replace(/_/g,' ')} · ${metric.label}`,unit:metric.unit,home:hs?.[band]?.[metric.key],away:as?.[band]?.[metric.key]})).filter(row=>hasValue(row.home)||hasValue(row.away)))})():null;
+        const available=period==='time_bands'?bandRows:MATCH_COMPARE_STATS.filter(metric=>hasValue(hs[metric.key])||hasValue(as[metric.key])).map(metric=>({...metric,home:hs[metric.key],away:as[metric.key]}));
+        const fmt=(value,unit)=>`${Number(hasValue(value)?value:0).toLocaleString()}${unit==='%'?'%':''}`;
+        return html`<div>
+          <div class="row" style="margin-bottom:.65rem;">
+            ${[['overview','Full Match'],['first_half','First Half'],['second_half','Second Half'],['time_bands','Time Bands']].map(([key,label])=>html`<button class=${clsx('filter-btn',period===key&&'active')} onClick=${()=>setPeriod(key)}>${label}</button>`)}
+          </div>
+          <div class="compare-head"><span style="text-align:right;color:var(--primary);">${homeName}</span><span></span><span style="color:var(--danger);">${awayName}</span></div>
+          ${available.length?available.map(metric=>{const hv=hasValue(metric.home)?Number(metric.home):0,av=hasValue(metric.away)?Number(metric.away):0,total=hv+av,hPct=total>0?hv/total*100:50;return html`<div key=${metric.key} class="compare-row"><div class="compare-line"><span style="font-weight:900;color:var(--primary);text-align:right;font-size:.85rem;">${fmt(hv,metric.unit)}</span><span style="font-size:.72rem;font-weight:700;color:#374151;text-align:center;">${metric.label}</span><span style="font-weight:900;color:var(--danger);font-size:.85rem;">${fmt(av,metric.unit)}</span></div><div class="compare-bar"><div style=${{width:`${hPct}%`,background:'var(--primary)'}}></div><div style=${{width:`${100-hPct}%`,background:'var(--danger)'}}></div></div></div>`}):html`<${EmptyState} icon="fa-chart-bar" text=${`No ${period==='overview'?'full-match':period==='time_bands'?'time-band':period.replace('_',' ')} metric data recorded`} />`}
+        </div>`;
       }
 
       function MatchSummary({ match: m }) {
@@ -898,11 +859,14 @@
               <div style="border-top:1px solid var(--border);">
                 <${Tabs} compact tabs=${MATCH_DETAIL_TABS} active=${tab} onChange=${onTab} />
                 <div style="padding:0.75rem;" onClick=${(e) => e.stopPropagation()}>
+                  ${['stats','lineups'].includes(tab) ? html`<div class="row no-print" style="justify-content:flex-end;margin-bottom:.6rem;"><button class="btn btn-outline btn-sm" onClick=${()=>{const node=document.querySelector('[data-active-match-view]');if(node)window.print()}}><i class="fas fa-print"></i> Print active view</button><button class="btn btn-primary btn-sm" onClick=${async()=>{const lines=[`EnejiStats | ${m.home_team||'Home'} ${m.home_score??0} - ${m.away_score??0} ${m.away_team||'Away'}`,tab==='stats'?'Match Statistics':'Match Lineup',`Date: ${fmtDate(m.date||m.match_date)}`,`Competition: ${m.competition||'—'}`];if(tab==='stats'){const a=m.home_stats||{},b=m.away_stats||{};MATCH_COMPARE_STATS.forEach(x=>{if((a[x.key]!==undefined&&a[x.key]!==null&&a[x.key]!=='')||(b[x.key]!==undefined&&b[x.key]!==null&&b[x.key]!==''))lines.push(`${x.label}: ${a[x.key]??0} | ${b[x.key]??0}`)})}else{['home','away'].forEach(side=>{lines.push(`${side.toUpperCase()}:`);(m.lineups?.[side]?.players||[]).forEach(p=>lines.push(`${p.number||''} ${p.name||'Player'} ${p.position||''} ${p.rating?'Rating '+p.rating:''}`))})}const canvas=document.createElement('canvas');canvas.width=1400;canvas.height=Math.max(500,120+lines.length*34);const c=canvas.getContext('2d');c.fillStyle='#f0f4f8';c.fillRect(0,0,canvas.width,canvas.height);c.fillStyle='#004aad';c.fillRect(0,0,canvas.width,95);c.fillStyle='#fff';c.font='bold 30px Arial';c.fillText('EnejiStats | Club Match Centre',35,42);c.font='17px Arial';c.fillText(new Date().toLocaleString(),35,72);c.fillStyle='#1e293b';c.font='bold 22px Arial';lines.forEach((line,i)=>c.fillText(String(line).slice(0,110),40,140+i*34));const blob=await new Promise(r=>canvas.toBlob(r,'image/png'));const file=new File([blob],'enejistats-match-view.png',{type:'image/png'});if(navigator.share&&navigator.canShare?.({files:[file]})){await navigator.share({files:[file],title:'EnejiStats Match View'})}else{const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='enejistats-match-view.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),1200)}}}><i class="fas fa-image"></i> PNG / Share</button></div>` : null}
+                  <div data-active-match-view=${tab}>
                   ${tab === 'events' ? html`<${MatchEventsTimeline} events=${m.events} ...${common} homePhoto=${homePhoto} awayPhoto=${awayPhoto} />` : null}
                   ${tab === 'summary' ? html`<${MatchSummary} match=${m} />` : null}
-                  ${tab === 'stats' ? html`<${MatchStatsCompare} homeStats=${m.home_stats} awayStats=${m.away_stats} metricBreakdown=${m.club_metric_breakdown} ...${common} />` : null}
+                  ${tab === 'stats' ? html`<${MatchStatsCompare} homeStats=${m.home_stats} awayStats=${m.away_stats} ...${common} />` : null}
                   ${tab === 'lineups' ? html`<${MatchLineups} lineups=${m.lineups} ...${common} homePhoto=${homePhoto} awayPhoto=${awayPhoto} />` : null}
                   ${tab === 'player_stats' ? html`<${MatchPlayerStats} lineups=${m.lineups} ...${common} />` : null}
+                  </div>
                 </div>
               </div>` : null}
           </div>`;

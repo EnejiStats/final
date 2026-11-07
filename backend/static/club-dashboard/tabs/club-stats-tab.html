@@ -133,6 +133,18 @@ const statsFor=(m,side)=>{
   });
   return {...flat,...raw};
 };
+const periodStatsFor=(m,side,period)=>{
+  const base=statsFor(m,side);
+  const nested=base?.[period]||base?.periods?.[period]||base?.halves?.[period]||base?.overview?.[period]||m?.[side+'_stats']?.[period]||m?.[side+'_stats']?.periods?.[period]||m?.[side+'_stats']?.halves?.[period]||m?.statistics?.[side]?.[period]||{};
+  if(!nested||typeof nested!=='object')return {};
+  const flat={};Object.entries(nested).forEach(([k,v])=>{if(v&&typeof v==='object'&&!Array.isArray(v))Object.assign(flat,v)});
+  return {...flat,...nested};
+};
+const timeBandRows=(m,side)=>{
+  const raw=m?.[side+'_stats']?.time_bands||m?.[side+'_stats']?.time_band||m?.[side+'_stats']?.timeBands||m?.statistics?.[side]?.time_bands||m?.time_bands?.[side]||{};
+  if(Array.isArray(raw))return raw.map((x,i)=>({label:x.label||x.band||x.time_band||`Band ${i+1}`,values:x.stats||x.metrics||x}));
+  return Object.entries(raw||{}).filter(([,v])=>v&&typeof v==='object').map(([label,values])=>({label:label.replace(/_/g,' '),values}));
+};
 const homeName=m=>m.home_team||m.homeTeam||'Home';
 const awayName=m=>m.away_team||m.awayTeam||'Away';
 const homeScore=m=>m.home_score??m.score?.home??m.score?.home_score;
@@ -225,17 +237,20 @@ function Content(p){
     ];
   },[matches,club,clubName,summary,season]);
 
-  const exportPng=()=>{
-    const canvas=document.createElement('canvas');canvas.width=1200;canvas.height=900;const c=canvas.getContext('2d');
+  const exportPng=async(share=false)=>{
+    const canvas=document.createElement('canvas');canvas.width=1200;canvas.height=1200;const c=canvas.getContext('2d');
     c.fillStyle='#f0f4f8';c.fillRect(0,0,1200,900);c.fillStyle='#004aad';c.fillRect(0,0,1200,100);
     c.fillStyle='#fff';c.font='bold 34px Arial';c.fillText('EnejiStats | '+(clubName||'Club')+' — Club Stats',40,58);
     c.font='16px Arial';c.fillText('Generated '+new Date().toLocaleString(),40,84);
     let rows;
     if(view==='summary'&&mode==='summary')rows=summaryCards;
     else if(view==='summary')rows=SCHEMA.flatMap(g=>g.fields.filter(([k])=>totals[k]!=null).map(([k,l])=>[l,fmt(totals[k])+(PCT_KEYS.includes(k)?'%':'')]));
-    else rows=filtered.slice(0,12).map(m=>[homeName(m)+' '+(homeScore(m)??'—')+' - '+(awayScore(m)??'—')+' '+awayName(m),m.competition||fmtDate(dateOf(m))||'']);
-    rows.slice(0,18).forEach((r,i)=>{const x=40+(i%3)*390,y=140+Math.floor(i/3)*125;c.fillStyle='#fff';c.fillRect(x,y,360,95);c.fillStyle='#004aad';c.font='bold 16px Arial';c.fillText(String(r[0]).slice(0,36),x+14,y+28);c.font='bold 28px Arial';c.fillText(String(r[1]??'—'),x+14,y+68)});
-    const a=document.createElement('a');a.download='club-stats-'+String(clubName||'club').toLowerCase().replace(/[^a-z0-9]+/g,'-')+'.png';a.href=canvas.toDataURL('image/png');a.click();
+    else if(current){rows=[[homeName(current)+' '+(homeScore(current)??0)+' - '+(awayScore(current)??0)+' '+awayName(current),current.competition||fmtDate(dateOf(current))||'']];const hs=statsFor(current,'home'),as=statsFor(current,'away');COMPARE.forEach(([k,label,unit])=>{if(n(hs[k])!==null||n(as[k])!==null)rows.push([label,`${fmt(n(hs[k])===null?0:n(hs[k]))}${unit} | ${fmt(n(as[k])===null?0:n(as[k]))}${unit}`])});['first_half','second_half'].forEach(period=>{const h=periodStatsFor(current,'home',period),a=periodStatsFor(current,'away',period);COMPARE.forEach(([k,label,unit])=>{if(n(h[k])!==null||n(a[k])!==null)rows.push([`${period==='first_half'?'1H':'2H'} ${label}`,`${fmt(n(h[k])===null?0:n(h[k]))}${unit} | ${fmt(n(a[k])===null?0:n(a[k]))}${unit}`])})})}else rows=[];
+    canvas.height=Math.max(500,150+Math.ceil(rows.length/3)*125);c.fillStyle='#f0f4f8';c.fillRect(0,0,1200,canvas.height);c.fillStyle='#004aad';c.fillRect(0,0,1200,100);c.fillStyle='#fff';c.font='bold 34px Arial';c.fillText('EnejiStats | '+(clubName||'Club')+' — Club Stats',40,58);c.font='16px Arial';c.fillText('Generated '+new Date().toLocaleString(),40,84);
+    rows.forEach((r,i)=>{const x=40+(i%3)*390,y=140+Math.floor(i/3)*125;c.fillStyle='#fff';c.fillRect(x,y,360,95);c.fillStyle='#004aad';c.font='bold 16px Arial';c.fillText(String(r[0]).slice(0,36),x+14,y+28);c.font='bold 22px Arial';c.fillText(String(r[1]??0).slice(0,28),x+14,y+68)});
+    const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
+    if(share&&navigator.share&&navigator.canShare){const file=new File([blob],'club-stats.png',{type:'image/png'});if(navigator.canShare({files:[file]})){await navigator.share({files:[file],title:(clubName||'Club')+' Stats'});return}}
+    const a=document.createElement('a');a.download='club-stats-'+String(clubName||'club').toLowerCase().replace(/[^a-z0-9]+/g,'-')+'.png';a.href=URL.createObjectURL(blob);a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1200);
   };
 
   const matchPanel=()=>{
@@ -257,24 +272,14 @@ function Content(p){
       <div class="card-title"><span><i class="fa-solid fa-chart-column"></i> Match Statistics</span></div>
       ${has?COMPARE.filter(([k])=>n(hs[k])!==null||n(as[k])!==null).map(([k,label,unit])=>{
         const hv=n(hs[k]),av=n(as[k]),total=(hv||0)+(av||0),hp=total?((hv||0)/total*100):50,ap=total?((av||0)/total*100):50;
-        return html`<div class="compare-row" key=${k}><div class="compare-label"><b>${hv===null?'—':fmt(hv)+unit}</b><span>${label}</span><b>${av===null?'—':fmt(av)+unit}</b></div><div class="bar"><span style=${{width:hp+'%'}}></span><span style=${{width:ap+'%'}}></span></div></div>`;
+        return html`<div class="compare-row" key=${k}><div class="compare-label"><b>${fmt(hv===null?0:hv)+unit}</b><span>${label}</span><b>${fmt(av===null?0:av)+unit}</b></div><div class="bar"><span style=${{width:hp+'%'}}></span><span style=${{width:ap+'%'}}></span></div></div>`;
       }):html`<div class="empty">No recorded home/away statistics are attached to this match.</div>`}
-      ${current.club_metric_breakdown?html`<details open style="margin-top:14px;border:1px solid var(--border);border-radius:8px;padding:10px;">
-        <summary style="cursor:pointer;color:var(--primary);font-weight:900;">Complete submitted metric records and subtypes</summary>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:10px;">
-          ${[['home',homeName(current)],['away',awayName(current)]].map(([side,name])=>{
-            const entries=Object.values(current.club_metric_breakdown?.[side]||{});
-            return html`<section style="border:1px solid var(--border);border-radius:7px;padding:9px;min-width:0;"><b style=${{display:'block',marginBottom:'6px',color:side==='home'?'var(--primary)':'var(--danger)'}}>${name}</b>
-              ${entries.length?entries.map(item=>html`<div key=${item.key} style="padding:6px 0;border-top:1px solid #f0f4f8;">
-                <div style="display:flex;justify-content:space-between;gap:8px;font-size:.75rem;"><b>${item.label||item.key}</b><b>${item.count}</b></div>
-                ${Object.keys(item.outcomes||{}).length?html`<small style="display:block;color:var(--muted);">Outcomes: ${Object.entries(item.outcomes).map(([k,v])=>`${k.replace(/_/g,' ')}: ${v}`).join(' · ')}</small>`:null}
-                ${Object.keys(item.types||{}).length?html`<small style="display:block;color:var(--muted);">Types: ${Object.entries(item.types).map(([k,v])=>`${k.replace(/_/g,' ')}: ${v}`).join(' · ')}</small>`:null}
-                ${(item.events||[]).map((ev,i)=>html`<small key=${i} style="display:block;color:var(--muted);">${[ev.match_clock,ev.outcome_label||ev.outcome,ev.type_label||ev.type,ev.detail_label||ev.detail].filter(Boolean).join(' · ')||'Recorded event'}</small>`)}
-              </div>`):html`<small style="color:var(--muted);">No events recorded</small>`}
-            </section>`;
-          })}
-        </div>
-      </details>`:null}
+      ${['first_half','second_half'].map((period)=>{
+        const ph=periodStatsFor(current,'home',period),pa=periodStatsFor(current,'away',period);
+        const rows=COMPARE.filter(([k])=>n(ph[k])!==null||n(pa[k])!==null);
+        return rows.length?html`<section style="margin-top:14px;"><div class="card-title"><span><i class="fa-solid fa-clock"></i> ${period==='first_half'?'First Half':'Second Half'}</span></div>${rows.map(([k,label,unit])=>html`<div class="compare-row" key=${period+'-'+k}><div class="compare-label"><b>${fmt(n(ph[k])===null?0:n(ph[k]))+unit}</b><span>${label}</span><b>${fmt(n(pa[k])===null?0:n(pa[k]))+unit}</b></div></div>`)}</section>`:null;
+      })}
+      ${(()=>{const hb=timeBandRows(current,'home'),ab=timeBandRows(current,'away');const bands=[...new Set([...hb.map(x=>x.label),...ab.map(x=>x.label)])];return bands.length?html`<section style="margin-top:14px;"><div class="card-title"><span><i class="fa-solid fa-stopwatch"></i> Time-band breakdown</span></div>${bands.map(label=>{const h=hb.find(x=>x.label===label)?.values||{},a=ab.find(x=>x.label===label)?.values||{};const keys=[...new Set([...Object.keys(h),...Object.keys(a)])].filter(k=>n(h[k])!==null||n(a[k])!==null);return html`<div style="margin-bottom:8px;"><b>${label}</b>${keys.map(k=>html`<div class="compare-row"><div class="compare-label"><b>${fmt(n(h[k])===null?0:n(h[k]))}</b><span>${k.replace(/_/g,' ')}</span><b>${fmt(n(a[k])===null?0:n(a[k]))}</b></div></div>`)}</div>`})}</section>`:null})()}
     </article>`;
   };
 
@@ -285,7 +290,7 @@ function Content(p){
       ${updated?html`<span class="pill">Updated ${updated.toLocaleTimeString()}</span>`:null}
       <div class="actions">
         <button class="btn" onClick=${()=>window.print()}><i class="fa-solid fa-print"></i> Print Stats</button>
-        <button class="btn primary" onClick=${exportPng}><i class="fa-solid fa-image"></i> Download PNG</button>
+        <button class="btn primary" onClick=${exportPng}><i class="fa-solid fa-image"></i> Download PNG</button><button class="btn" onClick=${()=>exportPng(true)}><i class="fa-solid fa-share-nodes"></i> Share</button>
         <button class="btn" onClick=${onRefresh} disabled=${refreshing}><i class=${'fa-solid fa-rotate'+(refreshing?' fa-spin':'')}></i> Refresh</button>
       </div>
     </div>
