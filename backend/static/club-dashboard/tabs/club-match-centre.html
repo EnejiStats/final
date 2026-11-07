@@ -294,34 +294,37 @@
         ['match-requests', 'Match Requests', 'fa-handshake'],
       ];
       const MATCH_DETAIL_TABS = [
-        ['events', 'Events'], ['summary', 'Summary'], ['stats', 'Club Tracker Stats'], ['lineups', 'Lineups'], ['player_stats', 'Player Stats'],
+        ['events', 'Events'], ['summary', 'Summary'], ['stats', 'Stats'], ['lineups', 'Lineups'], ['player_stats', 'Player Stats'],
       ];
       const RESULT_FILTERS = [['all', 'All'], ['W', 'Wins'], ['D', 'Draws'], ['L', 'Losses']];
 
-      // Canonical team metrics mirrored from ClubStatsTracker in stats-tracker(5).html.
-      // Only tracker metric buttons and their recorded outcome/type choices are represented here.
-      const CLUB_TRACKER_SCHEMA = [
-        {id:'attack',title:'ATTACK',metrics:[
-          {key:'passes',label:'Passes',types:[['short_medium','Short / Medium'],['long','Long'],['through_ball','Through Ball']],outcomes:[['successful','Successful'],['unsuccessful','Unsuccessful']]},
-          {key:'crosses',label:'Crosses',types:[['open_play','Open Play'],['cutback','Cutback'],['set_piece','Set Piece']],outcomes:[['successful','Successful'],['unsuccessful','Unsuccessful']]},
-          {key:'goals',label:'Goals',types:[['header','Header'],['shot','Shot'],['penalty','Penalty']]},
-          {key:'assists',label:'Assists',types:[['open_play','Open Play'],['set_piece','Set Piece'],['transition','Transition']]},
-          {key:'shots',label:'Shots',types:[['foot','Foot'],['header','Header'],['set_piece','Set Piece']],outcomes:[['on_target','On Target'],['off_target','Off Target'],['blocked','Blocked'],['woodwork','Woodwork']]},
-          {key:'corners',label:'Corner Kicks',types:[['corner_kick','Corner Kick']]},
-        ]},
-        {id:'defence',title:'DEFENCE',metrics:[
-          {key:'interceptions',label:'Interceptions',types:[['pass','Pass'],['cross','Cross'],['shot','Shot / Pass Block']]},
-          {key:'duels',label:'Duels',types:[['aerial','Aerial']]},
-          {key:'tackles',label:'Tackles',types:[['standing','Standing'],['sliding','Sliding / Recovery'],['pressing','Pressing']],outcomes:[['won','Won'],['lost','Lost'],['foul','Foul']]},
-          {key:'saves',label:'Saves',types:[['open_play','Open Play'],['close','Close-range / 1v1'],['set_piece','Set Piece / Penalty']]},
-        ]},
-        {id:'discipline',title:'DISCIPLINE',metrics:[
-          {key:'offsides',label:'Offsides',types:[['attacking','Attacking'],['set_piece','Set Piece'],['other','Other']]},
-          {key:'cards',label:'Cards',types:[['yellow','Yellow'],['second_yellow','Second Yellow'],['red','Straight Red']]},
-          {key:'fouls_committed',label:'Fouls',types:[['tactical','Tactical / Challenge'],['handball','Handball'],['dangerous','Dangerous Area']]},
-        ]},
+      const MATCH_COMPARE_STATS = [
+        { key: 'possession', label: 'Ball Possession', unit: '%' },
+        { key: 'goals_for', label: 'Goals For' }, { key: 'goals_against', label: 'Goals Against' },
+        { key: 'assists', label: 'Assists' }, { key: 'shots_total', label: 'Total Shots' },
+        { key: 'shots_on_target', label: 'Shots On Target' }, { key: 'shots_off_target', label: 'Shots Off Target' },
+        { key: 'shots_blocked', label: 'Blocked Shots' }, { key: 'shots_woodwork', label: 'Shots Against Woodwork' },
+        { key: 'big_chances', label: 'Big Chances' }, { key: 'corners', label: 'Corner Kicks' },
+        { key: 'offsides', label: 'Offsides' }, { key: 'passes_total', label: 'Total Passes' },
+        { key: 'passes_accurate', label: 'Successful Passes' }, { key: 'passes_unsuccessful', label: 'Unsuccessful Passes' },
+        { key: 'pass_accuracy', label: 'Pass Accuracy', unit: '%' }, { key: 'short_passes', label: 'Short / Medium Passes' },
+        { key: 'long_passes', label: 'Long Passes' }, { key: 'through_balls', label: 'Through Balls' },
+        { key: 'key_passes', label: 'Key Passes' }, { key: 'crosses_total', label: 'Total Crosses' },
+        { key: 'crosses_accurate', label: 'Successful Crosses' }, { key: 'interceptions', label: 'Interceptions' },
+        { key: 'duels_total', label: 'Total Duels' }, { key: 'duels_won', label: 'Duels Won' },
+        { key: 'duels_lost', label: 'Duels Lost' }, { key: 'aerial_duels_total', label: 'Aerial Duels' },
+        { key: 'aerial_duels_won', label: 'Aerial Duels Won' }, { key: 'aerial_duels_lost', label: 'Aerial Duels Lost' },
+        { key: 'tackles_total', label: 'Total Tackles' }, { key: 'tackles_won', label: 'Tackles Won' },
+        { key: 'tackles_lost', label: 'Tackles Lost' }, { key: 'clearances', label: 'Clearances' },
+        { key: 'blocks', label: 'Blocks' }, { key: 'recoveries', label: 'Recoveries' },
+        { key: 'saves', label: 'Saves' }, { key: 'shots_faced', label: 'Shots Faced' },
+        { key: 'shots_on_target_faced', label: 'Shots On Target Faced' }, { key: 'penalty_saves', label: 'Penalty Saves' },
+        { key: 'save_percentage', label: 'Save Percentage', unit: '%' }, { key: 'goals_against_avg', label: 'Goals Against Avg.' },
+        { key: 'clean_sheets', label: 'Clean Sheets' }, { key: 'yellow_cards', label: 'Yellow Cards' },
+        { key: 'second_yellow_cards', label: 'Second Yellow Cards' }, { key: 'red_cards', label: 'Red Cards' },
+        { key: 'cards_total', label: 'Total Cards' }, { key: 'fouls_committed', label: 'Fouls Committed' },
+        { key: 'fouls_won', label: 'Fouls Won' },
       ];
-      const CLUB_TRACKER_KEYS = CLUB_TRACKER_SCHEMA.flatMap(group => group.metrics.map(metric => metric.key));
 
       const EVENT_ICONS = {
         goal: 'fa-futbol ev-goal', yellow_card: 'fa-square ev-yellow', red_card: 'fa-square ev-red',
@@ -664,7 +667,14 @@
       ═══════════════════════════════════════════════════════════ */
       function EventSide({ ev, side }) {
         const icon = html`<i class=${`fas ${EVENT_ICONS[ev.type] || EVENT_ICONS.default}`}></i>`;
-        const name = html`<span class="event-player">${ev.player || ev.playerOut || ''}</span>`;
+        const descriptor = [
+          ev.player || ev.playerOut,
+          ev.metric_label || ev.metricLabel || ev.metric || ev.metric_key,
+          ev.outcome_label || ev.outcome,
+          ev.type_label || ev.type,
+          ev.detail_label || ev.detail,
+        ].filter(Boolean).join(' · ');
+        const name = html`<span class="event-player">${descriptor || 'Recorded event'}</span>`;
         return html`
           <span>${side === 'home' ? html`${icon} ${name}` : html`${name} ${icon}`}</span>
           ${ev.assist ? html`<div class="event-assist"><i class="fas fa-shoe-prints"></i> ${ev.assist}</div>` : null}
@@ -778,98 +788,67 @@
           </div>`;
       }
 
-      const trackerEventsFor = (snapshot, side) => {
-        const events = Array.isArray(snapshot?.events) ? snapshot.events : [];
-        return events.filter(event => String(event?.team || event?.club_team || event?.clubTeam || '').toLowerCase() === side);
-      };
-      const trackerStatsFor = (snapshot, side) => {
-        const stats = snapshot?.stats?.[side];
-        if (stats && typeof stats === 'object') return stats;
-        const fallback = {};
-        trackerEventsFor(snapshot, side).forEach(event => {
-          const key = event.key || event.metric_key || event.metricKey || event.metric;
-          if (!CLUB_TRACKER_KEYS.includes(key)) return;
-          const row = fallback[key] ||= {count:0,success:0,failure:0,types:{},outcomes:{}};
-          row.count++;
-          const outcome = String(event.outcome || '').toLowerCase();
-          const type = String(event.type || '').toLowerCase();
-          if (outcome) row.outcomes[outcome] = (row.outcomes[outcome] || 0) + 1;
-          if (type) row.types[type] = (row.types[type] || 0) + 1;
-          if (['successful','won','saved','on_target','created'].includes(outcome)) row.success++;
-          else if (['unsuccessful','lost','foul','off_target','blocked','woodwork','missed'].includes(outcome)) row.failure++;
-        });
-        return fallback;
-      };
-      function ClubTrackerStatsCompare({ clubTracking, homeName, awayName }) {
-        if (!clubTracking || !Array.isArray(clubTracking.events) || !clubTracking.events.length) {
-          return html`<${EmptyState} icon="fa-chart-bar" text="No club-tracker statistics have been submitted for this match" sub="Statistics appear after the Stats Tracker submission is stored and made available to the club dashboard." />`;
-        }
-        const homeStats = trackerStatsFor(clubTracking, 'home');
-        const awayStats = trackerStatsFor(clubTracking, 'away');
-        const homeEvents = trackerEventsFor(clubTracking, 'home');
-        const awayEvents = trackerEventsFor(clubTracking, 'away');
-        const eventCount = (events,key) => events.filter(e => (e.key || e.metric_key || e.metricKey || e.metric) === key).length;
-        const breakdownCount = (events,key,property,value) => events.filter(e =>
-          (e.key || e.metric_key || e.metricKey || e.metric) === key &&
-          String(e[property] || '').toLowerCase() === value
-        ).length;
-        const comboCount = (events,key,outcome,type) => events.filter(e =>
-          (e.key || e.metric_key || e.metricKey || e.metric) === key &&
-          String(e.outcome || '').toLowerCase() === outcome &&
-          String(e.type || '').toLowerCase() === type
-        ).length;
-        const metricValue = (stats,key,events) => Number(stats?.[key]?.count ?? eventCount(events,key)) || 0;
+      function MatchStatsCompare({ homeStats, awayStats, homeName, awayName, metricBreakdown }) {
+        const hs = homeStats || {}, as = awayStats || {};
+        const hasValue = (v) => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
+        const available = MATCH_COMPARE_STATS.filter((metric) => hasValue(hs[metric.key]) || hasValue(as[metric.key]));
+        const sides = [
+          { key: 'home', label: homeName || 'Home', data: metricBreakdown?.home || {} },
+          { key: 'away', label: awayName || 'Away', data: metricBreakdown?.away || {} },
+        ];
+        const breakdownRows = sides.flatMap((side) => Object.values(side.data).map((item) => ({ ...item, side: side.label })));
+        if (!available.length && !breakdownRows.length) return html`<${EmptyState} icon="fa-chart-bar" text="No recorded metric statistics are available for this match" />`;
+        const fmt = (value, unit) => !hasValue(value) ? '—' : `${Number(value).toLocaleString()}${unit === '%' ? '%' : ''}`;
         return html`
           <div>
             <div class="compare-head">
-              <span style="text-align:right;color:var(--primary);">${homeName}</span><span style="width:100px;">TRACKER METRICS</span>
+              <span style="text-align:right;color:var(--primary);">${homeName}</span>
+              <span style="width:100px;"></span>
               <span style="color:var(--danger);">${awayName}</span>
             </div>
-            <section class="card" style="padding:.65rem;margin:.55rem 0;">
-              <div class="card-title" style="margin-bottom:.4rem;">MATCH CONTROL</div>
-              <div class="compare-line">
-                <span style="font-weight:900;color:var(--primary);text-align:right;">${Number(clubTracking.possession?.home ?? 50)}%</span>
-                <span style="font-size:.78rem;font-weight:850;color:var(--text);text-align:center;">Possession</span>
-                <span style="font-weight:900;color:var(--danger);">${Number(clubTracking.possession?.away ?? 50)}%</span>
-              </div>
-            </section>
-            ${CLUB_TRACKER_SCHEMA.map(group => html`
-              <section class="card" style="padding:.65rem;margin:.55rem 0;">
-                <div class="card-title" style="margin-bottom:.4rem;">${group.title}</div>
-                ${group.metrics.map(metric => {
-                  const hv=metricValue(homeStats,metric.key,homeEvents), av=metricValue(awayStats,metric.key,awayEvents);
-                  const total=hv+av, hp=total?(hv/total)*100:50;
-                  const rows=[];
-                  if ((metric.outcomes||[]).length && (metric.types||[]).length) {
-                    metric.outcomes.forEach(([outcome,outcomeLabel]) => metric.types.forEach(([type,typeLabel]) =>
-                      rows.push({key:`${outcome}-${type}`,label:`${outcomeLabel} · ${typeLabel}`,valueH:comboCount(homeEvents,metric.key,outcome,type),valueA:comboCount(awayEvents,metric.key,outcome,type)})));
-                  } else {
-                    (metric.outcomes||[]).forEach(([key,label]) => rows.push({key:'outcome-'+key,label,valueH:breakdownCount(homeEvents,metric.key,'outcome',key),valueA:breakdownCount(awayEvents,metric.key,'outcome',key)}));
-                    (metric.types||[]).forEach(([key,label]) => rows.push({key:'type-'+key,label,valueH:breakdownCount(homeEvents,metric.key,'type',key),valueA:breakdownCount(awayEvents,metric.key,'type',key)}));
-                  }
-                  return html`<div style="padding:.45rem 0;border-bottom:1px solid var(--bg);">
-                    <div class="compare-line">
-                      <span style="font-weight:900;color:var(--primary);text-align:right;">${hv}</span>
-                      <span style="font-size:.78rem;font-weight:850;color:var(--text);text-align:center;">${metric.label}</span>
-                      <span style="font-weight:900;color:var(--danger);">${av}</span>
-                    </div>
-                    <div class="compare-bar"><div style=${{width:`${hp}%`,background:'var(--primary)'}}></div><div style=${{width:`${100-hp}%`,background:'var(--danger)'}}></div></div>
-                    ${rows.length ? html`<div style="display:grid;grid-template-columns:1fr 1fr;gap:.25rem .6rem;margin:.4rem .2rem 0;">
-                      ${rows.map(row => html`<div key=${row.key} style="display:grid;grid-template-columns:1fr auto 1fr;gap:.25rem;font-size:.68rem;padding:.18rem .25rem;background:var(--muted-bg);border-radius:4px;">
-                        <b style="text-align:right;color:var(--primary);">${row.valueH}</b><span style="text-align:center;color:var(--text-light);">${row.label}</span><b style="color:var(--danger);">${row.valueA}</b>
-                      </div>`)}
-                    </div>` : null}
-                  </div>`;
-                })}
-              </section>`)}
+            ${available.map((metric) => {
+              const hv = hasValue(hs[metric.key]) ? Number(hs[metric.key]) : null;
+              const av = hasValue(as[metric.key]) ? Number(as[metric.key]) : null;
+              const total = (hv || 0) + (av || 0);
+              const hPct = total > 0 ? ((hv || 0) / total) * 100 : 50;
+              return html`
+                <div key=${metric.key} class="compare-row">
+                  <div class="compare-line">
+                    <span style="font-weight:900;color:var(--primary);text-align:right;font-size:0.85rem;">${fmt(hv, metric.unit)}</span>
+                    <span style="font-size:0.72rem;font-weight:700;color:#374151;text-align:center;">${metric.label}</span>
+                    <span style="font-weight:900;color:var(--danger);font-size:0.85rem;">${fmt(av, metric.unit)}</span>
+                  </div>
+                  <div class="compare-bar">
+                    <div style=${{ width: `${hPct}%`, background: 'var(--primary)' }}></div>
+                    <div style=${{ width: `${100 - hPct}%`, background: 'var(--danger)' }}></div>
+                  </div>
+                </div>`;
+            })}
+            ${breakdownRows.length ? html`
+              <details open style="margin-top:1rem;border:1px solid var(--border);border-radius:10px;padding:0.65rem 0.8rem;">
+                <summary style="cursor:pointer;color:var(--primary);font-weight:800;font-size:0.8rem;">Complete recorded metric breakdown and subtypes</summary>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:0.65rem;margin-top:0.7rem;">
+                  ${sides.map((side) => html`
+                    <section key=${side.key} style="border:1px solid var(--border);border-radius:8px;padding:0.6rem;min-width:0;">
+                      <strong style=${{display:'block',marginBottom:'0.45rem',color:side.key==='home'?'var(--primary)':'var(--danger)'}}>${side.label}</strong>
+                      ${Object.values(side.data).length ? Object.values(side.data).map((item) => html`
+                        <div key=${item.key} style="padding:0.4rem 0;border-top:1px solid var(--border);">
+                          <div style="display:flex;justify-content:space-between;gap:0.5rem;font-size:0.78rem;"><b>${item.label || item.key}</b><b>${item.count}</b></div>
+                          ${Object.keys(item.outcomes || {}).length ? html`<div style="font-size:0.7rem;color:var(--text-light);margin-top:0.2rem;">Outcomes: ${Object.entries(item.outcomes).map(([k,v])=>`${k.replace(/_/g,' ')} ${v}`).join(' · ')}</div>` : null}
+                          ${Object.keys(item.types || {}).length ? html`<div style="font-size:0.7rem;color:var(--text-light);margin-top:0.15rem;">Types: ${Object.entries(item.types).map(([k,v])=>`${k.replace(/_/g,' ')} ${v}`).join(' · ')}</div>` : null}
+                          ${(item.events || []).length ? html`<div style="font-size:0.68rem;color:var(--text-light);margin-top:0.15rem;">${item.events.map(ev=>[ev.match_clock,ev.outcome_label||ev.outcome,ev.type_label||ev.type,ev.detail_label||ev.detail].filter(Boolean).join(' · ')).filter(Boolean).join(' | ')}</div>` : null}
+                        </div>`)
+                      : html`<span style="font-size:0.72rem;color:var(--text-light);">No events recorded</span>`}
+                    </section>`)}
+                </div>
+              </details>` : null}
           </div>`;
       }
 
-      function MatchSummary({ match: m, clubTracking }) {
+      function MatchSummary({ match: m }) {
         const cards = [
           [m.home_score ?? '?', 'Home Goals', '#16a34a'], [m.away_score ?? '?', 'Away Goals', '#dc2626'],
-          clubTracking?.possession && [`${clubTracking.possession.home ?? 50}%`, 'Home Poss.'],
-          clubTracking?.possession && [`${clubTracking.possession.away ?? 50}%`, 'Away Poss.'],
+          m.home_stats && [`${m.home_stats.possession || 0}%`, 'Home Poss.'], m.away_stats && [`${m.away_stats.possession || 0}%`, 'Away Poss.'],
         ].filter(Boolean);
         return html`
           <div>
@@ -885,7 +864,7 @@
           </div>`;
       }
 
-      function MatchCard({ match: m, expanded, tab, onToggle, onTab, badgeFor, clubTracking }) {
+      function MatchCard({ match: m, expanded, tab, onToggle, onTab, badgeFor }) {
         const homePhoto = badgeFor(m.home_team);
         const awayPhoto = badgeFor(m.away_team);
         const common = { homeName: m.home_team, awayName: m.away_team };
@@ -920,8 +899,8 @@
                 <${Tabs} compact tabs=${MATCH_DETAIL_TABS} active=${tab} onChange=${onTab} />
                 <div style="padding:0.75rem;" onClick=${(e) => e.stopPropagation()}>
                   ${tab === 'events' ? html`<${MatchEventsTimeline} events=${m.events} ...${common} homePhoto=${homePhoto} awayPhoto=${awayPhoto} />` : null}
-                  ${tab === 'summary' ? html`<${MatchSummary} match=${m} clubTracking=${clubTracking || m.club_tracking || m.clubTracking || m.stats_submission?.club_tracking || m.statsSubmission?.club_tracking} />` : null}
-                  ${tab === 'stats' ? html`<${ClubTrackerStatsCompare} clubTracking=${clubTracking || m.club_tracking || m.clubTracking || m.stats_submission?.club_tracking || m.statsSubmission?.club_tracking} ...${common} />` : null}
+                  ${tab === 'summary' ? html`<${MatchSummary} match=${m} />` : null}
+                  ${tab === 'stats' ? html`<${MatchStatsCompare} homeStats=${m.home_stats} awayStats=${m.away_stats} metricBreakdown=${m.club_metric_breakdown} ...${common} />` : null}
                   ${tab === 'lineups' ? html`<${MatchLineups} lineups=${m.lineups} ...${common} homePhoto=${homePhoto} awayPhoto=${awayPhoto} />` : null}
                   ${tab === 'player_stats' ? html`<${MatchPlayerStats} lineups=${m.lineups} ...${common} />` : null}
                 </div>
@@ -932,7 +911,7 @@
       /* ═══════════════════════════════════════════════════════════
          TABS: RESULTS / UPCOMING / COMPETITIONS
       ═══════════════════════════════════════════════════════════ */
-      function ResultsTab({ matches, club, submissions = [] }) {
+      function ResultsTab({ matches, club }) {
         const [filter, setFilter] = useState({ result: 'all', search: '' });
         const [page, setPage] = useState(1);
         const [expanded, setExpanded] = useState({ id: null, tab: 'events' });
@@ -956,22 +935,6 @@
         };
 
         const updateFilter = (changes) => { setFilter((f) => ({ ...f, ...changes })); setPage(1); };
-        const submissionFor = (m) => {
-          const ids = [idOf(m), m.match_id, m.matchId, m.assignment_id, m.assignmentId].filter(Boolean).map(String);
-          const row = (Array.isArray(submissions) ? submissions : []).find(s => {
-            const tracking = s.club_tracking || s.clubTracking;
-            if (!tracking || !Array.isArray(tracking.events)) return false;
-            const candidateIds = [s.match_id,s.matchId,s.assignment_id,s.assignmentId,s.match?.match_id,s.match?.id].filter(Boolean).map(String);
-            if (ids.some(id => candidateIds.includes(id))) return true;
-            const source = s.match || s;
-            const norm = value => String(value || '').trim().toLowerCase();
-            const sameTeams = norm(source.home_team_name || source.home_team) === norm(m.home_team || m.homeTeam) &&
-              norm(source.away_team_name || source.away_team) === norm(m.away_team || m.awayTeam);
-            const sameDate = String(source.match_date || source.date || '').slice(0,10) === String(m.match_date || m.date || '').slice(0,10);
-            return Boolean(sameTeams && sameDate);
-          });
-          return row?.club_tracking || row?.clubTracking || m.club_tracking || m.clubTracking || m.stats_submission?.club_tracking || m.statsSubmission?.club_tracking || null;
-        };
 
         return html`
           <div>
@@ -990,7 +953,7 @@
                   const isOpen = expanded.id === id;
                   return html`<${MatchCard} key=${id} match=${m} expanded=${isOpen} tab=${expanded.tab} badgeFor=${badgeFor}
                     onToggle=${() => setExpanded({ id: isOpen ? null : id, tab: 'events' })}
-                    onTab=${(tab) => setExpanded({ id, tab })} clubTracking=${submissionFor(m)} />`;
+                    onTab=${(tab) => setExpanded({ id, tab })} />`;
                 })}
             ${pages > 1 ? html`<${Pagination} page=${page} pages=${pages} onChange=${(pg) => { setPage(pg); Bridge.post('SCROLL_TOP'); }} />` : null}
           </div>`;
@@ -1567,32 +1530,16 @@
         const [shared, setShared] = useState(null);
         const [matchRequests, setMatchRequests] = useState({ sent: [], received: [] });
         const [statsRequests, setStatsRequests] = useState([]);
-        const [statsSubmissions, setStatsSubmissions] = useState([]);
         const [confirmation, setConfirmation] = useState(null);
         const [tab, setTab] = useState('results');
         const [opsTab, setOpsTab] = useState('stats-tracking');
         const lastNonce = useRef(-1);
 
         useEffect(() => {
-          let active = true;
-          Bridge.onInit(async (d) => {
+          Bridge.onInit((d) => {
             setShared(d);
             setMatchRequests({ sent: asList(d.matchRequests?.sent, 'requests'), received: asList(d.matchRequests?.received, 'requests') });
             setStatsRequests(asList(d.statsRequests, 'requests'));
-            // Submitted tracker reports are read from the authenticated club database route,
-            // never from browser-local shared state or INIT submission snapshots.
-            const clubUid = d.apiId || clubIdOf(d.club);
-            if (clubUid) {
-              try {
-                const rows = await apiCall(`/club/${encodeURIComponent(clubUid)}/matches?limit=1000&page=1`);
-                if (!active) return;
-                const matchRows = asList(rows, 'matches');
-                setShared(previous => previous ? { ...previous, matches: matchRows } : previous);
-                setStatsSubmissions(matchRows.filter(row => row && (row._source === 'stats_tracker' || row.club_tracking || row.clubTracking)));
-              } catch (error) {
-                if (active) Bridge.toast(`Could not load submitted club statistics: ${error.message}`, 'error');
-              }
-            }
             const r = d.route;
             if (r && r.nonce !== lastNonce.current) {
               lastNonce.current = r.nonce;
@@ -1601,9 +1548,8 @@
             }
           });
           Bridge.mount(document.getElementById('root'));
-          return () => { active = false; };
         }, []);
-        useEffect(() => { Bridge.remeasure(); }, [tab, opsTab, shared, matchRequests, statsRequests, statsSubmissions]);
+        useEffect(() => { Bridge.remeasure(); }, [tab, opsTab, shared, matchRequests, statsRequests]);
 
         if (!shared) return html`<${Splash} icon="fa-spinner fa-spin" color="var(--primary)" title="Loading Match Centre..." />`;
 
@@ -1628,7 +1574,7 @@
 
             <${Tabs} tabs=${MAIN_TABS} active=${tab} onChange=${setTab} />
 
-            ${tab === 'results' ? html`<${ResultsTab} matches=${asList(shared.matches, 'matches')} club=${club} submissions=${statsSubmissions} />` : null}
+            ${tab === 'results' ? html`<${ResultsTab} matches=${asList(shared.matches, 'matches')} club=${club} />` : null}
             ${tab === 'upcoming' ? html`<${UpcomingTab} fixtures=${asList(shared.fixtures, 'fixtures')} />` : null}
             ${tab === 'competitions' ? html`<${CompetitionsTab} ctx=${ctx} competitions=${asList(shared.competitions, 'competitions')} />` : null}
 

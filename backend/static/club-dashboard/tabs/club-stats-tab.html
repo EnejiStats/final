@@ -108,49 +108,31 @@ const Bridge=(function(){
 const {h,render}=preact;const {useState,useEffect,useMemo,useRef}=preactHooks;const html=htm.bind(h);
 
 /* ═══════════════ STATS SCHEMA ═══════════════ */
-const TRACKER_SCHEMA=[
-{id:'attack',title:'ATTACK',fields:[['passes','Passes'],['crosses','Crosses'],['goals','Goals'],['assists','Assists'],['shots','Shots'],['corners','Corner Kicks']]},
-{id:'defence',title:'DEFENCE',fields:[['interceptions','Interceptions'],['duels','Duels'],['tackles','Tackles'],['saves','Saves']]},
-{id:'discipline',title:'DISCIPLINE',fields:[['offsides','Offsides'],['cards','Cards'],['fouls_committed','Fouls']]},
+const SCHEMA=[
+{id:'attack',title:'ATTACK',fields:[['goals_for','Goals For'],['goals_against','Goals Against'],['assists','Assists'],['shots_total','Total Shots'],['shots_on_target','Shots On Target'],['shots_off_target','Shots Off Target'],['shots_blocked','Blocked Shots'],['shots_woodwork','Shots Against Woodwork'],['big_chances','Big Chances'],['corners','Corner Kicks'],['offsides','Offsides']]},
+{id:'control',title:'MATCH CONTROL',fields:[['possession','Possession %']]},
+{id:'passing',title:'PASSING',fields:[['passes_total','Total Passes'],['passes_accurate','Successful Passes'],['passes_unsuccessful','Unsuccessful Passes'],['pass_accuracy','Pass Accuracy %'],['short_passes','Short / Medium Passes'],['short_passes_successful','Successful Short / Medium'],['short_passes_unsuccessful','Unsuccessful Short / Medium'],['long_passes','Long Passes'],['long_passes_successful','Successful Long Passes'],['long_passes_unsuccessful','Unsuccessful Long Passes'],['through_balls','Through Balls'],['through_balls_successful','Successful Through Balls'],['through_balls_unsuccessful','Unsuccessful Through Balls'],['key_passes','Key Passes'],['crosses_total','Total Crosses'],['crosses_accurate','Successful Crosses'],['crosses_unsuccessful','Unsuccessful Crosses']]},
+{id:'defence',title:'DEFENCE',fields:[['clean_sheets','Clean Sheets'],['tackles_total','Total Tackles'],['tackles_won','Tackles Won'],['tackles_lost','Tackles Lost'],['interceptions','Interceptions'],['interceptions_pass','Pass Interceptions'],['interceptions_cross','Cross Interceptions'],['interceptions_shot','Shot / Pass Blocks'],['clearances','Clearances'],['duels_total','Total Duels'],['duels_won','Duels Won'],['duels_lost','Duels Lost'],['aerial_duels_total','Aerial Duels'],['aerial_duels_won','Aerial Duels Won'],['aerial_duels_lost','Aerial Duels Lost'],['blocks','Blocks'],['recoveries','Recoveries']]},
+{id:'goalkeeping',title:'GOALKEEPING',fields:[['saves','Saves'],['saves_open_play','Open-play Saves'],['saves_close','Close-range / 1v1 Saves'],['saves_set_piece','Set-piece / Penalty Saves'],['shots_faced','Shots Faced'],['shots_on_target_faced','Shots On Target Faced'],['penalty_saves','Penalty Saves'],['goals_against_avg','Goals Against Avg'],['save_percentage','Save %'],['punches','Punches'],['claims','Claims']]},
+{id:'discipline',title:'DISCIPLINE',fields:[['yellow_cards','Yellow Cards'],['second_yellow_cards','Second Yellow Cards'],['red_cards','Red Cards'],['cards_total','Total Cards'],['fouls_committed','Fouls Committed'],['fouls_tactical','Tactical Fouls'],['fouls_handball','Handball Fouls'],['fouls_dangerous','Dangerous-area Fouls'],['fouls_won','Fouls Won']]}
 ];
-const TRACKER_DETAILS={
-passes:{types:[['short_medium','Short / Medium Pass'],['long','Long Pass'],['through_ball','Through Ball']],outcomes:[['successful','Successful'],['unsuccessful','Unsuccessful']]},
-crosses:{types:[['open_play','Open Play'],['cutback','Cutback'],['set_piece','Set Piece']],outcomes:[['successful','Successful'],['unsuccessful','Unsuccessful']]},
-goals:{types:[['header','Header'],['shot','Shot'],['penalty','Penalty']]},
-assists:{types:[['open_play','Open Play'],['set_piece','Set Piece'],['transition','Transition']]},
-shots:{types:[['foot','Foot'],['header','Header'],['set_piece','Set Piece']],outcomes:[['on_target','On Target'],['off_target','Off Target'],['blocked','Blocked'],['woodwork','Woodwork']]},
-corners:{types:[['corner_kick','Corner Kick']]},
-interceptions:{types:[['pass','Pass'],['cross','Cross'],['shot','Shot / Pass Block']]},
-duels:{types:[['aerial','Aerial']]},
-tackles:{types:[['standing','Standing'],['sliding','Sliding / Recovery'],['pressing','Pressing']],outcomes:[['won','Won'],['lost','Lost'],['foul','Foul']]},
-saves:{types:[['open_play','Open Play'],['close','Close-range / 1v1'],['set_piece','Set Piece / Penalty']]},
-offsides:{types:[['attacking','Attacking'],['set_piece','Set Piece'],['other','Other']]},
-cards:{types:[['yellow','Yellow'],['second_yellow','Second Yellow'],['red','Straight Red']]},
-fouls_committed:{types:[['tactical','Tactical / Challenge'],['handball','Handball'],['dangerous','Dangerous Area']]},
-};
-const TRACKER_KEYS=TRACKER_SCHEMA.flatMap(group=>group.fields.map(([key])=>key));
-const AVG_KEYS=[];
-const PCT_KEYS=[];
-const detailDefinitions=key=>{
-  const detail=TRACKER_DETAILS[key]||{},types=detail.types||[],outcomes=detail.outcomes||[];
-  if(types.length&&outcomes.length)return outcomes.flatMap(([outcome,outcomeLabel])=>types.map(([type,typeLabel])=>({value:`${outcome}|${type}`,label:`${outcomeLabel} · ${typeLabel}`,outcome,type})));
-  return [...outcomes.map(([value,label])=>({value,label,outcome:value})),...types.map(([value,label])=>({value,label,type:value}))];
-};
-const SCHEMA=TRACKER_SCHEMA.map(group=>({...group,fields:group.fields.flatMap(([key,label])=>[[key,label],...detailDefinitions(key).map(d=>[`${key}__${d.value}`,`${label} — ${d.label}`])])}));
-const COMPARE=TRACKER_SCHEMA.flatMap(group=>group.fields.map(([key,label])=>[key,label,'']));
-
+const COMPARE=SCHEMA.flatMap(group=>group.fields.map(([key,label])=>[key,label,key.includes('percentage')||key==='possession'||key==='pass_accuracy'||key==='save_percentage'?'%':'']));
+const AVG_KEYS=['possession','pass_accuracy','goals_against_avg','save_percentage'];
+const PCT_KEYS=['possession','pass_accuracy','save_percentage'];
 
 const n=v=>{if(v===null||v===undefined||v==='')return null;const x=Number(String(v).replace(/%$/,''));return Number.isFinite(x)?x:null};
 const fmt=v=>v==null?'—':Number.isInteger(Number(v))?String(v):Number(v).toFixed(1);
 const dateOf=m=>m&&(m.date||m.match_date);
 const fmtDate=d=>{if(!d)return '';const x=new Date(d);return isNaN(x)?String(d):x.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})};
-const clubTrackingFor=m=>m?.club_tracking||m?.clubTracking||m?.stats_submission?.club_tracking||m?.statsSubmission?.club_tracking||null;
-const trackerEvents=(snapshot,side)=>Array.isArray(snapshot?.events)?snapshot.events.filter(e=>String(e?.team||e?.club_team||e?.clubTeam||'').toLowerCase()===side):[];
-const eventMetric=e=>e?.key||e?.metric_key||e?.metricKey||e?.metric||'';
-const metricCount=(events,key)=>events.filter(e=>eventMetric(e)===key).length;
-const detailCount=(events,key,field,value)=>events.filter(e=>eventMetric(e)===key&&String(e?.[field]||'').toLowerCase()===value).length;
-const statsFor=(m,side)=>{const snapshot=clubTrackingFor(m);const stored=snapshot?.stats?.[side];if(stored&&typeof stored==='object')return stored;const out={};trackerEvents(snapshot,side).forEach(e=>{const k=eventMetric(e);if(!TRACKER_KEYS.includes(k))return;const row=out[k]||(out[k]={count:0,success:0,failure:0,types:{},outcomes:{}});row.count++;if(e.type)row.types[e.type]=(row.types[e.type]||0)+1;if(e.outcome)row.outcomes[e.outcome]=(row.outcomes[e.outcome]||0)+1;});return out;};
-const metricFor=(m,side,key)=>{const snap=clubTrackingFor(m),events=trackerEvents(snap,side);return Number(snap?.stats?.[side]?.[key]?.count??metricCount(events,key))||0;};
+const statsFor=(m,side)=>{
+  const raw=m?.[side+'_stats']||m?.[side+'Stats']||m?.statistics?.[side]||m?.stats?.[side]||m?.[side]?.statistics||{};
+  if(!raw||typeof raw!=='object')return {};
+  const flat={};
+  Object.entries(raw).forEach(([group,value])=>{
+    if(value&&typeof value==='object'&&!Array.isArray(value))Object.assign(flat,value);
+  });
+  return {...flat,...raw};
+};
 const homeName=m=>m.home_team||m.homeTeam||'Home';
 const awayName=m=>m.away_team||m.awayTeam||'Away';
 const homeScore=m=>m.home_score??m.score?.home??m.score?.home_score;
@@ -164,52 +146,20 @@ function App(){
   const rootRef=useRef(null);
 
   useEffect(()=>{
-    let active=true, requestSerial=0;
-    const loadClubDatabaseStats=async d=>{
-      const uid=d?.apiId||d?.clubId||d?.club?.club_id||d?.club?.user_id||d?.club?._id;
-      if(!uid)return;
-      const serial=++requestSerial;
-      try{
-        const token=localStorage.getItem('enejistats_token');
-        const headers=token?{Authorization:`Bearer ${token}`}:{};
-        const response=await fetch(`/api/club/${encodeURIComponent(uid)}/matches?limit=1000&page=1`,{credentials:'include',headers});
-        if(response.status===401||response.status===403)Bridge.post('AUTH_EXPIRED');
-        if(!response.ok){const error=await response.json().catch(()=>({}));throw new Error(error.detail||`HTTP ${response.status}`);}
-        const rows=await response.json();
-        if(!active||serial!==requestSerial)return;
-        const matches=Array.isArray(rows)?rows:(Array.isArray(rows?.matches)?rows.matches:[]);
-        setShared(previous=>previous?{...previous,matches,submissions:matches.filter(row=>row&&(row._source==='stats_tracker'||row.club_tracking||row.clubTracking))}:previous);
-        setUpdated(new Date());
-      }catch(error){
-        if(active){Bridge.toast(`Could not load submitted club statistics: ${error.message}`,'error');}
-      }finally{if(active&&serial===requestSerial)setRefreshing(false);}
-    };
-    Bridge.onInit(d=>{setShared(d);setUpdated(new Date());setRefreshing(true);loadClubDatabaseStats(d);});
-    Bridge.onRefreshed(()=>{setRefreshing(true);Bridge.post('REQUEST_INIT');});
+    Bridge.onInit(d=>{setShared(d);setUpdated(new Date());setRefreshing(false)});
+    Bridge.onRefreshed(()=>setRefreshing(false));
     Bridge.mount(document.getElementById('root'));
-    return()=>{active=false;requestSerial++;};
   },[]);
   // Content height changes (tab switch, pagination, mode toggle) are picked up by ResizeObserver; this covers instant swaps.
   useEffect(()=>{Bridge.remeasure()},[view,mode,idx,search,shared]);
 
   if(!shared)return html`<div class="splash"><i class="fa-solid fa-spinner fa-spin"></i>Loading club stats…</div>`;
 
-  const club=shared.club||{},rawMatches=Array.isArray(shared.matches)?shared.matches:[],submissions=Array.isArray(shared.submissions)?shared.submissions:(Array.isArray(shared.statsSubmissions)?shared.statsSubmissions:(Array.isArray(shared.stats)?shared.stats:[])),summary=shared.summaryStats||{},season=shared.seasonStats||{};
-  const matches=rawMatches.map(m=>{
-    const ids=[m.id,m._id,m.match_id,m.matchId,m.assignment_id,m.assignmentId].filter(Boolean).map(String);
-    const found=submissions.find(s=>{
-      const tracking=s.club_tracking||s.clubTracking;if(!tracking||!Array.isArray(tracking.events))return false;
-      const sids=[s.match_id,s.matchId,s.assignment_id,s.assignmentId,s.match?.match_id,s.match?.id].filter(Boolean).map(String);
-      if(ids.some(id=>sids.includes(id)))return true;
-      const src=s.match||s,clean=v=>String(v||'').trim().toLowerCase();
-      return clean(src.home_team_name||src.home_team)===clean(m.home_team||m.homeTeam)&&clean(src.away_team_name||src.away_team)===clean(m.away_team||m.awayTeam)&&String(src.match_date||src.date||'').slice(0,10)===String(m.match_date||m.date||'').slice(0,10);
-    });
-    return found?{...m,club_tracking:found.club_tracking||found.clubTracking}:m;
-  });
+  const club=shared.club||{},matches=Array.isArray(shared.matches)?shared.matches:[],summary=shared.summaryStats||{},season=shared.seasonStats||{};
   const clubName=shared.clubName||club.club_name||club.name||'';
   return html`<${Content} club=${club} clubId=${shared.clubId} apiId=${shared.apiId} clubName=${clubName} matches=${matches} summary=${summary} season=${season}
     view=${view} setView=${setView} mode=${mode} setMode=${setMode} search=${search} setSearch=${setSearch} idx=${idx} setIdx=${setIdx}
-    refreshing=${refreshing} onRefresh=${()=>{setRefreshing(true);Bridge.refresh(['matches','summary','statsSubmissions','submissions','tokens']);setTimeout(()=>setRefreshing(false),8000)}} updated=${updated} />`;
+    refreshing=${refreshing} onRefresh=${()=>{setRefreshing(true);Bridge.refresh(['matches','summary','tokens']);setTimeout(()=>setRefreshing(false),8000)}} updated=${updated} />`;
 }
 
 function Content(p){
@@ -224,6 +174,8 @@ function Content(p){
   const current=filtered[safeIdx]||null;
 
   const ownSide=m=>{
+    const resolved=String(m?.club_side||m?.clubSide||'').toLowerCase();
+    if(resolved==='home'||resolved==='away')return resolved;
     const own=[club.club_id,club.id,club._id,clubId,apiId].filter(Boolean).map(String);
     for(const side of ['home','away']){
       const ids=[m?.[side+'_club_id'],m?.[side+'_team_id'],m?.[side+'ClubId'],m?.[side+'TeamId']].filter(Boolean).map(String);
@@ -235,30 +187,25 @@ function Content(p){
   };
 
   const totals=useMemo(()=>{
-    const sums={};
-    matches.forEach(m=>{
-      const side=ownSide(m);if(!side)return;
-      const snapshot=clubTrackingFor(m);if(!snapshot)return;
-      const events=trackerEvents(snapshot,side);
-      TRACKER_KEYS.forEach(key=>{
-        const value=metricCount(events,key);sums[key]=(sums[key]||0)+value;
-        detailDefinitions(key).forEach(def=>{
-          const count=events.filter(e=>eventMetric(e)===key&&(!def.outcome||String(e.outcome||'').toLowerCase()===def.outcome)&&(!def.type||String(e.type||'').toLowerCase()===def.type)).length;
-          const field=`${key}__${def.value}`;sums[field]=(sums[field]||0)+count;
-        });
-      });
-    });
-    return sums;
-  },[matches,club,clubName]);
+    const sums={},counts={};
+    matches.forEach(m=>{const side=ownSide(m);if(!side)return;const st=statsFor(m,side);SCHEMA.forEach(c=>c.fields.forEach(([k])=>{const v=n(st[k]);if(v!==null){sums[k]=(sums[k]||0)+v;counts[k]=(counts[k]||0)+1}}))});
+    const out={};
+    SCHEMA.forEach(c=>c.fields.forEach(([k])=>{
+      if(counts[k])out[k]=AVG_KEYS.includes(k)?Math.round(sums[k]/counts[k]*10)/10:Math.round(sums[k]*100)/100;
+      else if(n(season[k])!==null)out[k]=n(season[k]);
+      else if(k==='possession'&&n(season.possession_avg)!==null)out[k]=n(season.possession_avg);
+    }));
+    return out;
+  },[matches,club,clubName,season]);
 
   const summaryCards=useMemo(()=>{
-    let played=0,wins=0,draws=0,losses=0,gf=0,ga=0,scored=0;const poss=[];
+    let played=0,wins=0,draws=0,losses=0,gf=0,ga=0,scored=0,cs=0;const poss=[];
     matches.forEach(m=>{
       const side=ownSide(m),hs=n(homeScore(m)),as=n(awayScore(m));
       if(side&&hs!==null&&as!==null){
         const f=side==='home'?hs:as,g=side==='home'?as:hs;
-        played++;scored++;gf+=f;ga+=g;if(f>g)wins++;else if(f===g)draws++;else losses++;
-        const pp=n(clubTrackingFor(m)?.possession?.[side]);if(pp!==null)poss.push(pp);
+        played++;scored++;gf+=f;ga+=g;if(f>g)wins++;else if(f===g)draws++;else losses++;if(g===0)cs++;
+        const pp=n(statsFor(m,side).possession);if(pp!==null)poss.push(pp);
       }else{
         const r=String(m.result||'').toLowerCase();
         if(r==='w'||r==='win'){played++;wins++}else if(r==='d'||r==='draw'){played++;draws++}else if(r==='l'||r==='loss'){played++;losses++}
@@ -273,6 +220,7 @@ function Content(p){
       ['Win Rate',P?((W/P)*100).toFixed(1)+'%':'—'],
       ['Goals For',scored?gf:pick(n(summary.goalsFor),n(summary.goals_for))],
       ['Goals Against',scored?ga:pick(n(summary.goalsAgainst),n(summary.goals_against))],
+      ['Clean Sheets',scored?cs:pick(n(summary.cleanSheets),n(summary.clean_sheets),n(season.clean_sheets))],
       ['Avg Possession',poss.length?(poss.reduce((a,b)=>a+b,0)/poss.length).toFixed(1)+'%':(()=>{const v=pick(n(summary.avgPossession),n(season.possession_avg));return v==='—'?v:fmt(v)+'%'})()]
     ];
   },[matches,club,clubName,summary,season]);
@@ -292,9 +240,8 @@ function Content(p){
 
   const matchPanel=()=>{
     if(!current)return null;
-    const snapshot=clubTrackingFor(current);
-    const homeEvents=trackerEvents(snapshot,'home'),awayEvents=trackerEvents(snapshot,'away');
-    const has=Array.isArray(snapshot?.events)&&snapshot.events.length>0;
+    const hs=statsFor(current,'home'),as=statsFor(current,'away');
+    const has=COMPARE.some(([k])=>n(hs[k])!==null||n(as[k])!==null);
     const d=dateOf(current);
     return html`<article>
       <div class="match-head">
@@ -307,23 +254,27 @@ function Content(p){
           ${current.attendance?html`<span><i class="fa-solid fa-users"></i> ${Number(current.attendance).toLocaleString()} attendance</span>`:null}
         </div>
       </div>
-      <div class="card-title"><span><i class="fa-solid fa-chart-column"></i> Club Tracker Match Statistics</span></div>
-      ${has?html`<section class="schema-card" style="margin-bottom:10px"><div class="schema-head">MATCH CONTROL</div><div class="schema-body" style="grid-template-columns:1fr"><div class="metric"><span>Possession</span><b>${fmt(snapshot.possession?.home??50)}% – ${fmt(snapshot.possession?.away??50)}%</b></div></div></section>`:null}
-      ${has?TRACKER_SCHEMA.map(group=>html`<section class="schema-card" style="margin-bottom:10px">
-        <div class="schema-head">${group.title}</div>
-        <div class="schema-body" style="grid-template-columns:1fr">
-          ${group.fields.map(([key,label])=>{
-            const hv=metricCount(homeEvents,key),av=metricCount(awayEvents,key),total=hv+av;
-            const rows=detailDefinitions(key);
-            return html`<div class="tracker-metric-detail" style="border:1px solid var(--border);border-radius:7px;padding:8px;margin-bottom:5px">
-              <div class="compare-label"><b>${hv}</b><span>${label}</span><b>${av}</b></div>
-              ${rows.length?html`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:5px;margin-top:7px">
-                ${rows.map(row=>html`<div class="metric" key=${row.value}><span>${row.label}</span><b>${homeEvents.filter(e=>eventMetric(e)===key&&(!row.outcome||String(e.outcome||'').toLowerCase()===row.outcome)&&(!row.type||String(e.type||'').toLowerCase()===row.type)).length} – ${awayEvents.filter(e=>eventMetric(e)===key&&(!row.outcome||String(e.outcome||'').toLowerCase()===row.outcome)&&(!row.type||String(e.type||'').toLowerCase()===row.type)).length}</b></div>`)}
-              </div>`:null}
-            </div>`;
+      <div class="card-title"><span><i class="fa-solid fa-chart-column"></i> Match Statistics</span></div>
+      ${has?COMPARE.filter(([k])=>n(hs[k])!==null||n(as[k])!==null).map(([k,label,unit])=>{
+        const hv=n(hs[k]),av=n(as[k]),total=(hv||0)+(av||0),hp=total?((hv||0)/total*100):50,ap=total?((av||0)/total*100):50;
+        return html`<div class="compare-row" key=${k}><div class="compare-label"><b>${hv===null?'—':fmt(hv)+unit}</b><span>${label}</span><b>${av===null?'—':fmt(av)+unit}</b></div><div class="bar"><span style=${{width:hp+'%'}}></span><span style=${{width:ap+'%'}}></span></div></div>`;
+      }):html`<div class="empty">No recorded home/away statistics are attached to this match.</div>`}
+      ${current.club_metric_breakdown?html`<details open style="margin-top:14px;border:1px solid var(--border);border-radius:8px;padding:10px;">
+        <summary style="cursor:pointer;color:var(--primary);font-weight:900;">Complete submitted metric records and subtypes</summary>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:10px;">
+          ${[['home',homeName(current)],['away',awayName(current)]].map(([side,name])=>{
+            const entries=Object.values(current.club_metric_breakdown?.[side]||{});
+            return html`<section style="border:1px solid var(--border);border-radius:7px;padding:9px;min-width:0;"><b style=${{display:'block',marginBottom:'6px',color:side==='home'?'var(--primary)':'var(--danger)'}}>${name}</b>
+              ${entries.length?entries.map(item=>html`<div key=${item.key} style="padding:6px 0;border-top:1px solid #f0f4f8;">
+                <div style="display:flex;justify-content:space-between;gap:8px;font-size:.75rem;"><b>${item.label||item.key}</b><b>${item.count}</b></div>
+                ${Object.keys(item.outcomes||{}).length?html`<small style="display:block;color:var(--muted);">Outcomes: ${Object.entries(item.outcomes).map(([k,v])=>`${k.replace(/_/g,' ')}: ${v}`).join(' · ')}</small>`:null}
+                ${Object.keys(item.types||{}).length?html`<small style="display:block;color:var(--muted);">Types: ${Object.entries(item.types).map(([k,v])=>`${k.replace(/_/g,' ')}: ${v}`).join(' · ')}</small>`:null}
+                ${(item.events||[]).map((ev,i)=>html`<small key=${i} style="display:block;color:var(--muted);">${[ev.match_clock,ev.outcome_label||ev.outcome,ev.type_label||ev.type,ev.detail_label||ev.detail].filter(Boolean).join(' · ')||'Recorded event'}</small>`)}
+              </div>`):html`<small style="color:var(--muted);">No events recorded</small>`}
+            </section>`;
           })}
         </div>
-      </section>`):html`<div class="empty">No submitted club-tracker event statistics are attached to this match.</div>`}
+      </details>`:null}
     </article>`;
   };
 
@@ -340,7 +291,7 @@ function Content(p){
     </div>
     <nav class="tabs">
       <button class=${'tab '+(view==='summary'?'active':'')} onClick=${()=>setView('summary')}><i class="fa-solid fa-chart-pie"></i> Summary</button>
-      <button class=${'tab '+(view==='detailed'?'active':'')} onClick=${()=>setView('detailed')}><i class="fa-solid fa-table"></i> Detailed Club Tracker Stats</button>
+      <button class=${'tab '+(view==='detailed'?'active':'')} onClick=${()=>setView('detailed')}><i class="fa-solid fa-table"></i> Detailed Match Stats</button>
     </nav>
     ${view==='summary'?html`
       <section class="card">
@@ -354,7 +305,7 @@ function Content(p){
       </section>`
     :html`
       <section class="card">
-        <div class="card-title"><span><i class="fa-solid fa-table"></i> Detailed Club Tracker Stats</span><span>${filtered.length} match${filtered.length===1?'':'es'}</span></div>
+        <div class="card-title"><span><i class="fa-solid fa-table"></i> Detailed Match Stats</span><span>${filtered.length} match${filtered.length===1?'':'es'}</span></div>
         <input class="search" type="search" value=${search} onInput=${e=>setSearch(e.currentTarget.value)} placeholder="Search opponent, competition or venue…"/>
         ${!filtered.length
           ?html`<div class="empty"><i class="fa-solid fa-futbol"></i>No detailed match stats available${search?' for this search':' yet'}.</div>`
