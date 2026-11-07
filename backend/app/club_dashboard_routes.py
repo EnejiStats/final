@@ -812,6 +812,10 @@ async def _club_tracker_context(uid: str, club: dict):
     linked_ids = set()
     for request_doc in request_docs:
         linked_ids.update(_submission_request_ids(request_doc))
+        for key in ("_id", "id", "reference_id", "request_id"):
+            value = request_doc.get(key)
+            if value not in (None, ""):
+                linked_ids.add(str(value))
 
     if linked_ids and dco_assignments_collection is not None:
         linked_list = list(linked_ids)
@@ -830,10 +834,19 @@ async def _club_tracker_context(uid: str, club: dict):
         )
         for assignment in assignments:
             linked_ids.update(_submission_request_ids(assignment))
+            for key in ("_id", "id", "assignment_id", "reference_id"):
+                value = assignment.get(key)
+                if value not in (None, ""):
+                    linked_ids.add(str(value))
     return ids, linked_ids, request_docs, _request_lookup(request_docs)
 
 
 def _tracker_submission_query(ids: set, linked_ids: set, club: dict) -> Optional[dict]:
+    """Build a database query restricted to persisted club/request ownership identifiers.
+
+    Display names are deliberately excluded: two clubs can share a name, and a name-only
+    join could expose another club's submitted statistics.
+    """
     conditions = []
     if linked_ids:
         values = list(linked_ids)
@@ -843,20 +856,9 @@ def _tracker_submission_query(ids: set, linked_ids: set, club: dict) -> Optional
             {"stats_request_id": {"$in": values}},
             {"request_id": {"$in": values}},
         ])
-    for field in ("club_id", "user_id", "clubId"):
-        if ids:
+    if ids:
+        for field in ("club_id", "user_id", "clubId"):
             conditions.append({field: {"$in": list(ids)}})
-    names = {
-        str(value).strip()
-        for value in (club.get("club_name"), club.get("name"))
-        if value and str(value).strip()
-    }
-    for name in names:
-        escaped = "^" + re.escape(name) + "$"
-        conditions.extend([
-            {"home_team": {"$regex": escaped, "$options": "i"}},
-            {"away_team": {"$regex": escaped, "$options": "i"}},
-        ])
     if not conditions:
         return None
     return {
@@ -894,15 +896,9 @@ def _tracker_record_matches_club(
     }
     if direct_ids & ids:
         return True
-    own_names = {
-        _club_name_key(value)
-        for value in (club.get("club_name"), club.get("name"))
-        if value
-    }
-    return any(
-        _club_name_key(record.get(key)) in own_names
-        for key in ("home_team", "away_team", "home_team_name", "away_team_name")
-    )
+    # No display-name fallback here. Ownership must be established through
+    # the authenticated club identifiers or the club's persisted request IDs.
+    return False
 
 
 def _match_report_stats_shape(flat: Dict[str, Any]) -> Dict[str, Any]:

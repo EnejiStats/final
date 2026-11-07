@@ -44,6 +44,37 @@ from pydantic import BaseModel
 from pymongo.errors import DuplicateKeyError
 
 
+# Exact club-team metric controls exposed by ClubStatsTracker in stats-tracker.html.
+# These keys intentionally exclude individual-player-only statistics.
+_CLUB_TRACKER_FIELD_REGISTRY = {
+    "passes": {
+        "types": {"short_medium", "long", "through_ball"},
+        "outcomes": {"successful", "unsuccessful"},
+    },
+    "crosses": {
+        "types": {"open_play", "cutback", "set_piece"},
+        "outcomes": {"successful", "unsuccessful"},
+    },
+    "goals": {"types": {"header", "shot", "penalty"}, "outcomes": set()},
+    "assists": {"types": {"open_play", "set_piece", "transition"}, "outcomes": set()},
+    "shots": {
+        "types": {"foot", "header", "set_piece"},
+        "outcomes": {"on_target", "off_target", "blocked", "woodwork"},
+    },
+    "corners": {"types": {"corner_kick"}, "outcomes": set()},
+    "interceptions": {"types": {"pass", "cross", "shot"}, "outcomes": set()},
+    "duels": {"types": {"aerial"}, "outcomes": set()},
+    "tackles": {
+        "types": {"standing", "sliding", "pressing"},
+        "outcomes": {"won", "lost", "foul"},
+    },
+    "saves": {"types": {"open_play", "close", "set_piece"}, "outcomes": set()},
+    "offsides": {"types": {"attacking", "set_piece", "other"}, "outcomes": set()},
+    "cards": {"types": {"yellow", "second_yellow", "red"}, "outcomes": set()},
+    "fouls_committed": {"types": {"tactical", "handball", "dangerous"}, "outcomes": set()},
+}
+
+
 router = APIRouter(tags=["Stats tracker"])
 
 _READY = False
@@ -1403,9 +1434,18 @@ def _normalise_club_tracking(
             or raw_event.get("metric_key")
             or raw_event.get("metric")
             or ""
-        ).strip()
+        ).strip().lower()
         if not metric_key or len(metric_key) > 100:
             raise ValueError(f"{field}.key must contain 1 to 100 characters")
+        metric_definition = _CLUB_TRACKER_FIELD_REGISTRY.get(metric_key)
+        if metric_definition is None:
+            raise ValueError(f"{field}.key is not a supported club-tracker metric")
+        event_type = str(raw_event.get("type") or "").strip().lower()
+        event_outcome = str(raw_event.get("outcome") or "").strip().lower()
+        if event_type and event_type not in metric_definition["types"]:
+            raise ValueError(f"{field}.type is not valid for {metric_key}")
+        if event_outcome and event_outcome not in metric_definition["outcomes"]:
+            raise ValueError(f"{field}.outcome is not valid for {metric_key}")
 
         event_id = str(
             raw_event.get("eventId")
@@ -1480,13 +1520,13 @@ def _normalise_club_tracking(
                     or raw_event.get("metric_label")
                     or metric_key.replace("_", " ").title()
                 ),
-                "outcome": raw_event.get("outcome"),
+                "outcome": event_outcome or None,
                 "outcome_label": (
                     raw_event.get("outcomeLabel")
                     or raw_event.get("outcome_label")
                     or ""
                 ),
-                "type": raw_event.get("type"),
+                "type": event_type or None,
                 "type_label": raw_event.get("typeLabel") or raw_event.get("type_label") or "",
                 "recorded_at": (
                     raw_event.get("recordedAt")
