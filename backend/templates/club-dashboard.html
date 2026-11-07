@@ -1280,7 +1280,7 @@
           const results = await Promise.allSettled([
             apiCall('/club/' + uid + '/profile'),
             apiCall('/club/' + uid + '/stats/summary'),
-            apiCall('/club/' + uid + '/matches'),
+            apiCall('/club/' + uid + '/matches?limit=1000&page=1'),
             apiCall('/club/' + uid + '/upcoming-fixtures'),
             apiCall('/club/' + uid + '/tokens'),
             apiCall('/club/' + uid + '/notifications'),
@@ -1396,7 +1396,7 @@
         goTab('match-centre');
       };
 
-      // Single source of truth: both child tabs receive the same payload; they never fetch shared data themselves.
+      // Single source of truth: both child tabs receive the same authenticated database-backed payload; they never use browser-local statistics data.
       const initPayload = useMemo(() => ({
         type: 'INIT', clubId, apiId, clubName, club, tokens, tokenCosts, squadPlayers,
         matches: matchData, fixtures, competitions, statsRequests, matchRequests, countries,
@@ -1433,7 +1433,7 @@
         const job = (cond, path, apply) => { if (cond) jobs.push(apiCall(base + path).then(apply).catch(() => null)); };
         job(want.has('tokens'), '/tokens', d => { if (d) setTokens(d); });
         job(want.has('transactions'), '/transactions', d => setTransactions(asArray(d, 'transactions')));
-        job(want.has('matches'), '/matches', d => setMatchData(asArray(d, 'matches')));
+        job(want.has('matches'), '/matches?limit=1000&page=1', d => setMatchData(asArray(d, 'matches')));
         job(want.has('summary') || want.has('matches'), '/stats/summary', d => { if (d) { setSeasonStats(d.season_stats || d.stats || {}); setSummaryStats(d.summary_stats || d.summary || {}); } });
         job(want.has('fixtures'), '/upcoming-fixtures', d => setFixtures(asArray(d, 'fixtures')));
         job(want.has('statsRequests'), '/stats-requests', d => setStatsRequests(asArray(d, 'requests')));
