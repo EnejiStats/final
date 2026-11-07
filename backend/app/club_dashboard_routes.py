@@ -651,11 +651,13 @@ def _canonical_club_metrics(raw: Dict[str, Any]) -> Dict[str, float]:
 
 
 def _club_event_metrics(events: Any, side: str) -> Dict[str, float]:
-    """Use the tracker's normalized club event stream when totals are absent."""
+    """Derive the full club metric set, including every recorded subtype/outcome."""
     totals: Dict[str, float] = {}
-    if not isinstance(events, list):
-        return totals
-    for event in events:
+
+    def inc(key: str, amount: float = 1) -> None:
+        totals[key] = totals.get(key, 0) + amount
+
+    for event in events if isinstance(events, list) else []:
         if not isinstance(event, dict):
             continue
         team = _club_key(
@@ -663,43 +665,152 @@ def _club_event_metrics(events: Any, side: str) -> Dict[str, float]:
         )
         if team not in {side, side + "_team", side + "_club"}:
             continue
-        key = _club_key(
+
+        metric = _club_key(
             event.get("metric_key") or event.get("metric") or event.get("key")
         )
-        event_type = _club_key(event.get("type") or event.get("event_type"))
         outcome = _club_key(event.get("outcome") or event.get("outcome_label"))
-        if key in {"goal", "goals", "goal_scored"} or event_type in {"goal", "goal_scored"}:
-            totals["goals_for"] = totals.get("goals_for", 0) + 1
-            continue
-        canonical = _CLUB_ALIAS_TO_METRIC.get(key)
-        if canonical:
-            totals[canonical] = totals.get(canonical, 0) + 1
-        elif key in {"pass", "passing"} or event_type in {"pass", "passing"}:
-            totals["passes_total"] = totals.get("passes_total", 0) + 1
-            if any(word in outcome for word in ("accurate", "complete", "success")):
-                totals["passes_accurate"] = totals.get("passes_accurate", 0) + 1
-        elif key in {"cross", "crossing"} or event_type in {"cross", "crossing"}:
-            totals["crosses_total"] = totals.get("crosses_total", 0) + 1
-            if any(word in outcome for word in ("accurate", "complete", "success")):
-                totals["crosses_accurate"] = totals.get("crosses_accurate", 0) + 1
-        elif key in {"tackle", "tackling"} or event_type in {"tackle", "tackling"}:
-            totals["tackles_total"] = totals.get("tackles_total", 0) + 1
-            if any(word in outcome for word in ("won", "success")):
-                totals["tackles_won"] = totals.get("tackles_won", 0) + 1
-        elif key in {"shot", "shooting"} or event_type in {"shot", "shooting"}:
-            totals["shots_total"] = totals.get("shots_total", 0) + 1
-            if any(word in outcome for word in ("on_target", "on_goal", "target")):
-                totals["shots_on_target"] = totals.get("shots_on_target", 0) + 1
+        subtype = _club_key(
+            event.get("type") or event.get("type_label") or event.get("detail")
+        )
 
-        if key in {"card", "cards"} or event_type in {"card", "yellow_card", "red_card"}:
-            card = _club_key(
-                event.get("card_type") or event.get("type_label") or outcome
-            )
-            if "yellow" in card or event_type == "yellow_card":
-                totals["yellow_cards"] = totals.get("yellow_cards", 0) + 1
-            elif "red" in card or event_type == "red_card":
-                totals["red_cards"] = totals.get("red_cards", 0) + 1
+        # Main action totals and the full result/subtype splits recorded by the
+        # Stats Tracker's CLUB_TRACKER_METRIC_SECTIONS.
+        if metric in {"goal", "goals", "goal_scored"}:
+            inc("goals_for")
+            if subtype in {"header", "shot", "penalty"}:
+                inc({"header": "header_goals", "shot": "shot_goals", "penalty": "penalty_goals"}[subtype])
+        elif metric in {"pass", "passes", "passing"}:
+            inc("passes_total")
+            if outcome in {"successful", "success", "accurate", "complete", "completed"}:
+                inc("passes_accurate")
+            elif outcome in {"unsuccessful", "failure", "failed", "inaccurate", "misplaced"}:
+                inc("passes_unsuccessful")
+            type_key = {
+                "short_medium": "short_passes",
+                "short": "short_passes",
+                "medium": "medium_passes",
+                "long": "long_passes",
+                "through_ball": "through_balls",
+            }.get(subtype)
+            if type_key:
+                inc(type_key)
+                inc(type_key + ("_successful" if outcome in {"successful", "success", "accurate", "complete", "completed"} else "_unsuccessful" if outcome in {"unsuccessful", "failure", "failed", "inaccurate", "misplaced"} else "_unspecified"))
+        elif metric in {"cross", "crosses", "crossing"}:
+            inc("crosses_total")
+            if outcome in {"successful", "success", "accurate", "complete", "completed"}:
+                inc("crosses_accurate")
+            elif outcome in {"unsuccessful", "failure", "failed", "inaccurate"}:
+                inc("crosses_unsuccessful")
+            if subtype in {"open_play", "cutback", "set_piece"}:
+                inc("crosses_" + subtype)
+        elif metric in {"shot", "shots", "shooting"}:
+            inc("shots_total")
+            shot_outcome = {
+                "on_target": "shots_on_target", "off_target": "shots_off_target",
+                "blocked": "shots_blocked", "woodwork": "shots_woodwork",
+            }.get(outcome)
+            if shot_outcome:
+                inc(shot_outcome)
+            if subtype in {"foot", "header", "set_piece"}:
+                inc("shots_" + subtype)
+        elif metric in {"assist", "assists"}:
+            inc("assists")
+            if subtype in {"open_play", "set_piece", "transition"}:
+                inc("assists_" + subtype)
+        elif metric in {"corner", "corners", "corner_kick"}:
+            inc("corners")
+        elif metric in {"interception", "interceptions"}:
+            inc("interceptions")
+            if subtype in {"pass", "cross", "shot"}:
+                inc("interceptions_" + subtype)
+        elif metric in {"duel", "duels"}:
+            inc("duels_total")
+            if subtype == "aerial":
+                inc("aerial_duels_total")
+            if outcome in {"won", "successful", "success"}:
+                inc("duels_won")
+                if subtype == "aerial": inc("aerial_duels_won")
+            elif outcome in {"lost", "unsuccessful", "failure"}:
+                inc("duels_lost")
+                if subtype == "aerial": inc("aerial_duels_lost")
+        elif metric in {"tackle", "tackles", "tackling"}:
+            inc("tackles_total")
+            if outcome in {"won", "successful", "success"}:
+                inc("tackles_won")
+            elif outcome in {"lost", "unsuccessful", "failure"}:
+                inc("tackles_lost")
+            elif outcome == "foul":
+                inc("fouls_committed")
+            if subtype in {"standing", "sliding", "pressing"}:
+                inc("tackles_" + subtype)
+        elif metric in {"save", "saves"}:
+            inc("saves")
+            if subtype in {"open_play", "close", "set_piece"}:
+                inc("saves_" + subtype)
+        elif metric in {"offside", "offsides"}:
+            inc("offsides")
+            if subtype in {"attacking", "set_piece", "other"}:
+                inc("offsides_" + subtype)
+        elif metric in {"card", "cards"}:
+            inc("cards_total")
+            card_type = subtype or outcome
+            if card_type in {"yellow", "yellow_card"}:
+                inc("yellow_cards")
+            elif card_type in {"second_yellow", "second_yellow_card"}:
+                inc("second_yellow_cards")
+                inc("yellow_cards")
+                inc("red_cards")
+            elif card_type in {"red", "straight_red", "red_card"}:
+                inc("red_cards")
+        elif metric in {"foul", "fouls", "fouls_committed"}:
+            inc("fouls_committed")
+            if subtype in {"tactical", "handball", "dangerous"}:
+                inc("fouls_" + subtype)
+
     return totals
+
+
+def _club_event_breakdown(events: Any, side: str) -> Dict[str, dict]:
+    """Retain per-metric counts, outcome/type distributions and original events."""
+    result: Dict[str, dict] = {}
+    for event in events if isinstance(events, list) else []:
+        if not isinstance(event, dict):
+            continue
+        team = _club_key(event.get("team") or event.get("club_team") or event.get("team_side"))
+        if team not in {side, side + "_team", side + "_club"}:
+            continue
+        key = _club_key(event.get("metric_key") or event.get("metric") or event.get("key"))
+        if not key:
+            continue
+        item = result.setdefault(key, {
+            "key": key,
+            "label": event.get("metric_label") or event.get("metricLabel") or key.replace("_", " ").title(),
+            "count": 0, "outcomes": {}, "types": {}, "events": [],
+        })
+        item["count"] += 1
+        outcome = _club_key(event.get("outcome") or event.get("outcome_label"))
+        subtype = _club_key(event.get("type") or event.get("type_label") or event.get("detail"))
+        if outcome:
+            item["outcomes"][outcome] = item["outcomes"].get(outcome, 0) + 1
+        if subtype:
+            item["types"][subtype] = item["types"].get(subtype, 0) + 1
+        item["events"].append({
+            "event_id": event.get("event_id") or event.get("eventId") or event.get("id"),
+            "metric_key": key,
+            "metric_label": item["label"],
+            "outcome": event.get("outcome"),
+            "outcome_label": event.get("outcome_label") or event.get("outcomeLabel"),
+            "type": event.get("type"),
+            "type_label": event.get("type_label") or event.get("typeLabel"),
+            "detail": event.get("detail"),
+            "detail_label": event.get("detail_label") or event.get("detailLabel"),
+            "period": event.get("period") or event.get("half"),
+            "match_time": event.get("match_time") or event.get("absolute_match_time") or event.get("absoluteMatchTime"),
+            "match_clock": event.get("match_clock") or event.get("matchClock"),
+            "recorded_at": event.get("recorded_at") or event.get("recordedAt") or event.get("timestamp"),
+        })
+    return result
 
 
 def _tracker_timeline_events(events: Any) -> List[dict]:
@@ -758,20 +869,29 @@ def _tracker_timeline_events(events: Any) -> List[dict]:
 
 
 def _submission_request_ids(record: Dict[str, Any]) -> set:
+    """Collect every persisted request/assignment identity used by either writer."""
+    if not isinstance(record, dict):
+        return set()
     values = []
-    for key in ("assignment_id", "stats_request_id", "request_id", "reference_id"):
+    for key in ("_id", "id", "assignment_id", "assignmentId", "stats_request_id",
+                "statsRequestId", "request_id", "requestId", "reference_id", "referenceId"):
         values.append(record.get(key))
-    for key in ("assignment_ids", "request_ids"):
+    for key in ("assignment_ids", "assignmentIds", "request_ids", "requestIds", "linked_ids"):
         items = record.get(key)
         if isinstance(items, list):
             values.extend(items)
+    for key in ("stats_request", "statsRequest", "request", "assignment"):
+        nested = record.get(key)
+        if isinstance(nested, dict):
+            values.extend(_submission_request_ids(nested))
     return {str(value).strip() for value in values if value not in (None, "")}
 
 
 def _request_lookup(request_docs: List[dict]) -> Dict[str, dict]:
     lookup: Dict[str, dict] = {}
     for doc in request_docs:
-        for key in ("_id", "id", "request_id", "assignment_id", "reference_id"):
+        for key in ("_id", "id", "request_id", "requestId", "stats_request_id", "statsRequestId",
+                    "assignment_id", "assignmentId", "reference_id", "referenceId"):
             value = doc.get(key)
             if value not in (None, ""):
                 lookup[str(value)] = doc
@@ -789,7 +909,7 @@ async def _club_tracker_context(uid: str, club: dict):
         if value not in (None, "")
     }
     owner_or = []
-    for field in ("club_id", "user_id", "unique_id", "owner_id"):
+    for field in ("club_id", "clubId", "user_id", "userId", "unique_id", "uniqueId", "owner_id", "ownerId"):
         owner_or.extend({field: value} for value in ids)
     object_ids = []
     for value in ids:
@@ -798,6 +918,8 @@ async def _club_tracker_context(uid: str, club: dict):
                 object_ids.append(ObjectId(value))
         except Exception:
             pass
+    for field in ("club_id", "clubId", "user_id", "userId", "unique_id", "uniqueId", "owner_id", "ownerId"):
+        owner_or.extend({field: value} for value in object_ids)
     owner_or.extend({"_id": value} for value in object_ids)
 
     request_docs: List[dict] = []
@@ -812,18 +934,26 @@ async def _club_tracker_context(uid: str, club: dict):
     linked_ids = set()
     for request_doc in request_docs:
         linked_ids.update(_submission_request_ids(request_doc))
-        for key in ("_id", "id", "reference_id", "request_id"):
-            value = request_doc.get(key)
-            if value not in (None, ""):
-                linked_ids.add(str(value))
 
     if linked_ids and dco_assignments_collection is not None:
         linked_list = list(linked_ids)
+        linked_values = list(linked_list)
+        for value in linked_list:
+            try:
+                if ObjectId.is_valid(value):
+                    linked_values.append(ObjectId(value))
+            except Exception:
+                pass
         assignment_filter = {
             "$or": [
-                {"stats_request_id": {"$in": linked_list}},
-                {"request_id": {"$in": linked_list}},
-                {"assignment_id": {"$in": linked_list}},
+                {"stats_request_id": {"$in": linked_values}},
+                {"statsRequestId": {"$in": linked_values}},
+                {"request_id": {"$in": linked_values}},
+                {"requestId": {"$in": linked_values}},
+                {"assignment_id": {"$in": linked_values}},
+                {"assignmentId": {"$in": linked_values}},
+                {"reference_id": {"$in": linked_values}},
+                {"referenceId": {"$in": linked_values}},
             ]
         }
         assignments = await (
@@ -834,19 +964,10 @@ async def _club_tracker_context(uid: str, club: dict):
         )
         for assignment in assignments:
             linked_ids.update(_submission_request_ids(assignment))
-            for key in ("_id", "id", "assignment_id", "reference_id"):
-                value = assignment.get(key)
-                if value not in (None, ""):
-                    linked_ids.add(str(value))
     return ids, linked_ids, request_docs, _request_lookup(request_docs)
 
 
 def _tracker_submission_query(ids: set, linked_ids: set, club: dict) -> Optional[dict]:
-    """Build a database query restricted to persisted club/request ownership identifiers.
-
-    Display names are deliberately excluded: two clubs can share a name, and a name-only
-    join could expose another club's submitted statistics.
-    """
     conditions = []
     if linked_ids:
         values = list(linked_ids)
@@ -856,8 +977,8 @@ def _tracker_submission_query(ids: set, linked_ids: set, club: dict) -> Optional
             {"stats_request_id": {"$in": values}},
             {"request_id": {"$in": values}},
         ])
-    if ids:
-        for field in ("club_id", "user_id", "clubId"):
+    for field in ("club_id", "user_id", "clubId"):
+        if ids:
             conditions.append({field: {"$in": list(ids)}})
     if not conditions:
         return None
@@ -896,8 +1017,6 @@ def _tracker_record_matches_club(
     }
     if direct_ids & ids:
         return True
-    # No display-name fallback here. Ownership must be established through
-    # the authenticated club identifiers or the club's persisted request IDs.
     return False
 
 
@@ -987,9 +1106,11 @@ def _tracker_match_document(
     else:
         side = None
     if side is None:
-        if _club_name_key(home_name) in club_names:
+        home_is_club = _club_name_key(home_name) in club_names
+        away_is_club = _club_name_key(away_name) in club_names
+        if home_is_club and not away_is_club:
             side = "home"
-        elif _club_name_key(away_name) in club_names:
+        elif away_is_club and not home_is_club:
             side = "away"
 
     home_raw: Dict[str, Any] = {}
@@ -1093,10 +1214,20 @@ def _tracker_match_document(
         "away_team_id": away_team_id,
         "home_club_id": home_team_id if side == "home" else record.get("home_club_id"),
         "away_club_id": away_team_id if side == "away" else record.get("away_club_id"),
-        "home_stats": home_report_stats,
-        "away_stats": away_report_stats,
-        "team_stats": {"home": home_report_stats, "away": away_report_stats},
+        # The Club Match Centre and Club Stats Tab consume flat canonical
+        # metric dictionaries. Keep the grouped MatchReport representation
+        # separate so one consumer's schema cannot hide metrics from another.
+        "home_stats": home_stats,
+        "away_stats": away_stats,
+        "team_stats": {"home": home_stats, "away": away_stats},
+        "home_report_stats": home_report_stats,
+        "away_report_stats": away_report_stats,
         "club_stats": (home_stats if side == "home" else away_stats if side == "away" else {}),
+        "club_metric_breakdown": {
+            "home": _club_event_breakdown(events, "home"),
+            "away": _club_event_breakdown(events, "away"),
+        },
+        "club_tracking": tracking,
         "result": result_code,
         "competition": pick(raw_match.get("competition"), record.get("competition"), request_doc.get("competition"), default=""),
         "venue": pick(raw_match.get("venue_name"), raw_match.get("venue"), record.get("venue"), default=""),
@@ -1148,6 +1279,7 @@ async def _club_match_records(
                     "submission_id": {"$in": event_ids},
                     "entity_type": "club",
                 })
+                .sort("event_order", 1)
                 .limit(20000)
                 .to_list(length=20000)
             )
